@@ -13,7 +13,7 @@
   <p><em>Ready to use directly in your browser right now — No installation required!</em></p>
 </div>
 
----
+--- 
 
 ## ✨ Current Status
 
