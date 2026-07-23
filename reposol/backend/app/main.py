@@ -9,10 +9,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import router
 from app.import_routes import import_router
+from app.storage import sync_master_templates
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    sync_master_templates()
     yield
+
 
 app = FastAPI(
     title="Reposol OSCAL Management Backend",

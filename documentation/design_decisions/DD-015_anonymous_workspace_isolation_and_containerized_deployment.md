@@ -1,14 +1,14 @@
 # DD-015: Anonymous Workspace Isolation & Containerized Fly.io Deployment
 
 ## Status: Accepted
-## Date: 2026-07-23
+## Date: 2026-07-24
 ## Decision Makers: Development Team
 
 ## Context
 Reposol is being prepared for public online demonstration and open-source self-hosting.
 When hosted publicly without authentication, multiple concurrent users editing documents against a shared storage directory would overwrite each other's OSCAL files. Furthermore, deploying separate frontend static hosting and backend API services introduces CORS configuration overhead and double maintenance.
 
-To solve this without creating a forced authentication barrier for public demo users, we need an architecture that provides isolated document scopes per browser session and allows single-container deployment (Option A) on platforms like Fly.io.
+To solve this without creating a forced authentication barrier for public demo users, we need an architecture that provides isolated document scopes per browser session and allows single-container deployment (Option A) on platforms like Fly.io with persistent data storage across container deployments.
 
 ## Decisions
 
@@ -22,16 +22,19 @@ To solve this without creating a forced authentication barrier for public demo u
 ### 2. Multi-Stage Docker Build Architecture
 A root `Dockerfile` defines a two-stage build:
 1. **Frontend Stage (`node:18-alpine`)**: Installs frontend dependencies and runs `npm run build` to generate `reposol/frontend/dist`.
-2. **Runtime Stage (`python:3.11-slim`)**: Installs backend Python dependencies (`requirements.txt`), copies `reposol/backend`, injects the built static `dist/` directory, and copies master templates (`COPY reposol/data/templates ./data/templates`).
+2. **Runtime Stage (`python:3.11-slim`)**: Installs backend Python dependencies (`requirements.txt`), copies `reposol/backend`, injects the built static `dist/` directory, and copies master templates to a seed location (`COPY reposol/data/templates /app/templates_seed`).
 
 ### 3. FastAPI Static Asset & SPA Route Serving
 In `reposol/backend/app/main.py`:
 - Static files are served at `/` using `fastapi.staticfiles.StaticFiles`.
 - A fallback handler serves `index.html` for non-API client-side routes to support direct URL navigation without 404 errors.
 
-### 4. Fly.io Deployment Configuration & Master Template Bundling
+### 4. Fly.io Persistent Volume Storage & Master Template Syncing
 - `fly.toml` specifies Fly.io app configuration, mapping internal port 8000 to public HTTP/HTTPS ports 80/443 in region `fra` (Frankfurt).
+- **Persistent Volume Mount**: A persistent Fly volume (`oscal_data`) is attached to `/app/data` via `[mounts] source = "oscal_data"`, `destination = "/app/data"`. This guarantees that user workspaces (`/app/data/workspaces/`), uploads (`/app/data/uploads/`), and user-modified files persist permanently across container deployments and restarts.
+- **Startup Master Template Synchronization**: Because mounting an external volume over `/app/data` masks pre-baked files in the Docker container image, master templates are copied to `/app/templates_seed` during image creation. On FastAPI backend startup (`main.py` lifespan / `storage.py` initialization), a helper function `sync_master_templates()` automatically copies/syncs updated master templates from `/app/templates_seed/` into `/app/data/templates/` on the mounted volume. This ensures new deployments instantly reflect updated master templates while keeping all user session workspaces completely untouched and persistent.
 - `.dockerignore` excludes temporary user session workspaces (`reposol/data/workspaces/*`) and uploads (`reposol/data/uploads/*`) while explicitly including master templates (`reposol/data/templates`) so they are available in remote container deployments.
+
 
 ### 5. Master Templates Admin Mode & Localhost Guard (`?w=master` / `?w=templates`)
 - When `workspace_id` is set to `"master"` or `"templates"` (via URL parameter `?w=master` or `?w=templates`), `storage.py` inspects the request origin.

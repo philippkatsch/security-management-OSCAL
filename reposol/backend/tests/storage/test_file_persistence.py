@@ -18,7 +18,9 @@ from app.storage import (
     get_document,
     save_document,
     delete_document,
+    sync_master_templates,
 )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # is_safe_subdir
@@ -186,3 +188,34 @@ class TestDeleteDocument:
         assert os.path.exists(file_path)
         delete_document("catalogs", doc_id)
         assert not os.path.exists(file_path)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# sync_master_templates
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSyncMasterTemplates:
+    def test_sync_copies_files_from_seed_to_templates(self, tmp_path):
+        seed_dir = tmp_path / "seed"
+        data_dir = tmp_path / "data"
+        templates_dir = data_dir / "templates"
+        catalogs_dir = seed_dir / "catalogs"
+        catalogs_dir.mkdir(parents=True)
+
+        sample_json = catalogs_dir / "sample.json"
+        sample_json.write_text('{"catalog": {"title": "Sample Catalog"}}')
+
+        with patch.dict(os.environ, {
+            "REPOSOL_DATA_DIR": str(data_dir),
+            "REPOSOL_TEMPLATES_SEED_DIR": str(seed_dir),
+        }, clear=False):
+            # Unset PYTEST_CURRENT_TEST in patch so sync runs
+            with patch.dict(os.environ, {"PYTEST_CURRENT_TEST": ""}):
+                with patch("app.storage.TEMPLATES_DIR", str(templates_dir)):
+                    with patch("app.storage.DATA_DIR", str(data_dir)):
+                        sync_master_templates()
+
+        target_file = templates_dir / "catalogs" / "sample.json"
+        assert target_file.exists()
+        assert "Sample Catalog" in target_file.read_text()
+

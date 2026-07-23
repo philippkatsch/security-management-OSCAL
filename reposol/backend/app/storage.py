@@ -13,6 +13,46 @@ BACKEND_DIR = os.path.dirname(APP_DIR)
 REPOSOL_DIR = os.path.dirname(BACKEND_DIR)
 DATA_DIR = os.path.abspath(os.environ.get("REPOSOL_DATA_DIR", os.path.join(REPOSOL_DIR, "data")))
 TEMPLATES_DIR = os.path.abspath(os.path.join(DATA_DIR, "templates"))
+TEMPLATES_SEED_DIR = os.environ.get("REPOSOL_TEMPLATES_SEED_DIR")
+
+def sync_master_templates():
+    """
+    Synchronizes pre-baked master templates into DATA_DIR/templates on persistent volumes.
+    Copies seed templates from REPOSOL_TEMPLATES_SEED_DIR (or fallback /app/templates_seed)
+    to DATA_DIR/templates. Does NOT touch workspaces or user data.
+    """
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+
+    data_dir = os.path.abspath(os.environ.get("REPOSOL_DATA_DIR", DATA_DIR))
+    templates_dir = os.path.abspath(os.path.join(data_dir, "templates"))
+    seed_dir = os.environ.get("REPOSOL_TEMPLATES_SEED_DIR", TEMPLATES_SEED_DIR)
+
+    if not seed_dir:
+        candidate_docker = "/app/templates_seed"
+        candidate_local = os.path.join(REPOSOL_DIR, "data", "templates")
+        if os.path.exists(candidate_docker) and os.path.isdir(candidate_docker):
+            seed_dir = candidate_docker
+        elif os.path.exists(candidate_local) and os.path.isdir(candidate_local):
+            seed_dir = candidate_local
+
+    if seed_dir and os.path.exists(seed_dir) and os.path.isdir(seed_dir):
+        # Avoid self-copying if seed_dir is identical to templates_dir
+        if os.path.realpath(seed_dir) == os.path.realpath(templates_dir):
+            return
+        os.makedirs(templates_dir, exist_ok=True)
+        for root, dirs, files in os.walk(seed_dir):
+            rel_path = os.path.relpath(root, seed_dir)
+            target_dir = os.path.abspath(os.path.join(templates_dir, rel_path))
+            os.makedirs(target_dir, exist_ok=True)
+            for file in files:
+                if file.endswith(".json"):
+                    src_file = os.path.join(root, file)
+                    dst_file = os.path.join(target_dir, file)
+                    if not os.path.exists(dst_file) or os.path.getmtime(src_file) > os.path.getmtime(dst_file):
+                        shutil.copy2(src_file, dst_file)
+
+
 
 UUID_PATTERN = re.compile(r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$")
 UUID_SEARCH_PATTERN = re.compile(r"[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
