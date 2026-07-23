@@ -5,7 +5,8 @@ node_modules
 dist
 reposol/frontend/node_modules
 reposol/frontend/dist
-reposol/data
+reposol/data/workspaces
+reposol/data/uploads
 *.md
 __pycache__
 *.pyc

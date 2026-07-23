@@ -22,16 +22,16 @@ To solve this without creating a forced authentication barrier for public demo u
 ### 2. Multi-Stage Docker Build Architecture
 A root `Dockerfile` defines a two-stage build:
 1. **Frontend Stage (`node:18-alpine`)**: Installs frontend dependencies and runs `npm run build` to generate `reposol/frontend/dist`.
-2. **Runtime Stage (`python:3.11-slim`)**: Installs backend Python dependencies (`requirements.txt`), copies `reposol/backend`, and injects the built static `dist/` directory.
+2. **Runtime Stage (`python:3.11-slim`)**: Installs backend Python dependencies (`requirements.txt`), copies `reposol/backend`, injects the built static `dist/` directory, and copies master templates (`COPY reposol/data/templates ./data/templates`).
 
 ### 3. FastAPI Static Asset & SPA Route Serving
 In `reposol/backend/app/main.py`:
 - Static files are served at `/` using `fastapi.staticfiles.StaticFiles`.
 - A fallback handler serves `index.html` for non-API client-side routes to support direct URL navigation without 404 errors.
 
-### 4. Fly.io Deployment Configuration
+### 4. Fly.io Deployment Configuration & Master Template Bundling
 - `fly.toml` specifies Fly.io app configuration, mapping internal port 8000 to public HTTP/HTTPS ports 80/443 in region `fra` (Frankfurt).
-- `.dockerignore` excludes unnecessary files (`node_modules`, `.git`, `__pycache__`, local `.env` files) to ensure fast Docker context builds.
+- `.dockerignore` excludes temporary user session workspaces (`reposol/data/workspaces/*`) and uploads (`reposol/data/uploads/*`) while explicitly including master templates (`reposol/data/templates`) so they are available in remote container deployments.
 
 ### 5. Master Templates Admin Mode & Localhost Guard (`?w=master` / `?w=templates`)
 - When `workspace_id` is set to `"master"` or `"templates"` (via URL parameter `?w=master` or `?w=templates`), `storage.py` inspects the request origin.

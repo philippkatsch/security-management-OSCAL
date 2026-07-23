@@ -25,6 +25,9 @@ COPY reposol/backend ./backend
 # Copy Built Frontend Assets from Stage 1 into /app/frontend/dist
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
+# Copy Master Seed Templates
+COPY reposol/data/templates ./data/templates
+
 # Create data directory and set permissions for non-root user
 RUN mkdir -p /app/data && chown -R reposol:reposol /app
 
