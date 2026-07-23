@@ -1,0 +1,53 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+
+# Editor/OS specific files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# OSCAL-Pages and reference repos
+/OSCAL-Pages/
+/oscal-reference/
+
+# Node.js
+node_modules/
+dist/
+
+# Ignore generated user session workspaces (except .gitkeep)
+reposol/data/workspaces/*
+!reposol/data/workspaces/.gitkeep
+
+# Ignore temporary uploads (except .gitkeep)
+reposol/data/uploads/*
+!reposol/data/uploads/.gitkeep
+
+# Master templates in reposol/data/templates/ are tracked in git (except drafts)
+reposol/data/templates/**/*_draft.json
+
+# Agents workspace (only track AGENTS.md / agent.md and skills/)
+.agents/*
+!.agents/AGENTS.md
+!.agents/agent.md
+!.agents/skills/
+!.agents/skills/**
+
+

@@ -1,0 +1,78 @@
+{
+  "profile": {
+    "uuid": "5ec43c17-79f5-49b4-ab52-e39f22baa91d",
+    "metadata": {
+      "title": "my-test",
+      "last-modified": "2026-07-23T21:21:27Z",
+      "version": "1.2.0",
+      "oscal-version": "1.1.2",
+      "revisions": [
+        {
+          "version": "1.2.0",
+          "last-modified": "2026-07-23T21:21:27Z",
+          "oscal-version": "1.1.2",
+          "remarks": "Version saved"
+        },
+        {
+          "version": "1.1.0",
+          "last-modified": "2026-07-23T21:20:24Z",
+          "oscal-version": "1.1.2",
+          "remarks": "Version saved"
+        }
+      ]
+    },
+    "imports": [
+      {
+        "href": "/api/documents/catalogs/712a37be-9685-4c25-99d6-f7a193a36468",
+        "include-all": {}
+      }
+    ],
+    "modify": {
+      "alters": [
+        {
+          "control-id": "GV.OC",
+          "removes": [
+            {
+              "by-id": "GV.OC_statement"
+            }
+          ],
+          "adds": [
+            {
+              "position": "after",
+              "by-id": "GV.OC_statement",
+              "parts": [
+                {
+                  "id": "GV.OC_statement_modified",
+                  "name": "statement",
+                  "prose": "{{ insert: param, param_4440 }}The circumstances - mission, stakeholder expectations, dependencies, and legal, regulatory, and contractual requirements - surrounding the organization's cybersecurity risk management decisions are understood"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "control-id": "c1",
+          "adds": [
+            {
+              "position": "ending",
+              "props": [
+                {
+                  "name": "new profile property",
+                  "value": "xy"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "set-parameters": [
+        {
+          "param-id": "my_parameter-01",
+          "values": [
+            "any parameter set"
+          ]
+        }
+      ]
+    }
+  }
+}

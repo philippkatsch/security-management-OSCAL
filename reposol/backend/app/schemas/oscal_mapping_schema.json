@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["mapping-collection"],
+  "properties": {
+    "mapping-collection": {
+      "type": "object",
+      "required": ["uuid", "metadata"],
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        },
+        "metadata": {
+          "type": "object",
+          "required": ["title", "last-modified", "version", "oscal-version"],
+          "properties": {
+            "title": {"type": "string", "minLength": 1},
+            "last-modified": {"type": "string", "minLength": 1},
+            "version": {"type": "string", "minLength": 1},
+            "oscal-version": {"type": "string", "minLength": 1},
+            "roles": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "title"],
+                "properties": {
+                  "id": {"type": "string"},
+                  "title": {"type": "string"}
+                }
+              }
+            },
+            "parties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["uuid", "type", "name"],
+                "properties": {
+                  "uuid": {"type": "string"},
+                  "type": {"type": "string"},
+                  "name": {"type": "string"},
+                  "email-addresses": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                  }
+                }
+              }
+            },
+            "responsible-parties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["role-id", "party-uuids"],
+                "properties": {
+                  "role-id": {"type": "string"},
+                  "party-uuids": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "back-matter": {
+          "type": "object"
+        },
+        "provenance": {
+          "type": "object",
+          "required": ["method", "matching-rationale", "status", "mapping-description"],
+          "properties": {
+            "method": {"type": "string", "enum": ["human", "automation", "hybrid"]},
+            "matching-rationale": {"type": "string", "enum": ["syntactic", "semantic", "functional"]},
+            "status": {"type": "string", "enum": ["complete", "not-complete", "draft", "deprecated", "superseded"]},
+            "mapping-description": {"type": "string"}
+          }
+        },
+        "mappings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["uuid", "source-resource", "target-resource", "maps"],
+            "properties": {
+              "uuid": {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              "source-resource": {
+                "type": "object",
+                "required": ["type", "href"],
+                "properties": {
+                  "type": {"type": "string", "enum": ["catalog", "profile"]},
+                  "href": {"type": "string", "minLength": 1}
+                }
+              },
+              "target-resource": {
+                "type": "object",
+                "required": ["type", "href"],
+                "properties": {
+                  "type": {"type": "string", "enum": ["catalog", "profile"]},
+                  "href": {"type": "string", "minLength": 1}
+                }
+              },
+              "maps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["uuid", "relationship", "sources", "targets"],
+                  "properties": {
+                    "uuid": {
+                      "type": "string",
+                      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                    },
+                    "relationship": {"type": "string", "enum": ["equivalent-to", "equal-to", "subset-of", "superset-of", "intersects-with", "no-relationship"]},
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["type", "id-ref"],
+                        "properties": {
+                          "type": {"type": "string", "enum": ["control", "statement"]},
+                          "id-ref": {"type": "string", "minLength": 1}
+                        }
+                      }
+                    },
+                    "targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["type", "id-ref"],
+                        "properties": {
+                          "type": {"type": "string", "enum": ["control", "statement"]},
+                          "id-ref": {"type": "string", "minLength": 1}
+                        }
+                      }
+                    },
+                    "remarks": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
