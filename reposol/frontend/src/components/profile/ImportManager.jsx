@@ -11,7 +11,9 @@ export function ImportManager({
   availableCatalogs = [],
   availableProfiles = [],
   isEditing = false,
-  onCopyStructure
+  onCopyStructure,
+  mergeMode = 'as-is',
+  onMergeModeChange
 }) {
   const handleAddImport = (uuid, type) => {
     if (!uuid) return;
@@ -62,64 +64,102 @@ export function ImportManager({
   };
 
   return (
-    <div className="import-manager card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <h3 style={{ margin: 0, fontSize: '15px' }}>Imported Catalogs & Profiles</h3>
+    <div className="import-manager card-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Header Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <h3 style={{ margin: 0, fontSize: '15px' }}>Imported Catalogs & Profiles</h3>
+      </div>
 
-      {/* Source Selector to add a new Import (Catalog or Profile) */}
-      {isEditing && (
-        <div
-          style={{
-            padding: '12px',
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '13px' }}>📖 Add Catalog:</span>
-            <select
-              onChange={(e) => {
-                handleAddImport(e.target.value, 'catalog');
-                e.target.value = '';
-              }}
-              className="form-input"
-              style={{ flex: 1, height: '32px', fontSize: '12px' }}
-            >
-              <option value="">-- Select Catalog --</option>
-              {availableCatalogs.map((cat) => (
-                <option key={cat.catalog.uuid} value={cat.catalog.uuid}>
-                  {cat.catalog.metadata?.title || 'Untitled'} ({cat.catalog.metadata?.version || '—'})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '13px' }}>⚙️ Add Profile:</span>
-            <select
-              onChange={(e) => {
-                handleAddImport(e.target.value, 'profile');
-                e.target.value = '';
-              }}
-              className="form-input"
-              style={{ flex: 1, height: '32px', fontSize: '12px' }}
-              disabled={availableProfiles.length === 0}
-            >
-              <option value="">
-                {availableProfiles.length === 0 ? '-- No profiles available --' : '-- Select Profile --'}
-              </option>
-              {availableProfiles.map((prof) => (
-                <option key={prof.profile.uuid} value={prof.profile.uuid}>
-                  {prof.profile.metadata?.title || 'Untitled'} ({prof.profile.metadata?.version || '—'})
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* Unified Setup Panel: Structuring Mode + Add Catalog / Profile */}
+      <div
+        style={{
+          padding: '12px 14px',
+          background: 'var(--color-surface-2)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px'
+        }}
+      >
+        {/* Structuring Mode Selector (Top row) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '12px', width: '145px', flexShrink: 0, fontWeight: '500', display: 'inline-block' }}>
+            ⚙️ Structuring Mode:
+          </span>
+          <select
+            value={mergeMode}
+            onChange={(e) => onMergeModeChange && onMergeModeChange(e.target.value)}
+            disabled={!isEditing}
+            className="form-input"
+            style={{
+              flex: 1,
+              height: '30px',
+              fontSize: '12px',
+              fontWeight: '600',
+              padding: '0 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: mergeMode === 'as-is'
+                ? 'rgba(46, 160, 67, 0.15)'
+                : mergeMode === 'custom'
+                  ? 'rgba(56, 139, 253, 0.15)'
+                  : 'rgba(210, 153, 34, 0.15)',
+              borderColor: mergeMode === 'as-is'
+                ? 'var(--color-success)'
+                : mergeMode === 'custom'
+                  ? 'var(--color-accent)'
+                  : 'var(--color-warning)',
+              color: mergeMode === 'as-is'
+                ? 'var(--color-success)'
+                : mergeMode === 'custom'
+                  ? 'var(--color-accent)'
+                  : 'var(--color-warning)',
+              cursor: isEditing ? 'pointer' : 'default'
+            }}
+          >
+            <option value="as-is">as-is (Original Catalog Hierarchy)</option>
+            <option value="custom">custom (Custom Profile Hierarchy)</option>
+            <option value="flat">flat (Unstructured List)</option>
+          </select>
         </div>
-      )}
+
+        {/* Source Import Selector (single combined row for Catalogs & Profiles when editing) */}
+        {isEditing && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '12px', width: '145px', flexShrink: 0, fontWeight: '500', display: 'inline-block' }}>📥 Add Import:</span>
+            <select
+              onChange={(e) => {
+                if (!e.target.value) return;
+                const [type, uuid] = e.target.value.split(':');
+                handleAddImport(uuid, type);
+                e.target.value = '';
+              }}
+              className="form-input"
+              style={{ flex: 1, height: '30px', fontSize: '12px' }}
+            >
+              <option value="">-- Select Catalog or Profile to Import --</option>
+              {availableCatalogs.length > 0 && (
+                <optgroup label="📖 Catalogs">
+                  {availableCatalogs.map((cat) => (
+                    <option key={cat.catalog.uuid} value={`catalog:${cat.catalog.uuid}`}>
+                      📖 {cat.catalog.metadata?.title || 'Untitled'} ({cat.catalog.metadata?.version || '—'})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {availableProfiles.length > 0 && (
+                <optgroup label="⚙️ Profiles">
+                  {availableProfiles.map((prof) => (
+                    <option key={prof.profile.uuid} value={`profile:${prof.profile.uuid}`}>
+                      ⚙️ {prof.profile.metadata?.title || 'Untitled'} ({prof.profile.metadata?.version || '—'})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+        )}
+      </div>
 
       {/* List of current imports */}
       {imports.length === 0 ? (
@@ -161,22 +201,16 @@ export function ImportManager({
                   <strong style={{ fontSize: '14px', color: 'var(--color-text)', wordBreak: 'break-word' }}>{importInfo.title}</strong>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => onCopyStructure && onCopyStructure(imp.href, 'main-only')}
-                    style={{ padding: '4px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    📋 Import Folder Structure
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => onCopyStructure && onCopyStructure(imp.href, 'all')}
-                    style={{ padding: '4px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    📋 Import Folders & Controls
-                  </button>
+                  {mergeMode === 'custom' && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => onCopyStructure && onCopyStructure(imp.href, 'all')}
+                      style={{ padding: '4px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      📥 Import Full Structure
+                    </button>
+                  )}
                   {isEditing && (
                     <button
                       type="button"

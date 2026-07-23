@@ -30,27 +30,6 @@
     "modify": {
       "alters": [
         {
-          "control-id": "GV.OC",
-          "removes": [
-            {
-              "by-id": "GV.OC_statement"
-            }
-          ],
-          "adds": [
-            {
-              "position": "after",
-              "by-id": "GV.OC_statement",
-              "parts": [
-                {
-                  "id": "GV.OC_statement_modified",
-                  "name": "statement",
-                  "prose": "{{ insert: param, param_4440 }}The circumstances - mission, stakeholder expectations, dependencies, and legal, regulatory, and contractual requirements - surrounding the organization's cybersecurity risk management decisions are understood"
-                }
-              ]
-            }
-          ]
-        },
-        {
           "control-id": "c1",
           "adds": [
             {

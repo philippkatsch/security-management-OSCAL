@@ -8,10 +8,11 @@ class TestProfileAlters:
     """Tests for Profile control alterations (adds/removes) and property modifications."""
 
     def test_profile_alters_adds_parts_and_props(self, client, isolated_data_dir):
-        # Create and save base catalog
-        cat_doc = CatalogFactory.build(title="Base Catalog")
+        # Create and save base catalog with controls ac-1 and ac-2
+        cat_doc = CatalogFactory.with_controls(title="Base Catalog")
         cat_uuid = cat_doc["catalog"]["uuid"]
         client.post("/api/documents/catalogs", json=cat_doc)
+
 
         # Define alters: adds statement part and adds a property
         alters = [
@@ -75,10 +76,11 @@ class TestProfileAlters:
         assert add_prop["props"][0]["value"] == "custom-value"
 
     def test_profile_alters_removes(self, client, isolated_data_dir):
-        # Create and save base catalog
-        cat_doc = CatalogFactory.build(title="Base Catalog")
+        # Create and save base catalog with controls ac-1 and ac-2
+        cat_doc = CatalogFactory.with_controls(title="Base Catalog")
         cat_uuid = cat_doc["catalog"]["uuid"]
         client.post("/api/documents/catalogs", json=cat_doc)
+
 
         # Define alters: removes a statement part
         alters = [
@@ -116,3 +118,35 @@ class TestProfileAlters:
         assert stored_alters[0]["control-id"] == "ac-2"
         assert len(stored_alters[0]["removes"]) == 1
         assert stored_alters[0]["removes"][0]["by-id"] == "ac-2_smt.a"
+
+    def test_prune_orphaned_alters_for_unimported_controls(self, client, isolated_data_dir):
+        # Create base catalog with controls ac-1, ac-2
+        cat_doc = CatalogFactory.with_controls(title="Base Catalog")
+        cat_uuid = cat_doc["catalog"]["uuid"]
+        client.post("/api/documents/catalogs", json=cat_doc)
+
+        # Profile with alters for valid control ac-1 and orphaned control GV.OC
+        alters = [
+            {"control-id": "ac-1", "adds": [{"position": "starting", "props": [{"name": "p1", "value": "v1"}]}]},
+            {"control-id": "GV.OC", "removes": [{"by-id": "GV.OC_smt"}]}
+        ]
+
+        prof_doc = ProfileFactory.with_alters(
+            catalog_uuid=cat_uuid,
+            alters=alters,
+            title="Profile with Orphaned Alters"
+        )
+        prof_uuid = prof_doc["profile"]["uuid"]
+
+        res_save = client.post("/api/documents/profiles", json=prof_doc)
+        assert res_save.status_code == 201
+
+        res_get = client.get(f"/api/documents/profiles/{prof_uuid}")
+        assert res_get.status_code == 200
+        get_data = res_get.json()
+
+        # Verify that orphaned alter for GV.OC was automatically pruned while ac-1 remains
+        stored_alters = get_data["profile"]["modify"]["alters"]
+        assert len(stored_alters) == 1
+        assert stored_alters[0]["control-id"] == "ac-1"
+

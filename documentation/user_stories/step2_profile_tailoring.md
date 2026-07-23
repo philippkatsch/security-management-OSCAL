@@ -394,3 +394,55 @@
     *   **Revert to Default Button:** Wenn der Wert einer Katalog-Property modifiziert wurde (im Profil überschrieben, also in `alter.adds` vorhanden), wird ein `↩ Revert` Button angezeigt, der diese Änderung löscht und auf den Katalog-Standardwert zurücksetzt.
     *   **OSCAL-Konformität:** Änderungen an Properties werden in `modify.alters` mit `adds` (für neue/modifizierte Werte) und `removes` mit `by-name` (für Löschungen) persistiert.
 
+### US 2.26: Object-Bound Targeted Modification Reverting & Pruning (Control, Group & Text Scope)
+> **Als** Compliance Officer (Alice)  
+> **möchte ich**, dass das Verwerfen und Bereinigen von Modifikationen (`modify.alters` und `modify.set-parameters`) im Profil-Editor stets zielgerichtet und objektbezogen erfolgt (auf Ebene von einzelnen Kontrollen, Sub-Controls, Textelementen, Gruppen oder Import-Quellen),  
+> **damit** beim Abwählen, Entfernen oder Zurücksetzen von Objekten genau und ausschließlich die zu diesem spezifischen Objekt gehörenden Anpassungen verworfen werden.
+*   **Akzeptanzkriterien:**
+    *   **Objektbezogenes Control-Revert (Kontrollebene):** Wenn eine spezifische Kontrolle abgewählt, aus einer Gruppe entfernt oder aus dem Profil entnommen wird, prüft das System gezielt für genau diese Kontrolle (`control-id`), ob in `modify.alters` oder `modify.set-parameters` Anpassungen vorliegen, und entfernt ausschließlich diese spezifischen Einträge.
+    *   **Objektbezogenes Sub-Control- & Text-Revert (Elementebene):** Wenn im Editor ein spezifisches Textelement (Statement, Sub-Statement, Guidance) oder eine Eigenschaft/Parameter einer Kontrolle zurückgesetzt wird (Revert), wird gezielt nur die dafür angelegte `adds`- bzw. `removes`-Modifikation in `modify.alters` für dieses konkrete Textelement/Objekt gelöscht.
+    *   **Objektbezogenes Gruppen-Revert (Gruppenebene):** Wenn eine gesamte Gruppe oder Untergruppe gelöscht/abgewählt wird, ermittelt das System alle in dieser Gruppe enthaltenen Kontrollen und bereinigt zielgerichtet nur die Anpassungen dieser betroffenen Objektliste.
+    *   **Objektbezogenes Import-Revert (Quellenebene):** Wird eine bestimmte Katalogquelle entfernt, werden exakt die Modifikationen verworfen, die sich auf die Kontrollen aus diesem spezifischen Katalog beziehen.
+    *   **Keine pauschalen globalen Wipes:** Das System führt keine ungerichtete pauschale Bereinigung durch, sondern agiert stets event- und kontextgetrieben bezogen auf das jeweilige Zielobjekt.
+
+
+### US 2.27: Interactive Merge Structuring Mode Selector (as-is / flat / custom) in the Profile UI
+> **Als** Compliance Officer und Enterprise Architect (Alice)  
+> **möchte ich** im Profil-Editor (im `SourcesPanel`) ein ultrakompaktes 2-Zeilen-Setup-Panel nutzen, dessen Dropdown-Boxen links exakt pixelgenau untereinander ausgerichtet sind,  
+> **damit** das Interface absolut symmetrisch und visuell perfekt wirkt.
+*   **Akzeptanzkriterien:**
+    *   **Kombiniertes 2-Zeilen-Setup-Panel:**
+        *   **Zeile 1:** `⚙️ Structuring Mode:` [ Dropdown `as-is` / `custom` / `flat` ]
+        *   **Zeile 2:** `📥 Add Import:` [ Kombiniertes Dropdown mit Katalogen & Profilen ]
+    *   **Pixelgenaue vertikale Ausrichtung:** Beide Labels (`⚙️ Structuring Mode:` und `📥 Add Import:`) besitzen eine feste identische Spaltenbreite (`width: 145px`, `flexShrink: 0`), wodurch die linken Kanten beider Auswahl-Dropdowns exakt untereinander ausgerichtet sind.
+    *   **Gruppierte & Icon-versehene Optionen:** Im `Add Import:`-Dropdown sind verfügbare Kataloge (`📖`) und Profile (`⚙️`) mit optgruppen und Icons klar voneinander unterschieden.
+    *   **Struktur-Knopf im `custom`-Modus:** 
+        *   Im **`custom`**-Modus besitzt jede Katalog-Import-Karte den Knopf **`📥 Import Full Structure`** (übernimmt Ordnerstruktur & Kontrollen des Katalogs additiv).
+        *   Im **`as-is`**- und **`flat`**-Modus sind Struktur-Klon-Knöpfe ausgeblendet.
+    *   **Bereinigung beim Entfernen von Import-Quellen (`Remove`):** Wenn alle Import-Quellen entfernt werden, setzt sich `profile.merge` automatisch auf `{ 'as-is': true }` zurück und bereinigt `merge.custom.groups`.
+
+### US 2.28: Profile Statement & Sub-item Addition (Streamlined UX & Engine Resolution)
+> **Als** Compliance Officer (Alice)  
+> **möchte ich** im Profil-Editor über einen fokussierten `➕ Sub-item`-Button auf Statement-Karten neue Unterelemente (`a.`, `b.`) erstellen und über den unter der Liste stehenden `➕ Add Statement`-Button neue Haupt-Statements ergänzen,  
+> **damit** die Bedienung auf das Wesentliche reduziert und übersichtlich ist und bestehende Katalog-Statements beim Hinzufügen von Ergänzungen intakt bleiben.
+*   **Akzeptanzkriterien:**
+    *   **Unterelement-Hinzufügung (`➕ Sub-item`):** Jedes Statement im Profil-Editor verfügt über einen prominenten `➕ Sub-item`-Button. Klickt man darauf, wird ein neues Item mit `position: 'ending'` und `by-id: parentId` in `alter.adds` angelegt und sauber als Unterelement (z.B. `a.`, `b.`) im Zielstatement gerendert.
+    *   **Haupt-Statement-Ergänzung (`➕ Add Statement`):** Unterhalb der Liste der Statements befindet sich der Button `➕ Add Statement` zum Anfügen neuer Top-Level-Statements (`position: 'ending'`).
+    *   **Schlanke UX ohne Redundanz:** Der verwirrende `Add After`-Button auf einzelnen Statement-Karten entfällt, um Verwechslungen mit `Add Statement` zu vermeiden.
+    *   **Keine unbeabsichtigte Rekursion bei globalen Adds:** Ohne `by-id` definierte `position: 'ending'`/`position: 'starting'`-Adds werden ausschließlich auf Top-Level-Ebene (`level === 0`) ausgewertet und nicht fälschlicherweise in Unterelemente verschachtelt.
+    *   **Exakte Ersetzungsprüfung (Replacement Check):** Ein Add-Block wird vom Auflösungsmotor nur dann als Replacement (Textüberschreibung) eines Original-Statements behandelt, wenn die Original-ID explizit in `alter.removes` gelistet ist und der Add-Block ein Part mit derselben ID definiert.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -13,7 +13,15 @@ export function SourcesPanel({
   const [poolSearch, setPoolSearch] = useState('');
 
   const handleImportsChange = (updatedImports) => {
-    onChange({ ...profile, imports: updatedImports });
+    if (updatedImports.length === 0) {
+      let cleanMerge = { ...(profile.merge || {}) };
+      delete cleanMerge.custom;
+      delete cleanMerge.flat;
+      cleanMerge['as-is'] = true;
+      onChange({ ...profile, imports: [], merge: cleanMerge });
+    } else {
+      onChange({ ...profile, imports: updatedImports });
+    }
   };
 
   const handleCopyStructure = (href, mode = 'all') => {
@@ -30,13 +38,6 @@ export function SourcesPanel({
     }
 
     const isAll = mode === 'all';
-    const confirmMessage = isAll
-      ? `Would you like to import the folder structure and all controls of "${catalog.metadata?.title || 'Catalog'}"? This might overwrite existing groups.`
-      : `Would you like to import the folder structure (without controls) of "${catalog.metadata?.title || 'Catalog'}"? This might overwrite existing groups.`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
 
     const mapCatalogGroupToCustomGroup = (g) => {
       const customGroup = {
@@ -72,31 +73,54 @@ export function SourcesPanel({
     const sourceGroups = catalog.groups || [];
     const customGroups = sourceGroups.map(mapCatalogGroupToCustomGroup);
 
-    let topLevelInsert = [];
+    const existingGroups = profile.merge?.custom?.groups || [];
+    const existingGroupIds = new Set(existingGroups.map(g => g.id));
+    const newGroups = customGroups.filter(g => !existingGroupIds.has(g.id));
+    const mergedGroups = [...existingGroups, ...newGroups];
+
+    const existingInsert = profile.merge?.custom?.['insert-controls'] || [];
+    let mergedInsertControls = [...existingInsert];
+
     if (isAll) {
       const topLevelControlIds = (catalog.controls || []).map(c => c.id);
       if (topLevelControlIds.length > 0) {
-        topLevelInsert = [
-          {
+        const existingIds = new Set();
+        existingInsert.forEach(ic => {
+          if (ic['include-controls']) {
+            ic['include-controls'].forEach(inc => {
+              if (inc['with-ids']) {
+                inc['with-ids'].forEach(id => existingIds.add(id));
+              }
+            });
+          }
+        });
+
+        const newControlIds = topLevelControlIds.filter(id => !existingIds.has(id));
+        if (newControlIds.length > 0) {
+          mergedInsertControls.push({
             order: 'keep',
             'include-controls': [
-              { 'with-ids': topLevelControlIds }
+              { 'with-ids': newControlIds }
             ]
-          }
-        ];
+          });
+        }
       }
     }
 
+    const cleanMerge = {
+      ...(profile.merge || {}),
+      custom: {
+        ...(profile.merge?.custom || {}),
+        groups: mergedGroups,
+        'insert-controls': mergedInsertControls
+      }
+    };
+    delete cleanMerge['as-is'];
+    delete cleanMerge.flat;
+
     onChange({
       ...profile,
-      merge: {
-        ...profile.merge,
-        custom: {
-          ...(profile.merge?.custom || {}),
-          groups: customGroups,
-          'insert-controls': topLevelInsert
-        }
-      }
+      merge: cleanMerge
     });
   };
 
@@ -260,6 +284,33 @@ export function SourcesPanel({
     });
   }, [allImportedControls, poolSearch]);
 
+  const mergeMode = useMemo(() => {
+    const merge = profile.merge || {};
+    if (merge.flat) return 'flat';
+    if (merge.custom !== undefined) return 'custom';
+    return 'as-is';
+  }, [profile.merge]);
+
+  const handleMergeModeChange = (newMode) => {
+    let cleanMerge = { ...(profile.merge || {}) };
+    if (newMode === 'as-is') {
+      delete cleanMerge.custom;
+      delete cleanMerge.flat;
+      cleanMerge['as-is'] = true;
+    } else if (newMode === 'flat') {
+      delete cleanMerge.custom;
+      delete cleanMerge['as-is'];
+      cleanMerge.flat = true;
+    } else if (newMode === 'custom') {
+      delete cleanMerge['as-is'];
+      delete cleanMerge.flat;
+      if (!cleanMerge.custom) {
+        cleanMerge.custom = { groups: [] };
+      }
+    }
+    onChange({ ...profile, merge: cleanMerge });
+  };
+
   return (
     <div
       className="sources-panel"
@@ -287,8 +338,11 @@ export function SourcesPanel({
           availableProfiles={availableProfiles}
           isEditing={isEditing}
           onCopyStructure={handleCopyStructure}
+          mergeMode={mergeMode}
+          onMergeModeChange={handleMergeModeChange}
         />
       </div>
+
 
       <div 
         onDragOver={(e) => { if (isEditing) e.preventDefault(); }}

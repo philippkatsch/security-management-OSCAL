@@ -56,8 +56,30 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - The Controls listing contains only the direct controls of the group. Nested control enhancements (sub-controls) are not rendered in the group view list and are only visible inside the specific Control Detail view when a control is opened.
 - Uses `flex-shrink: 0` on headers and metric grids to prevent flex layout squeezing when content overflows.
 
+### 8. Interactive Merge Structuring Mode Selector in Profile Sources Panel
+- The `SourcesPanel` combines mode selection and source imports into an **ultra-compact 2-row setup panel** directly below the header.
+- Both label columns (`⚙️ Structuring Mode:` and `📥 Add Import:`) use exact fixed column widths (`width: 145px`, `flexShrink: 0`), guaranteeing pixel-perfect vertical alignment of the left edges of both select dropdowns.
+- **Row 1**: Structuring Mode selection (`⚙️ Structuring Mode: as-is / custom / flat`).
+- **Row 2**: Unified source import selection (**`📥 Add Import:`**). Contains a single combined dropdown listing both Catalogs (`📖`) and Profiles (`⚙️`) in clear optgroups with icons.
+- Selecting `as-is` clears `profile.merge.custom` and sets `profile.merge = { "as-is": true }`, causing the profile sidebar to render the original catalog folder structures of all imported catalogs 1:1 dynamically. In `as-is` mode, structure cloning buttons are hidden from import cards since `as-is` automatically merges all imported catalog structures.
+- Selecting `flat` sets `profile.merge = { flat: true }`, flattening all controls into a single unstructured list.
+- Selecting `custom` enables custom group management under `profile.merge.custom`. In `custom` mode, each catalog import card renders a single clean button **`📥 Import Full Structure`** to copy a catalog's hierarchy into custom profile groups. Structure copying is **additive** (appends new catalog groups to existing custom groups without overwriting) and executes instantly without disruptive `window.confirm()` popups.
+- **Import Baseline Cleanup**: When removing an import source via `Remove`, if 0 imports remain, `profile.merge` automatically resets to `{ "as-is": true }` and custom groups are cleared so no orphan groups linger in the left sidebar.
+
+
+
+
+
+
+
+
+
+
+
 ## Consequences
 - Consistent UX across catalog and profile editors
 - Users can always fall back to JSON mode for unsupported fields
 - Draft recovery prevents data loss on accidental navigation
 - Visual changes to control detail rendering only need to be made in one place
+- Clear visibility of active profile merge structuring mode prevents user confusion regarding custom grouping versus original catalog structure.
+

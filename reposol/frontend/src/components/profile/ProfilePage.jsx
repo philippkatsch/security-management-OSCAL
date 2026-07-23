@@ -199,14 +199,14 @@ export function ProfilePage({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isEditing, editMode, undo, redo, setDoc]);
 
-  // Auto-migrate profile to use custom merge and strip #placeholder import by default when loaded
+  // Auto-migrate profile to strip #placeholder import and ensure merge configuration exists
   useEffect(() => {
     if (doc && doc.profile) {
       const p = doc.profile;
-      const needsMigration = !p.merge || p.merge.custom === undefined;
+      const needsMergeInit = !p.merge;
       const hasPlaceholder = p.imports?.some(imp => imp.href === '#placeholder');
       
-      if (needsMigration || hasPlaceholder) {
+      if (needsMergeInit || hasPlaceholder) {
         let updatedImports = p.imports || [];
         if (hasPlaceholder) {
           updatedImports = updatedImports.filter(imp => imp.href !== '#placeholder');
@@ -215,10 +215,7 @@ export function ProfilePage({
         const migrated = {
           ...p,
           imports: updatedImports,
-          merge: {
-            ...p.merge,
-            custom: p.merge?.custom || { groups: [] }
-          }
+          merge: p.merge || { 'as-is': true }
         };
         setDoc({ ...doc, profile: migrated });
       }

@@ -1018,6 +1018,12 @@ export default function CatalogViewer({ catalogId, profileId, onClose, onEdit, i
       fetchImportedCatalogs(rawDoc, new Map(cachedCatalogs)).then(newCache => {
         setCachedCatalogs(newCache);
         
+        if (rawDoc?.profile) {
+          updateDocumentState(doc => {
+            pruneOrphanedAltersInDoc(doc, newCache);
+          });
+        }
+
         const defaultStrUuid = rawDoc?.profile?.merge?.custom?.defaultStructure;
         const currentGroups = rawDoc?.profile?.merge?.custom?.groups || [];
         if (defaultStrUuid && currentGroups.length === 0) {
@@ -1350,6 +1356,69 @@ export default function CatalogViewer({ catalogId, profileId, onClose, onEdit, i
     setShowDraftPrompt(false);
   };
 
+  const pruneOrphanedAltersInDoc = (doc, cache) => {
+    if (!doc?.profile?.modify?.alters || doc.profile.modify.alters.length === 0) return false;
+
+    const validIds = new Set();
+    const localControls = doc.profile["local-controls"] || [];
+    const collectLocalCtrls = (ctrls) => {
+      for (const c of ctrls) {
+        if (c?.id) validIds.add(c.id.toLowerCase());
+        if (c?.controls) collectLocalCtrls(c.controls);
+      }
+    };
+    collectLocalCtrls(localControls);
+
+    const imports = doc.profile.imports || [];
+    let hasPendingCatalog = false;
+
+    for (const imp of imports) {
+      const match = imp.href?.match(/([a-f0-9-]{36})/i);
+      const catUuid = match ? match[1]?.toLowerCase() : null;
+      if (catUuid) {
+        const catEntry = cache?.get?.(catUuid);
+        const catObj = catEntry?.data?.catalog || catEntry?.catalog;
+        if (catObj) {
+          const collectCatCtrls = (ctrls) => {
+            for (const c of ctrls) {
+              if (c?.id) validIds.add(c.id.toLowerCase());
+              if (c?.controls) collectCatCtrls(c.controls);
+            }
+          };
+          if (catObj.controls) collectCatCtrls(catObj.controls);
+
+          const collectGroups = (grps) => {
+            for (const g of grps) {
+              if (g?.controls) collectCatCtrls(g.controls);
+              if (g?.groups) collectGroups(g.groups);
+            }
+          };
+          if (catObj.groups) collectGroups(catObj.groups);
+        } else {
+          hasPendingCatalog = true;
+        }
+      }
+    }
+
+    if (hasPendingCatalog && validIds.size === 0) return false;
+
+    const initialCount = doc.profile.modify.alters.length;
+    doc.profile.modify.alters = doc.profile.modify.alters.filter(alt => {
+      const cid = alt["control-id"];
+      if (!cid) return false;
+      return validIds.has(cid.toLowerCase());
+    });
+
+    if (doc.profile.modify.alters.length === 0) {
+      delete doc.profile.modify.alters;
+      if (doc.profile.modify && Object.keys(doc.profile.modify).length === 0) {
+        delete doc.profile.modify;
+      }
+    }
+
+    return (doc.profile?.modify?.alters?.length || 0) !== initialCount;
+  };
+
   const updateDocumentState = (updater) => {
     setHistoryState(prevState => {
       const { history, index } = prevState;
@@ -1358,6 +1427,11 @@ export default function CatalogViewer({ catalogId, profileId, onClose, onEdit, i
       
       const nextDoc = JSON.parse(JSON.stringify(currentDoc));
       updater(nextDoc);
+
+      if (nextDoc?.profile) {
+        pruneOrphanedAltersInDoc(nextDoc, cachedCatalogs);
+      }
+
       
       const nextHistory = history.slice(0, index + 1);
       nextHistory.push(nextDoc);

@@ -675,7 +675,7 @@ export function ControlDetailView({
     });
   };
 
-  const resolveProfilePartsForRendering = (origParts, alter) => {
+  const resolveProfilePartsForRendering = (origParts, alter, level = 0) => {
     if (!origParts) origParts = [];
     const removes = alter?.removes || [];
     const adds = alter?.adds || [];
@@ -683,11 +683,13 @@ export function ControlDetailView({
     // First, map the original parts (and handle replacements and direct removals)
     let result = origParts.map(p => {
       const isReplacementRemoves = removes.some(r => r['by-id'] === p.id);
-      const replacementAdd = adds.find(a => a['by-id'] === p.id && a.position === 'after');
+      const replacementAdd = isReplacementRemoves
+        ? adds.find(a => a['by-id'] === p.id && a.position === 'after' && a.parts?.some(pt => pt.id === p.id))
+        : null;
       
       const isReplaced = !!replacementAdd;
       const isRemoved = isReplacementRemoves && !isReplaced;
-      const subparts = resolveProfilePartsForRendering(p.parts || [], alter);
+      const subparts = resolveProfilePartsForRendering(p.parts || [], alter, level + 1);
       
       return {
         ...p,
@@ -713,24 +715,47 @@ export function ControlDetailView({
         const isReplacement = origParts.some(op => op.id === add['by-id'] && removes.some(r => r['by-id'] === op.id) && add.position === 'after' && newPart.id === op.id);
         if (isReplacement) return;
 
-        // Otherwise, insert it based on its position
-        if (add.position === 'starting') {
-          if (!result.some(p => p.id === newPart.id)) {
-            result.push({ ...newPart, isAdded: true });
+        // Otherwise, insert it based on its position & target
+        if (add['by-id']) {
+          if (add.position === 'before') {
+            const targetIdx = result.findIndex(p => p.id === add['by-id'] || p.originalId === add['by-id']);
+            if (targetIdx >= 0 && !result.some(p => p.id === newPart.id)) {
+              result.splice(targetIdx, 0, { ...newPart, isAdded: true });
+            }
+          } else if (add.position === 'after') {
+            const targetIdx = result.findIndex(p => p.id === add['by-id'] || p.originalId === add['by-id']);
+            if (targetIdx >= 0 && !result.some(p => p.id === newPart.id)) {
+              result.splice(targetIdx + 1, 0, { ...newPart, isAdded: true });
+            }
+          } else if (add.position === 'starting') {
+            const parent = result.find(p => p.id === add['by-id'] || p.originalId === add['by-id']);
+            if (parent) {
+              if (!parent.parts) parent.parts = [];
+              if (!parent.parts.some(sp => sp.id === newPart.id)) {
+                parent.parts.unshift({ ...newPart, isAdded: true });
+              }
+            }
+          } else if (add.position === 'ending') {
+            const parent = result.find(p => p.id === add['by-id'] || p.originalId === add['by-id']);
+            if (parent) {
+              if (!parent.parts) parent.parts = [];
+              if (!parent.parts.some(sp => sp.id === newPart.id)) {
+                parent.parts.push({ ...newPart, isAdded: true });
+              }
+            }
           }
-        } else if (add.position === 'ending') {
-          if (!result.some(p => p.id === newPart.id)) {
-            result.push({ ...newPart, isAdded: true });
-          }
-        } else if (add.position === 'before' && add['by-id']) {
-          const targetIdx = result.findIndex(p => p.id === add['by-id']);
-          if (targetIdx >= 0 && !result.some(p => p.id === newPart.id)) {
-            result.splice(targetIdx, 0, { ...newPart, isAdded: true });
-          }
-        } else if (add.position === 'after' && add['by-id']) {
-          const targetIdx = result.findIndex(p => p.id === add['by-id']);
-          if (targetIdx >= 0 && !result.some(p => p.id === newPart.id)) {
-            result.splice(targetIdx + 1, 0, { ...newPart, isAdded: true });
+        } else {
+          // No by-id specified: applies ONLY to top-level parts list (level === 0)
+          if (level === 0) {
+            if (add.position === 'starting') {
+              if (!result.some(p => p.id === newPart.id)) {
+                result.unshift({ ...newPart, isAdded: true });
+              }
+            } else if (add.position === 'ending') {
+              if (!result.some(p => p.id === newPart.id)) {
+                result.push({ ...newPart, isAdded: true });
+              }
+            }
           }
         }
       });
@@ -819,6 +844,23 @@ export function ControlDetailView({
         parts: [{
           id: newPartId,
           name: 'statement',
+          prose: ''
+        }]
+      });
+      return { ...alter, adds };
+    });
+  };
+
+  const handleAddProfileSubPart = (parentId, targetControlId = control.id) => {
+    const newPartId = `${parentId}_item_${Date.now().toString().slice(-4)}`;
+    updateAlter(targetControlId, (alter) => {
+      let adds = alter.adds ? [...alter.adds] : [];
+      adds.push({
+        position: 'ending',
+        'by-id': parentId,
+        parts: [{
+          id: newPartId,
+          name: 'item',
           prose: ''
         }]
       });
@@ -1150,11 +1192,11 @@ startingAdd.props = uProps;
                     </button>
                   )}
                   <button
-                    onClick={() => handleAddProfilePartAfter(p.id, targetControlId)}
-                    title="Add statement after this"
-                    style={{ fontSize: '10px', padding: '2px 6px', background: 'var(--color-surface-3)', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'var(--color-accent-hover)' }}
+                    onClick={() => handleAddProfileSubPart(p.id, targetControlId)}
+                    title="Add sub-item inside this statement"
+                    style={{ fontSize: '10px', padding: '2px 6px', background: 'var(--color-surface-3)', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'var(--color-primary)' }}
                   >
-                    ➕ Add After
+                    ➕ Sub-item
                   </button>
                   <button
                     onClick={() => toggleAdvancedPart(p.id)}
@@ -1393,9 +1435,9 @@ startingAdd.props = uProps;
                     </button>
                   )}
                   <button
-                    onClick={() => handleAddProfilePartAfter(p.id, targetControlId)}
-                    title="Add statement after this"
-                    style={{ fontSize: '9px', padding: '1px 4px', background: 'var(--color-surface-3)', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'var(--color-accent-hover)' }}
+                    onClick={() => handleAddProfileSubPart(p.id, targetControlId)}
+                    title="Add sub-item"
+                    style={{ fontSize: '9px', padding: '1px 4px', background: 'var(--color-surface-3)', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'var(--color-primary)' }}
                   >
                     ➕
                   </button>

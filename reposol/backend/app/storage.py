@@ -280,8 +280,88 @@ def preprocess_profile_for_saving(
             merge.pop("flat", None)
             merge.pop("custom", None)
             
+    prune_orphaned_alters(profile, workspace_id)
     document = remove_empty_arrays(document)
     return document
+
+
+def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] = None) -> None:
+    """Removes alters from profile.modify.alters if their control-id is not present in any imported catalog."""
+    modify = profile.get("modify")
+    if not modify or "alters" not in modify or not isinstance(modify.get("alters"), list):
+        return
+
+
+    imports = profile.get("imports", [])
+    if not imports:
+        modify.pop("alters", None)
+        if not modify:
+            profile.pop("modify", None)
+        return
+
+    valid_control_ids = set()
+    catalogs_dir = get_stage_dir("catalogs", workspace_id)
+
+    # 1. Include local-controls if present
+    for ctrl in profile.get("local-controls", []):
+        if isinstance(ctrl, dict) and "id" in ctrl:
+            valid_control_ids.add(ctrl["id"].lower())
+
+    # 2. Collect controls from all imported catalogs
+    found_any_catalog = False
+    for imp in imports:
+        if not isinstance(imp, dict):
+            continue
+        href = imp.get("href", "")
+        cat_uuid = _catalog_uuid_from_href(href)
+        if not cat_uuid:
+            continue
+        cat_path = os.path.join(catalogs_dir, f"{cat_uuid}.json")
+        if os.path.exists(cat_path):
+            found_any_catalog = True
+            try:
+                with open(cat_path, "r", encoding="utf-8") as f:
+                    cat_doc = json.load(f)
+                    cat_obj = cat_doc.get("catalog", {})
+
+                    def collect_ctrls(ctrl_list):
+                        for c in ctrl_list:
+                            if isinstance(c, dict) and "id" in c:
+                                valid_control_ids.add(c["id"].lower())
+                                if "controls" in c and isinstance(c["controls"], list):
+                                    collect_ctrls(c["controls"])
+
+                    if "controls" in cat_obj and isinstance(cat_obj["controls"], list):
+                        collect_ctrls(cat_obj["controls"])
+
+                    def collect_groups(grp_list):
+                        for g in grp_list:
+                            if isinstance(g, dict):
+                                if "controls" in g and isinstance(g["controls"], list):
+                                    collect_ctrls(g["controls"])
+                                if "groups" in g and isinstance(g["groups"], list):
+                                    collect_groups(g["groups"])
+
+                    if "groups" in cat_obj and isinstance(cat_obj["groups"], list):
+                        collect_groups(cat_obj["groups"])
+            except Exception:
+                pass
+
+    if not found_any_catalog and not profile.get("local-controls"):
+        # If no imported catalog file exists locally yet, avoid wiping alters prematurely
+        return
+
+    new_alters = [
+        alt for alt in modify["alters"]
+        if isinstance(alt, dict) and alt.get("control-id") and alt.get("control-id").lower() in valid_control_ids
+    ]
+
+    if new_alters:
+        modify["alters"] = new_alters
+    else:
+        modify.pop("alters", None)
+        if not modify:
+            profile.pop("modify", None)
 
 
 def preprocess_catalog_for_saving(document: Dict[str, Any]) -> Dict[str, Any]:
@@ -299,6 +379,8 @@ def postprocess_profile_for_loading(document: Dict[str, Any]) -> Dict[str, Any]:
         
     profile = document["profile"]
     _normalize_replacement_part_ids(profile)
+    prune_orphaned_alters(profile)
+
     
     # 1. Reconstruct local-controls
     imports = profile.get("imports", [])

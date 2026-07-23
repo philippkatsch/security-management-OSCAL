@@ -24,8 +24,7 @@ export function ProfileSidebar({
 }) {
   const groups = resolvedCatalog.groups || [];
   const controls = resolvedCatalog.controls || [];
-  const isCustomMerge = profile?.merge?.custom !== undefined;
-  const canEdit = isEditing && isCustomMerge;
+  const canEdit = isEditing;
 
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState(null);
@@ -275,7 +274,10 @@ export function ProfileSidebar({
     if (updatedInsertControls !== undefined) {
       mergeCustom['insert-controls'] = updatedInsertControls;
     }
-    onChange({ ...profile, merge: { ...profile.merge, custom: mergeCustom } });
+    const cleanMerge = { ...(profile.merge || {}), custom: mergeCustom };
+    delete cleanMerge['as-is'];
+    delete cleanMerge.flat;
+    onChange({ ...profile, merge: cleanMerge });
   };
 
   // Helper: recursively find and remove a custom group by ID
@@ -705,17 +707,89 @@ export function ProfileSidebar({
     updateCustomGroups(updateGroupTitleRecursive(profile.merge?.custom?.groups || [], groupId, newTitle.trim()));
   };
 
+  const revertControlModifications = (prof, controlId) => {
+    if (!prof || !prof.modify || !controlId) return;
+    const cIdLower = controlId.toLowerCase();
+
+    if (prof.modify.alters) {
+      prof.modify.alters = prof.modify.alters.filter(
+        alt => alt["control-id"]?.toLowerCase() !== cIdLower
+      );
+      if (prof.modify.alters.length === 0) {
+        delete prof.modify.alters;
+      }
+    }
+
+    if (prof.modify["set-parameters"]) {
+      prof.modify["set-parameters"] = prof.modify["set-parameters"].filter(
+        sp => sp["param-id"]?.toLowerCase() !== cIdLower && !sp["param-id"]?.toLowerCase().startsWith(`${cIdLower}_`)
+      );
+      if (prof.modify["set-parameters"].length === 0) {
+        delete prof.modify["set-parameters"];
+      }
+    }
+
+    if (Object.keys(prof.modify).length === 0) {
+      delete prof.modify;
+    }
+  };
+
+  const collectGroupControlIds = (groupObj) => {
+    if (!groupObj) return [];
+    const ids = [];
+    const collectInsertControls = (icArray) => {
+      if (!Array.isArray(icArray)) return;
+      icArray.forEach(ic => {
+        if (ic['include-controls']) {
+          ic['include-controls'].forEach(inc => {
+            if (inc['with-ids']) {
+              ids.push(...inc['with-ids']);
+            }
+          });
+        }
+      });
+    };
+
+    collectInsertControls(groupObj['insert-controls']);
+    if (groupObj.groups) {
+      groupObj.groups.forEach(subG => {
+        ids.push(...collectGroupControlIds(subG));
+      });
+    }
+    return ids;
+  };
+
   const handleDeleteGroup = (groupId) => {
-    updateCustomGroups(deleteGroupRecursive(profile.merge?.custom?.groups || [], groupId));
+    const currentGroups = profile.merge?.custom?.groups || [];
+    const findGroup = (groupsList, gId) => {
+      for (const g of groupsList) {
+        if (g.id === gId) return g;
+        if (g.groups) {
+          const found = findGroup(g.groups, gId);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const groupToDelete = findGroup(currentGroups, groupId);
+    if (groupToDelete) {
+      const ctrlIds = collectGroupControlIds(groupToDelete);
+      ctrlIds.forEach(cid => revertControlModifications(profile, cid));
+    }
+
+    updateCustomGroups(deleteGroupRecursive(currentGroups, groupId));
   };
 
   const handleRemoveControl = (controlId) => {
+    revertControlModifications(profile, controlId);
     const currentGroups = profile.merge?.custom?.groups || [];
     const rootInsertControls = profile.merge?.custom?.['insert-controls'] || [];
     const updatedGroups = removeControlFromCustom(currentGroups, controlId);
     const updatedRootInsert = removeControlFromRoot(rootInsertControls, controlId);
     updateCustomGroups(updatedGroups, updatedRootInsert);
   };
+
 
   // ── Search helpers ──
   const matchesSearch = (item) => {

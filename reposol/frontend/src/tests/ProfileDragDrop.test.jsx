@@ -104,36 +104,18 @@ describe('Profile Drag-and-Drop & Context Menu Category Editor', () => {
       />
     );
 
-    // Find the "Import Folder Structure" button and click it
-    const mainStructureBtn = screen.getByText('📋 Import Folder Structure');
-    fireEvent.click(mainStructureBtn);
+    // Find the "Import Full Structure" button and click it
+    const copyStructureBtn = screen.getByText('📥 Import Full Structure');
+    fireEvent.click(copyStructureBtn);
 
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(mockOnChange).toHaveBeenCalled();
-    
-    // In main-only mode, custom groups and insert-controls should be empty arrays since mock source has no groups and no controls should be imported
-    const firstCallArg = mockOnChange.mock.calls[0][0];
-    expect(firstCallArg.merge.custom.groups).toEqual([]);
-    expect(firstCallArg.merge.custom['insert-controls']).toEqual([]);
-
-    // Clear mock calls
-    mockOnChange.mockClear();
-    confirmSpy.mockClear();
-
-    // Find the "Import Folders & Controls" button and click it
-    const allBtn = screen.getByText('📋 Import Folders & Controls');
-    fireEvent.click(allBtn);
-
-    expect(confirmSpy).toHaveBeenCalled();
     expect(mockOnChange).toHaveBeenCalled();
 
-    // In all mode, topLevelInsert should be populated with the controls
-    const secondCallArg = mockOnChange.mock.calls[0][0];
-    expect(secondCallArg.merge.custom.groups).toEqual([]);
-    expect(secondCallArg.merge.custom['insert-controls']).toHaveLength(1);
-    expect(secondCallArg.merge.custom['insert-controls'][0]['include-controls'][0]['with-ids']).toEqual(['ac-1', 'ac-2']);
-
-    confirmSpy.mockRestore();
+    // In copy structure mode, topLevelInsert should be populated and existing custom groups preserved
+    const callArg = mockOnChange.mock.calls[0][0];
+    expect(callArg.merge.custom.groups).toHaveLength(1);
+    expect(callArg.merge.custom.groups[0].id).toBe('group_1');
+    expect(callArg.merge.custom['insert-controls']).toHaveLength(1);
+    expect(callArg.merge.custom['insert-controls'][0]['include-controls'][0]['with-ids']).toEqual(['ac-1', 'ac-2']);
   });
 
   it('does not mark child controls as assigned if they are not resolved in the resolvedCatalog', () => {
