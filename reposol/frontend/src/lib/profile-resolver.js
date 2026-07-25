@@ -735,6 +735,20 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
             }
           });
         }
+        if (ic['exclude-controls']) {
+          const excludedIds = new Set();
+          ic['exclude-controls'].forEach(exc => {
+            if (typeof exc === 'string') excludedIds.add(exc.toLowerCase());
+            if (exc['with-ids']) exc['with-ids'].forEach(id => excludedIds.add(id.toLowerCase()));
+          });
+          if (excludedIds.size > 0) {
+            for (let i = groupCtrls.length - 1; i >= 0; i--) {
+              if (excludedIds.has(groupCtrls[i].id.toLowerCase())) {
+                groupCtrls.splice(i, 1);
+              }
+            }
+          }
+        }
       });
       // Apply order
       icArray.forEach(ic => {
@@ -747,7 +761,9 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
       const subGroups = g.groups ? g.groups.map(resolveCustomGroup) : undefined;
       return {
         id: g.id,
+        class: g.class,
         title: g.title,
+        params: g.params,
         props: g.props,
         links: g.links,
         parts: g.parts,

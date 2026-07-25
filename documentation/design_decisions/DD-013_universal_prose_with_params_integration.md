@@ -4,6 +4,12 @@
 ## Date: 2026-07-22
 ## Decision Makers: Development Team
 
+> **Related Parameter Decisions:** This DD is part of the Parameter Architecture family:
+> - [DD-009](DD-009_parameter_strategy.md): Lifecycle strategy — Profile vs. SSP vs. Component
+> - [DD-010](DD-010_parameter_scoping_and_inheritance.md): Scoping & Inheritance — Catalog → Group → Control hierarchy
+> - [DD-012](DD-012_parameter_value_assignment_and_override_strategy.md): Value Assignment UX — Choice dropdowns, constraints, override rendering
+> - **DD-013** (this): Prose Integration — `ProseWithParams` component architecture
+
 ## Context
 Parameter insertion in OSCAL requirement text (`{{ insert: param, param_id }}` / `<insert type="param" id-ref="..."/>`) was initially implemented specifically for control statement textareas. However, OSCAL requirements and assessment specifications require parameter references across multiple editor contexts:
 1. Control Statements & Sub-Control Enhancements (`ControlDetailView`, `EnhancementsAccordion`)

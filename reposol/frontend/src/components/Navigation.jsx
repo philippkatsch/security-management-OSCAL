@@ -222,7 +222,7 @@ export default function Navigation({ activeTab, onTabChange, counts = {} }) {
           );
           if (currentW === 'master' || currentW === 'templates') {
             return (
-              <div style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)', color: '#ffffff', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center', boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)' }}>
+              <div className="master-mode-badge" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)', color: '#ffffff', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center', boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)' }}>
                 👑 Master Templates Mode (Local Admin)
               </div>
             );
@@ -231,7 +231,7 @@ export default function Navigation({ activeTab, onTabChange, counts = {} }) {
         })()}
         <button
           type="button"
-          className="btn-secondary btn-sm"
+          className="btn-secondary btn-sm btn-share-workspace"
           style={{ width: '100%', marginBottom: '8px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           onClick={() => {
             import('../lib/api.js').then(({ getWorkspaceId }) => {

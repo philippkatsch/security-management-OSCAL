@@ -44,9 +44,9 @@ graph TD
 Each step of the security lifecycle is described in detail in a separate file:
 
 1. **[Step 1: Catalog Builder (Catalog Editor)](step1_catalog_builder.md)**
-   * Creation of basic security catalogs with groups, controls, and default parameter placeholders.
+   * Creation of basic security catalogs with groups, controls, sub-controls, multi-level parameters, parameter constraint live test validation, multi-format import (JSON, XML, YAML), schema-compliant export, control withdrawal/deprecation workflow, functional `label`/`sort-id` display, and part-level metadata editing.
 2. **[Step 2: Profile Tailoring (Profile Editor)](step2_profile_tailoring.md)**
-   * Merging multiple catalogs, modifying specifications, and capturing text additions (`alters`).
+   * Merging multiple catalogs/profiles, modifying specifications (`alters`, `set-parameters`), custom restructuring, multi-catalog conflict resolution (`merge.combine`), cascading profile imports, and visual baseline diff viewer.
 3. **[Step 3: Component Definition (Component Inventory)](step3_component_inventory.md)**
    * Structured capture of IT assets (software, services, policies) including properties such as Common Criteria EAL certifications and system-wide product capabilities.
 4. **[Step 4: SSP Builder (System Security Plan)](step4_ssp_builder.md)**
@@ -158,24 +158,24 @@ Each step of the security lifecycle is described in detail in a separate file:
     *   **Preservation of Features:** The automatic scroll and highlight synchronization (US 0.8) as well as live validation must remain fully functional and align with the API of the new editor.
 
 ### US 0.10: Under Development Indicator Badges for Uncompleted OSCAL Stages
-> **Als** Compliance-Officer oder Auditor (Alice / Bob)  
-> **möchte ich** eine visuelle Kennzeichnung (Baustellensymbol 🚧 / "Under Development"-Badge) an den OSCAL-Lifecycle-Elementen sehen, deren spezialisierte Editoren/Viewer noch in der Entwicklung sind (Component Definitions, SSP, Assessment Plans, Assessment Results, POA&M, Control Mappings),  
-> **damit** sofort transparent erkennbar ist, welche OSCAL-Stufen bereits vollständig implementiert sind (Catalogs, Profiles) und welche sich noch in aktiver Entwicklung befinden.
-*   **Akzeptanzkriterien:**
-    *   **Dashboard Pipeline Cards:** Die Pipeline-Schritte im OSCAL Lifecycle Pipeline Dashboard für `Component Definitions`, `SSP`, `Assessment Plans`, `Assessment Results`, `POA&M` und `Control Mappings` zeigen ein deutliches 🚧 Baustellensymbol sowie eine gelbe/diskrete `In Dev`-Badge auf der Karte.
-    *   **Sidebar Navigation:** In der Navigation (`Navigation.jsx`) wird neben den unvollständigen Arbeitsstufen ein dezentes 🚧 Baustellensymbol im Label oder als Badge angezeigt, inklusive eines verständlichen Tooltips ("Under Active Development").
-    *   **Stage Header Warning Banner:** Beim Öffnen einer Arbeitsstufe, deren spezialisierter Editor noch nicht fertiggestellt ist (Components, SSPs, Assessment Plans, Assessment Results, POA&Ms, Control Mappings), wird am oberen Bildschirmrand ein informativer Hinweis-Banner angezeigt ("🚧 Dieser OSCAL-Editor befindet sich aktuell in der Entwicklung. Grundlegende JSON-Bearbeitung ist verfügbar.").
+> **As a** Compliance Officer or Auditor (Alice / Bob)  
+> **I want** to see a visual indicator (construction site symbol 🚧 / "Under Development" badge) on the OSCAL lifecycle elements whose specialized editors/viewers are still in development (Component Definitions, SSP, Assessment Plans, Assessment Results, POA&M, Control Mappings),  
+> **so that** it is immediately transparent which OSCAL stages are already fully implemented (Catalogs, Profiles) and which are still under active development.
+*   **Acceptance Criteria:**
+    *   **Dashboard Pipeline Cards:** The pipeline steps in the OSCAL Lifecycle Pipeline Dashboard for `Component Definitions`, `SSP`, `Assessment Plans`, `Assessment Results`, `POA&M`, and `Control Mappings` show a clear 🚧 construction site symbol as well as a yellow/discrete `In Dev` badge on the card.
+    *   **Sidebar Navigation:** In the navigation (`Navigation.jsx`), a subtle 🚧 construction site symbol is displayed next to the incomplete work stages in the label or as a badge, including an understandable tooltip ("Under Active Development").
+    *   **Stage Header Warning Banner:** When opening a work stage whose specialized editor is not yet finished (Components, SSPs, Assessment Plans, Assessment Results, POA&Ms, Control Mappings), an informative warning banner is displayed at the top of the screen ("🚧 This OSCAL editor is currently under development. Basic JSON editing is available.").
 
 
 ### US 0.11: Master Templates Admin Mode & Automatic User Workspace Seeding
-> **Als** Administrator / System-Maintainer (Philipp)  
-> **möchte ich** über einen speziellen Modus (`?w=master` oder `?w=templates`) direkt die schreibgeschützten Master-Templates (Kataloge & Profile) in `reposol/data/templates/` verwalten und editieren können – **ausschließlich im lokalen Betrieb (`localhost`)**,  
-> **damit** alle normalen Benutzer bei ihrem ersten Start in ihrem eigenen anonymen Workspace automatisch meine aktuellsten Master-Vorlagen vorgelegt bekommen und fremde Personen auf der öffentlichen Live-Demo die Master-Templates niemals überschreiben können.
-*   **Akzeptanzkriterien:**
-    *   **Standard-Benutzer (Normal Mode):** Neue Benutzer-Sessions (`session-xyz`) erhalten beim Erstellen automatisch eine lokale Kopie aller Master-Vorlagen in ihren eigenen isolierten Workspace. Alle Bearbeitungen, Änderungen und Löschungen betreffen nur ihren eigenen Workspace.
-    *   **Localhost-Admin Guard:** Der Master-Template-Schreibmodus (`?w=master` / `?w=templates`) ist **streng auf Anfragen von `localhost` / `127.0.0.1` beschränkt**. Auf der öffentlichen Live-Demo (Fly.io) werden Schreibzugriffe auf den Master-Workspace mit HTTP 403 Forbidden geblockt.
-    *   **Master Persistence (Lokal):** Speicher- und Löschoperationen im Master-Mode auf `localhost` wirken direkt auf `reposol/data/templates/catalogs/` und `reposol/data/templates/profiles/`.
-    *   **UI Indicator:** In der UI wird im Master-Mode ein deutlicher Hinweis/Badge angezeigt (`👑 Master Templates Mode (Local Admin)`), um versehentliches Überschreiben von Vorlagen zu verhindern.
+> **As an** Administrator / System Maintainer (Philipp)  
+> **I want** to be able to manage and edit the read-only master templates (Catalogs & Profiles) in `reposol/data/templates/` directly via a special mode (`?w=master` or `?w=templates`) – **exclusively in local operation (`localhost`)**,  
+> **so that** all normal users are automatically presented with my latest master templates in their own anonymous workspace upon their first launch, and external people on the public live demo can never overwrite the master templates.
+*   **Acceptance Criteria:**
+    *   **Standard Users (Normal Mode):** New user sessions (`session-xyz`) automatically receive a local copy of all master templates into their own isolated workspace upon creation. All edits, modifications, and deletions affect only their own workspace.
+    *   **Localhost-Admin Guard:** The master template write mode (`?w=master` / `?w=templates`) is **strictly limited to requests from `localhost` / `127.0.0.1`**. On the public live demo (Fly.io), write accesses to the master workspace are blocked with HTTP 403 Forbidden.
+    *   **Master Persistence (Local):** Save and delete operations in master mode on `localhost` act directly on `reposol/data/templates/catalogs/` and `reposol/data/templates/profiles/`.
+    *   **UI Indicator:** In the UI, a clear notice/badge is displayed in master mode (`👑 Master Templates Mode (Local Admin)`) to prevent accidental overwriting of templates.
 
 
 
@@ -254,7 +254,7 @@ The following stories define recurring UI and backend patterns implemented ident
     *   **Backend Draft Management:** Backend draft storage uses the `_draft.json` file extension for temporary drafts.
     *   **Advanced OSCAL Fields (Advanced):** Rarely used schema fields such as `property.uuid`, `property.group`, `link.media-type`, `link.resource-fragment`, `part.ns`, and `part.class` are offered in the edit masks as an expandable Advanced section, ensuring the schema is fully covered without cluttering the standard view.
 
-### US 0.10: Cleanup of Empty OSCAL Arrays on Saving and Exporting
+### US 0.18: Cleanup of Empty OSCAL Arrays on Saving and Exporting
 > **As a** compliance officer (Alice)  
 > **I want** empty arrays like `parts` or `params` to be automatically cleaned up (removed) when saving documents and drafts,  
 > **so that** the documents are always compliant with the official OSCAL schemas and no schema validation errors occur due to empty lists (`minItems: 1`).
@@ -263,7 +263,7 @@ The following stories define recurring UI and backend patterns implemented ident
     *   Both the Catalog Editor and the Profile Builder apply this cleanup.
     *   Existing drafts in `reposol/data` are automatically corrected after being loaded and subsequently saved.
 
-### US 0.11: Detailed Address Data and External Identifiers in the Metadata Editor
+### US 0.19: Detailed Address Data and External Identifiers in the Metadata Editor
 > **As a** compliance officer (Alice)  
 > **I want** to be able to manage postal addresses (including street, city, postal code, country), external identifiers, and location associations for parties and locations in the metadata editor,  
 > **so that** the organizational master data of the compliance document is fully and schema-compliantly captured.
@@ -272,7 +272,7 @@ The following stories define recurring UI and backend patterns implemented ident
     *   Parties can be assigned external identifiers (`external-ids` with system and identifier) and location associations (`location-uuids`) via a UI input/selection field.
     *   All captured address data is correctly saved in the OSCAL document.
 
-### US 0.12: Support for Parameter Dependencies (Depends-on)
+### US 0.20: Support for Parameter Dependencies (Depends-on)
 > **As a** compliance officer (Alice)  
 > **I want** to be able to define dependencies between parameters,  
 > **so that** logical relationships and preconditions between control specifications are declared in a machine-readable manner.
@@ -281,82 +281,87 @@ The following stories define recurring UI and backend patterns implemented ident
     *   The dependencies are stored in the OSCAL document under the parameter object.
 
 ### US 0.13: Sidebar-Centric Navigation and Dashboard Overview for Catalog and Profile Editors
-> **Als** Compliance Officer (Alice) / Auditor (Bob)  
-> **möchte ich** die Haupt-Dokumentbereiche (Overview, Metadata, Tags/Properties und Back Matter) direkt über die linke Sidebar ansteuern können und ein übersichtliches Dashboard als Dokumenten-Overview sehen,  
-> **damit** die Navigation in Übereinstimmung mit dem offiziellen NIST OSCAL Catalog Viewer erfolgt und ich die wichtigsten Statistiken des Dokuments auf einen glance erfassen kann.
-*   **Akzeptanzkriterien:**
-    *   **Sidebar-Menüpunkte:** In der linken Sidebar von Katalogen und Profilen gibt es oben dauerhaft die Navigationspunkte:
-        *   `🏠 Overview` (navigiert zum Dashboard)
-        *   `ⓘ Metadata` (navigiert direkt zum Metadata-Editor)
-        *   `🏷️ Declared Properties` (navigiert direkt zur globalen Property-Verwaltung)
-    *   **Back Matter am Ende:** Am unteren Ende der Sidebar (unterhalb der Control-Hierarchie) gibt es einen dauerhaften Navigationspunkt:
-        *   `📖 Back Matter` (navigiert zur Verwaltung der Back-Matter-Ressourcen)
-    *   **Dashboard-Overview:** Die Overview-Seite (wenn `Overview` ausgewählt ist) zeigt:
-        *   Titel des Dokuments als Hauptüberschrift (groß und prominent).
-        *   Eine Zeile mit Metadaten (Version, OSCAL-Version, Published Date, Last Modified Date).
-        *   Fünf Info-Karten mit Kennzahlen:
-            *   `Control Families` (Anzahl der Haupt-Control-Gruppen)
-            *   `Total Controls` (Gesamtanzahl aller Controls, rekursiv berechnet)
-            *   `Active Controls` (Anzahl der aktiven Controls, also ohne `status` = `withdrawn`)
-            *   `Withdrawn` (Anzahl der stillgelegten Controls mit `status` = `withdrawn` in `props`)
-            *   `Back Matter Resources` (Anzahl der Ressourcen im Back Matter)
-        *   Einen Bereich `CONTROL FAMILIES` darunter, der alle Hauptgruppen des Katalogs mit ihrer jeweiligen Control-Anzahl (z.B. `2 controls`) auflistet.
-    *   **Keine Top-Tabs:** Die bisherigen Reiter (Tabs) über dem Hauptbereich werden durch die Sidebar-Steuerung abgelöst.
-    *   **Synchronität mit Edit-Mode:** Die Sidebar-Navigation funktioniert sowohl im Lese- als auch im Bearbeitungsmodus (Edit-Mode) und zeigt jeweils das entsprechende Formular oder die Leseansicht für die ausgewählte Sektion.
-    *   **Gruppen-Overview (GroupEditor):** Wenn eine Control-Gruppe (Folder) ausgewählt ist, zeigt der rechte Bereich:
-        *   Breadcrumbs: `Overview / [Gruppen-Titel]`.
-        *   Gruppen-Titel mit Ordner-Symbol: `📁 [Gruppen-Titel]`.
-        *   Vier Metriken-Karten: `Family ID`, `Controls` (direkte Anzahl), `Sub-groups` (Anzahl direkter Unterordner), `Total (incl. enhancements)` (rekursive Gesamtanzahl aller Controls in dieser Gruppe).
-        *   Einen Bereich `SUB-GROUPS` mit einer Liste aller direkten Untergruppen (inklusive Ordner-Symbol, Titel und Control-Anzahl) und interaktiver Navigation per Klick.
-        *   Einen Bereich `CONTROLS` mit einer Liste aller direkten Controls und interaktiver Navigation per Klick.
-    *   **Control-Detailansicht (ControlDetailView):** Wenn ein Control ausgewählt ist, zeigt der rechte Bereich:
-        *   Breadcrumbs: `Overview / [Pfad der Eltern-Gruppen...] / [Control-Titel]`.
-        *   Control-Titel mit Hexagon-Symbol: `⬡ [Control-Titel]`.
-        *   Unterzeile mit Control ID und Class-Badge (sofern definiert).
-        *   Einzelne Karten mit farbigem linken Rand für `Statement` (Listen-Symbol `☵`, blauer Rand) und `Guidance` (Buch-Symbol `📖`, Akzent-Rand).
-        *   Einen Bereich `PROPERTIES` am unteren Ende der Detailansicht, der Properties als abgerundete Pills rendert (im Lese-Modus).
+> **As a** Compliance Officer (Alice) / Auditor (Bob)  
+> **I want** to be able to navigate to the main document areas (Overview, Metadata, Tags/Properties, and Back Matter) directly via the left sidebar and see a clear dashboard as a document overview,  
+> **so that** the navigation matches the official NIST OSCAL Catalog Viewer and I can grasp the most important statistics of the document at a glance.
+*   **Acceptance Criteria:**
+    *   **Sidebar Menu Items:** In the left sidebar of catalogs and profiles, the following navigation items are permanently available at the top:
+        *   `🏠 Overview` (navigates to the dashboard)
+        *   `ⓘ Metadata` (navigates directly to the metadata editor)
+        *   `🏷️ Declared Properties` (navigates directly to global property management)
+    *   **Back Matter at the Bottom:** At the bottom of the sidebar (below the control hierarchy), there is a permanent navigation item:
+        *   `📖 Back Matter` (navigates to the management of back-matter resources)
+    *   **Dashboard Overview:** The overview page (when `Overview` is selected) shows:
+        *   Title of the document as the main heading (large and prominent).
+        *   A row with metadata (Version, OSCAL Version, Published Date, Last Modified Date).
+        *   Five info cards with key metrics:
+            *   `Control Families` (Number of main control groups)
+            *   `Total Controls` (Total number of all controls, calculated recursively)
+            *   `Active Controls` (Number of active controls, i.e., without `status` = `withdrawn`)
+            *   `Withdrawn` (Number of deprecated controls with `status` = `withdrawn` in `props`)
+            *   `Back Matter Resources` (Number of resources in the back matter)
+        *   A `CONTROL FAMILIES` section below, listing all main groups of the catalog with their respective control count (e.g., `2 controls`).
+    *   **No Top Tabs:** The previous tabs above the main area are replaced by the sidebar navigation.
+    *   **Synchronicity with Edit Mode:** The sidebar navigation works in both read and edit modes, displaying the corresponding form or view for the selected section.
+    *   **Group Overview (GroupEditor):** When a control group (folder) is selected, the right area shows:
+        *   Breadcrumbs: `Overview / [Group Title]`.
+        *   Group title with folder icon: `📁 [Group Title]`.
+        *   Four metric cards: `Family ID`, `Controls` (direct count), `Sub-groups` (number of direct subfolders), `Total (incl. enhancements)` (recursive total count of all controls in this group).
+        *   A `SUB-GROUPS` section with a list of all direct subgroups (including folder icon, title, and control count) and interactive click navigation.
+        *   A `CONTROLS` section with a list of all direct controls and interactive click navigation.
+    *   **Control Detail View (ControlDetailView):** When a control is selected, the right area shows:
+        *   Breadcrumbs: `Overview / [Path of Parent Groups...] / [Control Title]`.
+        *   Control title with hexagon icon: `⬡ [Control Title]`.
+        *   Subline with Control ID and Class badge (if defined).
+        *   Individual cards with a colored left border for `Statement` (list icon `☵`, blue border) and `Guidance` (book icon `📖`, accent border).
+        *   A `PROPERTIES` section at the bottom of the detail view, rendering properties as rounded pills (in read mode).
 
 ### US 0.14: Caret-relative Autocomplete for Inline Parameter Insertion in Textareas (System-wide Context)
-> **Als** Compliance Officer (Alice) / Lead Assessor (Bob)  
-> **möchte ich** beim Bearbeiten aller OSCAL-Textfelder (Control-Statements, Sub-Control-Enhancements, Gruppen-Beschreibungen, Parameter-Usage/Guidelines und Assessment-Objectives/-Methoden) über einen dedizierten „Add Parameter“-Button ein Auswahlfenster direkt an der aktuellen Cursor-Position öffnen können, welches auch eine Option bietet, direkt einen neuen Parameter auf der passenden Scope-Ebene anzulegen und dorthin zu scrollen,  
-> **damit** ich Parameter in sämtlichen Dokumenttypen und Editor-Sektionen komfortabel einbinden und konsistent verwalten kann.
-*   **Akzeptanzkriterien:**
-    *   **Universelle Button-Integration:** Neben allen Prose-Bearbeitungsfeldern (Statements, Sub-Controls, Group Parts, Parameter Usage/Guidelines, Assessment Objectives/Methods) wird der Button „🏷️ Add Parameter“ (bzw. Icon) bereitgestellt.
-    *   **Caret-relative Positionierung:** Klick auf den Button öffnet das Parameterauswahl-Dropdown direkt an der Cursor-Position (Caret) im aktiven Textfeld.
-    *   **Scope-bewusste „Define New Parameter“-Option:** Das Dropdown enthält am Ende die Option „➕ Define New Parameter...“. Klick darauf schließt das Dropdown, löst den entsprechenden `onNewParam`-Callback für die jeweilige Scope-Ebene aus (Control-, Gruppen- oder Dokumentenebene) und führt einen Smooth-Scroll zum Parameter-Erstellungsbereich aus.
-    *   **Kontextsensitive Insertion:** Klick auf einen ausgewählten Parameter fügt das Platzhalter-Token `{{ insert: param, param_id }}` exakt an der Cursor-Position ein.
+> **As a** Compliance Officer (Alice) / Lead Assessor (Bob)  
+> **I want** to be able to open a selection window directly at the current cursor position (caret) via a dedicated "Add Parameter" button when editing all OSCAL text fields (control statements, sub-control enhancements, group descriptions, parameter usage/guidelines, and assessment objectives/methods), which also offers an option to create a new parameter directly at the appropriate scope level and scroll there,  
+> **so that** I can easily insert and consistently manage parameters in all document types and editor sections.
+*   **Acceptance Criteria:**
+    *   **Universal Button Integration:** Next to all prose editing fields (statements, sub-controls, group parts, parameter usage/guidelines, assessment objectives/methods), the "🏷️ Add Parameter" button (or icon) is provided.
+    *   **Caret-relative Positioning:** Clicking the button opens the parameter selection dropdown directly at the cursor position (caret) in the active text field.
+    *   **Scope-aware "Define New Parameter" Option:** The dropdown includes the option "➕ Define New Parameter..." at the end. Clicking it closes the dropdown, triggers the corresponding `onNewParam` callback for the respective scope level (control, group, or document level), and performs a smooth scroll to the parameter creation area.
+    *   **Context-sensitive Insertion:** Clicking a selected parameter inserts the placeholder token `{{ insert: param, param_id }}` exactly at the cursor position.
 
 ### US 0.15: Real-Time Form Field Validation and OSCAL Schema Guidance (Metadata, Parameter & Back-Matter Completeness)
-> **Als** Compliance Officer (Alice)  
-> **möchte ich** beim Bearbeiten von Formularfeldern im Visual UI-Editor (Metadaten, Parameter & Back-Matter) sofortiges Feedback zu Formatvorgaben und volle Abdeckung aller OSCAL-Standardfelder (wie Responsible Parties, Parameterebenen-Anmerkungen, Revisionshistorie sowie globale Metadaten-Properties & Links) erhalten,  
-> **damit** Fehleingaben direkt verhindert werden und Reposol eine 100%ige Abdeckung aller OSCAL-Standardstrukturen im UI bietet.
-*   **Akzeptanzkriterien:**
-    *   **Formularfeld-Validierung in Echtzeit:** Felder im `MetadataEditor` (und weiteren UI-Formularen) validieren ihre Werte gegen OSCAL-Formatvorgaben (z. B. ISO 8601 Datum `YYYY-MM-DDTHH:MM:SSZ` für `published` und `last-modified`, E-Mail-Syntax für `email-addresses`, UUIDv4 für UUID-Felder).
-    *   **Visuelle Rückmeldung:** Invalide Eingaben werden optisch hervorgehoben (roter Rahmen um das Eingabefeld, roter Hilfetext unterhalb des Feldes mit dem erwarteten Format).
-    *   **Automatisches Bereinigen leerer Werte:** Wenn optionale Datumsfelder (wie `published`) im UI-Formular gelöscht/geleert werden, wird die Eigenschaft aus dem Dokument-Objekt entfernt, statt einen leeren String `""` zu übermitteln, der die Schema-Validierung verletzen würde.
-    *   **Responsible Parties im MetadataEditor:** Der `MetadataEditor.jsx` bietet eine eigene Sektion `Responsible Parties` (Verantwortliche Partys), in der einer Rolle (`role.id`) eine oder mehrere Personen/Organisationen (`party.uuid`) über interaktive Selektoren zugewiesen werden können.
-    *   **Globale Metadaten-Properties & Links:** Der `MetadataEditor.jsx` bettet den `PropsEditor` und `LinksEditor` ein, sodass Metadaten-weite Eigenschaften (`metadata.props`) und Referenz-Links (`metadata.links`) visuell verwaltet werden können.
-    *   **Metadaten-Entitäten Verschachtelungen:** Unterstützung von verschachtelten `props`, `links` und `remarks` auf Ebene von Rollen, Partys und Standorten in `MetadataEditor.jsx`.
-    *   **Revisionshistorie (`metadata.revisions`):** Der `MetadataEditor.jsx` enthält einen Bereich zur Erfassung und Anzeige der formalen OSCAL-Revisionshistorie (`revisions` mit Titel, Datum, Version, OSCAL-Version und Anmerkungen).
-    *   **Parameter-Remarks (`param.remarks`):** Das `ParameterCard.jsx`-Bauteil enthält im Bereich *Advanced & Optional Metadata* ein Eingabefeld für Anmerkungen (`remarks`) auf Parameterebene.
-    *   **Resource-Links, Remarks & Document-IDs (`back-matter.resources`):** Das `BackMatterEditor.jsx`-Bauteil enthält für jede Ressource den `LinksEditor` für Ressourcen-Links (`resource.links`), ein Anmerkungsfeld (`resource.remarks`) sowie Unterstützung für `document-ids` und Zitations-Properties.
-    *   **Profile Alter Removal Remarks (`alter.remove.remarks`):** Das `ModifyPanel.jsx`-Bauteil unterstützt Anmerkungen für entfernte Statement-/Property-Objekte in Profilen.
-    *   **Schema-Konformität:** Alle hinzugefügten/bearbeiteten Felder bleiben zu 100% valide gegen die offiziellen NIST-OSCAL-JSON-Schemas im Backend.
+> **As a** Compliance Officer (Alice)  
+> **I want** to receive immediate feedback on formatting requirements and full coverage of all OSCAL standard fields (such as Responsible Parties, parameter-level remarks, revision history, and global metadata properties & links) when editing form fields in the Visual UI Editor (metadata, parameters & back-matter),  
+> **so that** incorrect entries are immediately prevented and Reposol offers 100% coverage of all OSCAL standard structures in the UI.
+*   **Acceptance Criteria:**
+    *   **Real-Time Form Field Validation:** Fields in the `MetadataEditor` (and other UI forms) validate their values against OSCAL format requirements (e.g., ISO 8601 Date `YYYY-MM-DDTHH:MM:SSZ` for `published` and `last-modified`, email syntax for `email-addresses`, UUIDv4 for UUID fields).
+    *   **Visual Feedback:** Invalid entries are visually highlighted (red border around the input field, red helper text below the field with the expected format).
+    *   **Automatic Purging of Empty Values:** If optional date fields (such as `published`) are cleared/emptied in the UI form, the property is removed from the document object instead of submitting an empty string `""`, which would violate schema validation.
+    *   **Responsible Parties in MetadataEditor:** The `MetadataEditor.jsx` provides a dedicated `Responsible Parties` section where one or more persons/organizations (`party.uuid`) can be assigned to a role (`role.id`) via interactive selectors.
+    *   **Global Metadata Properties & Links:** The `MetadataEditor.jsx` embeds the `PropsEditor` and `LinksEditor` so that document-wide metadata properties (`metadata.props`) and reference links (`metadata.links`) can be visually managed.
+    *   **Nested Metadata Entities:** Support for nested `props`, `links`, and `remarks` at the level of roles, parties, and locations in `MetadataEditor.jsx`.
+    *   **Revision History (`metadata.revisions`):** The `MetadataEditor.jsx` includes a section for capturing and displaying the formal OSCAL revision history (`revisions` with title, date, version, OSCAL version, and remarks).
+    *   **Parameter Remarks (`param.remarks`):** The `ParameterCard.jsx` component includes an input field for remarks (`remarks`) at the parameter level in the *Advanced & Optional Metadata* section.
+    *   **Resource Links, Remarks & Document-IDs (`back-matter.resources`):** The `BackMatterEditor.jsx` component includes the `LinksEditor` for resource links (`resource.links`), a remarks field (`resource.remarks`), and support for `document-ids` and citation properties for each resource.
+    *   **Profile Alter Removal Remarks (`alter.remove.remarks`):** The `ModifyPanel.jsx` component supports remarks for removed statement/property objects in profiles.
+    *   **Schema Conformity:** All added/edited fields remain 100% valid against the official NIST OSCAL JSON schemas in the backend.
 
 ### US 0.16: Session-Isolated Anonymous Workspaces & Docker Containerized Deployment
-> **Als** öffentlicher Demo-Nutzer oder Open-Source Selbst-Hoster (Alice / Bob)  
-> **möchte ich** Reposol ohne Registrierungs-Zwang online im Browser nutzen und Dokumente bearbeiten können, wobei meine Daten in einem eigenen anonymen Workspace isoliert bleiben und das Gesamtsystem als schlanker Docker-Container (z. B. auf Fly.io) betreibbar ist,  
-> **damit** mehrere Online-Tester sich nicht gegenseitig Dokumente überschreiben und das System 100% zukunftssicher für spätere Nutzer-Accounts (SaaS) aufgestellt ist.
-*   **Akzeptanzkriterien:**
-    *   **Anonyme Session Workspace-ID:** Das Frontend generiert beim ersten Aufruf automatisch eine Session-ID (`session-{uuid}`) im `localStorage` und sendet diese im `X-Workspace-ID` HTTP-Header bei allen API-Requests mit.
-    *   **Frontend Workspace Integration:** Frontend components (`App.jsx`, `CatalogViewer.jsx`, `DocumentEditor.jsx`, `ImportWizard.jsx`, `MappingViewer.jsx`) nutzen `authFetch` / `getWorkspaceId()` aus `lib/api.js` für alle API-Anfragen (`/api/documents/...`, `/api/import/...`, `/api/validate/...`), sodass der `X-Workspace-ID` Header bei allen Anfragen im Master Template Mode (`?w=master`) sowie in anonymen Session-Workspaces ausnahmslos übermittelt wird.
-    *   **Backend Workspace ID Extraktion:** Backend `get_ws_id(request)` in `routes.py` & `import_routes.py` extrahiert den `?w=` Abfrageparameter (Query Parameter) zusätzlich zu `workspace_id` und `workspace` aus Headern/QueryParams.
-    *   **Isolierte Dateispeicherung im Backend:** Das Backend speichert Dokumente unter `reposol/data/workspaces/{workspace_id}/{stage}/`, wenn eine Workspace-ID übermittelt wird, und fällt andernfalls auf den Standardordner `reposol/data/{stage}/` zurück.
-    *   **Unified Multi-Stage Dockerfile & Security:** Ein `Dockerfile` im Root-Verzeichnis baut das Frontend (`npm run build`) und führt das FastAPI-Backend aus. In Stage 2 wird eine dedizierte Nicht-Root System-Gruppe und ein System-Benutzer `reposol` angelegt, die Dateirechte unter `/app` auf `reposol:reposol` gesetzt, die Master-Templates aus `reposol/data/templates` nach `/app/data/templates` kopiert und der Container unter `USER reposol` ausgeführt.
-    *   **Fly.io Deployment & Persistent Volume:** Eine `fly.toml`-Datei bindet ein Fly-Volume (`oscal_data`) an `/app/data` an (`[mounts] source = "oscal_data"`, `destination = "/app/data"`), sodass gespeicherte Workspaces (`/app/data/workspaces/*`) bei Container-Restarts und Neu-Deployments dauerhaft erhalten bleiben.
-    *   **Master Templates Auto-Synchronization on Deployment:** Im `Dockerfile` werden die Master-Templates in ein dediziertes Seed-Verzeichnis (`/app/templates_seed`) kopiert. Beim Start des Backends (`storage.py`) werden die Master-Templates in `/app/data/templates/` automatisch von `/app/templates_seed/` aktualisiert/synchronisiert, um bei neuen Deployments stets die neuesten Standard-Templates bereitzustellen, ohne Nutzer-Workspaces oder individuelle Daten zu beeinträchtigen.
-    *   **Root .dockerignore & Master Templates Inclusion:** Eine `.dockerignore`-Datei im Root-Verzeichnis schließt `.git`, `.agents`, `node_modules`, `dist`, `reposol/data/workspaces/*`, `reposol/data/uploads/*`, `*.md` und `__pycache__` vom Docker-Kontext aus, während `reposol/data/templates` explizit für den Image-Build eingeschlossen wird.
-    *   **SPA-Routing Fallback:** Aufrufe von Unterseiten (z. B. `/catalog`, `/profile`) werden serverseitig auf `index.html` geleitet, um 404-Fehler beim Direktaufruf im Browser zu verhindern.
+> **As a** public demo user or open-source self-hoster (Alice / Bob)  
+> **I want** to use Reposol online in the browser without forced registration and be able to edit documents, with my data remaining isolated in a separate anonymous workspace and the entire system operable as a lean Docker container (e.g., on Fly.io),  
+> **so that** multiple online testers do not overwrite each other's documents and the system is 100% future-proofed for later user accounts (SaaS).
+*   **Acceptance Criteria:**
+    *   **Anonymous Session Workspace ID:** Upon the first visit, the frontend automatically generates a session ID (`session-{uuid}`) in `localStorage` and sends it in the `X-Workspace-ID` HTTP header with all API requests.
+    *   **Frontend Workspace Integration:** Frontend components (`App.jsx`, `CatalogViewer.jsx`, `DocumentEditor.jsx`, `ImportWizard.jsx`, `MappingViewer.jsx`) use `authFetch` / `getWorkspaceId()` from `lib/api.js` for all API requests (`/api/documents/...`, `/api/import/...`, `/api/validate/...`), so that the `X-Workspace-ID` header is consistently transmitted in all requests in Master Template Mode (`?w=master`) and in anonymous session workspaces.
+    *   **Backend Workspace ID Extraction:** Backend `get_ws_id(request)` in `routes.py` & `import_routes.py` extracts the `?w=` query parameter in addition to `workspace_id` and `workspace` from headers/query parameters.
+    *   **Isolated File Storage in the Backend:** The backend saves documents under `reposol/data/workspaces/{workspace_id}/{stage}/` when a workspace ID is provided, and otherwise falls back to the default folder `reposol/data/{stage}/`.
+    *   **Unified Multi-Stage Dockerfile & Security:** A `Dockerfile` in the root directory builds the frontend (`npm run build`) and runs the FastAPI backend. In Stage 2, a dedicated non-root system group and user `reposol` are created, file permissions under `/app` are set to `reposol:reposol`, master templates are copied from `reposol/data/templates` to `/app/data/templates`, and the container is run under `USER reposol`.
+    *   **Fly.io Deployment & Persistent Volume:** A `fly.toml` file binds a Fly volume (`oscal_data`) to `/app/data` (`[mounts] source = "oscal_data"`, `destination = "/app/data"`), so that saved workspaces (`/app/data/workspaces/*`) are permanently preserved during container restarts and new deployments.
+    *   **Master Templates Auto-Synchronization on Deployment:** In the `Dockerfile`, master templates are copied to a dedicated seed directory (`/app/templates_seed`). When the backend starts (`storage.py`), the master templates in `/app/data/templates/` are automatically updated/synchronized from `/app/templates_seed/` to always provide the latest default templates upon new deployments, without affecting user workspaces or custom data.
+    *   **Root .dockerignore & Master Templates Inclusion:** A `.dockerignore` file in the root directory excludes `.git`, `.agents`, `node_modules`, `dist`, `reposol/data/workspaces/*`, `reposol/data/uploads/*`, `*.md` and `__pycache__` from the Docker context, while explicitly including `reposol/data/templates` for the image build.
 
-
-
+### US 0.17: Responsive Navigation Sidebar Collapse & Footer Action Hiding
+> **As a** Compliance Officer (Alice) / Auditor (Bob)  
+> **I want** distracting/distorted action buttons like "Share Workspace Link" and notice badges to automatically be hidden when the left main navigation is collapsed,  
+> **so that** the collapsed sidebar remains lean, tidy, and free of broken line breaks.
+*   **Acceptance Criteria:**
+    *   **Automatic Hiding in Footer on Collapsed Status:** When the main navigation is collapsed (`isCollapsed === true` or `.navigation-sidebar.collapsed`), the "Share Workspace Link" button (`btn-secondary` in `.nav-footer`) as well as the Master Templates badge in the sidebar are completely hidden (`display: none`).
+    *   **Clean Icon Rendering:** In the collapsed state, only the minimalist system status indicator (green `env-dot` for the Conda environment status) remains in the sidebar footer.
+    *   **Full Function in Expanded State:** When the sidebar is expanded (`isCollapsed === false`), the "Share Workspace Link" button and any Master Templates notices are displayed in full width with normal layout.

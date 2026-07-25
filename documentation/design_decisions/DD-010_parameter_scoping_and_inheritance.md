@@ -4,6 +4,12 @@
 ## Date: 2026-07-20
 ## Decision Makers: Development Team
 
+> **Related Parameter Decisions:** This DD is part of the Parameter Architecture family:
+> - [DD-009](DD-009_parameter_strategy.md): Lifecycle strategy — Profile vs. SSP vs. Component
+> - **DD-010** (this): Scoping & Inheritance — Catalog → Group → Control hierarchy
+> - [DD-012](DD-012_parameter_value_assignment_and_override_strategy.md): Value Assignment UX — Choice dropdowns, constraints, override rendering
+> - [DD-013](DD-013_universal_prose_with_params_integration.md): Prose Integration — `ProseWithParams` component architecture
+
 ## Context
 OSCAL allows parameter declarations at three hierarchical levels: Catalog-level, Group-level, and Control-level.
 A parameter has a globally unique ID within the document. Any prose requirement can reference a parameter ID using `{{ insert: param, param-id }}`.

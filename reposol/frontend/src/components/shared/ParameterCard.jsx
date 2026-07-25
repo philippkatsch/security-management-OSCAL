@@ -736,9 +736,9 @@ export function ParameterCard({
             <div style={{ background: 'var(--color-surface)', padding: '10px', borderRadius: '4px', border: '1px solid var(--color-border-subtle)' }}>
               <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Parameter Properties</span>
               <PropsEditor
-                propsData={param.props || []}
+                props={param.props || []}
                 onChange={(updated) => handleFieldChange('props', updated.length > 0 ? updated : undefined)}
-                allUsedPropKeys={[]}
+                allUsedKeys={[]}
               />
             </div>
           </div>

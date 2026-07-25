@@ -96,5 +96,13 @@ describe('Navigation', () => {
     const devBadges = screen.getAllByText('🚧 Dev');
     expect(devBadges.length).toBe(6); // Components, Control Mappings, SSPs, Assessment Plans, Assessment Results, POA&Ms
   });
+
+  it('renders share workspace button with btn-share-workspace class', () => {
+    render(<Navigation {...defaultProps} />);
+    const shareBtn = screen.getByRole('button', { name: /Share Workspace Link/i });
+    expect(shareBtn).toBeInTheDocument();
+    expect(shareBtn).toHaveClass('btn-share-workspace');
+  });
 });
+
 

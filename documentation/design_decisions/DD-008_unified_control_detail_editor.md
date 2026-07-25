@@ -4,6 +4,8 @@
 ## Date: 2026-07-19
 ## Decision Makers: Development Team
 
+> **Parent Decision:** This DD is an implementation deep-dive of [DD-004 §6: Cross-Domain Visual Consistency](DD-004_editor_ux_patterns.md). DD-004 defines the overall editor UX patterns; this DD specifies the `ControlDetailView` component architecture in detail.
+
 ## Context
 In Reposol, controls and subcontrols (enhancements) need to be viewed and edited in both the Catalog Builder (direct document mutation) and the Profile Tailoring editor (OSCAL-compliant alterations). Previously, these two views used duplicate rendering logic (`ControlDetail.jsx` and `ProfileDetailPanel.jsx`), causing visual inconsistencies, high maintenance overhead, and bugs in profile tailoring.
 

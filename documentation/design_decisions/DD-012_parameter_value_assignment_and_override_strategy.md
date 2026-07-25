@@ -4,6 +4,12 @@
 ## Date: 2026-07-21
 ## Decision Makers: Development Team
 
+> **Related Parameter Decisions:** This DD is part of the Parameter Architecture family:
+> - [DD-009](DD-009_parameter_strategy.md): Lifecycle strategy — Profile vs. SSP vs. Component
+> - [DD-010](DD-010_parameter_scoping_and_inheritance.md): Scoping & Inheritance — Catalog → Group → Control hierarchy
+> - **DD-012** (this): Value Assignment UX — Choice dropdowns, constraints, override rendering
+> - [DD-013](DD-013_universal_prose_with_params_integration.md): Prose Integration — `ProseWithParams` component architecture
+
 ## Context
 OSCAL security controls contain parameters (`param`) that define dynamic placeholders in security requirement statements. In Reposol, parameters can be defined in Catalogs (at catalog, group, or control level) and tailored in Profiles (`modify.set-parameters`).
 

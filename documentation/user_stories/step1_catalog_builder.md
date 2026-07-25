@@ -18,7 +18,7 @@
     *   **Party Management (Parties):** Creation of persons or organizations with full OSCAL fields: name, type (person/org), short name, email addresses, telephone numbers (`telephone-numbers`), addresses (`addresses` with address lines, city, state, postal code, country), external identifiers (`external-ids` with schema), location links (`location-uuids`), and organizational membership (`member-of-organizations`).
     *   **Locations (Locations):** Capturing with UUID, title, full address, email addresses, telephone numbers, URLs, custom properties, and links.
     *   **Global Metadata Assignment:** Linking parties to roles (`responsible-parties`) at the catalog level, including properties, links, and remarks.
-    *   **Audit Actions (Actions):** Capturing metadata actions (`actions`) such as approvals or reviews with UUID, type, system URI, date, and responsible parties.
+    *   **Audit Actions (Actions):** Capturing metadata actions (`actions`) such as approvals or reviews with UUID, type, system URI, date, responsible parties, custom properties (`props`), reference links (`links`), and remarks.
 
 ### US 1.2: Setting up a Group Hierarchy & Group Details
 > **As a** Compliance Officer and Framework Developer (Alice)  
@@ -28,11 +28,11 @@
     *   Creation of main groups and arbitrarily deeply nested subgroups.
     *   Assignment of unique IDs for groups (e.g., `ac`, `ac-ia`).
     *   Subsequent moving and reordering of groups in the editor.
-    *   **Group Editing (Props, Links, Parts):** Each group can be edited in the detail pane when selected. This includes modifying the ID and title, assigning properties/tags (`props`), adding links (`links`), and capturing description texts (`parts`).
+    *   **Group Editing (Props, Links, Parts, Class):** Each group can be edited in the detail pane when selected. This includes modifying the ID, title, and `class` attribute (e.g., `family`, `sub-family`), assigning properties/tags (`props`), adding links (`links`), and capturing description texts (`parts`).
     *   **Premium Group Details Interface:** The Group Editor pane features a premium glassmorphic header banner, a structured metadata grid (with visual metrics for Family ID, controls, sub-groups, and total controls), and a unified list table layout matching the Document Overview aesthetics. The Controls table lists only the direct/main controls of the group (excluding nested control enhancements/sub-controls, which are accessed when selecting a specific control).
-    *   **ProseWithParams in Group Parts:** Alle Gruppen-Beschreibungstexte (`parts` im `PartsEditor` des `GroupEditor`) sind mit `ProseWithParams` ausgestattet.
-    *   **Add-Parameter & Callback in Gruppen-Prose:** Beim Bearbeiten von Gruppen-Texten steht der Button „🏷️ Add Parameter“ mit Caret-relativer Positionierung zur Verfügung.
-    *   **onNewParam für Gruppen-Parameter:** Klick auf „➕ Define New Parameter...“ im Dropdown eines Gruppen-Textfeldes legt automatisch einen neuen Gruppen-Parameter in `group.params` an und scrollt die Ansicht sanft zur Card „Group Parameters“ im `GroupEditor`.
+    *   **ProseWithParams in Group Parts:** All group description texts (`parts` in the `PartsEditor` of the `GroupEditor`) are integrated with `ProseWithParams`.
+    *   **Add-Parameter & Callback in Group-Prose:** When editing group texts, the "🏷️ Add Parameter" button with caret-relative positioning is available.
+    *   **onNewParam for Group Parameters:** Clicking on "➕ Define New Parameter..." in the dropdown of a group text field automatically creates a new group parameter in `group.params` and smoothly scrolls the view to the "Group Parameters" card in the `GroupEditor`.
 
 ### US 1.3: Control Statements, Parts & Enhancements — Creation and Inline Editing
 > **As a** Compliance Officer and Framework Developer (Alice)  
@@ -46,6 +46,8 @@
     *   **Class Attribute:** The `class` attribute of a control (e.g., `SP800-53`, `custom`) can be set and modified via an input field.
     *   **Icon Taxonomy & Visual Consistency:** The gear icon (`⚙️`) is reserved exclusively for Parameter-related elements and actions (e.g., `⚙️ Add Parameter`, `⚙️ Parameters`). Advanced settings toggles for parts, sub-parts/items, subcontrols, links, and property badges consistently use the wrench icon (`🔧`).
     *   **Universal Parameter Insertion (⚙️ Add Parameter):** Every prose entry field — including top-level statements/parts and all nested sub-parts/items (e.g., `a.`, `b.`, `c.`) in both Catalog and Profile modes — features a `⚙️` (Add Parameter) button to trigger caret-relative parameter placeholder insertion.
+    *   **Unlimited Recursive Part Nesting:** The UI renders parts nested to any depth (`part.parts[].parts[]...`), as stipulated by the OSCAL standard (e.g., NIST SP 800-53: Statement → Item a → Item 1 → Item (a) → Item (i) = 5+ levels).
+    *   **Part-Level Metadata (Advanced):** Via the `🔧 Advanced Settings` panel, `title`, `props`, and `links` can optionally be maintained for each individual part in order to capture paragraph-specific metadata (e.g., `applicability: cloud-only`) in a schema-compliant manner.
 
 ### US 1.4: Parameter Definitions, Constraints & Interactive Value Assignment
 > **As a** Compliance Officer and Framework Developer (Alice)  
@@ -57,9 +59,8 @@
     *   **Editor Hierarchy:** Expanding the card exposes essential core fields (ID & Value assignment, Label & Usage) in the primary section, and optional metadata (Class, Depends On, Choice options configuration, Constraints, Guidelines, Links, Properties) in a secondary section.
     *   **Prose Parameter Badging & Tooltips:** Embedded parameter placeholders in control prose render as blue Chips (`[Label]` if unset, green value if set). Hovering displays `Parameter: <id>`, `Status`, and `Guidance` in English; clicking smooth-scrolls to the Parameter Card.
     *   **Overview Parameters Scope Section:** The Parameters tab in DocumentOverview clearly distinguishes Global Catalog Parameters (`catalog.params`) from Group and Control parameters, explaining parameter inheritance across scopes.
-    *   **ProseWithParams in Parameter-Metadaten:** Die Felder `usage` (Parameter-Verwendungszweck) und `guidelines.prose` (Ausfüllhilfen & Leitlinien) innerhalb der `ParameterCard` nutzen `ProseWithParams`.
-    *   **Querverweise zwischen Parametern:** In `usage` und `guidelines.prose` können über den „Add Parameter“-Button Platzhalter anderer Parameter (z. B. für Parameter-Abhängigkeiten `depends-on` oder erläuternde Referenzen) per Caret-relativer Auswahl eingefügt werden.
-
+    *   **ProseWithParams in Parameter Metadata:** The fields `usage` (parameter purpose) and `guidelines.prose` (filling aids & guidelines) within the `ParameterCard` use `ProseWithParams`.
+    *   **Cross-References between Parameters:** In `usage` and `guidelines.prose`, placeholders for other parameters (e.g., for parameter dependencies `depends-on` or explanatory references) can be inserted via caret-relative selection using the "Add Parameter" button.
 ### US 1.5: Definition of Assessment Objectives & Assessment Methods
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** document concrete assessment objectives and recommended assessment methods for auditors directly on the control,  
@@ -67,9 +68,8 @@
 *   **Acceptance Criteria:**
     *   Linking of structured assessment objectives (`objectives`) to controls.
     *   Assignment of standardized assessment methods (e.g., `examine` for document review, `interview` for interviews, `test` for technical tests).
-    *   **ProseWithParams für Objectives & Methods:** Die Freitextfelder für Prüfziele (`objectives`) und Empfohlene Prüfmethoden (`examine`, `interview`, `test`) im Katalog-Editor sind mit `ProseWithParams` integriert.
-    *   **Parameter-Einbindung in Prüfanweisungen:** Framework-Entwickler können Parameter direkt in Prüfziele und Prüfanweisungen einbetten, um dynamische Werte (z. B. Stichprobengrößen oder Prüffrequenzen) standardkonform zu deklarieren.
-
+    *   **ProseWithParams for Objectives & Methods:** The free-text fields for assessment objectives (`objectives`) and recommended assessment methods (`examine`, `interview`, `test`) in the catalog editor are integrated with `ProseWithParams`.
+    *   **Parameter Integration in Assessment Instructions:** Framework developers can embed parameters directly into assessment objectives and assessment instructions to declare dynamic values (e.g., sample sizes or testing frequencies) in a standard-compliant manner.
 ### US 1.6: Framework Mapping (Cross-References)
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** define references and mappings to other industry standards,  
@@ -99,6 +99,7 @@
     *   **Revision Sync:** Upon saving, `catalog.metadata.revisions[]` is automatically updated (in accordance with US 0.7).
 
 ### US 1.9: Simplified Catalog Creation & Direct Editing (Inner View)
+> *Implements [US 0.P1](step0_global_requirements.md) with catalog-specific additions.*
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** be able to create a new catalog by initially entering only the title and being forwarded immediately to the in-place editor area (Inner View),  
 > **so that** I can configure the structure and metadata directly within the editing area without cumbersome preliminary wizards.
@@ -109,11 +110,12 @@
     *   **Import Catalog Content:** In edit mode, the Document Overview contains the "Import Source" tab, which allows importing content from a registry template or a web URL (JSON) directly into the current catalog (preserving the original UUID). After a successful import, the content is automatically saved as a version in the backend, and the editor switches to the catalog's read-only view.
 
 ### US 1.10: Document Overview & Property Management in the Catalog
+> *Implements [US 0.P3](step0_global_requirements.md) with catalog-specific additions.*
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** manage the catalog's metadata and properties in clearly separated views within the Document Overview,  
 > **so that** I have a clear, OSCAL-correct overview of document metadata vs. property usage across controls and groups.
 *   **Acceptance Criteria:**
-    *   **Sidebar Navigation (per US 0.13 & DD-011):** The sidebar provides separate navigation items for `ℹ️ Metadata`, `🏷️ Properties`, and `⚙️ Parameters`, each rendering a dedicated view in the right main pane.
+    *   **Sidebar Navigation (per US 0.21 & DD-011):** The sidebar provides separate navigation items for `ℹ️ Metadata`, `🏷️ Properties`, and `⚙️ Parameters`, each rendering a dedicated view in the right main pane.
     *   **Metadata View (ℹ️ Metadata):** Shows the MetadataEditor (title, version, OSCAL version, roles, parties, locations, document-ids, remarks, revisions). Does NOT display control/group property aggregations.
     *   **Properties View (🏷️ Properties):** Contains:
         *   **Properties Dashboard:** An overview metric bar showing 4 key metrics: **Global Header Properties** (`metadata.props` count), **Element Properties** (unique properties used across tree elements), **Unique Keys** (total distinct property names in the document), and **Total Assignments** (total property occurrences in the tree).
@@ -126,6 +128,7 @@
 > **Note (2026-07-22):** Standardized button label to `➕ Add Header Property` and added hover tooltips explaining Header Property vs. Element Property behavior.
 
 ### US 1.11: Detailed Editability of Controls & Exit Button in the Catalog
+> *Implements [US 0.P4](step0_global_requirements.md) with catalog-specific additions.*
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** edit all components of a control and its enhancements inline in a single cohesive detail card and save edits using an exit button,  
 > **so that** the operation is consistent and error-resistant.
@@ -168,19 +171,73 @@
     *   **Hierarchy Change:** A control can be dragged and dropped from one group into another group (or to the root level). A group can be moved into another group as a subgroup or dragged to the root level.
     *   **Edit Mode Only:** Drag-and-drop is only active when the user is in edit mode. In view mode, elements are not draggable.
     *   **Undo-Capable:** Each drag-and-drop operation creates a new undo history entry, allowing the relocation to be undone (Ctrl+Z).
-    *   **No External Dependency:** The implementation is done using a robust pointer-based (PointerEvents) custom implementation for maximum reliability with React re-renders.
+    ### US 1.15: Multi-Level Parameter Management and Referencing (Catalog, Group, and Control Level)
+> **As a** Framework Developer (Alice)  
+> **I want to** be able to define, manage, and reference parameters in prose texts at the catalog, group, and control level,  
+> **so that** I can avoid redundant parameter definitions and declare parameters at the appropriate hierarchical level.
+*   **Acceptance Criteria:**
+    *   **Catalog-Level Parameters:** A new tab `⚙️ Parameters` in the document overview (DocumentOverview) in catalog mode allows adding, editing, and deleting global parameters.
+    *   **Group-Level Parameters:** An expandable "Group Parameters" section in the GroupEditor allows managing parameters for all controls in this group and its subgroups.
+    *   **Parameter Dropdown Grouping:** When clicking `🏷️ Add Parameter` in prose fields, all available parameters (catalog, group, control) are displayed hierarchically grouped in the dropdown (🌐 Catalog → 📁 Group → 🎯 Control).
+    *   **Parameter Resolution in Prose:** In read-only mode as well as in prose texts, parameters of all levels are correctly resolved and displayed.
+    *   **Profile Override (Profile Mode):** In profile mode, all parameters (including catalog and group parameters) can be overridden by ID (`set-parameters`) and rendered.
 
-### US 1.15: Mehrebenen-Parameterverwaltung und -referenzierung (Katalog-, Gruppen- und Kontrollebene)
-> **Als** Framework-Entwickler (Alice)  
-> **möchte ich** Parameter auf Katalog-, Gruppen- und Kontrollebene definieren, verwalten und in Prose-Texten referenzieren können,  
-> **damit** ich redundante Parameterdefinitionen vermeiden und Parameter auf der passenden hierarchischen Ebene deklarieren kann.
-*   **Akzeptanzkriterien:**
-    *   **Katalogweite Parameter (Catalog-Level):** Ein neuer Tab `⚙️ Parameters` in der Dokumentenübersicht (DocumentOverview) im Katalog-Modus ermöglicht das Hinzufügen, Bearbeiten und Löschen von globalen Parametern.
-    *   **Gruppenweite Parameter (Group-Level):** Eine aufklappbare Section "Group Parameters" im GroupEditor erlaubt das Verwalten von Parametern für alle Kontrollen dieser Gruppe und ihrer Untergruppen.
-    *   **Parameter-Dropdown-Gruppierung:** Beim Klick auf `🏷️ Add Parameter` in Prose-Feldern werden alle verfügbaren Parameter (Katalog, Gruppe, Kontrolle) hierarchisch gruppiert im Dropdown angezeigt (🌐 Catalog → 📁 Group → 🎯 Control).
-    *   **Parameter-Auflösung in Prose:** Im Read-Only-Modus sowie in Prose-Texten werden Parameter aller Ebenen korrekt aufgelöst und angezeigt.
-    *   **Profil-Überschreibung (Profile Mode):** Im Profil-Modus können alle Parameter (auch Katalog- und Gruppen-Parameter) über die ID überschrieben (`set-parameters`) und gerendert werden.
+### US 1.16: Catalog Import and Multi-Format Conversion (JSON, XML, YAML)
+> **As a** Framework Developer (Alice)  
+> **I want to** be able to upload/import and automatically convert existing security catalogs not only as JSON, but also in the official NIST OSCAL formats XML and YAML,  
+> **so that** I can import and edit existing rulebooks directly from official NIST or BSI repositories into Reposol.
+*   **Acceptance Criteria:**
+    *   **Multi-Format Upload:** The import button `📥 Import Catalog` supports JSON (`.json`), XML (`.xml`), and YAML (`.yaml`, `.yml`).
+    *   **Automatic Conversion:** The backend seamlessly converts XML/YAML via the OSCAL format converters into a schema-valid OSCAL JSON Catalog Model.
+    *   **Error Handling:** Invalid or non-schema-compliant XML/YAML files generate a precise error message before saving.
 
+### US 1.17: Interactive Parameter Constraint Builder & Live Regex Validation in the Catalog
+> **As a** Compliance Officer (Alice)  
+> **I want to** be able to configure validation rules (constraints) and regular expressions (`constraints.tests.expression`) for parameters via a visual form and test them live in the editor,  
+> **so that** I can ensure that downstream profiles and SSPs can only enter valid parameter values.
+*   **Acceptance Criteria:**
+    *   **Constraint Form:** ParameterCard offers a form for `constraints.tests` in advanced mode with a test expression, error description (`remarks`), and a live test input field.
+    *   **Live Validation Check:** Test inputs in the catalog editor check the regex expression live and display a visual confirmation (green checkmark) or error message (red border + `remarks` text).
+    *   **Schema-Compliant Serialization:** Complete storage under `param.constraints[].tests[]`.
+
+### US 1.18: Complete Catalog Export with Attribution & Schema Validation
+> **As a** Compliance Officer (Alice)  
+> **I want to** be able to export edited catalogs as independent, fully attributed OSCAL JSON files,  
+> **so that** the exported catalogs can be handed over to external auditors or third-party systems in an audit-proof manner.
+*   **Acceptance Criteria:**
+    *   **OSCAL Schema Conformity:** `📥 Export JSON` generates a 100% NIST OSCAL schema-valid catalog document.
+    *   **Completeness:** The exported document contains all metadata, revision history, back-matter resources, and parameter definitions.
+
+### US 1.19: Control Withdrawal & Deprecation Workflow
+> **As a** Framework Developer (Alice)  
+> **I want to** mark controls as "withdrawn" and automatically generate forwarding links to the replacing controls,  
+> **so that** catalog evolutions (e.g., NIST SP 800-53 Rev 4 → Rev 5) are mapped correctly and comprehensibly.
+*   **Acceptance Criteria:**
+    *   **Withdrawal Action:** In the context menu or detail editor of a control, there is an action "⛔ Withdraw Control" that sets a property `prop name="status" value="withdrawn"`.
+    *   **Replacement Link:** When withdrawing, the user is prompted to select the replacing control. The system automatically generates a `link rel="incorporated-into" href="#<replacement-control-id>"` on the withdrawn control.
+    *   **Visual Marking:** Withdrawn controls are grayed out in the sidebar and detail editor with a strikethrough title and a red `Withdrawn` badge.
+    *   **Parameter Freeze:** The parameters of withdrawn controls are displayed as read-only.
+    *   **Dashboard Metric:** The Withdrawn count on the overview page (US 0.13) correctly reflects all `status: withdrawn` controls.
+
+### US 1.20: Functional Use of `label` and `sort-id` Properties in the UI
+> **As a** Framework Developer (Alice)  
+> **I want** the UI to functionally use the standard OSCAL properties `label` and `sort-id` (as primary display text and for sidebar sorting, respectively),  
+> **so that** imported NIST catalogs are correctly displayed and sorted (e.g., `AC-1` instead of `ac-1`, and `ac-01, ac-02, ac-10` instead of `ac-1, ac-10, ac-2`).
+*   **Acceptance Criteria:**
+    *   **Label as Display Text:** If a control or group has a property `prop name="label"`, its value (e.g., `AC-1`) is used as the primary display text in the sidebar, in breadcrumbs, and in the detail header (instead of the technical `id`).
+    *   **Sort-ID for Sorting:** If controls or groups have a property `prop name="sort-id"`, they are sorted alphanumerically by this value in the sidebar and in lists.
+    *   **Fallback:** Without a `label` property, the `id` is used as the display text. Without a `sort-id`, the default document order is preserved.
+    *   **Automatic Generation:** When creating new controls, a `label` (uppercase version of the ID) and a `sort-id` (zero-padded version) are optionally suggested.
+
+### US 1.21: Part-Level Metadata — Properties, Links, and Title at the Paragraph Level
+> **As a** Compliance Officer (Alice)  
+> **I want to** be able to optionally maintain a title, properties, and links on individual prose paragraphs (parts),  
+> **so that** I can capture paragraph-specific metadata (e.g., `applicability: cloud-only` on a single statement item) in a schema-compliant manner.
+*   **Acceptance Criteria:**
+    *   **Part Title:** Every part in the editor offers an optional `title` input field in the `🔧 Advanced Settings` panel.
+    *   **Part Props:** In the Advanced panel, `props` (name, value, optional ns/class/uuid/group) can be added at the part level, independently of the control-level props.
+    *   **Part Links:** In the Advanced panel, `links` (href, rel, text, media-type) can be maintained directly on a single part.
+    *   **Schema Conformity:** All part-level metadata are correctly serialized under `part.title`, `part.props[]`, and `part.links[]`.
 ---
 
 ## 2. Alice's Detailed Workflow & User Journey
@@ -240,3 +297,10 @@
 - [x] Users can insert parameter placeholders (`insert type="param"`) interactively via a button at the cursor position in prose elements (US 1.13).
 - [x] In the read-only view, parameter inserts are correctly rendered as text or as selectable value badges (US 1.13).
 - [x] Catalog-level, Group-level, and Control-level parameters can be defined and managed visually, resolved properly in prose, and overridden in Profiles (US 1.15).
+- [x] Multi-format catalog import (JSON, XML, YAML) with automatic backend conversion (US 1.16).
+- [x] Interactive parameter constraint builder and live regex test validation (US 1.17).
+- [x] Standalone catalog export with complete metadata attribution (US 1.18).
+- [ ] Control withdrawal workflow with `status: withdrawn` property, `incorporated-into` replacement links, visual graying, and parameter freeze (US 1.19).
+- [ ] Functional use of `label` property as primary display text and `sort-id` for alphanumeric sidebar sorting (US 1.20).
+- [ ] Part-level metadata (title, props, links) editable via Advanced Settings panel on individual prose parts (US 1.21).
+

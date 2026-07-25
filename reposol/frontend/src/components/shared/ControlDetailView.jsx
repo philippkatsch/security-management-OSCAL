@@ -1566,6 +1566,46 @@ startingAdd.props = uProps;
     ? resolveProfilePartsForRendering(originalControl.parts, getAlterForControl(control.id))
     : control.parts || [];
 
+  const propsList = control.props || [];
+  const statusProp = propsList.find(p => p.name?.toLowerCase() === 'status');
+  const isWithdrawn = statusProp?.value?.toLowerCase() === 'withdrawn';
+  const labelProp = propsList.find(p => p.name?.toLowerCase() === 'label');
+  const displayLabel = labelProp?.value || control.id;
+  const replacementLink = (control.links || []).find(l => l.rel === 'incorporated-into');
+
+  const handleWithdrawControl = () => {
+    const replacementId = window.prompt("Enter replacement control ID (e.g. ac-2.1) or leave blank:");
+    let updatedProps = propsList.filter(p => p.name?.toLowerCase() !== 'status');
+    updatedProps.push({ name: 'status', value: 'withdrawn' });
+
+    let updatedLinks = control.links ? [...control.links] : [];
+    if (replacementId && replacementId.trim()) {
+      const cleanHref = replacementId.trim().startsWith('#') ? replacementId.trim() : `#${replacementId.trim()}`;
+      updatedLinks = updatedLinks.filter(l => l.rel !== 'incorporated-into');
+      updatedLinks.push({ rel: 'incorporated-into', href: cleanHref, text: `Replaced by ${replacementId.trim()}` });
+    }
+
+    if (mode === 'catalog') {
+      handleFieldChange('props', updatedProps);
+      if (updatedLinks.length > 0) handleFieldChange('links', updatedLinks);
+    } else {
+      handlePropsChange(updatedProps);
+      if (updatedLinks.length > 0) handleLinksChange(updatedLinks);
+    }
+  };
+
+  const handleRestoreControlWithdrawal = () => {
+    const updatedProps = propsList.filter(p => p.name?.toLowerCase() !== 'status');
+    const updatedLinks = (control.links || []).filter(l => l.rel !== 'incorporated-into');
+    if (mode === 'catalog') {
+      handleFieldChange('props', updatedProps.length > 0 ? updatedProps : undefined);
+      handleFieldChange('links', updatedLinks.length > 0 ? updatedLinks : undefined);
+    } else {
+      handlePropsChange(updatedProps);
+      handleLinksChange(updatedLinks);
+    }
+  };
+
   // ══════════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════════
@@ -1584,13 +1624,38 @@ startingAdd.props = uProps;
               style={{ cursor: onSelectGroup ? 'pointer' : 'default' }}
               className="breadcrumb-link"
             >
-              {b.title || b.id}
+              {(b.props?.find(p => p.name?.toLowerCase() === 'label')?.value) || b.title || b.id}
             </span>
           </React.Fragment>
         ))}
         <span>/</span>
-        <span style={{ color: 'var(--color-text)', fontWeight: '500' }}>{control.title || control.id}</span>
+        <span style={{ color: isWithdrawn ? 'var(--color-text-muted)' : 'var(--color-text)', fontWeight: '500', textDecoration: isWithdrawn ? 'line-through' : 'none' }}>
+          {displayLabel !== control.id ? `${displayLabel} (${control.id})` : control.id}: {control.title || 'Untitled Control'}
+        </span>
       </div>
+
+      {/* Withdrawal Banner */}
+      {isWithdrawn ? (
+        <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', color: '#991b1b', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <div>
+            <strong>⛔ Control Withdrawn:</strong> This control is deprecated. Parameters are read-only.
+            {replacementLink && (
+              <span style={{ marginLeft: '8px' }}>
+                Replaced by: <strong style={{ textDecoration: 'underline', cursor: onSelectGroup ? 'pointer' : 'default' }} onClick={() => onSelectGroup?.(replacementLink.href.replace('#', ''))}>{replacementLink.href.replace('#', '')}</strong>
+              </span>
+            )}
+          </div>
+          {isEditing && (
+            <button type="button" className="btn-secondary btn-xs" onClick={handleRestoreControlWithdrawal}>↺ Restore Control</button>
+          )}
+        </div>
+      ) : (
+        isEditing && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-8px' }}>
+            <button type="button" className="btn-secondary btn-xs" style={{ color: '#dc2626', borderColor: '#fca5a5' }} onClick={handleWithdrawControl}>⛔ Withdraw Control</button>
+          </div>
+        )
+      )}
 
       {/* ── 1. Header Card (ID, Title, Class, Props) ── */}
       <div
@@ -1602,18 +1667,20 @@ startingAdd.props = uProps;
           padding: '0',
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px'
+          gap: '12px',
+          opacity: isWithdrawn ? 0.75 : 1
         }}
       >
         <ControlHeader
           id={control.id}
           title={control.title}
           controlClass={mode === 'catalog' ? control.class : undefined}
-          isEditing={isEditing}
+          isEditing={isEditing && !isWithdrawn}
           onIdChange={(val) => mode === 'catalog' ? handleFieldChange('id', val) : handleHeaderChange('id', val)}
           onTitleChange={(val) => mode === 'catalog' ? handleFieldChange('title', val) : handleHeaderChange('title', val)}
           onClassChange={mode === 'catalog' ? (val) => handleFieldChange('class', val) : undefined}
           showClass={mode === 'catalog'}
+          typeBadge={isWithdrawn ? '⛔ Withdrawn' : undefined}
         />
 
         {/* ── 1b. Properties (always shown, readOnly in view mode) ── */}
@@ -1625,7 +1692,7 @@ startingAdd.props = uProps;
           props={mode === 'profile' && isEditing ? getDisplayPropsForProfileEditing() : props}
           onChange={mode === 'catalog' ? (updatedProps) => handleFieldChange('props', updatedProps) : handlePropsChange}
           allUsedKeys={allUsedPropKeys}
-          readOnly={!isEditing}
+          readOnly={!isEditing || isWithdrawn}
           removedPropNames={mode === 'profile' ? (getAlterForControl(control.id)?.removes || []).map(r => r['by-name']).filter(Boolean) : []}
           onRestoreProp={mode === 'profile' ? handleRestoreProp : undefined}
           overriddenPropNames={mode === 'profile' ? getOverriddenPropNames() : []}
@@ -1725,7 +1792,7 @@ startingAdd.props = uProps;
             <ParameterEditor
               params={params}
               onChange={(updatedParams) => handleFieldChange('params', updatedParams)}
-              readOnly={!isEditing}
+              readOnly={!isEditing || isWithdrawn}
               fullDocument={catalog}
             />
           ) : (
@@ -1742,7 +1809,7 @@ startingAdd.props = uProps;
                 onProfileChange({ ...profile, modify });
               }}
               onChangeAlters={(updateFn) => updateAlter(control.id, updateFn)}
-              readOnly={!isEditing}
+              readOnly={!isEditing || isWithdrawn}
               fullDocument={profile}
               catalogDocument={catalog}
             />

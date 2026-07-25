@@ -2096,6 +2096,7 @@ export default function DocumentEditor({ stage, editDoc, onSaved, onCancel, onTe
           controls: [...(g.controls || []), {
             id: '',
             title: '',
+            props: [{ name: 'label', value: '' }, { name: 'sort-id', value: '' }],
             params: [],
             parts: [{ id: `${g.id || 'grp'}-temp_smt`, name: 'statement', prose: '' }]
           }]

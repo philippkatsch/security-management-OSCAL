@@ -8,6 +8,7 @@
 ## 1. Breakdown of User Stories
 
 ### US 2.1: Simplified Profile Creation & Direct Editing (Inner View)
+> *Implements [US 0.P1](step0_global_requirements.md) with profile-specific additions.*
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** be able to create a new profile by initially entering only the title and being forwarded immediately to the in-place editor area (Inner View),  
 > **so that** I can configure the sources, structures, and metadata directly within the editing area without cumbersome preliminary wizards.
@@ -83,8 +84,8 @@
     *   **Nesting of Groups:** The GUI allows hierarchical nesting of groups (groups within groups).
     *   **Sorting Controls & Folders (Drag & Drop):** The user can drag & drop imported controls as well as entire categories/folders (marked with a `📁` symbol) from the control pool into a custom group in the sidebar. Since a control structurally can only occur once in the OSCAL catalog hierarchy, this assignment is exclusive (if a control is added to a group, it is automatically removed from all other groups).
     *   **Insert Controls and Sorting:** Within each custom group, `insert-controls` can be used to specify which controls are included. The sorting order can be configured via a dropdown as `keep` (original order), `ascending` (ascending by ID), or `descending` (descending by ID).
-    *   **Include-All in Groups:** `insert-controls` supports both `include-all` (include all remaining controls) and `include-controls` with explicit IDs or `matching` patterns.
-    *   **Group Metadata & Texts:** For each created group, custom properties/tags (`props`), reference links (`links`), and description texts (`parts`) can be defined in a GUI form.
+    *   **Include-All in Groups:** `insert-controls` supports both `include-all` (include all remaining controls), `include-controls` with explicit IDs or `matching` patterns, and `exclude-controls` (exclude specific controls from an `include-all` selection).
+    *   **Group Metadata & Texts:** For each created group, a `class` attribute (e.g., `appendix`, `family`), custom properties/tags (`props`), reference links (`links`), parameters (`params`), and description texts (`parts`) can be defined in a GUI form.
     *   **Round-tripping:** The configured `custom` structure is correctly saved in the Profile JSON under `merge.custom` and converted back to the GUI state when the profile is reloaded.
     *   **Resolution & Preview:** The Resolved Catalog in the live preview reflects the configured group structure and its group metadata.
 
@@ -197,6 +198,7 @@
 ## 5. Detailed Description of US 2.13
 
 ### US 2.13: Integrated Profile Versioning in the Backend
+> *Implements [US 0.P2](step0_global_requirements.md) with profile-specific additions.*
 > **As a** Compliance Officer (Alice)  
 > **I want to** manage versions of a profile in the backend while adhering to strict OSCAL compliance,  
 > **so that** version states are saved persistently and compliantly.
@@ -232,6 +234,7 @@
 ---
 
 ### US 2.15: Detailed Editability of Controls (Title, IDs, Labels & Enhancements in-place)
+> *Implements [US 0.P4](step0_global_requirements.md) with profile-specific additions.*
 
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** edit all components of a control and its enhancements directly inline in the right detail pane, without having to navigate through confusing subpages,  
@@ -264,6 +267,7 @@
 ---
 
 ### US 2.16: Extended Management of Tags and Existing Properties in the Document Overview
+> *Implements [US 0.P3](step0_global_requirements.md) with profile-specific additions.*
 
 > **As a** Compliance Officer (Alice)  
 > **I want to** clearly see already used properties/tags and their used values in the Document Overview and be able to add them directly to the global tags,  
@@ -275,7 +279,7 @@
         *   **Global Property Tags:** The list of globally defined metadata properties, which can be added, edited, and deleted in edit mode, and are displayed read-only in view mode.
         *   **Used / Existing Tags:** A dynamically generated list of all tags actually used in controls/groups.
     *   **Dropdown of Used Values:** For each existing tag, next to its name and frequency (count), a dropdown field (`<select>`) is displayed listing all unique values already entered for this tag in the document.
-    *   **Quick Promotion (Promote):** Next to each existing tag that is not yet present in the global properties, an `➕ Add as global property` button is displayed in edit mode. Clicking it adds this tag directly to the global properties list with a default value (or empty).
+    *   ~~**Quick Promotion (Promote):**~~ *Removed per [DD-011](../design_decisions/DD-011_properties_vs_parameters_separation.md) — `metadata.props` does not cascade to controls, so promoting a used tag to a "global property" would be semantically misleading. Property Usage Overview (US 0.P3) provides read-only visibility instead.*
 
 ---
 
@@ -286,7 +290,7 @@
 > **so that** I can customize baseline parameters with explicit `modify.set-parameters` entries while maintaining clean fallback to catalog defaults and zero schema pollution.
 
 *   **Acceptance Criteria:**
-    *   **Profile Parameter Overrides (`set-parameters`):** Overriding a parameter in Profile mode creates or updates an entry in `profile.modify.set-parameters[]` matching the parameter's `param-id`. Supported override attributes include `values[]`, `label`, `select`, `constraints`, `guidelines`, `remarks`, and `usage`.
+    *   **Profile Parameter Overrides (`set-parameters`):** Overriding a parameter in Profile mode creates or updates an entry in `profile.modify.set-parameters[]` matching the parameter's `param-id`. Supported override attributes include `values[]`, `label`, `class`, `select`, `constraints`, `guidelines`, `remarks`, `usage`, custom properties (`props`), and reference links (`links`).
     *   **Dropdown Selection for Predefined Choices:** If the source parameter defines `select.choice` with `how-many: "one"`, a dropdown selection field (`<select>`) is rendered populated with `select.choice[]` options plus a "Custom Value..." option.
     *   **Multi-Choice Support:** If `select.how-many` is `"one-or-more"`, a multi-select checkbox group or multi-select dropdown is rendered. Selecting multiple options serializes as a multi-element string array in `set-parameters[].values`.
     *   **Dual-Mode Choice & Value Synchronization:** Selecting an option from the choice dropdown directly synchronizes with `set-parameters[].values = [selectedValue]`.
@@ -373,64 +377,90 @@
     *   **AC 8 — Profile-specific Logic Preserved:** The OSCAL modification logic (modify.alters, set-parameters, Reset, Modified badge) remains unchanged and is injected into the shared components via context-specific callbacks.
     *   **AC 9 — No Regression:** All existing Catalog and Profile functions (Undo/Redo, draft saving, versioning, Profile resolution, import sources, sidebar checkboxes) function unchanged after the transition.
 
-### US 2.24: Enhancements Accordion Inline Expansion & Parameter Placement im Profil-Modus (Neu für R1)
-> **Als** Enterprise Architect (Alice)  
-> **möchte ich** im Profil-Editor bei aufgeklappten Sub-Controls (Enhancements) im `EnhancementsAccordion` Parameter direkt in Sub-Control-Prose einbinden sowie Parameter-Overrides und profil-spezifische Parameter auf Sub-Control-Ebene konfigurieren können,  
-> **so that** ich Sub-Controls im Profil vollständig tailorieren kann, ohne den Kontext der Hauptkontrolle zu verlassen.
-*   **Akzeptanzkriterien:**
-    *   **Inline Expansion im Profil-Modus:** Sub-Controls im `EnhancementsAccordion` lassen sich im Profil-Bearbeitungsmodus inline aufklappen.
-    *   **ProseWithParams in Sub-Control-Statements:** Sub-Control-Statements und Prose-Teile rendern mit `ProseWithParams` inklusive Caret-relativem „Add Parameter“-Button.
-    *   **Parameter Placement & Overrides:** Unterhalb der Sub-Control-Statements werden konfigurierte Parameter und Overrides (`set-parameters`) des Sub-Controls dargestellt und bearbeitet.
-    *   **Define New Parameter Callback:** Klick auf „➕ Define New Parameter...“ im Dropdown eines Sub-Control-Textfeldes scrollt sanft zum Parameterbereich des Sub-Controls und legt einen passenden Profil-Parameter-Override an.
-    *   **OSCAL Alter Serialization:** Alle Text- und Parameteränderungen an Sub-Controls werden schema-konform in `modify.alters` bzw. `modify.set-parameters` im Profil serialisiert.
+### US 2.24: Enhancements Accordion Inline Expansion & Parameter Placement in Profile Mode (New for R1)
+> **As an** Enterprise Architect (Alice)  
+> **I want to** be able to embed parameters directly into sub-control prose when sub-controls (enhancements) are expanded in the `EnhancementsAccordion` in the profile editor, as well as configure parameter overrides and profile-specific parameters at the sub-control level,  
+> **so that** I can fully tailor sub-controls in the profile without leaving the context of the main control.
+*   **Acceptance Criteria:**
+    *   **Inline Expansion in Profile Mode:** Sub-controls in the `EnhancementsAccordion` can be expanded inline in profile edit mode.
+    *   **ProseWithParams in Sub-Control Statements:** Sub-control statements and prose parts render with `ProseWithParams` including a caret-relative "Add Parameter" button.
+    *   **Parameter Placement & Overrides:** Configured parameters and overrides (`set-parameters`) of the sub-control are displayed and edited below the sub-control statements.
+    *   **Define New Parameter Callback:** Clicking on "➕ Define New Parameter..." in the dropdown of a sub-control text field smoothly scrolls to the parameter area of the sub-control and creates a corresponding profile parameter override.
+    *   **OSCAL Alter Serialization:** All text and parameter changes on sub-controls are serialized schema-compliantly in `modify.alters` or `modify.set-parameters` in the profile.
 
-### US 2.25: Properties Overhaul im Profil-Editor (Löschen & Revert) (Neu für Schritt 2)
-> **Als** Compliance Officer (Alice)  
-> **möchte ich** geerbte Katalog-Properties im Profil-Editor löschen und verändern können und dabei volle Transparenz und Revert-Möglichkeiten haben,  
-> **damit** ich fehlerhafte Änderungen rückgängig machen kann und immer weiß, welche Eigenschaften verändert oder gelöscht wurden.
-*   **Akzeptanzkriterien:**
-    *   **Visueller gelöschter Zustand:** Wenn eine Katalog-Property im Profil gelöscht wird (`alter.removes` mit `by-name`), bleibt sie im Editor sichtbar, wird ausgegraut, der Text wird durchgestrichen und sie erhält einen roten `Removed`-Badge.
-    *   **Immer sichtbarer Restore-Button:** Anstelle des Hover-Effekts wird bei gelöschten Properties der `↩ Restore`-Button dauerhaft neben dem Badge angezeigt. Ein Klick darauf entfernt den `by-name` Eintrag aus `alter.removes`.
-    *   **Revert to Default Button:** Wenn der Wert einer Katalog-Property modifiziert wurde (im Profil überschrieben, also in `alter.adds` vorhanden), wird ein `↩ Revert` Button angezeigt, der diese Änderung löscht und auf den Katalog-Standardwert zurücksetzt.
-    *   **OSCAL-Konformität:** Änderungen an Properties werden in `modify.alters` mit `adds` (für neue/modifizierte Werte) und `removes` mit `by-name` (für Löschungen) persistiert.
+### US 2.25: Properties Overhaul in Profile Editor (Deletion & Revert) (New for Step 2)
+> **As a** Compliance Officer (Alice)  
+> **I want to** be able to delete and modify inherited catalog properties in the profile editor with full transparency and revert capabilities,  
+> **so that** I can undo erroneous changes and always know which properties have been modified or deleted.
+*   **Acceptance Criteria:**
+    *   **Visual Deleted State:** If a catalog property is deleted in the profile (`alter.removes` with `by-name`), it remains visible in the editor, is grayed out, the text is struck through, and it receives a red `Removed` badge.
+    *   **Always Visible Restore Button:** Instead of the hover effect, deleted properties permanently display the `↩ Restore` button next to the badge. Clicking it removes the `by-name` entry from `alter.removes`.
+    *   **Revert to Default Button:** If the value of a catalog property was modified (overridden in the profile, i.e., present in `alter.adds`), a `↩ Revert` button is displayed, which deletes this modification and resets to the catalog default value.
+    *   **OSCAL Conformity:** Changes to properties are persisted in `modify.alters` with `adds` (for new/modified values) and `removes` with `by-name` (for deletions).
 
 ### US 2.26: Object-Bound Targeted Modification Reverting & Pruning (Control, Group & Text Scope)
-> **Als** Compliance Officer (Alice)  
-> **möchte ich**, dass das Verwerfen und Bereinigen von Modifikationen (`modify.alters` und `modify.set-parameters`) im Profil-Editor stets zielgerichtet und objektbezogen erfolgt (auf Ebene von einzelnen Kontrollen, Sub-Controls, Textelementen, Gruppen oder Import-Quellen),  
-> **damit** beim Abwählen, Entfernen oder Zurücksetzen von Objekten genau und ausschließlich die zu diesem spezifischen Objekt gehörenden Anpassungen verworfen werden.
-*   **Akzeptanzkriterien:**
-    *   **Objektbezogenes Control-Revert (Kontrollebene):** Wenn eine spezifische Kontrolle abgewählt, aus einer Gruppe entfernt oder aus dem Profil entnommen wird, prüft das System gezielt für genau diese Kontrolle (`control-id`), ob in `modify.alters` oder `modify.set-parameters` Anpassungen vorliegen, und entfernt ausschließlich diese spezifischen Einträge.
-    *   **Objektbezogenes Sub-Control- & Text-Revert (Elementebene):** Wenn im Editor ein spezifisches Textelement (Statement, Sub-Statement, Guidance) oder eine Eigenschaft/Parameter einer Kontrolle zurückgesetzt wird (Revert), wird gezielt nur die dafür angelegte `adds`- bzw. `removes`-Modifikation in `modify.alters` für dieses konkrete Textelement/Objekt gelöscht.
-    *   **Objektbezogenes Gruppen-Revert (Gruppenebene):** Wenn eine gesamte Gruppe oder Untergruppe gelöscht/abgewählt wird, ermittelt das System alle in dieser Gruppe enthaltenen Kontrollen und bereinigt zielgerichtet nur die Anpassungen dieser betroffenen Objektliste.
-    *   **Objektbezogenes Import-Revert (Quellenebene):** Wird eine bestimmte Katalogquelle entfernt, werden exakt die Modifikationen verworfen, die sich auf die Kontrollen aus diesem spezifischen Katalog beziehen.
-    *   **Keine pauschalen globalen Wipes:** Das System führt keine ungerichtete pauschale Bereinigung durch, sondern agiert stets event- und kontextgetrieben bezogen auf das jeweilige Zielobjekt.
+> **As a** Compliance Officer (Alice)  
+> **I want** the discarding and pruning of modifications (`modify.alters` and `modify.set-parameters`) in the profile editor to always occur in a targeted and object-bound manner (at the level of individual controls, sub-controls, text elements, groups, or import sources),  
+> **so that** when deselecting, removing, or resetting objects, exactly and exclusively the modifications belonging to that specific object are discarded.
+*   **Acceptance Criteria:**
+    *   **Object-bound Control Revert (Control Level):** If a specific control is deselected, removed from a group, or taken out of the profile, the system checks specifically for this control (`control-id`) whether modifications exist in `modify.alters` or `modify.set-parameters`, and exclusively removes these specific entries.
+    *   **Object-bound Sub-Control & Text Revert (Element Level):** If a specific text element (statement, sub-statement, guidance) or a property/parameter of a control is reset (reverted) in the editor, only the correspondingly created `adds` or `removes` modification in `modify.alters` for this concrete text element/object is targeted and deleted.
+    *   **Object-bound Group Revert (Group Level):** If an entire group or subgroup is deleted/deselected, the system identifies all controls contained in this group and prunes in a targeted manner only the modifications of this affected list of objects.
+    *   **Object-bound Import Revert (Source Level):** If a specific catalog source is removed, exactly the modifications that relate to the controls from this specific catalog are discarded.
+    *   **No Blanket Global Wipes:** The system does not perform any undirected blanket pruning, but always acts event- and context-driven based on the respective target object.
 
 
 ### US 2.27: Interactive Merge Structuring Mode Selector (as-is / flat / custom) in the Profile UI
-> **Als** Compliance Officer und Enterprise Architect (Alice)  
-> **möchte ich** im Profil-Editor (im `SourcesPanel`) ein ultrakompaktes 2-Zeilen-Setup-Panel nutzen, dessen Dropdown-Boxen links exakt pixelgenau untereinander ausgerichtet sind,  
-> **damit** das Interface absolut symmetrisch und visuell perfekt wirkt.
-*   **Akzeptanzkriterien:**
-    *   **Kombiniertes 2-Zeilen-Setup-Panel:**
-        *   **Zeile 1:** `⚙️ Structuring Mode:` [ Dropdown `as-is` / `custom` / `flat` ]
-        *   **Zeile 2:** `📥 Add Import:` [ Kombiniertes Dropdown mit Katalogen & Profilen ]
-    *   **Pixelgenaue vertikale Ausrichtung:** Beide Labels (`⚙️ Structuring Mode:` und `📥 Add Import:`) besitzen eine feste identische Spaltenbreite (`width: 145px`, `flexShrink: 0`), wodurch die linken Kanten beider Auswahl-Dropdowns exakt untereinander ausgerichtet sind.
-    *   **Gruppierte & Icon-versehene Optionen:** Im `Add Import:`-Dropdown sind verfügbare Kataloge (`📖`) und Profile (`⚙️`) mit optgruppen und Icons klar voneinander unterschieden.
-    *   **Struktur-Knopf im `custom`-Modus:** 
-        *   Im **`custom`**-Modus besitzt jede Katalog-Import-Karte den Knopf **`📥 Import Full Structure`** (übernimmt Ordnerstruktur & Kontrollen des Katalogs additiv).
-        *   Im **`as-is`**- und **`flat`**-Modus sind Struktur-Klon-Knöpfe ausgeblendet.
-    *   **Bereinigung beim Entfernen von Import-Quellen (`Remove`):** Wenn alle Import-Quellen entfernt werden, setzt sich `profile.merge` automatisch auf `{ 'as-is': true }` zurück und bereinigt `merge.custom.groups`.
+> **As a** Compliance Officer and Enterprise Architect (Alice)  
+> **I want to** use an ultra-compact 2-line setup panel in the profile editor (in the `SourcesPanel`), whose dropdown boxes are perfectly aligned vertically on the left down to the pixel,  
+> **so that** the interface appears absolutely symmetrical and visually perfect.
+*   **Acceptance Criteria:**
+    *   **Combined 2-line Setup Panel:**
+        *   **Line 1:** `⚙️ Structuring Mode:` [ Dropdown `as-is` / `custom` / `flat` ]
+        *   **Line 2:** `📥 Add Import:` [ Combined Dropdown with Catalogs & Profiles ]
+    *   **Pixel-perfect Vertical Alignment:** Both labels (`⚙️ Structuring Mode:` and `📥 Add Import:`) have a fixed identical column width (`width: 145px`, `flexShrink: 0`), meaning the left edges of both selection dropdowns are aligned exactly underneath each other.
+    *   **Grouped & Icon-labeled Options:** In the `Add Import:` dropdown, available catalogs (`📖`) and profiles (`⚙️`) are clearly distinguished from each other with optgroups and icons.
+    *   **Structure Button in `custom` Mode:** 
+        *   In **`custom`** mode, every catalog import card has the button **`📥 Import Full Structure`** (additively adopts the folder structure & controls of the catalog).
+        *   In **`as-is`** and **`flat`** modes, structure clone buttons are hidden.
+    *   **Pruning when Removing Import Sources (`Remove`):** When all import sources are removed, `profile.merge` automatically resets to `{ 'as-is': true }` and `merge.custom.groups` is pruned.
 
 ### US 2.28: Profile Statement & Sub-item Addition (Streamlined UX & Engine Resolution)
-> **Als** Compliance Officer (Alice)  
-> **möchte ich** im Profil-Editor über einen fokussierten `➕ Sub-item`-Button auf Statement-Karten neue Unterelemente (`a.`, `b.`) erstellen und über den unter der Liste stehenden `➕ Add Statement`-Button neue Haupt-Statements ergänzen,  
-> **damit** die Bedienung auf das Wesentliche reduziert und übersichtlich ist und bestehende Katalog-Statements beim Hinzufügen von Ergänzungen intakt bleiben.
-*   **Akzeptanzkriterien:**
-    *   **Unterelement-Hinzufügung (`➕ Sub-item`):** Jedes Statement im Profil-Editor verfügt über einen prominenten `➕ Sub-item`-Button. Klickt man darauf, wird ein neues Item mit `position: 'ending'` und `by-id: parentId` in `alter.adds` angelegt und sauber als Unterelement (z.B. `a.`, `b.`) im Zielstatement gerendert.
-    *   **Haupt-Statement-Ergänzung (`➕ Add Statement`):** Unterhalb der Liste der Statements befindet sich der Button `➕ Add Statement` zum Anfügen neuer Top-Level-Statements (`position: 'ending'`).
-    *   **Schlanke UX ohne Redundanz:** Der verwirrende `Add After`-Button auf einzelnen Statement-Karten entfällt, um Verwechslungen mit `Add Statement` zu vermeiden.
-    *   **Keine unbeabsichtigte Rekursion bei globalen Adds:** Ohne `by-id` definierte `position: 'ending'`/`position: 'starting'`-Adds werden ausschließlich auf Top-Level-Ebene (`level === 0`) ausgewertet und nicht fälschlicherweise in Unterelemente verschachtelt.
-    *   **Exakte Ersetzungsprüfung (Replacement Check):** Ein Add-Block wird vom Auflösungsmotor nur dann als Replacement (Textüberschreibung) eines Original-Statements behandelt, wenn die Original-ID explizit in `alter.removes` gelistet ist und der Add-Block ein Part mit derselben ID definiert.
+> **As a** Compliance Officer (Alice)  
+> **I want to** be able to create new sub-items (`a.`, `b.`) via a focused `➕ Sub-item` button on statement cards in the profile editor, and append new main statements via the `➕ Add Statement` button located below the list,  
+> **so that** usability is reduced to the essentials and clear, and existing catalog statements remain intact when additions are appended.
+*   **Acceptance Criteria:**
+    *   **Sub-item Addition (`➕ Sub-item`):** Every statement in the profile editor features a prominent `➕ Sub-item` button. Clicking it creates a new item with `position: 'ending'` and `by-id: parentId` in `alter.adds` and cleanly renders it as a sub-item (e.g., `a.`, `b.`) in the target statement.
+    *   **Main Statement Addition (`➕ Add Statement`):** Below the list of statements is the `➕ Add Statement` button for appending new top-level statements (`position: 'ending'`).
+    *   **Streamlined UX without Redundancy:** The confusing `Add After` button on individual statement cards is removed to avoid mix-ups with `Add Statement`.
+    *   **No Unintended Recursion on Global Adds:** `position: 'ending'`/`position: 'starting'` adds defined without `by-id` are exclusively evaluated at the top-level (`level === 0`) and not mistakenly nested inside sub-items.
+    *   **Exact Replacement Check:** An add block is only treated by the resolution engine as a replacement (text overwrite) of an original statement if the original ID is explicitly listed in `alter.removes` and the add block defines a part with the same ID.
+
+### US 2.29: Multi-Catalog Conflict Resolution and Combination Rules (`merge.combine`)
+> **As an** Enterprise Architect (Alice)  
+> **I want to** configure the combination strategy (`use-first`, `merge`, `keep`) when importing multiple catalogs with identical control IDs,  
+> **so that** contradictory control definitions in the underlying rulebook are merged or prioritized in an orderly fashion.
+*   **Acceptance Criteria:**
+    *   **Conflict Visualization:** The `Import Sources` panel identifies ID overlaps when importing multiple sources.
+    *   **Combination Strategy Dropdown:** Selection of the strategy (`merge.combine` -> `use-first`, `merge`, `keep`) via dropdown.
+    *   **Schema-compliant Engine Resolution:** The Profile Resolution Engine implements the chosen strategy during the generation of the Resolved Catalog.
+
+### US 2.30: Cascading Profile Imports (Profile from Profiles)
+> **As an** Enterprise Architect (Alice)  
+> **I want to** use existing baseline profiles (e.g., FedRAMP Moderate) as an import source for my new system profile and resolve them without recursion,  
+> **so that** I can inherit and customize corporate baselines across multiple levels.
+*   **Acceptance Criteria:**
+    *   **Profile Selection in Import Dropdown:** In the `Add Import:` dropdown, existing profiles can be selected in addition to catalogs.
+    *   **Cascading Resolution:** The Profile Resolution Engine recursively resolves profile imports and applies all cascaded `alters`, `set-parameters`, and `select-control` rules.
+
+### US 2.31: Visual Baseline Comparison & Diff Viewer (Profile vs. Base Catalog)
+> **As a** Compliance Officer (Alice)  
+> **I want to** be able to call up a visual comparison (diff view) between the tailored profile and the imported base catalogs,  
+> **so that** I can check and approve all added, modified, overridden, and excluded controls at a glance.
+*   **Acceptance Criteria:**
+    *   **Diff View:** A "🔍 Baseline Diff" tab in the profile editor compares the profile with the base catalogs.
+    *   **Visual Highlighting:** Additions (green), deviations/modifications (blue), parameter overrides (yellow), and exclusions (red) are clearly listed.
+
 
 
 

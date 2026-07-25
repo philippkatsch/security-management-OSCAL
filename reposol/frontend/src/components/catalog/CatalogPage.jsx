@@ -439,10 +439,15 @@ export function CatalogPage({
   const handleAddControl = (groupId) => {
     const catalogData = activeDoc.catalog || {};
     const rootGroups = catalogData.groups || [];
+    const suffix = Date.now().toString().slice(-4);
     const newControl = {
-      id: `control_${Date.now().toString().slice(-4)}`,
+      id: `control_${suffix}`,
       title: 'New Control Requirement',
-      parts: [{ id: `statement_${Date.now().toString().slice(-4)}`, name: 'statement', prose: '' }]
+      props: [
+        { name: 'label', value: `CONTROL-${suffix}` },
+        { name: 'sort-id', value: `control-${suffix}` }
+      ],
+      parts: [{ id: `statement_${suffix}`, name: 'statement', prose: '' }]
     };
 
     let updatedCatalog = { ...catalogData };
