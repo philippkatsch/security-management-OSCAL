@@ -55,6 +55,15 @@ def sync_master_templates():
                     if not os.path.exists(dst_file) or os.path.getmtime(src_file) > os.path.getmtime(dst_file):
                         shutil.copy2(src_file, dst_file)
 
+    # Clean up legacy top-level directories in data_dir if present
+    for legacy_name in ["templates", "catalogs"]:
+        legacy_path = os.path.abspath(os.path.join(data_dir, legacy_name))
+        if os.path.exists(legacy_path) and os.path.isdir(legacy_path) and legacy_path != templates_dir:
+            try:
+                shutil.rmtree(legacy_path)
+            except Exception as e:
+                pass
+
 
 
 UUID_PATTERN = re.compile(r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$")
