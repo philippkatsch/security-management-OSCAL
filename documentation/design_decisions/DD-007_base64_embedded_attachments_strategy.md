@@ -19,6 +19,13 @@ We decided to fully migrate the attachment mechanism to **Base64 embedded attach
 3. **Resolution on Load**: When loading the document, the frontend automatically traverses `back-matter.resources`, maps resource IDs to their base64 payloads, and reconstructs the data URLs for rendering in the browser.
 4. **Removal of Upload Directories and APIs**: We removed all backend file uploads/downloads routes and cleaned up the `data/uploads/` directory from the repository.
 
+### File Size Guidance for Assessment Evidence
+While Base64 embedding works well for diagrams and small images (typically < 2MB), Assessment Results (Step 6) and POA&M (Step 7) documents may reference large evidence files (audit reports, scan logs, compliance certificates). For these:
+- **Recommended limit:** ≤ 2MB per individual Base64-embedded resource.
+- **Large files (> 2MB):** Should be stored as external references using `rlink` entries (with `href` pointing to an external URL or file path) instead of Base64 embedding. This avoids JSON bloat (Base64 encoding increases size by ~33%) and React rendering performance degradation.
+- **Evidence attachments:** `relevant-evidence` in observations (Steps 6, 7) should prefer `rlink` references for binary scan outputs, PDF reports, or PCAP files.
+- **Impact on DD-004:** Large Base64 resources are excluded from undo/redo history snapshots (see DD-004 §10) to prevent memory overflow.
+
 ## Consequences
 - **100% Schema-Compliant and Portable**: All SSP, catalog, and other OSCAL JSON documents are entirely self-contained. Exported files retain their diagrams and attachments perfectly in any OSCAL-compliant validator.
 - **Fewer Backend API Dependencies**: File handling is simplified and fully client-driven.

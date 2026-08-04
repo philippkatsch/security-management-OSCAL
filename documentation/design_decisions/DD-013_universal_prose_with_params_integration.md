@@ -48,6 +48,16 @@ Standard Props Interface:
 | Parameter Metadata | `ParameterCard` | Catalog + Group + Control (excluding self) | Scroll to `+ Add Parameter` button at container level |
 | Assessment Plan | `AssessmentPlanEditor` | Import SSP + Baseline Profile + AP Local | Scroll to `#ap-local-parameters` & append to `local-definitions` |
 
+5. **SSP Implementation Narratives** (`SSPControlImplementation` & `ByComponentEditor`):
+   - `ProseWithParams` wraps the `by-component.description` textarea, enabling assessors to reference resolved parameter values when writing component-specific control implementation narratives.
+   - `availableParams` is populated from the resolved SSP parameter cascade (DD-009): Catalog defaults → Profile overrides → SSP system-level → SSP control-level → SSP component-level.
+   - `onNewParam` creates a new parameter at the component's `set-parameters[]` scope.
+
+6. **Component Control Narratives** (`ComponentImplementationEditor`):
+   - `ProseWithParams` wraps `implemented-requirement.description` in Component Definitions (Step 3).
+   - `availableParams` is populated from the component's `control-implementations[].source` resolved catalog/profile parameters.
+   - `paramScope` is set to the component implementation set level.
+
 ### 4. Insertion Token Standard
 Selection of a parameter from the popover inserts `{{ insert: param, <param-id> }}` at the exact cursor index. During rendering in view mode, `formatProse()` resolves this token into an interactive parameter chip badge.
 

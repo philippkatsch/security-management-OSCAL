@@ -28,8 +28,10 @@ export function CatalogSidebar({
   isEditing = false,
   onAddGroup,
   onAddControl,
+  onAddSubControl,
   onDeleteGroup,
   onDeleteControl,
+  onWithdrawControl,
   onMoveItem
 }) {
   const groups = catalog.groups || [];
@@ -44,6 +46,7 @@ export function CatalogSidebar({
   const sidebarRef = useRef(null);      // the scrollable sidebar container
   const [dragId, setDragId] = useState(null);         // id of item being dragged
   const [dropIndicator, setDropIndicator] = useState(null); // { id, position: 'before'|'after'|'inside' }
+  const [showWithdrawn, setShowWithdrawn] = useState(false);
 
   // Close context menu on outside click
   useEffect(() => {
@@ -287,13 +290,30 @@ export function CatalogSidebar({
   }, [resolveDropTarget, onMoveItem, getDropTargets]);
 
   // ── Search helpers ──
+  const getPropValue = (item, propName) => {
+    return item.props?.find(p => p.name?.toLowerCase() === propName.toLowerCase())?.value;
+  };
+  const isWithdrawn = (item) => getPropValue(item, 'status')?.toLowerCase() === 'withdrawn';
+  const getSortId = (item) => {
+    const sortId = getPropValue(item, 'sort-id');
+    return sortId !== undefined ? sortId : item.id;
+  };
+  const sortItems = (items) => {
+    return [...items].sort((a, b) => getSortId(a).localeCompare(getSortId(b)));
+  };
+
   const matchesSearch = (item) => {
+    if (!showWithdrawn && !isEditing && isWithdrawn(item)) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    return (item.id || '').toLowerCase().includes(q) || (item.title || '').toLowerCase().includes(q);
+    const id = (item.id || '').toLowerCase();
+    const title = (item.title || '').toLowerCase();
+    const label = (getPropValue(item, 'label') || '').toLowerCase();
+    return id.includes(q) || title.includes(q) || label.includes(q);
   };
 
   const hasMatchingControlDescendants = (c) => {
+    if (!showWithdrawn && !isEditing && isWithdrawn(c)) return false;
     if (!searchQuery.trim()) return true;
     if (matchesSearch(c)) return true;
     if (c.controls) {
@@ -333,8 +353,10 @@ export function CatalogSidebar({
     if (!hasMatchingControlDescendants(c)) return null;
     const isSelected = selectedControlId === c.id;
     const isDragging = dragId === c.id;
-    const subControls = c.controls || [];
+    const subControls = c.controls ? sortItems(c.controls) : [];
     const isExpanded = expandedGroups[c.id] || searchQuery.trim() !== '';
+    const displayLabel = getPropValue(c, 'label') || c.id;
+    const withdrawn = isWithdrawn(c);
 
     return (
       <React.Fragment key={c.id}>
@@ -352,7 +374,11 @@ export function CatalogSidebar({
               }
             }}
             className={`sidebar-item ${isSelected ? 'sidebar-item-selected' : ''} ${isDragging ? 'sidebar-item-dragging' : ''}`}
-            style={{ paddingLeft: subControls.length > 0 ? '12px' : '24px' }}
+            style={{ 
+              paddingLeft: '12px',
+              opacity: withdrawn ? 0.5 : 1,
+              textDecoration: withdrawn ? 'line-through' : 'none'
+            }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1 }}>
               {isEditing && (
@@ -364,23 +390,26 @@ export function CatalogSidebar({
                   ⠿
                 </span>
               )}
-              {subControls.length > 0 && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleGroup(c.id);
-                  }}
-                  style={{ padding: '0 4px', color: 'var(--color-text-muted)', fontSize: '10px', cursor: 'pointer' }}
-                >
-                  {isExpanded ? '▼' : '▶'}
-                </span>
-              )}
-              <span className="sidebar-item-badge">{c.id}</span>
+              <span style={{ width: '16px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                {subControls.length > 0 && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleGroup(c.id);
+                    }}
+                    style={{ padding: '0 2px', color: 'var(--color-text-muted)', fontSize: '10px', cursor: 'pointer', textDecoration: 'none' }}
+                  >
+                    {isExpanded ? '▼' : '▶'}
+                  </span>
+                )}
+              </span>
+              {withdrawn && <span style={{ fontSize: '10px', color: '#dc2626', textDecoration: 'none' }}>⊘</span>}
+              <span className="sidebar-item-badge">{displayLabel}</span>
               <span className="sidebar-item-title">{c.title || 'Untitled'}</span>
             </div>
           </div>
           {subControls.length > 0 && isExpanded && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', borderLeft: '1px solid var(--color-border-subtle)', marginLeft: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', borderLeft: '1px solid var(--color-border-subtle)', marginLeft: '20px' }}>
               {subControls.map((sc, i) => renderControlItem(sc, i, subControls, depth + 1))}
             </div>
           )}
@@ -396,8 +425,8 @@ export function CatalogSidebar({
 
     const isSelected = selectedGroupId === g.id;
     const isExpanded = expandedGroups[g.id] || searchQuery.trim() !== '';
-    const subGroups = g.groups || [];
-    const groupControls = g.controls || [];
+    const subGroups = g.groups ? sortItems(g.groups) : [];
+    const groupControls = g.controls ? sortItems(g.controls) : [];
     const isDragging = dragId === g.id;
     const isInsideTarget = dropIndicator && dropIndicator.id === g.id && dropIndicator.position === 'inside';
 
@@ -473,20 +502,30 @@ export function CatalogSidebar({
       }}
     >
       {/* Search Input */}
-      <div style={{ padding: '12px', borderBottom: '1px solid var(--color-border)' }}>
+      <div style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search..."
+          placeholder="Filter controls by ID or label..."
           className="form-input"
-          style={{ width: '100%', height: '30px', fontSize: '12px' }}
+          style={{ width: '100%', fontSize: '13px', padding: '6px 10px' }}
         />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+          <input 
+            type="checkbox" 
+            checked={showWithdrawn} 
+            onChange={(e) => setShowWithdrawn(e.target.checked)} 
+          />
+          Show Withdrawn
+        </label>
       </div>
 
-      {/* Main Navigation List */}
-      <div ref={sidebarRef} style={{ flex: 1, overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        
+      <div
+        ref={sidebarRef}
+        style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}
+      >
+
         {/* Overview Item */}
         <div
           onClick={onSelectOverview}
@@ -552,8 +591,8 @@ export function CatalogSidebar({
         <div style={{ borderTop: '1px solid var(--color-border-subtle)', margin: '6px 0' }} />
 
         {/* Catalog Root Groups & Controls */}
-        {groups.map((g, i) => renderGroupItem(g, 0, i, groups))}
-        {controls.map((c, i) => renderControlItem(c, i, controls, 0))}
+        {sortItems(groups).map((g, i) => renderGroupItem(g, 0, i, sortItems(groups)))}
+        {sortItems(controls).map((c, i) => renderControlItem(c, i, sortItems(controls), 0))}
 
         <DropBar targetId="__root__" position="root" />
 
@@ -637,8 +676,43 @@ export function CatalogSidebar({
             </>
           )}
 
-          {contextMenu.type === 'control' && (
+          {contextMenu.type === 'control' && (() => {
+            // Look up the control to check if it's already withdrawn
+            const findCtrl = (items) => {
+              for (const item of items) {
+                if (item.id === contextMenu.id) return item;
+                if (item.controls) { const f = findCtrl(item.controls); if (f) return f; }
+                if (item.groups) { const f = findCtrl(item.groups); if (f) return f; }
+              }
+              return null;
+            };
+            const allItems = [...(catalog.controls || []), ...(catalog.groups || [])];
+            const ctrl = findCtrl(allItems);
+            const ctrlIsWithdrawn = ctrl && isWithdrawn(ctrl);
+
+            return (
             <>
+              <div
+                className="context-menu-item"
+                onClick={() => {
+                  onAddSubControl(contextMenu.id);
+                  setContextMenu(null);
+                }}
+                style={contextMenuItemStyle}
+              >
+                ➕ Add sub-control
+              </div>
+              <div style={{ borderTop: '1px solid var(--color-border-subtle)', margin: '4px 0' }} />
+              <div
+                className="context-menu-item"
+                onClick={() => {
+                  onWithdrawControl(contextMenu.id);
+                  setContextMenu(null);
+                }}
+                style={{ ...contextMenuItemStyle, color: ctrlIsWithdrawn ? 'var(--color-success, #22c55e)' : '#dc2626' }}
+              >
+                {ctrlIsWithdrawn ? '↺ Restore Control' : '⛔ Withdraw Control'}
+              </div>
               <div
                 className="context-menu-item"
                 onClick={() => {
@@ -650,7 +724,8 @@ export function CatalogSidebar({
                 🗑 Delete
               </div>
             </>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>

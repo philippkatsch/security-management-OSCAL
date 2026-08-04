@@ -18,6 +18,9 @@ export function useDraft(model, uuid, data, isEditing = false, interval = 30000,
   const isEditingRef = useRef(isEditing);
   isEditingRef.current = isEditing;
 
+  const saveCallbackRef = useRef(saveDraftCallback);
+  saveCallbackRef.current = saveDraftCallback;
+
   const isDiscardedRef = useRef(false);
 
   // When isEditing changes to true, reset the discarded flag
@@ -40,16 +43,18 @@ export function useDraft(model, uuid, data, isEditing = false, interval = 30000,
     return () => clearInterval(timerRef.current);
   }, [model, uuid, isEditing, interval, saveDraftCallback]);
 
-  // Save on unmount if editing (only runs on actual unmount or uuid change)
+  // Save on unmount / document change with closure data matching exact uuid
   useEffect(() => {
+    const currentUuid = uuid;
+    const currentData = data;
     return () => {
-      if (isEditingRef.current && dataRef.current && uuid && !isDiscardedRef.current && saveDraftCallback) {
-        saveDraftCallback(dataRef.current).catch(err => {
+      if (isEditingRef.current && currentData && currentUuid && !isDiscardedRef.current && saveCallbackRef.current) {
+        saveCallbackRef.current(currentData).catch(err => {
           console.error('Backend save on unmount failed:', err);
         });
       }
     };
-  }, [model, uuid, saveDraftCallback]);
+  }, [model, uuid, data, saveDraftCallback]);
 
   const saveNow = useCallback(() => {
     if (dataRef.current && uuid && saveDraftCallback) {
@@ -61,3 +66,4 @@ export function useDraft(model, uuid, data, isEditing = false, interval = 30000,
 
   return { saveNow };
 }
+

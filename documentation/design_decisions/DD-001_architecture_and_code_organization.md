@@ -46,12 +46,25 @@ The frontend `src/` directory uses a strict domain-driven subdivision:
   - `oscal-utils.js` — Constants, formatting, and general helpers.
   - `profile-resolver.js` — Profile resolution engine.
   - `api.js` — Centralized API client.
+  - `cross-document-resolver.js` — Client-side helper for DD-016 cross-document import resolution.
+  - `status-machine.js` — Document lifecycle state transitions (DD-023).
+  - `assessment-utils.js` — Assessment entity helper utilities (DD-017).
 - **`hooks/`**: Contains custom React hooks encapsulating state management for cross-cutting concerns (e.g., `useDocument.js`, `useUndoRedo.js`, `useDraft.js`).
 - **`components/layout/`**: Holds layout shells such as sidebar navigation.
 - **`components/shared/`**: Contains reusable OSCAL editors and visual blocks shared across multiple pages (e.g. `PropsEditor`, `LinksEditor`, `ValidationFeedback`).
 - **`components/catalog/`**: Catalog-specific pages and sidebar navigation.
 - **`components/profile/`**: Profile-specific pages, tailoring panels, and config views.
 - **`components/document/`**: Document creation dialogs.
+- **`components/component-definition/`**: Component Definition inventory pages and editors (Step 3).
+- **`components/ssp/`**: System Security Plan builder pages, system characteristics, implementation editors (Step 4).
+- **`components/assessment-plan/`**: Assessment Plan builder pages, task editors, subject scoping (Step 5).
+- **`components/assessment-results/`**: Assessment Results reporter pages, result set editors (Step 6).
+- **`components/poam/`**: Plan of Action & Milestones tracker pages, item editors (Step 7).
+- **`components/mapping/`**: Control Mapping editor pages, matrix visualization (Step 8).
+- **`components/shared/assessment/`**: Shared assessment entity components reused across Steps 5-7 (ObservationCard, RiskCard, FindingCard, RemediationEditor, RiskLogTimeline, EvidenceAttachment). See [DD-017](DD-017_shared_assessment_entities.md).
+- **`components/shared/dashboard/`**: Shared dashboard and analytics components reused across all steps (MetricCard, ProgressBar, StatusBreakdown, TimelineView, HeatMap, CompletenessReport). See [DD-022](DD-022_dashboard_analytics_component_library.md).
+- **`components/shared/status/`**: Unified StatusBadge component and status configuration. See [DD-020](DD-020_status_badge_design_system.md).
+- **`components/shared/entity/`**: Entity List-Detail editor pattern components (EntityTable, EntityDetailPanel, BatchActionToolbar). See [DD-021](DD-021_entity_list_detail_editor_pattern.md).
 
 ### 3. Shared Control Detail Components (Strategy/Adapter Pattern)
 To align the visual representation of safety controls between the Catalog and Profile editors while maintaining their distinct saving behaviors (Catalogs mutate controls directly; Profiles map changes to `modify.alters` or `set-parameters`), we unified the panel into a single component, **`ControlDetailView`**, which embeds and coordinates the core child components (see [DD-008](file:///c:/Users/phili/Desktop/Projects/Security-Management-OSCAL/documentation/design_decisions/DD-008_unified_control_detail_editor.md) for details):
@@ -73,10 +86,18 @@ ControlDetailView (Polymorphic Component)
 - **CSS Modules**: kebab-case matching the domain/component name (e.g., `tokens.css`).
 - **Design Decisions**: `DD-NNN_short_description.md`.
 
+### 5. Cross-References to Related DDs
+- DD-004 (Editor UX)
+- DD-008 (ControlDetailView for Steps 1-2)
+- DD-020 (Status Badges)
+- DD-021 (Entity List-Detail for Steps 3-8)
+- DD-022 (Dashboard Components)
+- DD-023 (Document Lifecycle)
+
 ---
 
 ## Consequences
 - **Code Reuse (DRY)**: Over 150 lines of duplicate rendering and formatting code (such as `formatProse`) were eliminated.
 - **Visual Consistency**: Spacing, borders, and typography are unified across both editors.
 - **High Maintainability**: Refactoring layout or editing rules only requires modifying code in one place.
-- **Portability**: Future OSCAL types (such as SSPs or Component Definitions) can use the same shared components without duplicating work.
+- **Portability**: Future OSCAL types across ALL 8 stages can use the same shared components without duplicating work.

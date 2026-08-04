@@ -198,7 +198,7 @@ class TestSyncMasterTemplates:
     def test_sync_copies_files_from_seed_to_templates(self, tmp_path):
         seed_dir = tmp_path / "seed"
         data_dir = tmp_path / "data"
-        templates_dir = data_dir / "templates"
+        templates_dir = data_dir / "workspaces" / "default"
         catalogs_dir = seed_dir / "catalogs"
         catalogs_dir.mkdir(parents=True)
 

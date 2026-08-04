@@ -875,7 +875,7 @@ export function ProfileSidebar({
               }
             }}
             className={`sidebar-item ${isSelected ? 'sidebar-item-selected' : ''} ${isDragging ? 'sidebar-item-dragging' : ''}`}
-            style={{ paddingLeft: subControls.length > 0 ? '12px' : '24px' }}
+            style={{ paddingLeft: '12px' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1 }}>
               {canEdit && (
@@ -887,23 +887,25 @@ export function ProfileSidebar({
                   ⠿
                 </span>
               )}
-              {subControls.length > 0 && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleGroup(c.id);
-                  }}
-                  style={{ padding: '0 4px', color: 'var(--color-text-muted)', fontSize: '10px', cursor: 'pointer' }}
-                >
-                  {isExpanded ? '▼' : '▶'}
-                </span>
-              )}
+              <span style={{ width: '16px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                {subControls.length > 0 && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleGroup(c.id);
+                    }}
+                    style={{ padding: '0 2px', color: 'var(--color-text-muted)', fontSize: '10px', cursor: 'pointer' }}
+                  >
+                    {isExpanded ? '▼' : '▶'}
+                  </span>
+                )}
+              </span>
               <span className="sidebar-item-badge">{c.id}</span>
               <span className="sidebar-item-title">{c.title || 'Untitled'}</span>
             </div>
           </div>
           {subControls.length > 0 && isExpanded && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', borderLeft: '1px solid var(--color-border-subtle)', marginLeft: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', borderLeft: '1px solid var(--color-border-subtle)', marginLeft: '20px' }}>
               {subControls.map((sc, i) => renderControlItem(sc, i, subControls, depth + 1))}
             </div>
           )}

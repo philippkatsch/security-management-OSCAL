@@ -13,6 +13,8 @@ To solve this, we unified the detail panel into a single component: `ControlDeta
 
 ## Decisions
 
+> **Scope:** This design decision applies exclusively to the **Catalog Builder (Step 1)** and **Profile Tailoring (Step 2)** editors. For Steps 3-8, which use fundamentally different entity-based editing paradigms, see [DD-021](DD-021_entity_list_detail_editor_pattern.md). When Steps 3-8 need to display control information (e.g., SSP implemented requirements referencing a baseline control, or AP objectives referencing control statements), they render a **read-only** `ControlReferenceCard` that shows the resolved control text without edit capabilities.
+
 ### 1. Dual-Mode Architecture (Catalog vs. Profile)
 The `ControlDetailView` component behaves as a polymorphic editor based on the `mode` prop:
 - **`mode="catalog"` (Direct Mutation):**
@@ -43,6 +45,20 @@ To keep the component reusable:
 - These handlers use the `mode` prop to determine whether to call `onControlChange` (catalog mode) or update the profile's alters via `updateAlter` and call `onProfileChange` (profile mode).
 - Custom sub-component rendering (like inline enhancements in profiles) is injected via function callbacks (`renderEnhancementContent`).
 - Sub-control prose text edits in Profile mode map to `modify.alters` on the sub-control ID, and parameter overrides map to `modify.set-parameters`.
+
+### 4. Read-Only ControlReferenceCard for Steps 3-8
+- `ControlReferenceCard.jsx` in `components/shared/editors/` renders resolved control ID, title, and statement text as read-only
+- Used by SSP (Step 4) above `by-component` narrative editors
+- Used by AP (Step 5) above objectives-and-methods editors
+- Used by AR (Step 6) in finding `target` displays
+- Does NOT support `mode` switching — it is always read-only
+- Reuses `ReadOnlyParts` and `ControlHeader` from ControlDetailView for visual consistency
+
+## Cross-References
+- DD-004
+- DD-017
+- DD-020
+- DD-021
 
 ## Consequences
 - **Zero Visual Regression:** Catalogs and Profiles render controls using identical CSS styling (`section-container`, `header-card`, `badge`) and layout spacing.

@@ -26,19 +26,17 @@ def isolated_data_dir(tmp_path, monkeypatch):
     tmp_data = tmp_path / "data"
     tmp_data.mkdir()
 
-    # Create all stage subdirectories in workspaces/default and templates
+    # Create all stage subdirectories in workspaces/default (the single source of truth)
     stages = [
         "catalogs", "profiles", "ssps", "component-definitions",
         "assessment-plans", "assessment-results", "poams",
         "control-mappings"
     ]
     for stage in stages:
-        (tmp_data / stage).mkdir(parents=True, exist_ok=True)
         (tmp_data / "workspaces" / "default" / stage).mkdir(parents=True, exist_ok=True)
-        (tmp_data / "templates" / stage).mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(storage_module, "DATA_DIR", str(tmp_data))
-    yield str(tmp_data)
+    yield str(tmp_data / "workspaces" / "default")
 
 
 @pytest.fixture

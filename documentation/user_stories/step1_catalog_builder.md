@@ -171,7 +171,7 @@
     *   **Hierarchy Change:** A control can be dragged and dropped from one group into another group (or to the root level). A group can be moved into another group as a subgroup or dragged to the root level.
     *   **Edit Mode Only:** Drag-and-drop is only active when the user is in edit mode. In view mode, elements are not draggable.
     *   **Undo-Capable:** Each drag-and-drop operation creates a new undo history entry, allowing the relocation to be undone (Ctrl+Z).
-    ### US 1.15: Multi-Level Parameter Management and Referencing (Catalog, Group, and Control Level)
+### US 1.15: Multi-Level Parameter Management and Referencing (Catalog, Group, and Control Level)
 > **As a** Framework Developer (Alice)  
 > **I want to** be able to define, manage, and reference parameters in prose texts at the catalog, group, and control level,  
 > **so that** I can avoid redundant parameter definitions and declare parameters at the appropriate hierarchical level.

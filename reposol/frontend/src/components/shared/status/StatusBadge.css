@@ -1,0 +1,86 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  user-select: none;
+  white-space: nowrap;
+  font-family: inherit;
+  gap: 0.35em;
+  transition: filter 0.2s ease;
+}
+
+.status-badge__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-badge__label {
+  display: inline-block;
+}
+
+/* Pill Variant */
+.status-badge--pill {
+  border-radius: 100px;
+}
+
+.status-badge--pill:hover {
+  filter: brightness(1.1);
+}
+
+/* Dot Variant */
+.status-badge--dot {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.status-badge__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Bar Variant */
+.status-badge--bar {
+  background: transparent !important;
+  color: inherit !important;
+  border-left-style: solid;
+  border-left-width: 3px;
+  padding-left: 0.5em;
+}
+
+/* Sizes */
+.status-badge--sm {
+  font-size: 11px;
+}
+.status-badge--pill.status-badge--sm {
+  padding: 2px 10px;
+}
+
+.status-badge--md {
+  font-size: 13px;
+}
+.status-badge--pill.status-badge--md {
+  padding: 4px 12px;
+}
+
+.status-badge--lg {
+  font-size: 15px;
+}
+.status-badge--pill.status-badge--lg {
+  padding: 6px 16px;
+}
+
+/* Dark Mode Adjustments */
+@media (prefers-color-scheme: dark) {
+  .status-badge--pill {
+    /* Slightly desaturate or adjust brightness for dark mode to prevent eye strain */
+    filter: saturate(0.9) brightness(0.9);
+  }
+  
+  .status-badge--pill:hover {
+    filter: saturate(1) brightness(1.1);
+  }
+}

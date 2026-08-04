@@ -179,6 +179,8 @@ export function ControlDetailView({
   onControlChange,
   onSelectControl,
   onSelectGroup,
+  onDeleteControl,
+  onWithdrawControl,
   // Profile-specific:
   originalControl = {},
   profile = {},
@@ -1574,23 +1576,13 @@ startingAdd.props = uProps;
   const replacementLink = (control.links || []).find(l => l.rel === 'incorporated-into');
 
   const handleWithdrawControl = () => {
-    const replacementId = window.prompt("Enter replacement control ID (e.g. ac-2.1) or leave blank:");
     let updatedProps = propsList.filter(p => p.name?.toLowerCase() !== 'status');
     updatedProps.push({ name: 'status', value: 'withdrawn' });
 
-    let updatedLinks = control.links ? [...control.links] : [];
-    if (replacementId && replacementId.trim()) {
-      const cleanHref = replacementId.trim().startsWith('#') ? replacementId.trim() : `#${replacementId.trim()}`;
-      updatedLinks = updatedLinks.filter(l => l.rel !== 'incorporated-into');
-      updatedLinks.push({ rel: 'incorporated-into', href: cleanHref, text: `Replaced by ${replacementId.trim()}` });
-    }
-
     if (mode === 'catalog') {
       handleFieldChange('props', updatedProps);
-      if (updatedLinks.length > 0) handleFieldChange('links', updatedLinks);
     } else {
       handlePropsChange(updatedProps);
-      if (updatedLinks.length > 0) handleLinksChange(updatedLinks);
     }
   };
 
@@ -1635,8 +1627,8 @@ startingAdd.props = uProps;
       </div>
 
       {/* Withdrawal Banner */}
-      {isWithdrawn ? (
-        <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', color: '#991b1b', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+      {isWithdrawn && (
+        <div style={{ padding: '8px 12px', background: 'var(--color-danger-bg, #fef2f2)', border: '1px solid var(--color-danger-border, #fca5a5)', borderRadius: '6px', color: 'var(--color-danger-text, #991b1b)', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
           <div>
             <strong>⛔ Control Withdrawn:</strong> This control is deprecated. Parameters are read-only.
             {replacementLink && (
@@ -1645,16 +1637,35 @@ startingAdd.props = uProps;
               </span>
             )}
           </div>
-          {isEditing && (
-            <button type="button" className="btn-secondary btn-xs" onClick={handleRestoreControlWithdrawal}>↺ Restore Control</button>
+        </div>
+      )}
+
+      {/* Action bar — Withdraw / Delete (edit mode only, catalog mode) */}
+      {isEditing && mode === 'catalog' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: isWithdrawn ? '0' : '-8px' }}>
+          {onWithdrawControl && (
+            <button
+              type="button"
+              onClick={() => onWithdrawControl(control.id)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: isWithdrawn ? 'var(--color-success, #22c55e)' : 'var(--color-text-muted)', padding: '2px 0', textDecoration: 'none' }}
+              onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+              onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+            >
+              {isWithdrawn ? '↺ Restore Control' : '⛔ Withdraw Control'}
+            </button>
+          )}
+          {onDeleteControl && (
+            <button
+              type="button"
+              onClick={() => onDeleteControl(control.id)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-muted)', padding: '2px 0', textDecoration: 'none' }}
+              onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+              onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+            >
+              🗑 Delete
+            </button>
           )}
         </div>
-      ) : (
-        isEditing && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-8px' }}>
-            <button type="button" className="btn-secondary btn-xs" style={{ color: '#dc2626', borderColor: '#fca5a5' }} onClick={handleWithdrawControl}>⛔ Withdraw Control</button>
-          </div>
-        )
       )}
 
       {/* ── 1. Header Card (ID, Title, Class, Props) ── */}

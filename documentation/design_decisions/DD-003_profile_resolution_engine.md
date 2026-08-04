@@ -29,6 +29,9 @@ Keep profile resolution client-side but extract it into a shared library module 
 ## Future consideration
 If performance becomes an issue with very large catalogs or deeply nested profile imports, a backend endpoint `POST /api/resolve/profiles/{id}` can be introduced. The `lib/profile-resolver.js` module is designed to make this swap transparent.
 
+### Cross-Document Resolution Beyond Profiles
+This DD covers client-side resolution for the Catalog → Profile import chain only. For cross-document resolution across the full OSCAL lifecycle (SSP → Profile, AP → SSP, AR → AP, POA&M → SSP/AR, Mapping → Catalog/Profile), see [DD-016](DD-016_cross_document_import_resolution.md). DD-016 uses a backend endpoint `GET /api/resolve/{stage}/{uuid}` for lazy on-demand resolution with caching and stale detection, complementing this client-side approach.
+
 ## Consequences
 - Code duplication between CatalogViewer and DocumentEditor is eliminated
 - Memory usage in the browser may be high for large catalogs (mitigated by caching)

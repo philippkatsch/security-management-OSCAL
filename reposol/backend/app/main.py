@@ -24,7 +24,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-import os
+
 
 # Explicitly allow React frontend origins or read from env
 allowed_origins_env = os.getenv("REPOSOL_ALLOWED_ORIGINS", os.getenv("ALLOWED_ORIGINS", ""))
@@ -68,7 +68,10 @@ if frontend_dist:
     async def serve_spa(full_path: str):
         if full_path.startswith("api") or full_path.startswith("health"):
             raise HTTPException(status_code=404, detail="Not Found")
-        file_path = os.path.join(frontend_dist, full_path)
+        file_path = os.path.abspath(os.path.join(frontend_dist, full_path))
+        # Prevent path traversal: ensure resolved path stays within frontend_dist
+        if not file_path.startswith(os.path.abspath(frontend_dist)):
+            raise HTTPException(status_code=403, detail="Forbidden")
         if os.path.isfile(file_path):
             return FileResponse(file_path)
         return FileResponse(os.path.join(frontend_dist, "index.html"))

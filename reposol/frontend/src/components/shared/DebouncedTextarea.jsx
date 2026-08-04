@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 /**
  * A textarea wrapper that debounces onChange events.
+ * Handles unmount flushing and stable onChange references to prevent data loss.
  */
 export function DebouncedTextarea({
   value,
@@ -14,20 +15,53 @@ export function DebouncedTextarea({
   ...props
 }) {
   const [displayValue, setDisplayValue] = useState(value || '');
+  const onChangeRef = useRef(onChange);
+  const lastCommittedRef = useRef(value || '');
+  const pendingValueRef = useRef(displayValue);
 
+  // Keep refs up to date
   useEffect(() => {
-    setDisplayValue(value || '');
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // Sync external value changes
+  useEffect(() => {
+    const valStr = value || '';
+    if (valStr !== lastCommittedRef.current) {
+      lastCommittedRef.current = valStr;
+      setDisplayValue(valStr);
+      pendingValueRef.current = valStr;
+    }
   }, [value]);
 
+  // Track pending display value
   useEffect(() => {
+    pendingValueRef.current = displayValue;
+  }, [displayValue]);
+
+  // Debounce logic
+  useEffect(() => {
+    if (displayValue === lastCommittedRef.current) return;
+
     const handler = setTimeout(() => {
-      if (displayValue !== (value || '')) {
-        onChange(displayValue);
+      if (pendingValueRef.current !== lastCommittedRef.current) {
+        lastCommittedRef.current = pendingValueRef.current;
+        onChangeRef.current?.(pendingValueRef.current);
       }
     }, delay);
 
     return () => clearTimeout(handler);
-  }, [displayValue, delay, onChange, value]);
+  }, [displayValue, delay]);
+
+  // Flush pending changes on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingValueRef.current !== lastCommittedRef.current) {
+        lastCommittedRef.current = pendingValueRef.current;
+        onChangeRef.current?.(pendingValueRef.current);
+      }
+    };
+  }, []);
 
   return (
     <textarea
@@ -41,3 +75,4 @@ export function DebouncedTextarea({
     />
   );
 }
+

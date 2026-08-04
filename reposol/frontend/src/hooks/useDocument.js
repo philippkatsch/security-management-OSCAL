@@ -15,21 +15,39 @@ export function useDocument(stage, documentId) {
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options = {}) => {
     if (!documentId) return;
-    setLoading(true);
+    const isSilent = typeof options === 'boolean' ? options : !!options?.silent;
+    let isCurrent = true;
+    if (!isSilent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await fetchDocument(stage, documentId);
-      setDoc(data);
+      if (isCurrent) {
+        setDoc(data);
+      }
     } catch (err) {
-      setError(err.message);
+      if (isCurrent) {
+        if (!isSilent) {
+          setDoc(null);
+        }
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (isCurrent && !isSilent) {
+        setLoading(false);
+      }
     }
+    return () => { isCurrent = false; };
   }, [stage, documentId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let cancelFn;
+    load().then(cleanup => { cancelFn = cleanup; });
+    return () => { if (cancelFn) cancelFn(); };
+  }, [load]);
 
   const save = useCallback(async (document) => {
     setSaving(true);

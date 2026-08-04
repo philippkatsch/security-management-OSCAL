@@ -47,6 +47,14 @@ We adopt a hybrid strategy aligning with the official NIST OSCAL specification a
 
 ---
 
+### Assessment Layer Parameter Context (Steps 5-7)
+The parameter lifecycle described above (Catalog → Profile → Component → SSP) terminates at the SSP level for assessment purposes:
+- **Assessment Plans (Step 5):** AP documents reference resolved SSP parameter values when defining assessment objectives and methods. AP `local-definitions` may define assessment-specific parameters (e.g., sample sizes, testing frequencies), but these are scoped to the AP only and do NOT propagate back to the SSP or Profile.
+- **Assessment Results (Step 6):** AR findings evaluate controls against the effective parameter values resolved at the SSP level. Parameter values are read-only context in the AR — assessors cannot override them.
+- **POA&M (Step 7):** POA&M items inherit risk and finding context from the AR, including the parameter values that were in effect during the assessment. Remediation plans may recommend parameter changes, but these are tracked as recommendations, not direct overrides.
+
+This ensures the parameter chain remains unambiguous: parameters are defined in Catalogs, tailored in Profiles, finalized in SSPs, and evaluated (read-only) in the assessment layer.
+
 ## Consequences
 - The Profile editor in Reposol supports parameter customization and serialization under `modify.set-parameters`.
 - The SSP editor resolves baseline controls recursively (using `resolveProfileSync()`) and alerts users during the saving process if any parameters are left unresolved (have neither a default value in the baseline nor an override value in the SSP).

@@ -25,6 +25,8 @@ We need a clear strategy on how to inherit, resolve, manage, and reference param
 
 ## Decisions
 
+> **Scope Note:** The parameter scoping hierarchy described in this DD (Catalog → Group → Control) applies specifically to **Catalog authoring (Step 1)** and **Profile tailoring (Step 2)**, where the hierarchical group/control tree structure exists. For Component Definitions (Step 3) and SSPs (Step 4), which use a flat component-based structure rather than a group hierarchy, parameter scoping follows the Component → Implemented Requirement → By-Component chain described in [DD-009](DD-009_parameter_strategy.md). For Assessment Plan local parameters (Step 5), see the Assessment Layer section in DD-009.
+
 ### 1. Unified Parameter Inheritance and Resolution
 We will implement an inheritance-based parameter resolution map. For a given control `C`, the parameters visible to it are:
 - Catalog parameters (fallback / lowest priority)

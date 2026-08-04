@@ -152,17 +152,47 @@ export function TailoringPanel({
                   <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
                     Catalog Default: {p.values?.join(', ') || '(empty)'}
                   </p>
+                  
+                  {p.guidelines && p.guidelines.length > 0 && (
+                    <div style={{ fontSize: '11px', color: 'var(--color-info)' }}>
+                      <strong>Guidelines:</strong>
+                      <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+                        {p.guidelines.map((g, idx) => <li key={idx}>{g.prose}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {p.constraints && p.constraints.length > 0 && (
+                    <div style={{ fontSize: '11px', color: 'var(--color-warning)' }}>
+                      <strong>Constraints:</strong>
+                      <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+                        {p.constraints.map((c, idx) => <li key={idx}>{c.description || 'Constraint'}</li>)}
+                      </ul>
+                    </div>
+                  )}
 
                   {isEditing ? (
                     <div>
-                      <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Override Value</label>
-                      <DebouncedInput
-                        value={overrideText}
-                        onChange={(val) => handleParamOverrideChange(p.id, val)}
-                        placeholder="Override value..."
-                        className="form-input"
-                        style={{ width: '100%', height: '28px', fontSize: '12px' }}
-                      />
+                      <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '4px' }}>Override Value</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <DebouncedInput
+                          value={overrideText}
+                          onChange={(val) => handleParamOverrideChange(p.id, val)}
+                          placeholder="Override value..."
+                          className="form-input"
+                          style={{ flex: 1, height: '28px', fontSize: '12px' }}
+                        />
+                        {status.isOverridden && (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => handleParamOverrideChange(p.id, '')}
+                            style={{ height: '28px', padding: '0 8px', fontSize: '11px' }}
+                          >
+                            Reset to Default
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     status.isOverridden && (

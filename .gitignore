@@ -32,16 +32,15 @@ Thumbs.db
 node_modules/
 dist/
 
-# Ignore generated user session workspaces (except .gitkeep)
+# Ignore generated user session workspaces, but track default/ (master templates)
 reposol/data/workspaces/*
+!reposol/data/workspaces/default
 !reposol/data/workspaces/.gitkeep
+reposol/data/workspaces/default/**/*_draft.json
 
 # Ignore temporary uploads (except .gitkeep)
 reposol/data/uploads/*
 !reposol/data/uploads/.gitkeep
-
-# Master templates in reposol/data/templates/ are tracked in git (except drafts)
-reposol/data/templates/**/*_draft.json
 
 # Agents workspace (only track AGENTS.md / agent.md and skills/)
 .agents/*

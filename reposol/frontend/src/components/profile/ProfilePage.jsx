@@ -252,12 +252,18 @@ export function ProfilePage({
         }
         await saveDraftTag(finalDoc);
         setIsEditing(false);
-        await reload();
+        if (window.location.search.includes('edit=true')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        await reload({ silent: true });
       } catch (err) {
         alert(`Save failed: ${err.message}`);
       }
     } else {
       setIsEditing(true);
+      if (!window.location.search.includes('edit=true')) {
+        window.history.replaceState(null, '', window.location.pathname + '?edit=true');
+      }
     }
   };
 
@@ -769,9 +775,12 @@ export function ProfilePage({
           
           // Exit edit mode when saving as a new version (backend automatically deletes draft)
           setIsEditing(false);
+          if (window.location.search.includes('edit=true')) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
           
           setShowDrawer(false);
-          await reload();
+          await reload({ silent: true });
         }}
       />
     </div>

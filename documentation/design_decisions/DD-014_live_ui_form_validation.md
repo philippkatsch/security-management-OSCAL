@@ -23,6 +23,33 @@ Introduce client-side helper functions for checking standard OSCAL field constra
 ### 3. Integrated Real-Time Pre-Save Sanitization
 - In `handleFieldChange` within `MetadataEditor`, if an optional field (like `published`) is cleared, delete the key from the metadata object.
 
+### Extended Validation for Steps 3-8
+The base validators (`isValidIsoDateTime`, `isValidEmail`, `isValidUuid`) cover scalar fields across all document types. Steps 3-8 introduce additional validation requirements:
+
+1. **Cross-Field Date Range Validation:**
+   - AP task timing: `start` ≤ `end` for `within-date-range` configurations.
+   - POA&M risk deadlines: `deadline` must be a future date (warn if past for open risks).
+   - AR result sets: `start` ≤ `end` for assessment period.
+   - Validation function: `isValidDateRange(start, end)` added to `oscal-utils.js`.
+
+2. **CVSS Vector String Validation (DD-018):**
+   - Validate CVSS v3.1 vector strings match pattern: `CVSS:3.1/AV:[NALP]/AC:[LH]/PR:[NLH]/UI:[NR]/S:[UC]/C:[NLH]/I:[NLH]/A:[NLH]`
+   - Validate CVSS score is 0.0-10.0 decimal.
+   - Validate consistency between vector string and computed score.
+   - Validation function: `isValidCvssVector(version, vector)` added to `oscal-utils.js`.
+
+3. **URI Reference Validation:**
+   - `import-ssp.href`, `import-ap.href`, `import-profile.href`: Must be valid relative URI or `#uuid` fragment.
+   - `threat-id.system`: Must be a valid URI (e.g., `http://cve.mitre.org`).
+   - `rlink.href`: Must be a valid URL or relative path.
+   - Validation function: `isValidOscalUri(uri)` added to `oscal-utils.js`.
+
+4. **Port Range Validation (Step 3):**
+   - Component protocol port ranges: `start` ≤ `end`, both in range 0-65535.
+   - Transport protocol: must be `TCP` or `UDP`.
+
+All new validators follow the same pattern: inline red border + error message on invalid input, non-blocking (does not prevent save, only warns).
+
 ## Consequences
 - Users get immediate visual feedback when entering dates, emails, or UUIDs in visual mode.
 - Schema validation failures caused by accidental typos in visual form fields are eliminated at the source.

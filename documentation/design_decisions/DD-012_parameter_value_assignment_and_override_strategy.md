@@ -21,6 +21,11 @@ Previously, parameter editing lacked explicit architectural rules for:
 
 ## Decisions
 
+> **Scope Note:** The dual-mode adapter pattern (`mode="catalog"` vs `mode="profile"`) described in this DD applies to the **Catalog Builder (Step 1)** and **Profile Tailoring (Step 2)** ParameterCard editors. For parameter management in other stages:
+> - **Component Definitions (Step 3):** Component-level parameter defaults use `set-parameters[]` within `control-implementations[]` — managed via a simplified value-only editor without the full ParameterCard dual-mode logic.
+> - **SSPs (Step 4):** SSP parameters use a 3-level cascade visualizer (System → Control → Component) as described in [DD-009](DD-009_parameter_strategy.md). The cascade UI is a distinct component from the ParameterCard.
+> - **Assessment Plans (Step 5):** AP local parameters in `local-definitions` use a standalone parameter editor without catalog/profile inheritance context.
+
 ### 1. Parameter Card & Editor UX in Catalog vs. Profile Modes
 We extend `ParameterEditor.jsx` and `ControlDetailView.jsx` to use a polymorphic data binding adapter:
 

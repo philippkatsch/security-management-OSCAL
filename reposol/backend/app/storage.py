@@ -5,32 +5,35 @@ import copy
 import datetime
 import uuid
 import shutil
+import logging
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_DIR = CURRENT_DIR
 BACKEND_DIR = os.path.dirname(APP_DIR)
 REPOSOL_DIR = os.path.dirname(BACKEND_DIR)
 DATA_DIR = os.path.abspath(os.environ.get("REPOSOL_DATA_DIR", os.path.join(REPOSOL_DIR, "data")))
-TEMPLATES_DIR = os.path.abspath(os.path.join(DATA_DIR, "templates"))
+TEMPLATES_DIR = os.path.abspath(os.path.join(DATA_DIR, "workspaces", "default"))
 TEMPLATES_SEED_DIR = os.environ.get("REPOSOL_TEMPLATES_SEED_DIR")
 
 def sync_master_templates():
     """
-    Synchronizes pre-baked master templates into DATA_DIR/templates on persistent volumes.
+    Synchronizes pre-baked master templates into DATA_DIR/workspaces/default on persistent volumes.
     Copies seed templates from REPOSOL_TEMPLATES_SEED_DIR (or fallback /app/templates_seed)
-    to DATA_DIR/templates. Does NOT touch workspaces or user data.
+    to DATA_DIR/workspaces/default. Does NOT touch user session workspaces.
     """
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return
 
     data_dir = os.path.abspath(os.environ.get("REPOSOL_DATA_DIR", DATA_DIR))
-    templates_dir = os.path.abspath(os.path.join(data_dir, "templates"))
+    templates_dir = os.path.abspath(os.path.join(data_dir, "workspaces", "default"))
     seed_dir = os.environ.get("REPOSOL_TEMPLATES_SEED_DIR", TEMPLATES_SEED_DIR)
 
     if not seed_dir:
         candidate_docker = "/app/templates_seed"
-        candidate_local = os.path.join(REPOSOL_DIR, "data", "templates")
+        candidate_local = os.path.join(REPOSOL_DIR, "data", "workspaces", "default")
         if os.path.exists(candidate_docker) and os.path.isdir(candidate_docker):
             seed_dir = candidate_docker
         elif os.path.exists(candidate_local) and os.path.isdir(candidate_local):
@@ -64,15 +67,18 @@ def is_valid_uuid(uuid_str: str) -> bool:
         return False
     return bool(UUID_PATTERN.match(uuid_str.strip()))
 
-def is_safe_subdir(parent_dir: str, child_path: str) -> bool:
+def is_safe_subdir(parent_dir: str, child_path: str, or_equal: bool = False) -> bool:
     """
     Verifies that child_path is strictly contained within parent_dir,
     properly resolving symbolic links.
+    If or_equal is True, also returns True when child_path equals parent_dir.
     """
     try:
         parent_real = os.path.realpath(parent_dir)
         child_real = os.path.realpath(child_path)
         common = os.path.commonpath([parent_real, child_real])
+        if or_equal:
+            return common == parent_real
         return common == parent_real and child_real != parent_real
     except ValueError:
         return False
@@ -81,9 +87,12 @@ def _seed_stage_templates(stage_dir: str, stage: str):
     """Seed sample master templates into a workspace stage directory if it's empty (bypassed in Pytest)."""
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return
-    templates_dir = os.path.abspath(os.path.join(DATA_DIR, "templates"))
+    templates_dir = os.path.abspath(os.path.join(DATA_DIR, "workspaces", "default"))
     template_stage_dir = os.path.join(templates_dir, stage)
     if os.path.exists(template_stage_dir) and os.path.isdir(template_stage_dir):
+        # Do not self-seed if stage_dir IS the template stage directory
+        if os.path.realpath(stage_dir) == os.path.realpath(template_stage_dir):
+            return
         existing_json = [f for f in os.listdir(stage_dir) if f.endswith(".json")]
         if not existing_json:
             for item in os.listdir(template_stage_dir):
@@ -94,31 +103,23 @@ def _seed_stage_templates(stage_dir: str, stage: str):
                         shutil.copy2(src, dst)
 
 def get_stage_dir(stage: str, workspace_id: Optional[str] = None) -> str:
-    """Gets and creates the directory for a stage safely, seeding templates for anonymous session workspaces."""
+    """Gets and creates the directory for a stage safely, seeding templates from default for anonymous session workspaces."""
     if ".." in stage or (workspace_id and ".." in workspace_id):
         raise ValueError("Directory traversal attempt detected via stage path.")
 
-    if workspace_id:
-        safe_ws_id = re.sub(r'[^a-zA-Z0-9_-]', '', workspace_id)
-        if safe_ws_id in ("master", "templates"):
-            stage_dir = os.path.abspath(os.path.join(DATA_DIR, "templates", stage))
-            os.makedirs(stage_dir, exist_ok=True)
-            return stage_dir
+    safe_ws_id = re.sub(r'[^a-zA-Z0-9_-]', '', workspace_id) if workspace_id else None
 
-        if safe_ws_id:
-            stage_dir = os.path.abspath(os.path.join(DATA_DIR, "workspaces", safe_ws_id, stage))
-            is_new = not os.path.exists(stage_dir)
-            os.makedirs(stage_dir, exist_ok=True)
-            if is_new or not [f for f in os.listdir(stage_dir) if f.endswith(".json")]:
-                _seed_stage_templates(stage_dir, stage)
-            return stage_dir
+    # "master", "templates", and "default" resolve to data/workspaces/default/<stage>
+    if not safe_ws_id or safe_ws_id in ("master", "templates", "default"):
+        stage_dir = os.path.abspath(os.path.join(DATA_DIR, "workspaces", "default", stage))
+        os.makedirs(stage_dir, exist_ok=True)
+        return stage_dir
 
-    stage_dir = os.path.abspath(os.path.join(DATA_DIR, stage))
-
-    if not is_safe_subdir(DATA_DIR, stage_dir):
-        raise ValueError("Directory traversal attempt detected via stage path.")
-
+    stage_dir = os.path.abspath(os.path.join(DATA_DIR, "workspaces", safe_ws_id, stage))
+    is_new = not os.path.exists(stage_dir)
     os.makedirs(stage_dir, exist_ok=True)
+    if is_new or not [f for f in os.listdir(stage_dir) if f.endswith(".json")]:
+        _seed_stage_templates(stage_dir, stage)
     return stage_dir
 
 def _catalog_uuid_from_href(href: str) -> str | None:
@@ -385,7 +386,7 @@ def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] =
                     if "groups" in cat_obj and isinstance(cat_obj["groups"], list):
                         collect_groups(cat_obj["groups"])
             except Exception:
-                pass
+                logger.warning("Failed to read catalog %s for alter pruning", cat_path, exc_info=True)
 
     if not found_any_catalog and not profile.get("local-controls"):
         # If no imported catalog file exists locally yet, avoid wiping alters prematurely
@@ -411,7 +412,7 @@ def preprocess_catalog_for_saving(document: Dict[str, Any]) -> Dict[str, Any]:
         document = remove_empty_arrays(document)
     return document
 
-def postprocess_profile_for_loading(document: Dict[str, Any]) -> Dict[str, Any]:
+def postprocess_profile_for_loading(document: Dict[str, Any], workspace_id: Optional[str] = None) -> Dict[str, Any]:
     """Reconstructs the UI profile format by injecting local controls and defaultStructure properties."""
     document = copy.deepcopy(document)
     if "profile" not in document:
@@ -419,7 +420,7 @@ def postprocess_profile_for_loading(document: Dict[str, Any]) -> Dict[str, Any]:
         
     profile = document["profile"]
     _normalize_replacement_part_ids(profile)
-    prune_orphaned_alters(profile)
+    prune_orphaned_alters(profile, workspace_id)
 
     
     # 1. Reconstruct local-controls
@@ -430,12 +431,12 @@ def postprocess_profile_for_loading(document: Dict[str, Any]) -> Dict[str, Any]:
         ref_uuid = _catalog_uuid_from_href(imp.get("href", ""))
         if not ref_uuid:
             continue
-        catalog_path = os.path.join(get_stage_dir("catalogs"), f"{ref_uuid}.json")
+        catalog_path = os.path.join(get_stage_dir("catalogs", workspace_id), f"{ref_uuid}.json")
         if os.path.exists(catalog_path):
             try:
                 with open(catalog_path, "r", encoding="utf-8") as f:
                     cat_doc = json.load(f)
-                    if _is_managed_local_catalog_import(imp):
+                    if _is_managed_local_catalog_import(imp, workspace_id):
                         local_controls = cat_doc["catalog"].get("controls", [])
                         break
             except (OSError, json.JSONDecodeError, KeyError):
@@ -484,6 +485,7 @@ def cleanup_local_catalogs(workspace_id: Optional[str] = None) -> None:
                             if catalog_uuid:
                                 referenced_uuids.add(catalog_uuid)
             except Exception:
+                logger.warning("Failed to read profile %s during local catalog cleanup", file_path, exc_info=True)
                 continue
                 
     # Scan and delete unreferenced local-controls catalogs
@@ -509,6 +511,7 @@ def cleanup_local_catalogs(workspace_id: Optional[str] = None) -> None:
                 if is_local:
                     os.remove(file_path)
             except Exception:
+                logger.warning("Failed to clean up local catalog %s", file_path, exc_info=True)
                 continue
 
 def _prune_doc_for_listing(doc: Dict[str, Any], stage: str) -> Dict[str, Any]:
@@ -546,7 +549,7 @@ def list_documents(stage: str, workspace_id: Optional[str] = None) -> List[Dict[
                     with open(file_path, "r", encoding="utf-8") as f:
                         doc = json.load(f)
                         if stage == "profiles":
-                            doc = postprocess_profile_for_loading(doc)
+                            doc = postprocess_profile_for_loading(doc, workspace_id)
                         documents.append(_prune_doc_for_listing(doc, stage))
                         seen_ids.add(doc_id)
                 except (json.JSONDecodeError, OSError):
@@ -596,7 +599,7 @@ def get_document(stage: str, doc_id: str, *, for_ui: bool = True, workspace_id: 
     with open(file_path, "r", encoding="utf-8") as f:
         doc = json.load(f)
         if stage == "profiles" and for_ui:
-            doc = postprocess_profile_for_loading(doc)
+            doc = postprocess_profile_for_loading(doc, workspace_id)
         return doc
 
 def save_document(stage: str, doc_id: str, document: Dict[str, Any], workspace_id: Optional[str] = None) -> bool:
@@ -696,7 +699,7 @@ def get_document_versions(stage: str, doc_id: str, workspace_id: Optional[str] =
                         "filename": os.path.basename(draft_path)
                     })
             except Exception:
-                pass
+                logger.warning("Failed to read draft version file %s", draft_path, exc_info=True)
 
     # We look for pattern: doc_id_v*.json
     import glob
@@ -730,6 +733,7 @@ def get_document_versions(stage: str, doc_id: str, workspace_id: Optional[str] =
                     "filename": os.path.basename(filepath)
                 })
         except Exception:
+            logger.warning("Failed to read version file %s", filepath, exc_info=True)
             continue
             
     # Also read the active document to make sure it's included, or to get its details if it has no version files yet
@@ -751,7 +755,7 @@ def get_document_versions(stage: str, doc_id: str, workspace_id: Optional[str] =
                         "filename": f"{doc_id}.json"
                     })
         except Exception:
-            pass
+            logger.warning("Failed to read active document %s", active_path, exc_info=True)
 
     # Sort versions. We sort by last-modified descending so the newest version is first
     versions.sort(key=lambda x: x["last-modified"], reverse=True)
@@ -786,14 +790,14 @@ def get_document_version(stage: str, doc_id: str, version: str, workspace_id: Op
                 root_key = STAGE_ROOT_KEYS[stage]
                 if doc.get(root_key, {}).get("metadata", {}).get("version") == version:
                     if stage == "profiles":
-                        doc = postprocess_profile_for_loading(doc)
+                        doc = postprocess_profile_for_loading(doc, workspace_id)
                     return doc
         raise FileNotFoundError(f"Version {version} of document {doc_id} not found.")
         
     with open(file_path, "r", encoding="utf-8") as f:
         doc = json.load(f)
         if stage == "profiles":
-            doc = postprocess_profile_for_loading(doc)
+            doc = postprocess_profile_for_loading(doc, workspace_id)
         return doc
 
 
@@ -815,7 +819,7 @@ def save_document_version(stage: str, doc_id: str, version: str, document: Dict[
         raise ValueError("Directory traversal attempt detected.")
         
     if stage == "profiles":
-        document = preprocess_profile_for_saving(document)
+        document = preprocess_profile_for_saving(document, workspace_id=workspace_id)
     elif stage == "catalogs":
         document = preprocess_catalog_for_saving(document)
         
@@ -836,7 +840,7 @@ def save_document_version(stage: str, doc_id: str, version: str, document: Dict[
             try:
                 os.remove(draft_path)
             except Exception:
-                pass
+                logger.warning("Failed to delete draft file %s", draft_path, exc_info=True)
 
     cleanup_local_catalogs(workspace_id=workspace_id)
 

@@ -126,6 +126,16 @@ const navSections = [
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
         ) 
+      },
+      { 
+        id: 'traceability', 
+        label: 'Traceability', 
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-svg">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        ) 
       }
     ]
   }

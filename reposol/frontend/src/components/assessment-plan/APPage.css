@@ -1,0 +1,341 @@
+.ap-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--color-background);
+  overflow: hidden;
+}
+
+.ap-header {
+  padding: 16px 24px;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ap-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ap-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.ap-sidebar {
+  width: 250px;
+  background-color: var(--color-surface-2);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+  overflow-y: auto;
+}
+
+.ap-sidebar-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ap-sidebar-nav li {
+  padding: 10px 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.ap-sidebar-nav li:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.ap-sidebar-nav li.active {
+  background-color: var(--color-primary-transparent);
+  color: var(--color-primary);
+  border-right: 3px solid var(--color-primary);
+}
+
+.ap-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ap-section-title {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* AP specific styles */
+.timing-display {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.control-selection-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.control-selection-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+}
+
+.control-selection-card .control-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.control-tag {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: monospace;
+}
+
+/* SSP Reference Banner */
+.ssp-reference-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ssp-reference-content {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.btn-edit-ssp {
+  padding: 6px 12px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* Terms & Conditions */
+.tc-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tc-part {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background-color: var(--color-surface);
+}
+
+.tc-part-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tc-input, .tc-select, .form-control {
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 14px;
+  flex: 1;
+}
+
+.tc-select {
+  flex: 0 0 200px;
+}
+
+.tc-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 12px;
+}
+
+.tc-part-children {
+  margin-left: 24px;
+  border-left: 2px solid var(--color-border);
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-remove {
+  padding: 6px 12px;
+  background-color: var(--color-danger, #ef4444);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-add-child, .btn-add-part {
+  padding: 8px 16px;
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.btn-add-part {
+  background-color: var(--color-primary-transparent, rgba(0, 120, 212, 0.1));
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Custom Detail Panel */
+.custom-detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 450px;
+  background-color: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: -4px 0 16px rgba(0,0,0,0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.panel-content {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.timing-inputs {
+  display: flex;
+  gap: 12px;
+}
+
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background-color: var(--color-surface-2);
+}
+
+/* Objectives List */
+.objectives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.objective-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.objective-card h4 {
+  margin: 0 0 8px 0;
+  color: var(--color-primary);
+}
+
+.objective-parts {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.objective-part {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.objective-part:last-child {
+  margin-bottom: 0;
+}

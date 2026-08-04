@@ -200,12 +200,18 @@ export function CatalogPage({
         }
         await saveDraftTag(finalDoc);
         setIsEditing(false);
-        await reload();
+        if (window.location.search.includes('edit=true')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        await reload({ silent: true });
       } catch (err) {
         alert(`Saving failed: ${err.message}`);
       }
     } else {
       setIsEditing(true);
+      if (!window.location.search.includes('edit=true')) {
+        window.history.replaceState(null, '', window.location.pathname + '?edit=true');
+      }
     }
   };
 
@@ -275,13 +281,21 @@ export function CatalogPage({
   const updateControlInList = (id, updatedControl, items = []) => {
     return items.map(item => {
       if (item.id === id) return updatedControl;
+      // Traverse BOTH controls and groups — a group can have both arrays
+      let updated = item;
       if (item.controls) {
-        return { ...item, controls: updateControlInList(id, updatedControl, item.controls) };
+        const updatedControls = updateControlInList(id, updatedControl, item.controls);
+        if (updatedControls !== item.controls) {
+          updated = { ...updated, controls: updatedControls };
+        }
       }
       if (item.groups) {
-        return { ...item, groups: updateControlInList(id, updatedControl, item.groups) };
+        const updatedGroups = updateControlInList(id, updatedControl, item.groups);
+        if (updatedGroups !== item.groups) {
+          updated = { ...updated, groups: updatedGroups };
+        }
       }
-      return item;
+      return updated === item ? item : updated;
     });
   };
 
@@ -308,25 +322,26 @@ export function CatalogPage({
       updatedCatalog.groups = updateControlInList(controlId, updatedControl, rootGroups);
     }
 
+    // Update document state FIRST so the new ID exists in the catalog when re-rendered
+    handleDocChange({ ...activeDoc, catalog: updatedCatalog });
+
+    // Update selection AFTER document — ensures findControlById can resolve the new ID
     if (updatedControl.id && updatedControl.id !== controlId) {
       setSelectedControlId(updatedControl.id);
     }
-
-    handleDocChange({ ...activeDoc, catalog: updatedCatalog });
-  };
-
-  const handleGroupChange = (updatedGroup) => {
+  };  const handleGroupChange = (updatedGroup) => {
     const catalogData = activeDoc.catalog || {};
     const rootGroups = catalogData.groups || [];
 
     let updatedCatalog = { ...catalogData };
     updatedCatalog.groups = updateGroupInList(groupId, updatedGroup, rootGroups);
 
+    // Update document state FIRST so the new ID exists in the catalog when re-rendered
+    handleDocChange({ ...activeDoc, catalog: updatedCatalog });
+
     if (updatedGroup.id && updatedGroup.id !== groupId) {
       setSelectedGroupId(updatedGroup.id);
     }
-
-    handleDocChange({ ...activeDoc, catalog: updatedCatalog });
   };
 
   // --- Dynamic Tags Calculation (US 1.10) ---
@@ -404,6 +419,7 @@ export function CatalogPage({
     if (updatedCatalog.controls) updatedCatalog.controls = updatedCatalog.controls.map(traverseItem);
     handleDocChange({ ...activeDoc, catalog: updatedCatalog });
   };
+
   const handleAddGroup = (parentGroupId) => {
     const catalogData = activeDoc.catalog || {};
     const rootGroups = catalogData.groups || [];
@@ -467,6 +483,58 @@ export function CatalogPage({
     handleDocChange({ ...activeDoc, catalog: updatedCatalog });
   };
 
+  const handleAddSubControl = (parentControlId) => {
+    const catalogData = activeDoc.catalog || {};
+    const rootGroups = catalogData.groups || [];
+    const rootControls = catalogData.controls || [];
+    const suffix = Date.now().toString().slice(-4);
+    const newSubControl = {
+      id: `${parentControlId}.${suffix}`,
+      title: 'New Enhancement',
+      props: [
+        { name: 'label', value: `${parentControlId.toUpperCase()}(${suffix})` },
+        { name: 'sort-id', value: `${parentControlId}.${suffix}` }
+      ],
+      parts: [{ id: `statement_${parentControlId}_${suffix}`, name: 'statement', prose: '' }]
+    };
+
+    const addSubToControl = (controlsList) => {
+      return controlsList.map(c => {
+        if (c.id === parentControlId) {
+          const subs = c.controls ? [...c.controls] : [];
+          return { ...c, controls: [...subs, newSubControl] };
+        }
+        if (c.controls) {
+          return { ...c, controls: addSubToControl(c.controls) };
+        }
+        return c;
+      });
+    };
+
+    const addSubInGroups = (groupsList) => {
+      return groupsList.map(g => {
+        let updated = g;
+        if (g.controls) {
+          updated = { ...updated, controls: addSubToControl(g.controls) };
+        }
+        if (g.groups) {
+          updated = { ...updated, groups: addSubInGroups(g.groups) };
+        }
+        return updated;
+      });
+    };
+
+    let updatedCatalog = { ...catalogData };
+    updatedCatalog.groups = addSubInGroups(rootGroups);
+    if (rootControls.length > 0) {
+      updatedCatalog.controls = addSubToControl(rootControls);
+    }
+    handleDocChange({ ...activeDoc, catalog: updatedCatalog });
+
+    // Auto-expand the parent control in the sidebar to show the new sub-control
+    setExpandedGroups(prev => ({ ...prev, [parentControlId]: true }));
+  };
+
   const handleDeleteGroup = (id) => {
     if (!window.confirm('Are you sure you want to delete this folder and all sub-elements?')) return;
     const catalogData = activeDoc.catalog || {};
@@ -499,25 +567,99 @@ export function CatalogPage({
       return items
         .filter(item => item.id !== id)
         .map(item => {
+          let updated = item;
           if (item.controls) {
-            return { ...item, controls: removeControl(item.controls) };
+            updated = { ...updated, controls: removeControl(item.controls) };
           }
           if (item.groups) {
-            return { ...item, groups: removeControl(item.groups) };
+            updated = { ...updated, groups: removeControl(item.groups) };
           }
-          return item;
+          return updated;
         });
     };
 
     let updatedCatalog = { ...catalogData };
-    if (rootControls.some(c => c.id === id)) {
-      updatedCatalog.controls = rootControls.filter(c => c.id !== id);
-    } else {
+    if (rootControls.length > 0) {
+      updatedCatalog.controls = removeControl(rootControls);
+    }
+    if (rootGroups.length > 0) {
       updatedCatalog.groups = removeControl(rootGroups);
     }
 
     handleDocChange({ ...activeDoc, catalog: updatedCatalog });
     if (selectedControlId === id) setSelectedControlId(null);
+  };
+
+  // ── Withdraw / Restore control (US 1.19) ──────────────────────
+  const handleWithdrawControl = (id) => {
+    const catalogData = activeDoc.catalog || {};
+
+    // Recursively find a control by ID anywhere in the tree
+    const findControl = (items) => {
+      for (const item of items) {
+        if (item.id === id) return item;
+        if (item.controls) {
+          const found = findControl(item.controls);
+          if (found) return found;
+        }
+        if (item.groups) {
+          const found = findControl(item.groups);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const allItems = [...(catalogData.controls || []), ...(catalogData.groups || [])];
+    const control = findControl(allItems);
+    if (!control) return;
+
+    const currentlyWithdrawn = (control.props || []).some(
+      p => p.name?.toLowerCase() === 'status' && p.value?.toLowerCase() === 'withdrawn'
+    );
+
+    if (currentlyWithdrawn) {
+      // ── Restore ──
+      if (!window.confirm('Restore this control from withdrawn status?')) return;
+    } else {
+      // ── Withdraw ──
+      if (!window.confirm('Withdraw this control? It will be marked as deprecated.')) return;
+    }
+
+    // Recursively update the control in the tree
+    const updateControlInTree = (items) => {
+      return items.map(item => {
+        if (item.id === id) {
+          let updatedProps = (item.props || []).filter(p => p.name?.toLowerCase() !== 'status');
+          let updatedLinks = item.links ? [...item.links] : [];
+
+          if (!currentlyWithdrawn) {
+            // Set withdrawn
+            updatedProps.push({ name: 'status', value: 'withdrawn' });
+          } else {
+            // Restore: remove incorporated-into links
+            updatedLinks = updatedLinks.filter(l => l.rel !== 'incorporated-into');
+          }
+
+          const updated = { ...item, props: updatedProps.length > 0 ? updatedProps : undefined };
+          if (updatedLinks.length > 0) {
+            updated.links = updatedLinks;
+          } else {
+            delete updated.links;
+          }
+          return updated;
+        }
+        const result = { ...item };
+        if (item.controls) result.controls = updateControlInTree(item.controls);
+        if (item.groups) result.groups = updateControlInTree(item.groups);
+        return result;
+      });
+    };
+
+    let updatedCatalog = { ...catalogData };
+    updatedCatalog.controls = updateControlInTree(catalogData.controls || []);
+    updatedCatalog.groups = updateControlInTree(catalogData.groups || []);
+
+    handleDocChange({ ...activeDoc, catalog: updatedCatalog });
   };
 
   // ── Sort-ID helpers (US 1.14) ─────────────────────────────────
@@ -871,8 +1013,10 @@ export function CatalogPage({
               isEditing={isEditing}
               onAddGroup={handleAddGroup}
               onAddControl={handleAddControl}
+              onAddSubControl={handleAddSubControl}
               onDeleteGroup={handleDeleteGroup}
               onDeleteControl={handleDeleteControl}
+              onWithdrawControl={handleWithdrawControl}
               onMoveItem={handleMoveItem}
             />
 
@@ -888,6 +1032,8 @@ export function CatalogPage({
                   onControlChange={handleControlChange}
                   onSelectControl={handleSelectControl}
                   onSelectGroup={handleSelectGroup}
+                  onDeleteControl={handleDeleteControl}
+                  onWithdrawControl={handleWithdrawControl}
                 />
               ) : selectedGroup ? (
                 <GroupEditor
@@ -944,9 +1090,12 @@ export function CatalogPage({
           
           // Exit edit mode when saving as a new version (backend automatically deletes draft)
           setIsEditing(false);
+          if (window.location.search.includes('edit=true')) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
           
           setShowDrawer(false);
-          await reload();
+          await reload({ silent: true });
         }}
       />
     </div>

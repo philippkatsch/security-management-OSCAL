@@ -31,11 +31,17 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - Keyboard shortcuts: Ctrl+Z (undo), Ctrl+Y (redo)
 - History entries store the full document snapshot (simple but memory-safe for typical document sizes)
 
-### 4. Draft Auto-Save
-- Auto-save to backend every 30 seconds during editing
-- Saved as `<uuid>_draft.json`
-- Drafts are automatically loaded by the backend API if they exist (overriding the older published version data).
-- Exit button replaces Cancel — saves draft and navigates to read view
+### 4. Draft Auto-Save & Mode Navigation (Toolbar UX)
+- Auto-save to backend every 30 seconds during editing (`<uuid>_draft.json`).
+- Drafts are automatically loaded by the backend API if they exist (overriding older published version data).
+- **Segmented Mode Toggle (`[ 👁️ View | ✏️ Edit ]`)**: A persistent segmented control replaces the single morphing `✏️ Edit` / `Exit` button pair across all OSCAL document toolbars (`DocumentToolbar`).
+  - Selecting `👁️ View` auto-saves any active draft silently in the background and switches the interface to Read-Only preview instantly without unmounting UI elements or displaying blocking loading screens (`reload({ silent: true })`).
+  - Selecting `✏️ Edit` activates inline editing instantly and reveals editing sub-controls (Undo/Redo, Visual/JSON mode switcher).
+  - Both transitions synchronize browser history/URL search parameters (`?edit=true` vs base path) via `window.history.replaceState`.
+- **Contextual Action Buttons**: Toolbar actions change based on the active mode:
+  - **View Mode**: `📜 Version History` button (browse past published versions) + Mode Toggle.
+  - **Edit Mode**: Undo/Redo + Visual/JSON switch + Mode Toggle + `🚀 Publish Version` button (snapshot current draft as a formal immutable release).
+- This separation ensures users never see irrelevant actions: you browse versions when viewing, you publish versions when editing.
 
 ### 5. Version Management
 - Drawer-based version history (right sidebar)
@@ -66,15 +72,32 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - Selecting `custom` enables custom group management under `profile.merge.custom`. In `custom` mode, each catalog import card renders a single clean button **`📥 Import Full Structure`** to copy a catalog's hierarchy into custom profile groups. Structure copying is **additive** (appends new catalog groups to existing custom groups without overwriting) and executes instantly without disruptive `window.confirm()` popups.
 - **Import Baseline Cleanup**: When removing an import source via `Remove`, if 0 imports remain, `profile.merge` automatically resets to `{ "as-is": true }` and custom groups are cleared so no orphan groups linger in the left sidebar.
 
+### 9. Editor Paradigm Classification
 
+| Paradigm | Description | Steps |
+|---|---|---|
+| Tree + Detail | Sidebar tree navigation → control detail panel (DD-008) | 1, 2 |
+| Multi-Card Sections | Tabbed/stacked card sections within a document | 4 (System Characteristics, Implementation) |
+| Entity List-Detail | Table → slide-out/expand detail panel (DD-021) | 3, 5, 6, 7 |
+| Matrix Editor | 2D grid with cell-level editing (DD-019) | 8 |
+| Timeline Editor | Horizontal Gantt with dependency arrows (DD-022) | 5 (Tasks) |
 
+Note: Dual-mode visual/JSON editing (§1), undo/redo (§3), draft auto-save (§4), and version management (§5) apply ACROSS all paradigms.
 
+### 10. Memory-Efficient Undo/Redo for Large Documents
+- For documents < 1MB: Continue using full document snapshots (current behavior per §3)
+- For documents ≥ 1MB: Use structural diff patches (RFC 6902 JSON Patch format) instead of full snapshots
+- Max 50 undo entries; older entries are discarded (FIFO)
+- Large Base64 `back-matter.resources[]` content excluded from undo tracking (treated as immutable once attached)
+- IndexedDB preferred over localStorage for draft storage when document > 5MB (localStorage has 5-10MB browser limits)
+- Auto-save debounce interval increases from 30s to 120s for documents > 5MB
 
-
-
-
-
-
+## Cross-References
+- DD-008 (ControlDetailView, Steps 1-2)
+- DD-020 (Status Badges)
+- DD-021 (Entity List-Detail, Steps 3-8)
+- DD-022 (Dashboard Components)
+- DD-023 (Document Lifecycle)
 
 ## Consequences
 - Consistent UX across catalog and profile editors

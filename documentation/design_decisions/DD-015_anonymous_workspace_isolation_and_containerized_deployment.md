@@ -1,7 +1,7 @@
 # DD-015: Anonymous Workspace Isolation & Containerized Fly.io Deployment
 
 ## Status: Accepted
-## Date: 2026-07-24
+## Date: 2026-08-04
 ## Decision Makers: Development Team
 
 ## Context
@@ -16,13 +16,14 @@ To solve this without creating a forced authentication barrier for public demo u
 - The frontend (`api.js`) maintains an anonymous session UUID in browser `localStorage` (e.g. `session-8f3a9b12-...`) or URL query parameter (`?w=...`). All components (`CatalogViewer.jsx`, `DocumentEditor.jsx`, `ImportWizard.jsx`, `MappingViewer.jsx`, etc.) must use `authFetch` for all `/api/` endpoints.
 - Every outgoing API request attaches the `X-Workspace-ID` HTTP header.
 - The backend (`storage.py` and `routes.py`) inspects `X-Workspace-ID`. When present, storage functions resolve the data directory to `reposol/data/workspaces/{workspace_id}/{stage}/`.
-- **Auto-Seeding**: When a workspace is first created, `storage.py` automatically copies master sample templates from `reposol/data/templates/{stage}/` into `reposol/data/workspaces/{workspace_id}/{stage}/` so new users are immediately greeted with sample OSCAL Catalogs, Profiles, and SSPs.
-- When no header is provided (such as in local dev mode or automated Pytest runs), storage defaults to `reposol/data/{stage}/`.
+- **Master Template Single Store (`data/workspaces/default/`)**: Master templates are stored under `reposol/data/workspaces/default/`. Legacy folders `reposol/data/templates/` and `reposol/data/catalogs/` are deprecated and removed.
+- **Auto-Seeding**: When a workspace is first created, `storage.py` automatically copies master sample templates from `reposol/data/workspaces/default/{stage}/` into `reposol/data/workspaces/{workspace_id}/{stage}/` so new users are immediately greeted with sample OSCAL Catalogs, Profiles, and SSPs.
+- When no header is provided in non-test mode, storage defaults to `reposol/data/workspaces/default/{stage}/`.
 
 ### 2. Multi-Stage Docker Build Architecture
 A root `Dockerfile` defines a two-stage build:
 1. **Frontend Stage (`node:18-alpine`)**: Installs frontend dependencies and runs `npm run build` to generate `reposol/frontend/dist`.
-2. **Runtime Stage (`python:3.11-slim`)**: Installs backend Python dependencies (`requirements.txt`), copies `reposol/backend`, injects the built static `dist/` directory, and copies master templates to a seed location (`COPY reposol/data/templates /app/templates_seed`).
+2. **Runtime Stage (`python:3.11-slim`)**: Installs backend Python dependencies (`requirements.txt`), copies `reposol/backend`, injects the built static `dist/` directory, and copies master templates to a seed location (`COPY reposol/data/workspaces/default /app/templates_seed`).
 
 ### 3. FastAPI Static Asset & SPA Route Serving
 In `reposol/backend/app/main.py`:
@@ -32,15 +33,15 @@ In `reposol/backend/app/main.py`:
 ### 4. Fly.io Persistent Volume Storage & Master Template Syncing
 - `fly.toml` specifies Fly.io app configuration, mapping internal port 8000 to public HTTP/HTTPS ports 80/443 in region `fra` (Frankfurt).
 - **Persistent Volume Mount**: A persistent Fly volume (`oscal_data`) is attached to `/app/data` via `[mounts] source = "oscal_data"`, `destination = "/app/data"`. This guarantees that user workspaces (`/app/data/workspaces/`), uploads (`/app/data/uploads/`), and user-modified files persist permanently across container deployments and restarts.
-- **Startup Master Template Synchronization**: Because mounting an external volume over `/app/data` masks pre-baked files in the Docker container image, master templates are copied to `/app/templates_seed` during image creation. On FastAPI backend startup (`main.py` lifespan / `storage.py` initialization), a helper function `sync_master_templates()` automatically copies/syncs updated master templates from `/app/templates_seed/` into `/app/data/templates/` on the mounted volume. This ensures new deployments instantly reflect updated master templates while keeping all user session workspaces completely untouched and persistent.
-- `.dockerignore` excludes temporary user session workspaces (`reposol/data/workspaces/*`) and uploads (`reposol/data/uploads/*`) while explicitly including master templates (`reposol/data/templates`) so they are available in remote container deployments.
+- **Startup Master Template Synchronization**: Because mounting an external volume over `/app/data` masks pre-baked files in the Docker container image, master templates are copied to `/app/templates_seed` during image creation. On FastAPI backend startup (`main.py` lifespan / `storage.py` initialization), a helper function `sync_master_templates()` automatically copies/syncs updated master templates from `/app/templates_seed/` into `/app/data/workspaces/default/` on the mounted volume. This ensures new deployments instantly reflect updated master templates while keeping all user session workspaces completely untouched and persistent.
+- `.dockerignore` excludes temporary user session workspaces (`reposol/data/workspaces/session-*`) and uploads (`reposol/data/uploads/*`) while explicitly including master templates (`reposol/data/workspaces/default`) so they are available in remote container deployments.
 
 
-### 5. Master Templates Admin Mode & Localhost Guard (`?w=master` / `?w=templates`)
-- When `workspace_id` is set to `"master"` or `"templates"` (via URL parameter `?w=master` or `?w=templates`), `storage.py` inspects the request origin.
-- **Localhost Guard**: Modification of Master Templates is **strictly restricted to requests originating from `localhost` / `127.0.0.1`** (or when `ALLOW_MASTER_EDIT=true` environment variable is set).
-- On public deployments (such as Fly.io), any attempt to modify or delete documents in the `master` workspace is rejected with `403 Forbidden` to guarantee master template immutability online.
-- When accessed locally on `localhost`, saves and deletions write directly to `reposol/data/templates/catalogs/` and `reposol/data/templates/profiles/`.
+### 5. Master Templates Admin Mode & Localhost Guard (`?w=default` / `?w=master` / `?w=templates`)
+- When `workspace_id` is set to `"default"`, `"master"`, or `"templates"` (via URL parameter `?w=default` / `?w=master` / `?w=templates`), `storage.py` routes to `reposol/data/workspaces/default/`.
+- **Localhost Guard**: Modification of Master Templates in `default` / `master` mode is **strictly restricted to requests originating from `localhost` / `127.0.0.1`** (or when `ALLOW_MASTER_EDIT=true` environment variable is set).
+- On public deployments (such as Fly.io), any attempt to modify or delete documents in the `default` / `master` workspace is rejected with `403 Forbidden` to guarantee master template immutability online.
+- When accessed locally on `localhost`, saves and deletions write directly to `reposol/data/workspaces/default/catalogs/` and `reposol/data/workspaces/default/profiles/`.
 - Future user sessions (`session-xyz`) will automatically receive the newly edited master templates upon initial creation.
 - The UI displays a `👑 Master Templates Mode (Local Admin)` indicator badge in the header/navigation bar to notify the maintainer that they are modifying global seed templates locally.
 

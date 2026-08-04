@@ -11,7 +11,8 @@ from app.validation import validate_document, STAGE_ROOT_KEYS
 from app.storage import (
     list_documents, get_document, save_document, delete_document, is_valid_uuid,
     DATA_DIR, is_safe_subdir, get_document_versions, get_document_version, save_document_version,
-    delete_document_version, preprocess_profile_for_saving, preprocess_catalog_for_saving
+    delete_document_version, preprocess_profile_for_saving, preprocess_catalog_for_saving,
+    remove_empty_arrays
 )
 
 router = APIRouter()
@@ -65,12 +66,11 @@ def check_master_write_permission(request: Request, ws_id: Optional[str]):
     if not ws_id:
         return
     safe_id = re.sub(r'[^a-zA-Z0-9_-]', '', ws_id)
-    if safe_id in ("master", "templates"):
+    if safe_id in ("master", "templates", "default"):
         if os.environ.get("ALLOW_MASTER_EDIT", "").lower() in ("true", "1"):
             return
         client_host = request.client.host if request.client else ""
-        host_header = request.headers.get("host", "").split(":")[0]
-        if not (client_host in ("127.0.0.1", "::1", "localhost") or host_header in ("127.0.0.1", "localhost")):
+        if client_host not in ("127.0.0.1", "::1", "localhost"):
             raise HTTPException(
                 status_code=403,
                 detail="Editing Master Templates is restricted to local administrator sessions on localhost."
@@ -80,6 +80,14 @@ def check_master_write_permission(request: Request, ws_id: Optional[str]):
 def health_check():
     """Health check endpoint."""
     return {"status": "ok"}
+
+@router.get("/api/documents/{stage}/count")
+def count_docs(stage: str, request: Request):
+    """Return the number of documents for a specific stage (lightweight)."""
+    normalized = normalize_stage(stage)
+    ws_id = get_ws_id(request)
+    docs = list_documents(normalized, workspace_id=ws_id)
+    return {"stage": normalized, "count": len(docs)}
 
 @router.get("/api/documents/{stage}", response_model=List[Dict[str, Any]])
 def list_docs(stage: str, request: Request):
@@ -156,8 +164,8 @@ async def save_doc_version(stage: str, doc_id: str, request: Request, remarks: O
         raise HTTPException(status_code=400, detail="Missing version in document metadata")
 
     # Automatic revision tracking (US 0.7) - Only for official versions
-    from datetime import datetime
-    now_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    from datetime import datetime, timezone
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     
     metadata = body[root_key].setdefault("metadata", {})
     metadata["last-modified"] = now_str
@@ -289,9 +297,22 @@ def delete_doc(stage: str, doc_id: str, request: Request, force: bool = False):
                 doc_uuid = data.get("uuid")
                 if not doc_uuid or doc_uuid == doc_id:
                     continue
-                # Simple check: stringify and check if target UUID is present
-                doc_str = json.dumps(doc)
-                if doc_id in doc_str:
+                # Targeted check: scan only known reference fields for the target UUID
+                def _contains_ref(obj, target):
+                    """Recursively check if target UUID appears as a value in known reference fields."""
+                    if isinstance(obj, dict):
+                        for k, v in obj.items():
+                            if isinstance(v, str) and target in v:
+                                return True
+                            if isinstance(v, (dict, list)):
+                                if _contains_ref(v, target):
+                                    return True
+                    elif isinstance(obj, list):
+                        for item in obj:
+                            if _contains_ref(item, target):
+                                return True
+                    return False
+                if _contains_ref(data, doc_id):
                     meta = data.get("metadata", {})
                     referrers.append({
                         "uuid": doc_uuid,

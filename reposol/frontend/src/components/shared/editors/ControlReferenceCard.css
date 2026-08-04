@@ -1,0 +1,117 @@
+.control-reference-card {
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  background-color: var(--color-surface-muted, #f8fafc);
+  overflow: hidden;
+  margin-bottom: 16px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.control-reference-card:hover {
+  border-color: var(--color-border-hover, #cbd5e1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.control-reference-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.02);
+  user-select: none;
+}
+
+.control-reference-card-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.control-reference-card-id {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text, #0f172a);
+  background-color: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.control-reference-card-title {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-text, #0f172a);
+}
+
+.control-reference-card-toggle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748b);
+  transition: transform 0.2s ease;
+}
+
+.control-reference-card-body {
+  padding: 16px;
+  border-top: 1px solid var(--color-border, #e2e8f0);
+  background-color: white;
+}
+
+.control-reference-card.collapsed .control-reference-card-body {
+  display: none;
+}
+
+.control-reference-card-parts {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text, #0f172a);
+}
+
+.control-reference-card-params {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border, #e2e8f0);
+}
+
+.control-reference-card-params-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #64748b);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.control-reference-card-params-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.control-reference-card-param-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.param-badge-id {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: #475569;
+  font-weight: 500;
+}
+
+.param-badge-label {
+  color: #0f172a;
+}
+
+.control-reference-card-footer {
+  margin-top: 16px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748b);
+  text-align: right;
+  font-style: italic;
+}

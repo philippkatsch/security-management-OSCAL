@@ -26,10 +26,15 @@ export function ImportManager({
     const newImport = {
       href: newHref,
       'include-all': {},
-      'with-child-controls': 'yes'
     };
     const filteredImports = imports.filter(imp => imp.href !== '#placeholder');
     onChange([...filteredImports, newImport]);
+  };
+
+  const handleUpdateImport = (idx, updatedImp) => {
+    const newImports = [...imports];
+    newImports[idx] = updatedImp;
+    onChange(newImports);
   };
 
   const handleRemoveImport = (idx) => {
@@ -186,7 +191,7 @@ export function ImportManager({
                   flexWrap: 'wrap'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0, flex: 1, marginBottom: '8px' }}>
                   <span className="badge" style={{ background: 'var(--color-primary-subtle)', color: 'var(--color-primary)', fontSize: '10px', flexShrink: 0 }}>
                     Import #{idx + 1}
                   </span>
@@ -200,7 +205,60 @@ export function ImportManager({
                   </span>
                   <strong style={{ fontSize: '14px', color: 'var(--color-text)', wordBreak: 'break-word' }}>{importInfo.title}</strong>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
+
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={imp.href || ''}
+                      onChange={(e) => handleUpdateImport(idx, { ...imp, href: e.target.value })}
+                      className="form-input"
+                      style={{ fontSize: '12px', padding: '4px 8px' }}
+                      placeholder="Import Href"
+                    />
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>{imp.href}</div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
+                    {isEditing ? (
+                      <select
+                        value={imp['include-all'] !== undefined ? 'include-all' : imp['include-controls'] ? 'include-controls' : 'none'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const newImp = { ...imp };
+                          delete newImp['include-all'];
+                          delete newImp['include-controls'];
+                          if (val === 'include-all') newImp['include-all'] = {};
+                          if (val === 'include-controls') newImp['include-controls'] = [{ 'with-ids': [] }];
+                          handleUpdateImport(idx, newImp);
+                        }}
+                        className="form-input"
+                        style={{ height: '26px', fontSize: '11px' }}
+                      >
+                        <option value="include-all">Include All Controls</option>
+                        <option value="include-controls">Include Specific Controls</option>
+                      </select>
+                    ) : (
+                      <span className="badge" style={{ background: 'var(--color-surface-3)', fontSize: '10px' }}>
+                        {imp['include-all'] !== undefined ? 'Includes All' : imp['include-controls'] ? 'Includes Specific' : 'No Inclusion Rule'}
+                      </span>
+                    )}
+
+                    {imp['include-controls'] && (
+                      <span style={{ fontSize: '11px', color: 'var(--color-success)' }}>
+                        Included: {imp['include-controls'][0]?.['with-ids']?.length || 0}
+                      </span>
+                    )}
+                    {imp['exclude-controls'] && (
+                      <span style={{ fontSize: '11px', color: 'var(--color-danger)' }}>
+                        Excluded: {imp['exclude-controls'][0]?.['with-ids']?.length || 0}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'wrap', alignItems: 'center', marginTop: '8px' }}>
                   {mergeMode === 'custom' && (
                     <button
                       type="button"

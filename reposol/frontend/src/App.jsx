@@ -6,6 +6,13 @@ import { CreateDocumentDialog } from './components/document/CreateDocumentDialog
 import { CatalogPage } from './components/catalog/CatalogPage';
 import { ProfilePage } from './components/profile/ProfilePage';
 import MappingViewer from './components/MappingViewer';
+import { MappingPage } from './components/mapping/MappingPage';
+import { ComponentPage } from './components/component-definition/ComponentPage';
+import { SSPPage } from './components/ssp/SSPPage';
+import { APPage } from './components/assessment-plan/APPage';
+import { ARPage } from './components/assessment-results/ARPage';
+import { POAMPage } from './components/poam/POAMPage';
+import { TraceabilityPage } from './components/traceability/TraceabilityPage';
 import { authFetch, getWorkspaceId } from './lib/api';
 
 const parseLocation = () => {
@@ -14,9 +21,9 @@ const parseLocation = () => {
   const queryParams = new URLSearchParams(search);
   const initialEditMode = queryParams.get('edit') === 'true';
 
-  const catalogMatch = path.match(/^\/(catalog|caterlog)\/([a-fA-F0-9-]+)/);
+  const catalogMatch = path.match(/^\/catalog\/([a-fA-F0-9-]+)/);
   if (catalogMatch) {
-    return { type: 'catalog-view', catalogId: catalogMatch[2], initialEditMode };
+    return { type: 'catalog-view', catalogId: catalogMatch[1], initialEditMode };
   }
   const profileMatch = path.match(/^\/profile\/([a-fA-F0-9-]+)/);
   if (profileMatch) {
@@ -26,10 +33,33 @@ const parseLocation = () => {
   if (mappingMatch) {
     return { type: 'mapping-view', mappingId: mappingMatch[2], initialEditMode };
   }
+  const componentDefMatch = path.match(/^\/component-definition\/([a-fA-F0-9-]+)/);
+  if (componentDefMatch) {
+    return { type: 'component-def-view', componentDefId: componentDefMatch[1], initialEditMode };
+  }
+  const sspMatch = path.match(/^\/ssp\/([a-fA-F0-9-]+)/);
+  if (sspMatch) {
+    return { type: 'ssp-view', sspId: sspMatch[1], initialEditMode };
+  }
+  const poamMatch = path.match(/^\/poam\/([a-fA-F0-9-]+)/);
+  if (poamMatch) {
+    return { type: 'poam-view', poamId: poamMatch[1], initialEditMode };
+  }
+  const apMatch = path.match(/^\/assessment-plan\/([a-fA-F0-9-]+)/);
+  if (apMatch) {
+    return { type: 'ap-view', apId: apMatch[1], initialEditMode };
+  }
+  const arMatch = path.match(/^\/assessment-result\/([a-fA-F0-9-]+)/);
+  if (arMatch) {
+    return { type: 'ar-view', arId: arMatch[1], initialEditMode };
+  }
   const tabMatch = path.match(/^\/([^/]+)/);
   const tab = tabMatch ? tabMatch[1] : 'dashboard';
+  if (tab === 'traceability') {
+    return { type: 'traceability-view' };
+  }
   // Standardize stage tab names if necessary
-  return { type: 'tab', tab: (tab === 'catalog' || tab === 'caterlog') ? 'catalogs' : tab === 'profile' ? 'profiles' : (tab === 'control-mapping' || tab === 'control-mappings' || tab === 'mapping') ? 'control-mappings' : tab };
+  return { type: 'tab', tab: tab === 'catalog' ? 'catalogs' : tab === 'profile' ? 'profiles' : (tab === 'control-mapping' || tab === 'control-mappings' || tab === 'mapping') ? 'control-mappings' : tab };
 };
 
 export default function App() {
@@ -69,7 +99,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const activeTab = route.type === 'tab' ? route.tab : route.type === 'profile-view' ? 'profiles' : route.type === 'mapping-view' ? 'control-mappings' : 'catalogs';
+  const activeTab = route.type === 'tab' ? route.tab : route.type === 'profile-view' ? 'profiles' : route.type === 'mapping-view' ? 'control-mappings' : route.type === 'component-def-view' ? 'component-definitions' : route.type === 'ssp-view' ? 'ssps' : route.type === 'poam-view' ? 'poams' : route.type === 'ap-view' ? 'assessment-plans' : route.type === 'ar-view' ? 'assessment-results' : 'catalogs';
 
   const fetchDocuments = async (stage) => {
     setLoading(true);
@@ -96,8 +126,15 @@ export default function App() {
     await Promise.all(
       stages.map(async (stage) => {
         try {
-          const response = await authFetch(`/api/documents/${stage}`);
-          newCounts[stage] = response.ok ? (await response.json()).length : 0;
+          const response = await authFetch(`/api/documents/${stage}/count`);
+          if (response.ok) {
+            const data = await response.json();
+            newCounts[stage] = data.count ?? 0;
+          } else {
+            // Fallback: count endpoint not available, load full list
+            const fallback = await authFetch(`/api/documents/${stage}`);
+            newCounts[stage] = fallback.ok ? (await fallback.json()).length : 0;
+          }
         } catch {
           newCounts[stage] = 0;
         }
@@ -169,6 +206,16 @@ export default function App() {
       navigateTo(`/catalog/${doc.catalog.uuid}?edit=true`);
     } else if (doc['mapping-collection'] && doc['mapping-collection'].uuid) {
       navigateTo(`/control-mapping/${doc['mapping-collection'].uuid}?edit=true`);
+    } else if (doc['component-definition'] && doc['component-definition'].uuid) {
+      navigateTo(`/component-definition/${doc['component-definition'].uuid}?edit=true`);
+    } else if (doc['system-security-plan'] && doc['system-security-plan'].uuid) {
+      navigateTo(`/ssp/${doc['system-security-plan'].uuid}?edit=true`);
+    } else if (doc['plan-of-action-and-milestones'] && doc['plan-of-action-and-milestones'].uuid) {
+      navigateTo(`/poam/${doc['plan-of-action-and-milestones'].uuid}?edit=true`);
+    } else if (doc['assessment-plan'] && doc['assessment-plan'].uuid) {
+      navigateTo(`/assessment-plan/${doc['assessment-plan'].uuid}?edit=true`);
+    } else if (doc['assessment-results'] && doc['assessment-results'].uuid) {
+      navigateTo(`/assessment-result/${doc['assessment-results'].uuid}?edit=true`);
     } else {
       setEditDoc(doc);
       setShowEditor(true);
@@ -189,6 +236,16 @@ export default function App() {
           navigateTo(`/profile/${docData.uuid}?edit=true`);
         } else if (activeTab === 'control-mappings') {
           navigateTo(`/control-mapping/${docData.uuid}?edit=true`);
+        } else if (activeTab === 'component-definitions') {
+          navigateTo(`/component-definition/${docData.uuid}?edit=true`);
+        } else if (activeTab === 'ssps') {
+          navigateTo(`/ssp/${docData.uuid}?edit=true`);
+        } else if (activeTab === 'poams') {
+          navigateTo(`/poam/${docData.uuid}?edit=true`);
+        } else if (activeTab === 'assessment-plans') {
+          navigateTo(`/assessment-plan/${docData.uuid}?edit=true`);
+        } else if (activeTab === 'assessment-results') {
+          navigateTo(`/assessment-result/${docData.uuid}?edit=true`);
         } else {
           if (route.type === 'catalog-view') {
             navigateTo(`/catalog/${docData.uuid}`);
@@ -196,6 +253,16 @@ export default function App() {
             navigateTo(`/profile/${docData.uuid}`);
           } else if (route.type === 'mapping-view') {
             navigateTo(`/control-mapping/${docData.uuid}`);
+          } else if (route.type === 'component-def-view') {
+            navigateTo(`/component-definition/${docData.uuid}`);
+          } else if (route.type === 'ssp-view') {
+            navigateTo(`/ssp/${docData.uuid}`);
+          } else if (route.type === 'poam-view') {
+            navigateTo(`/poam/${docData.uuid}`);
+          } else if (route.type === 'ap-view') {
+            navigateTo(`/assessment-plan/${docData.uuid}`);
+          } else if (route.type === 'ar-view') {
+            navigateTo(`/assessment-result/${docData.uuid}`);
           }
         }
       }
@@ -262,7 +329,7 @@ export default function App() {
     { stage: 'poams', label: 'POA&M', icon: '⚠️', desc: 'Remediation tracking', isDev: true },
   ];
 
-  const UNDER_DEV_STAGES = ['component-definitions', 'ssps', 'assessment-plans', 'assessment-results', 'poams', 'control-mappings'];
+  const UNDER_DEV_STAGES = ['component-definitions', 'ssps', 'assessment-plans', 'assessment-results', 'poams'];
 
   const STAGE_LABEL_MAP = {
     catalogs: 'Catalog', profiles: 'Profile', ssps: 'SSP',
@@ -283,28 +350,37 @@ export default function App() {
       {/* OSCAL Workflow Pipeline */}
       <div className="section-title">OSCAL Lifecycle Pipeline</div>
       <div className="workflow-pipeline">
-        {WORKFLOW_STEPS.map((step, i) => (
-          <div className="workflow-step-wrapper" key={step.stage}>
-            <div
-              className={`workflow-step ${counts[step.stage] > 0 ? 'has-docs' : ''}`}
-              onClick={() => navigateTo('/' + step.stage)}
-              title={`${step.label}: ${counts[step.stage]} documents${step.isDev ? ' (Under Active Development)' : ''}`}
-            >
-              <span className="workflow-icon">{step.icon}</span>
-              <span className="workflow-label">{step.label}</span>
-              <span className="workflow-count">{counts[step.stage]}</span>
-              <span className="workflow-desc">{step.desc}</span>
-              {step.isDev && (
-                <span className="workflow-dev-badge" title="Under Active Development">
-                  🚧 In Dev
-                </span>
+        {WORKFLOW_STEPS.map((step, i) => {
+          const isReady = i === 0 || counts[WORKFLOW_STEPS[i - 1].stage] > 0;
+          const hasDocs = counts[step.stage] > 0;
+          const isGlowing = hasDocs || isReady;
+          return (
+            <div className="workflow-step-wrapper" key={step.stage}>
+              <div
+                className={`workflow-step ${hasDocs ? 'has-docs' : ''}`}
+                style={{
+                  boxShadow: isGlowing ? '0 0 15px rgba(99, 102, 241, 0.4)' : 'none',
+                  borderColor: isGlowing ? 'rgba(99, 102, 241, 0.6)' : undefined
+                }}
+                onClick={() => navigateTo('/' + step.stage)}
+                title={`${step.label}: ${counts[step.stage]} documents${step.isDev ? ' (Under Active Development)' : ''}`}
+              >
+                <span className="workflow-icon">{step.icon}</span>
+                <span className="workflow-label">{step.label}</span>
+                <span className="workflow-count">{counts[step.stage]}</span>
+                <span className="workflow-desc">{step.desc}</span>
+                {step.isDev && (
+                  <span className="workflow-dev-badge" title="Under Active Development">
+                    🚧 In Dev
+                  </span>
+                )}
+              </div>
+              {i < WORKFLOW_STEPS.length - 1 && (
+                <span className="workflow-arrow" style={{ color: counts[step.stage] > 0 ? 'var(--color-primary)' : 'var(--color-border)' }}>→</span>
               )}
             </div>
-            {i < WORKFLOW_STEPS.length - 1 && (
-              <span className="workflow-arrow">→</span>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="dashboard-two-col">
@@ -329,13 +405,13 @@ export default function App() {
                 </p>
               </div>
               <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border-subtle)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 8px 0', fontSize: '15px' }}>🧱 3. Components <span style={{ fontSize: '10px', color: '#fbbf24' }}>🚧</span></h4>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 8px 0', fontSize: '15px' }}>🧱 3. Components</h4>
                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.5' }}>
                   Inventory physical assets, software, services, and policies including security certifications (e.g., EAL 4+).
                 </p>
               </div>
               <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border-subtle)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 8px 0', fontSize: '15px' }}>📝 4. SSPs <span style={{ fontSize: '10px', color: '#fbbf24' }}>🚧</span></h4>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 8px 0', fontSize: '15px' }}>📝 4. SSPs</h4>
                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.5' }}>
                   Construct System Security Plans, assign active components to selected profile controls, and tailor parameter overrides inline.
                 </p>
@@ -495,11 +571,21 @@ export default function App() {
                               navigateTo((stage === 'catalogs' ? '/catalog/' : '/profile/') + data.uuid);
                             } else if (stage === 'control-mappings') {
                               navigateTo('/control-mapping/' + data.uuid);
+                            } else if (stage === 'component-definitions') {
+                              navigateTo('/component-definition/' + data.uuid);
+                            } else if (stage === 'ssps') {
+                              navigateTo('/ssp/' + data.uuid);
+                            } else if (stage === 'poams') {
+                              navigateTo('/poam/' + data.uuid);
+                            } else if (stage === 'assessment-plans') {
+                              navigateTo('/assessment-plan/' + data.uuid);
+                            } else if (stage === 'assessment-results') {
+                              navigateTo('/assessment-result/' + data.uuid);
                             } else {
                               handleEditDoc(doc);
                             }
                           }}
-                          title={(stage === 'catalogs' || stage === 'profiles' || stage === 'control-mappings') ? "View document controls" : "Edit document"}
+                          title={(stage === 'catalogs' || stage === 'profiles' || stage === 'control-mappings' || stage === 'component-definitions' || stage === 'ssps' || stage === 'poams' || stage === 'assessment-plans' || stage === 'assessment-results') ? "View document" : "Edit document"}
                         >
                           {data.metadata?.title || 'Untitled'}
                         </span>
@@ -511,17 +597,27 @@ export default function App() {
                       </td>
                       <td className="actions-cell">
                         <div className="action-buttons-row">
-                          {(stage === 'catalogs' || stage === 'profiles' || stage === 'control-mappings') && (
+                          {(stage === 'catalogs' || stage === 'profiles' || stage === 'control-mappings' || stage === 'component-definitions' || stage === 'ssps' || stage === 'poams' || stage === 'assessment-plans' || stage === 'assessment-results') && (
                             <button
                               className="btn-action btn-view"
                               onClick={() => {
                                 if (stage === 'control-mappings') {
                                   navigateTo('/control-mapping/' + data.uuid);
+                                } else if (stage === 'component-definitions') {
+                                  navigateTo('/component-definition/' + data.uuid);
+                                } else if (stage === 'ssps') {
+                                  navigateTo('/ssp/' + data.uuid);
+                                } else if (stage === 'poams') {
+                                  navigateTo('/poam/' + data.uuid);
+                                } else if (stage === 'assessment-plans') {
+                                  navigateTo('/assessment-plan/' + data.uuid);
+                                } else if (stage === 'assessment-results') {
+                                  navigateTo('/assessment-result/' + data.uuid);
                                 } else {
                                   navigateTo((stage === 'catalogs' ? '/catalog/' : '/profile/') + data.uuid);
                                 }
                               }}
-                              title="View controls"
+                              title="View document"
                             >
                               👁
                             </button>
@@ -564,10 +660,12 @@ export default function App() {
     <Layout 
       activeTab={activeTab} 
       onTabChange={(tabId) => navigateTo(tabId === 'dashboard' ? '/' : '/' + tabId)} 
-      noPadding={route.type === 'catalog-view' || route.type === 'profile-view' || route.type === 'mapping-view'}
+      noPadding={route.type === 'catalog-view' || route.type === 'profile-view' || route.type === 'mapping-view' || route.type === 'component-def-view' || route.type === 'ssp-view' || route.type === 'poam-view' || route.type === 'ap-view' || route.type === 'ar-view'}
       counts={counts}
     >
-      {route.type === 'catalog-view' ? (
+      {route.type === 'traceability-view' ? (
+        <TraceabilityPage key="traceability" />
+      ) : route.type === 'catalog-view' ? (
         <CatalogPage
           key={`catalog-${route.catalogId}-${refreshTrigger}`}
           catalogId={route.catalogId}
@@ -586,14 +684,48 @@ export default function App() {
           }}
         />
       ) : route.type === 'mapping-view' ? (
-        <MappingViewer
+        <MappingPage
           key={`mapping-${route.mappingId}-${refreshTrigger}`}
           mappingId={route.mappingId}
           initialEditMode={route.initialEditMode}
-          onEdit={handleEditDoc}
           onClose={() => {
             navigateTo('/control-mappings');
           }}
+        />
+      ) : route.type === 'component-def-view' ? (
+        <ComponentPage
+          key={`component-def-${route.componentDefId}-${refreshTrigger}`}
+          componentDefId={route.componentDefId}
+          initialEditMode={route.initialEditMode}
+          onClose={() => navigateTo('/component-definitions')}
+        />
+      ) : route.type === 'ssp-view' ? (
+        <SSPPage
+          key={`ssp-${route.sspId}-${refreshTrigger}`}
+          sspId={route.sspId}
+          initialEditMode={route.initialEditMode}
+          onClose={() => navigateTo('/ssps')}
+        />
+      ) : route.type === 'poam-view' ? (
+        <POAMPage
+          key={`poam-${route.poamId}-${refreshTrigger}`}
+          poamId={route.poamId}
+          initialEditMode={route.initialEditMode}
+          onClose={() => navigateTo('/poams')}
+        />
+      ) : route.type === 'ap-view' ? (
+        <APPage
+          key={`ap-${route.apId}-${refreshTrigger}`}
+          apId={route.apId}
+          initialEditMode={route.initialEditMode}
+          onClose={() => navigateTo('/assessment-plans')}
+        />
+      ) : route.type === 'ar-view' ? (
+        <ARPage
+          key={`ar-${route.arId}-${refreshTrigger}`}
+          arId={route.arId}
+          initialEditMode={route.initialEditMode}
+          onClose={() => navigateTo('/assessment-results')}
         />
       ) : activeTab === 'dashboard' ? (
         renderDashboard()

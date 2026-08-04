@@ -480,6 +480,20 @@ export function PartsEditor({
                       ))}
                     </select>
                   </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <PropsEditor
+                      props={p.props || []}
+                      onChange={(val) => handlePartChange(idx, 'props', val)}
+                      readOnly={readOnly}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <LinksEditor
+                      links={p.links || []}
+                      onChange={(val) => handlePartChange(idx, 'links', val)}
+                      readOnly={readOnly}
+                    />
+                  </div>
                 </div>
               )}
 

@@ -1,124 +1,204 @@
 # Step 8: Detailed User Stories – Control Mapping (Mapping Collection)
 
 * **Persona:** Alice (Compliance Officer / Framework Developer)
-* **Goal:** Creation of machine-readable cross-framework mappings (Control Mappings) between different security catalogs, automatic detection of coverage gaps, and visual representation of control relationships to support regulatory equivalence analyses.
-
----
+* **Goal:** Create, manage, and analyze OSCAL `mapping-collection` documents to establish and document semantic, functional, or syntactic relationships between different cybersecurity framework resources (catalogs or profiles), while thoroughly tracking provenance, confidence scoring, and gap analysis.
 
 ## 1. Breakdown of User Stories
 
-### US 8.1: Mapping Declaration & Provenance
-> **As a** Compliance Officer and Framework Developer (Alice)  
-> **I want to** create a mapping document containing provenance information (creator, timestamp, methodology) as well as references to the source and target frameworks,  
-> **so that** the origin and traceability of the control mappings are transparently documented.
-*   **Acceptance Criteria:**
-    *   Capturing metadata (title, version, OSCAL version).
-    *   Declaration of the source resource (`source-resource`) and target resource (`target-resource`) as `href` references to existing catalogs or profiles.
-    *   Provenance section with details on the author, a description of the mapping methodology applied, and the creation date.
+### US 8.1: Mapping Document Creation & Inner View (US 0.P1)
+> **As a** Compliance Officer
+> **I want to** create a new OSCAL `mapping-collection` document and access its inner workspace view
+> **so that** I have a dedicated, isolated environment to define and review mappings between two or more security frameworks without interfering with other platform data.
 
-### US 8.2: Creating Control Mappings (Control Mapping Pairs)
-> **As a** Compliance Officer and Framework Developer (Alice)  
-> **I want to** map individual controls of the source framework to controls of the target framework with a defined relationship type,  
-> **so that** the semantic relationships between the standards are represented in a machine-readable format.
-*   **Acceptance Criteria:**
-    *   Mapping of individual source controls to target controls as individual mapping entries.
-    *   Selection of the relationship type from: `equivalent-to`, `equal-to`, `subset-of`, `superset-of`, `intersects-with`, `no-relationship`.
-    *   Providing remarks and a justification for each mapping entry.
-    *   Support for 1:1, 1:N, and N:1 mappings.
+### US 8.2: Mapping Provenance & Methodology Declaration
+> **As a** Compliance Officer
+> **I want to** define the `mapping-provenance` (JSON key `provenance`) at the document level
+> **so that** I can declare the overarching `method` (`human`, `automation`, `hybrid`), `matching-rationale` (`syntactic`, `semantic`, `functional`), `status` (`complete`, `not-complete`, `draft`, `deprecated`, `superseded`), an extensive `mapping-description`, and the `responsible-parties` for the entire mapping exercise.
 
-### US 8.3: Automatic Gap Analysis & Coverage Report
-> **As a** Compliance Officer and Framework Developer (Alice)  
-> **I want** the system to automatically identify unmapped controls and generate a coverage report,  
-> **so that** I can quickly identify gaps in cross-framework compliance and perform targeted remediation.
-*   **Acceptance Criteria:**
-    *   Visual marking (indicator) for mapped vs. unmapped controls on both sides (source and target frameworks).
-    *   Coverage percentage (Coverage) per framework.
-    *   Exportable gap report (e.g., as CSV or PDF).
-    *   Filter function to display only unmapped controls.
+### US 8.3: Source & Target Resource Declaration
+> **As a** Framework Developer
+> **I want to** specify the `source-resource` and `target-resource` for each mapping entry within the `mappings` array
+> **so that** I can explicitly define the baseline `type` (`catalog`, `profile`), its `href` URI, and the `ns` (namespace, default `http://csrc.nist.gov/ns/oscal`) being compared.
 
-### US 8.4: Mapping Visualization (Matrix & Sankey)
-> **As a** Compliance Officer and Framework Developer (Alice)  
-> **I want to** view control mappings in different visual representations,  
-> **so that** I can intuitively capture relationships between frameworks and present them to stakeholders.
-*   **Acceptance Criteria:**
-    *   **Matrix View:** Source controls as rows and target controls as columns with relationship indicators in the cells.
-    *   **Optional Sankey/Flow Diagram:** Representation of control flows at the group level as a Sankey diagram.
-    *   Color coding by relationship type (e.g., `equivalent-to` = green, `subset-of` = blue, `no-relationship` = red).
+### US 8.4: Mapping Entry Creation with Relationship Types
+> **As a** Compliance Officer
+> **I want to** create individual `maps` defining exact relationships between source and target items
+> **so that** I can categorize the mapping mathematically using one of the six allowed `relationship` tokens (`equivalent-to`, `equal-to`, `subset-of`, `superset-of`, `intersects-with`, `no-relationship`).
 
-### US 8.5: Simplified Mapping Creation & Direct Editing (Inner View)
-> **As a** Compliance Officer and Framework Developer (Alice)  
-> **I want to** be able to create a new mapping document by initially entering only the title and being forwarded immediately to the in-place editor area (Inner View),  
-> **so that** I can configure source and target frameworks as well as mappings directly in the editing area without cumbersome preliminary wizards.
-*   **Acceptance Criteria:**
-    *   **Minimal Creation Window:** Clicking "New Mapping" opens a simple dialog that requires only the title.
-    *   **Direct Redirection:** After clicking "Create Document," the mapping is initialized in the backend and the user is redirected immediately to the editing view (`/mapping/{uuid}?edit=true`).
-    *   **In-place Configuration:** All further settings (source/target resources, mappings, metadata) are performed directly in this inner view.
+### US 8.5: Source & Target Item References
+> **As a** Framework Developer
+> **I want to** select `sources` and `targets` for each map by linking to specific control or statement identifiers
+> **so that** I can represent 1:1, 1:N, or N:1 mappings accurately, noting the `type` as either `control` or `statement`, and supplying the exact `id-ref`.
 
-> [!NOTE]
-> This user story follows the global pattern from **US 0.P1** (Simplified Creation & Inner View).
+### US 8.6: Relationship Qualifiers
+> **As a** Compliance Officer
+> **I want to** add `qualifiers` to a map where direct mapping requires additional conditions
+> **so that** I can specify the `subject` (`source`, `target`, `both`), `predicate` (`has-requirement`, `has-incompatibility`), `category` (`restricted`, `addressable`, `blocked`), and a detailed `description` of the condition.
 
-### US 8.6: Versioning, Document Overview & Editability
-> **As a** Compliance Officer and Framework Developer (Alice)  
-> **I want to** persistently save versions of a mapping document, manage the document overview with metadata, imported catalogs, and tags, and edit all mapping details inline in a cohesive card,  
-> **so that** the management, traceability, and usability of the mapping editor comply with established system standards.
-*   **Acceptance Criteria:**
-    *   **Integrated Versioning (US 0.P2):**
-        *   **No UUID Bumping:** A new version is saved under the same UUID.
-        *   **Save as Version (Save Version):** The "Save Version" button opens a dialog for the version number (e.g., `1.1.0`) and remarks. The file is persisted as `<uuid>_v<version>.json`.
-        *   **Versions Drawer & Deletion:** Clicking `Versions` shows the loaded version and opens the drawer for navigation and deletion of versions.
-        *   **Read-Only History:** Older versions are opened in read-only mode.
-        *   **Table:** The mapping table displays the latest version by default.
-    *   **Document Overview (US 0.P3):**
-        *   **Right Main Pane:** Displayed when no specific mapping is selected on the left. Contains the horizontal tabs **Metadata** (title, version, OSCAL version, remarks), **Imported Catalogs** (select source and target catalogs/profiles), and **Tags**.
-        *   **"Tags" Tab:** Divided into **Global Property Tags** and **Used / Existing Tags** (including occurrence count and promote button in edit mode).
-    *   **Detailed Editability (US 0.P4):**
-        *   **In-Card Editor:** Header area and properties are edited in a single gray cohesive card with border.
-        *   **Autocomplete (`datalist`):** Suggestions for already used key names during property definition.
-        *   **Exit Button with Backend Drafting:** Exit ends editing and redirects to the read-only view. Unsaved changes are cached in `localStorage` for recovery.
+### US 8.7: Confidence Scoring
+> **As a** Framework Developer
+> **I want to** assign a `confidence-score` at the `mapping-provenance`, `mapping`, or `map` level
+> **so that** I can indicate the reliability of the mapping either via a category (`unspecified`, `high`, `medium`, `low`) or a precise decimal percentage (0.0 to 1.0).
 
-> [!NOTE]
-> This user story combines the global patterns from **US 0.P2** (Versioning), **US 0.P3** (Document Overview & Tags), and **US 0.P4** (Detailed Editability & Exit Button).
+### US 8.8: Coverage Tracking
+> **As a** Compliance Officer
+> **I want to** document the `coverage` of the mapping effort (0.0 to 1.0)
+> **so that** I can clearly communicate what proportion of the framework was successfully mapped and the arbitrary `generation-method` used to calculate this metric.
 
----
+### US 8.9: Gap Summary & Unmapped Controls
+> **As a** Compliance Officer
+> **I want to** define a `source-gap-summary` and `target-gap-summary` within a mapping
+> **so that** I can list `unmapped-controls` that exist in one framework but lack any relationship in the other, ensuring transparent gap documentation.
 
-## 2. Alice's Detailed Workflow & User Journey
+### US 8.10: Automatic Gap Analysis & Coverage Report
+> **As a** Framework Developer
+> **I want to** view an automatically generated system report that compares my established `maps` against the resolved source/target frameworks
+> **so that** I can visually identify unmapped controls and receive calculated coverage statistics to validate my manual gap summaries.
 
-1.  **Create Mapping (US 8.5):** Alice clicks on "New Mapping," enters the title *"NIST 800-53 → ISO 27001 Mapping,"* and is redirected immediately to the editing view `/mapping/{uuid}?edit=true`.
-2.  **Maintain Global Metadata, Imports & Tags (US 8.1, US 8.6):** In the main pane (Document Overview) under *Metadata*, she enters version `1.0.0` and records provenance information (author, mapping methodology: *"Manual expert analysis based on NIST SP 800-53 Rev. 5 and ISO/IEC 27001:2022"*, date). Under *Imported Catalogs*, she links the previously created NIST 800-53 catalog as the source resource and the ISO 27001 catalog as the target resource. Under *Tags*, she defines global property tags such as `mapping-scope` and `confidence-level`.
-3.  **Create Control Mappings (US 8.2, US 8.6):** She switches to the mapping editor and creates individual mappings:
-    *   `AC-2` (Account Management) → `A.5.18` (Access Rights) with relationship type `subset-of` and the remark that AC-2 covers a narrower scope.
-    *   `AC-3` (Access Enforcement) → `A.8.3` (Access Control to Information) with relationship type `equivalent-to`.
-    *   `IA-2` (Identification and Authentication) → `A.8.5` (Secure Authentication) **and** `A.5.17` (Authentication Information) as a 1:N mapping.
-    *   For `PE-1` (Physical and Environmental Protection Policy), she documents `no-relationship`, as ISO 27001 covers this in a separate Annex.
-4.  **Perform Gap Analysis (US 8.3):** Alice starts the automatic gap analysis. The system shows coverage of 78 % for NIST 800-53 and 85 % for ISO 27001. She filters for unmapped controls and identifies missing mappings for the *Physical Security* and *Contingency Planning* groups. She exports the gap report as CSV.
-5.  **Verify Visualization (US 8.4):** In the matrix view, she verifies the mappings visually – green cells for `equivalent-to`, blue for `subset-of`, red for `no-relationship`. In the optional Sankey diagram, she views the control flows at the group level (e.g., "Access Control" → "Annex A.5", "Annex A.8").
-6.  **Versioning & Exit (US 8.6):** She saves version `1.0.0` in the version dialog with the note *"Initial framework mapping – 78% coverage"* and leaves the editor via the "Exit" button.
+### US 8.11: Mapping Visualization (Matrix & Sankey Diagrams)
+> **As a** Compliance Officer
+> **I want to** visualize the relationships between source and target frameworks via a matrix grid and optional flow diagram (e.g., Sankey)
+> **so that** I can easily present the mapping topology, intersections, subsets, and supersets to external auditors or stakeholders.
 
----
+### US 8.12: Mapping Overrides
+> **As a** Framework Developer
+> **I want to** be able to override the provenance defaults (`method`, `matching-rationale`, `status`) at the specific `mapping` or `map` level
+> **so that** I can accommodate exceptions where a single map or mapping group was performed via `human` method when the overarching provenance was `automation`.
 
-## 3. Functional Requirements for the System
+### US 8.13: Mapping Table & Navigation (US 0.P5)
+> **As a** Compliance Officer
+> **I want to** use a sortable, filterable data table for all `maps` inside the `mapping-collection`
+> **so that** I can search by source/target ID, filter by `relationship` type, or sort by `confidence-score` to efficiently manage hundreds or thousands of mapping entries.
 
-- **Provenance & Framework Referencing:** Capture of author, methodology, and date, as well as linking of source and target frameworks via `href` references (US 8.1).
-- **Structured Control Mappings:** Creation of individual mapping entries with defined relationship types (`equivalent-to`, `equal-to`, `subset-of`, `superset-of`, `intersects-with`, `no-relationship`) and support for 1:1, 1:N, and N:1 mappings (US 8.2).
-- **Automatic Gap Analysis:** Identification of unmapped controls, calculation of coverage percentages, and export of gap reports (US 8.3).
-- **Multi-View Visualization:** Matrix representation with relationship indicators and optional Sankey diagram with color coding by relationship type (US 8.4).
-- **Integrated Versioning:** Saving specific version files `<uuid>_v<version>.json`, drawer view, deletion, and read-only access for historical states (US 8.6).
-- **Document Overview & Tags:** Metadata, Imported Catalogs, and Tags subtabs in the main pane with tag promotion (US 8.6).
-- **In-Card Edit & Exit Drafting:** Header/properties in a cohesive card, databindings via `datalist` autocomplete, and `localStorage` caching upon exit (US 8.6).
+### US 8.14: Document Overview & Tags (US 0.P3)
+> **As a** Compliance Officer
+> **I want to** view document `metadata` including remarks, roles, and props (tags)
+> **so that** I can easily label, search, and manage the `mapping-collection` lifecycle inside the platform workspace.
 
----
+### US 8.15: In-Card Editing & Draft Persistence (US 0.P4)
+> **As a** Compliance Officer
+> **I want to** edit mapping details within slide-out panels or expansion cards that auto-save drafts
+> **so that** I can map complex statement relationships or write qualifier descriptions without fear of losing unsaved work if I navigate away.
+
+### US 8.16: Integrated Backend Versioning (US 0.P2)
+> **As a** Framework Developer
+> **I want to** explicitly publish new versions of the `mapping-collection`
+> **so that** historical mappings are preserved and system-wide references to previous mapping iterations remain intact.
+
+### US 8.17: Back-Matter & Resource Attachments
+> **As a** Compliance Officer
+> **I want to** attach supporting files, scripts, or methodology documents in the `back-matter`
+> **so that** automated mapping tools, reference papers, or supplementary evidence used for the mapping exercise are directly bundled with the OSCAL file.
+
+## 2. Workflow & User Journey
+
+1. **Initialization:** Alice creates a new `mapping-collection` document. The system generates a `uuid` and requires basic `metadata` (title, version, last-modified).
+2. **Methodology Declaration:** She fills out the mandatory `mapping-provenance` block, defining whether the effort is `human` or `automation`, the general `matching-rationale`, its current `status`, and assigning `responsible-parties`.
+3. **Defining Mappings:** Alice adds a mapping block (`mappings`). She sets the `source-resource` (e.g., NIST SP 800-53 Catalog) and `target-resource` (e.g., ISO 27001 Catalog).
+4. **Creating Maps:** Within the mapping block, she begins adding `maps`. For each map, she specifies:
+   - The `relationship` (e.g., `intersects-with`).
+   - The `sources` (`type`: `control`, `id-ref`: `ac-2`).
+   - The `targets` (`type`: `control`, `id-ref`: `A.9.2.1`).
+5. **Adding Depth:** Where needed, Alice defines `qualifiers` indicating conditions (e.g., source requires an additional component not found in the target), overrides the provenance defaults, and provides a `confidence-score`.
+6. **Gap Summary:** After completing the mappings, she uses platform tooling to generate or manually enter `source-gap-summary` and `target-gap-summary`, declaring which controls explicitly have no mappings.
+7. **Review & Publish:** She uses matrix visualizations to review the full relationship mapping, verifies her `coverage` metrics, and publishes the document version (DD-002 valid).
+
+## 3. Functional Requirements
+
+### 3.1 `mapping-collection` Root Requirements
+*   **`uuid`**: Required (auto-generated).
+*   **`metadata`**: Required (1..1).
+*   **`mapping-provenance`** (JSON key: `provenance`): Required (1..1). Document-level defaults.
+*   **`mappings`**: Required (1..*). Array of mappings between specific resources.
+*   **`back-matter`**: Optional (0..1).
+
+### 3.2 `mapping-provenance` Data Constraints
+*   **`method`**: Required (flag). Allowed values: `human`, `automation`, `hybrid`.
+*   **`matching-rationale`**: Required (flag). Allowed values: `syntactic`, `semantic`, `functional`.
+*   **`status`**: Required (flag). Allowed values: `complete`, `not-complete`, `draft`, `deprecated`, `superseded`.
+*   **`confidence-score`**: Optional (0..1). Evaluated as either:
+    *   category: `unspecified`, `high`, `medium`, `low` (allows other).
+    *   percentage: decimal `0.0` to `1.0`.
+*   **`coverage`**: Optional (0..1). Decimal `0.0` to `1.0` with arbitrary `generation-method` string.
+*   **`mapping-description`**: Required (1..1, markup-multiline).
+*   **`responsible-parties`**: Optional (0..*).
+
+### 3.3 `mapping` Entry Elements
+*   **`uuid`**: Required.
+*   **Overrides**: `method`, `matching-rationale`, `status` (Optional. If present, overrides provenance defaults).
+*   **`source-resource`** / **`target-resource`**: Required (1..1).
+    *   `type`: Required. Allowed values: `catalog`, `profile` (allows other).
+    *   `href`: Required (uri-reference).
+    *   `ns`: Optional (default `http://csrc.nist.gov/ns/oscal`).
+*   **`maps`**: Required (1..*). Array of mappings.
+*   **Gap Summaries**: `source-gap-summary` and `target-gap-summary` (Optional 0..1). Must contain `unmapped-controls` (1..*) containing `control-id` references.
+
+### 3.4 `map` Level Constraints
+*   **`uuid`**: Required.
+*   **`relationship`**: Required (1..1, token). Allowed values: `equivalent-to`, `equal-to`, `subset-of`, `superset-of`, `intersects-with`, `no-relationship`.
+*   **`sources`** / **`targets`**: Required (1..*).
+    *   `type`: Required. Allowed values: `control`, `statement`.
+    *   `id-ref`: Required (string).
+*   **`qualifiers`**: Optional (0..*).
+    *   `subject`: Required. Allowed values: `source`, `target`, `both`.
+    *   `predicate`: Required. Allowed values: `has-requirement`, `has-incompatibility`.
+    *   `category`: Required. Allowed values: `restricted`, `addressable`, `blocked`.
+    *   `description`: Required (1..1, markup-multiline).
 
 ## 4. Functional Acceptance Criteria (Summary)
 
-- [ ] A user can create a mapping document with provenance information and framework references (US 8.1).
-- [ ] The system allows mapping individual source controls to target controls with defined relationship types (US 8.2).
-- [ ] Mapping entries support 1:1, 1:N, and N:1 mappings with remarks and justifications (US 8.2).
-- [ ] Automatic gap analysis identifies unmapped controls and calculates coverage percentages (US 8.3).
-- [ ] An exportable gap report can be generated and filtered (US 8.3).
-- [ ] The matrix view represents source and target controls with color-coded relationship indicators (US 8.4).
-- [ ] An optional Sankey/flow diagram visualizes control flows at the group level (US 8.4).
-- [ ] New mappings can be created simply and redirect directly to the editing area (US 8.5).
-- [ ] Document Overview offers tabs for metadata, imported catalogs, and tag management including promotion (US 8.6).
-- [ ] Editing is performed in a cohesive detail card and drafts are cached locally upon exit (US 8.6).
-- [ ] Versions of a mapping document are persistently versioned in the backend and managed via the drawer (US 8.6).
-- [ ] The exported mapping complies 100% with the official OSCAL Mapping Collection schema (US 8.1).
+### US 8.1: Mapping Document Creation & Inner View (US 0.P1)
+- [ ] **Validation:** The system mandates exactly one `metadata` and exactly one `mapping-provenance` block per document.
+- [ ] **Root Array:** The system ensures at least one entry exists in the `mappings` array before validation passes.
+
+### US 8.2: Mapping Provenance & Methodology Declaration
+- [ ] **Provenance Enforcement:** The UI enforces selection of `method`, `matching-rationale`, and `status` from exact predefined OSCAL allowed lists.
+- [ ] **Description Editor:** The `mapping-description` field renders as a rich-text markup-multiline editor.
+
+### US 8.3: Source & Target Resource Declaration
+- [ ] **Resource Reference Handling:** `source-resource` and `target-resource` must have a defined `type` (`catalog` or `profile`) and a valid `href` URI.
+
+### US 8.4: Mapping Entry Creation with Relationship Types
+- [ ] **Relationship Enum:** `relationship` token must be strictly selected from the 6 allowed values (equivalent-to, equal-to, subset-of, superset-of, intersects-with, no-relationship).
+
+### US 8.5: Source & Target Item References
+- [ ] **Multi-Item References:** `sources` and `targets` allow adding multiple items (1:N, N:1, N:M mappings supported).
+- [ ] **Type Enforcement:** The system enforces `type` (`control` or `statement`) for all `sources` and `targets`.
+
+### US 8.6: Relationship Qualifiers
+- [ ] **Qualifiers Integration:** A map can accept multiple `qualifiers` with strict dropdowns for `subject`, `predicate`, and `category`.
+- [ ] **Description Requirement:** Every qualifier requires a markup-multiline `description`.
+
+### US 8.7: Confidence Scoring
+- [ ] **Confidence Input:** `confidence-score` UI allows toggling between 'Category' mode (enum) and 'Percentage' mode (decimal 0.0 to 1.0 validation).
+
+### US 8.8: Coverage Tracking
+- [ ] **Coverage Validation:** `coverage` UI restricts decimal inputs to `0.0-1.0` range.
+
+### US 8.9: Gap Summary & Unmapped Controls
+- [ ] **Gap Logging:** `source-gap-summary` and `target-gap-summary` allow appending `unmapped-controls` lists.
+
+### US 8.10: Automatic Gap Analysis & Coverage Report
+- [ ] **Visual Report:** The platform offers a visual report highlighting unmapped controls vs. defined maps.
+
+### US 8.11: Mapping Visualization (Matrix & Sankey Diagrams)
+- [ ] **Matrix View:** The system MUST provide a matrix grid view showing the relationship mapping between source and target frameworks.
+- [ ] **Flow Diagram:** The system SHOULD offer a visual flow diagram (e.g., Sankey) to represent mapping topology.
+
+### US 8.12: Mapping Overrides
+- [ ] **Local Overrides:** The system MUST allow users to override `method`, `matching-rationale`, and `status` at the `mapping` or `map` level, overriding document-level provenance defaults.
+
+### US 8.13: Mapping Table & Navigation (US 0.P5)
+- [ ] **Table View:** A master mapping table supports filtering, search, and pagination (US 0.P5).
+
+### US 8.14: Document Overview & Tags (US 0.P3)
+- [ ] **Document Overview:** Document adheres strictly to OSCAL strict validation (DD-002) for the `mapping-collection` schema, supporting root metadata tags and props.
+
+### US 8.15: In-Card Editing & Draft Persistence (US 0.P4)
+- [ ] **Slide-out Panels:** Uses slide-out panels (US 0.P4 / DD-004) for detailed map configurations (qualifiers, local overrides).
+
+### US 8.16: Integrated Backend Versioning (US 0.P2)
+- [ ] **Versioning:** The system supports explicit publishing of new versions of the `mapping-collection`.
+
+### US 8.17: Back-Matter & Resource Attachments
+- [ ] **Back-Matter Support:** Back-matter base64 attachment support is included (DD-007).

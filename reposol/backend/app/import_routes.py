@@ -203,20 +203,7 @@ def import_document(document: dict, validate: bool = True, workspace_id: Optiona
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 from fastapi import Request
-
-def get_ws_id(request: Request) -> Optional[str]:
-    """Extracts workspace ID from X-Workspace-ID header or w/workspace_id/workspace query parameter."""
-    ws = (
-        request.headers.get("x-workspace-id")
-        or request.headers.get("X-Workspace-ID")
-        or request.query_params.get("w")
-        or request.query_params.get("workspace_id")
-        or request.query_params.get("workspace")
-    )
-    import os
-    if not ws and not os.environ.get("PYTEST_CURRENT_TEST"):
-        return "default"
-    return ws
+from app.routes import get_ws_id
 
 @import_router.get("/api/import/registry")
 def list_registry(request: Request):
@@ -278,7 +265,10 @@ async def import_uploaded_file(request: Request, file: UploadFile = File(...)):
     from app.routes import check_master_write_permission
     ws_id = get_ws_id(request)
     check_master_write_permission(request, ws_id)
-    content = await file.read()
+    MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum upload size is 50 MB.")
     text = content.decode("utf-8", errors="ignore")
     filename_lower = file.filename.lower()
     

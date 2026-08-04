@@ -102,22 +102,17 @@ def validate_document(stage: str, document: Dict[str, Any], check_refs: bool = T
         
     validator = Draft7Validator(SCHEMAS[stage])
     
-    # Respect mocking in tests (where Draft7Validator.validate is patched)
-    import unittest.mock
-    is_mocked = isinstance(validator.validate, unittest.mock.Mock)
-    
     errors = []
-    if not is_mocked:
-        # Collect all schema errors
-        for err in validator.iter_errors(document):
-            path = "$"
-            if err.absolute_path:
-                path = ".".join(str(p) for p in err.absolute_path)
-            errors.append({
-                "path": path,
-                "message": err.message,
-                "schema_path": ".".join(str(p) for p in err.absolute_schema_path)
-            })
+    # Collect all schema errors
+    for err in validator.iter_errors(document):
+        path = "$"
+        if err.absolute_path:
+            path = ".".join(str(p) for p in err.absolute_path)
+        errors.append({
+            "path": path,
+            "message": err.message,
+            "schema_path": ".".join(str(p) for p in err.absolute_schema_path)
+        })
 
     # Custom semantic constraint for Profiles (only run if schema is valid)
     if stage == "profiles":

@@ -1,0 +1,233 @@
+.poam-page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--color-background);
+}
+
+.poam-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.poam-tabs-sidebar {
+  width: 250px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+}
+
+.poam-tab {
+  padding: 12px 24px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.poam-tab:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.poam-tab.active {
+  background: var(--color-surface-2);
+  border-left-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.poam-content-area {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  background: var(--color-background);
+}
+
+.poam-dashboard {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.poam-dashboard-widgets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.widget-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.widget-card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.poam-entity-section {
+  padding: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.poam-loading, .poam-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+.poam-error {
+  color: var(--color-danger);
+}
+
+.bespoke-editor-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.bespoke-editor-modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bespoke-editor-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bespoke-editor-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.bespoke-editor-content {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bespoke-editor-content label {
+  font-weight: 500;
+  margin-bottom: -8px;
+  color: var(--color-text-muted);
+}
+
+.bespoke-editor-content input,
+.bespoke-editor-content textarea,
+.bespoke-editor-content select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.bespoke-editor-content select.multi-select {
+  height: 100px;
+}
+
+.inline-editor-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 8px;
+}
+.inline-editor-section h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.bespoke-editor-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.save-btn {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.poam-toolbar-btn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.poam-toolbar-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.ssp-card {
+  margin-bottom: 24px;
+  border-left: 4px solid var(--color-primary);
+}
+
+.edit-btn-small {
+  margin-top: 12px;
+  padding: 4px 8px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  width: fit-content;
+}

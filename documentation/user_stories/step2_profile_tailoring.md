@@ -28,6 +28,7 @@
     *   **Include Sub-Controls (`with-child-controls`):** For each imported catalog, the GUI provides a toggle "Automatically include sub-controls" (`with-child-controls` = `yes`/`no`). The default value is `yes`. If `no` is selected, sub-controls (enhancements) must be activated individually.
 
 ### US 2.3: Global Parameter Assignments (`set-parameters`)
+> *References DD-012*
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** override default parameter values of the imported catalogs across all catalogs,  
 > **so that** uniform security boundaries (e.g., password lengths, review periods) are declared.
@@ -49,7 +50,7 @@
         *   A `removes` entry for the ID of the modified paragraph (to remove the old text).
         *   An `adds` entry with a new, unique ID (e.g., `<original-id>_modified`) and the new prose text. The insertion position references the original ID, so that the change appears at the same location, without `removes` deleting the added content as well.
         *   If the text is reverted to its original state, the corresponding entries are deleted in the background.
-    *   **Visual Traceability (Edit vs. View Mode):** In Editor Mode, the original text that was replaced/removed via `alters.removes` is still displayed but clearly marked as struck through (durchgestrichen) and visually disabled, so the user can trace exactly what was modified. In View Mode (and in the final resolved profile), this removed text is completely hidden.
+    *   **Visual Traceability (Edit vs. View Mode):** In Editor Mode, the original text that was replaced/removed via `alters.removes` is still displayed but clearly marked as struck through (strikethrough) and visually disabled, so the user can trace exactly what was modified. In View Mode (and in the final resolved profile), this removed text is completely hidden.
     *   **Structural Additions (`alters.adds`):** The system must allow users to add entirely new elements (`props`, `params`, `links`, or `parts` representing statements/guidance) to a control at positions `starting`, `ending`, `before`, or `after` (using a reference sibling `by-id`).
     *   **Strict Alters Boundaries (Schema Compliance):** The `alter` directive **cannot** and must not be used to add or remove subcontrols (enhancements). The backend resolution and the frontend editor enforce this constraint (subcontrol inclusions/exclusions are handled exclusively via `select-control` rules).
     *   **Reset Function (Revert):** Next to each modified text field, a "Reset" button is displayed, allowing the user to discard text changes and restore the original text of the catalog.
@@ -66,6 +67,7 @@
     *   The profile references the managed catalog exclusively via a regular `imports` entry. The saved profile does not contain any non-standardized `local-controls` field. **Strict Rule:** Arbitrary custom control objects cannot be defined directly within the profile schema structure.
 
 ### US 2.6: Profile Resolution Engine & Preview
+> *References DD-003*
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** compile the profile and display the resolved rulebook,  
 > **so that** I can instantly check and validate the overall result.
@@ -90,6 +92,7 @@
     *   **Resolution & Preview:** The Resolved Catalog in the live preview reflects the configured group structure and its group metadata.
 
 ### US 2.8: Parameter Selection Rules, Validations, and Constraints (select & choice) in the GUI
+> *References DD-012*
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** specify value ranges, selection constraints, and validation checks for control parameters via the UI (`select`, `choice`, `constraints`, and `guidelines`),  
 > **so that** downstream System Security Plans (SSPs) can only configure compliant values and receive guidance.
@@ -124,7 +127,7 @@
 *   **Acceptance Criteria:**
     *   **GUI Deletion Selectors (`alters.removes`):** The user can select the type of selector when adding a deletion rule in the UI: ID (`by-id`), name (`by-name`), element type (`by-item-name` with selection from `param`, `prop`, `link`, `part`, `mapping`, `map`), class (`by-class`), or namespace (`by-ns`).
     *   **Complete Removal Support:** The user can remove any existing structural element (`props`, `params`, `links`, or `parts`) of a control compliantly using these selectors.
-    *   **Visual Traceability (Edit vs. View Mode):** Elements marked for deletion via `removes` are displayed as struck through (durchgestrichen) und visuell deaktiviert in Editor Mode to maintain full traceability of deletions. In View Mode, these elements are completely hidden.
+    *   **Visual Traceability (Edit vs. View Mode):** Elements marked for deletion via `removes` are displayed as struck through (strikethrough) und visuell deaktiviert in Editor Mode to maintain full traceability of deletions. In View Mode, these elements are completely hidden.
     *   **Resolution Filtering:** During profile resolution, the resolution engine filters out all components of the control that match the selectors.
     *   **Round-tripping:** Correct saving and loading of `removes` directives in the Profile JSON.
 
@@ -136,67 +139,6 @@
     *   **GUI Strategy Selection:** Choice of the combination strategy via a dropdown field in the merge area: `use-first` (use first definition), `merge` (merge definitions), or `keep` (keep all duplicates).
     *   **Collision Handling:** The resolution engine handles ID duplicates in accordance with the selected strategy.
 
----
-
-## 2. Alice's Detailed Workflow & User Journey
-
-1.  **Control Selection (Tab 1):** Alice creates the profile *"Reposol Corporate Baseline v2.0"*. She selects the *NIST SP 800-53 Rev 5 Catalog* and the *Industry Base Profile* as import baselines. Directly above the checklist of NIST controls, she activates "Import All" (Include All) and enters `pe-*` under exclusions. As a result, all physical controls in the checklist are immediately deselected. For the Industry Base Profile, she selects controls manually via checkbox.
-2.  **Modifications (Tab 2):** In the second tab, Alice sees only the controls selected in Step 1. She makes detailed adjustments for these:
-    *   She overrides parameter values (e.g., password length).
-    *   She adds text at the beginning of the statement of `ac-2` and removes an invalid reference (alters).
-    *   She defines local custom controls (e.g., `corp-sec-1`).
-3.  **Restructuring (Tab 3):** In the third tab, Alice switches the merge directive to `custom`, creates a new group *"Corporate Access Policy"*, and assigns `ac-2` and `corp-sec-1` exclusively to this group.
-4.  **Profile Resolution & Export:** She clicks **Resolve Profile**. The system generates the live preview of the resolved profile. Alice validates the document and exports it.
-
----
-
-## 3. Functional Requirements for the System
-
-- **Cascading Imports:** Support for importing catalogs and other profiles (`imports`) (US 2.1).
-- **Advanced Filtering:** Exclusion (`exclude-controls`) and inclusion (`include-controls`) of control elements by IDs or type classes (US 2.2).
-- **Centralized Parameter Management:** Setting global parameter values (`set-parameters`) including arrays of values (US 2.3).
-- **Fine-Grained Modifications (`alters`):**
-  - **Adds:** Adding parts, props, or parameters at `starting`, `ending`, `before`, and `after` positions (US 2.4).
-  - **Removes:** Deletion of specific child elements of imported controls using selectors (e.g., `by-id`, `by-name`) (US 2.4).
-- **Local Controls:** Definition of company-specific controls in a managed OSCAL catalog that is regularly imported by the profile (US 2.5).
-- **Merge Directives and Grouping (Merge Phase):**
-  - Selection of directive (`as-is`, `flat`, `custom`).
-  - Graphical editor for defining groups, subgroups, and assigning imported controls (US 2.7).
-- **Profile Resolution Engine:** Algorithm for resolving all imports, modifications, and custom groupings to display the profile as a structured, readable catalog (preview & validation) (US 2.6).
-- **Parameter Constraints:** Defining selection constraints (`select` and `choice`) for parameters (US 2.8).
-- **Pattern-based Filtering:** Support for wildcard patterns (`matching`) when importing controls (US 2.9).
-- **Role and Responsibility Assignment:** Defining global roles and assigning responsibilities (`responsible-parties`) in the metadata section of the profile (US 2.10).
-- **Advanced Removal:** Deleting elements by type/name (`removes.by-name`) (US 2.11).
-- **Combination Rules:** Defining strategies in case of control collisions (`merge.combine`) (US 2.12).
-
----
-
-## 4. Functional Acceptance Criteria (Summary)
-
-- [x] A user can import multiple catalogs and profiles (US 2.1).
-- [x] The editor supports explicit exclusion of controls via an exclusion list (US 2.2).
-- [x] Parameter values can be overridden in the profile (US 2.3).
-- [x] Textual modifications support insertion at `starting`, `ending`, `before`, and `after` positions as well as targeted deletion of elements (US 2.4).
-- [x] The system allows the creation of local, company-specific controls via a managed catalog imported by the profile (US 2.5).
-- [x] The application provides an integrated preview displaying the resolved profile (Resolved Catalog) (US 2.6).
-- [x] The exported document matches the official OSCAL Profile schema (US 2.6).
-- [x] The user can create custom groups via the UI and reorder controls into them (US 2.7).
-- [x] The user can define selection constraints (value lists) for parameters (US 2.8).
-- [x] The system supports wildcards (`matching`) when importing controls (US 2.9).
-- [x] Roles can be defined and assigned to controls/parameters as responsible entities (US 2.10).
-- [x] Entire structural components of a control can be removed by name/type (US 2.11).
-- [x] Merge rules for ID duplicates with a merge strategy dropdown (`use-first`, `merge`, `keep`) are supported (US 2.12).
-- [ ] Integrated profile versioning with NIST schema validation, revision sync, and reference to US 0.P2 (US 2.13).
-- [ ] A resolved profile can be exported and saved as an independent, NIST Catalog-compliant validated catalog (US 2.18).
-- [ ] Profile back-matter resources can be managed (US 2.19).
-- [ ] `insert-controls` with sorting rules (keep/ascending/descending) are supported in custom merge (US 2.7).
-- [ ] `with-child-controls` toggle when importing controls (US 2.2).
-- [ ] `include-all` vs. `include-controls` toggle per imported catalog (US 2.14).
-
----
-
-## 5. Detailed Description of US 2.13
-
 ### US 2.13: Integrated Profile Versioning in the Backend
 > *Implements [US 0.P2](step0_global_requirements.md) with profile-specific additions.*
 > **As a** Compliance Officer (Alice)  
@@ -207,9 +149,7 @@
     *   **Profile-specific:** The document is validated against the official NIST OSCAL Profile schema.
     *   **Revision Sync:** Upon saving, `profile.metadata.revisions[]` is automatically updated (in accordance with US 0.7).
 
----
-
-## US 2.14: Assignment in the Right Pane (Document Overview) & Default Structure in the Sidebar
+### US 2.14: Assignment in the Right Pane (Document Overview) & Default Structure in the Sidebar
 
 > **As a** Compliance Officer (Alice)
 > **I want to** configure the catalog imports (source assignment) and edit metadata in the right main pane (Document Overview), while configuring the group structure (Default Structure) clearly at the top of the sidebar,
@@ -230,8 +170,6 @@
             *   **Reversion Selection:** If multiple imported catalogs are reduced back to exactly one catalog, this remaining catalog is automatically preselected as the `Default Structure`.
         *   **Automatic Categorization:** Controls of the selected default-structure catalog are sorted into their respective standard categories. Controls from all other imported catalogs are automatically listed at the bottom under **Unassigned Controls**.
         *   **No Quick Setup Pop-ups:** Obsolete Quick Setup logic and intermediate pop-ups are removed. All structure and activity states are manipulated directly and live within the sidebar and the main pane.
-
----
 
 ### US 2.15: Detailed Editability of Controls (Title, IDs, Labels & Enhancements in-place)
 > *Implements [US 0.P4](step0_global_requirements.md) with profile-specific additions.*
@@ -264,8 +202,6 @@
         *   The "Publish New Version" button is represented uniformly in the same format as "Save Draft" and other action buttons of the app (matching the standard theme instead of ad-hoc green).
         *   **Polymorphic ControlDetailView & Icon Taxonomy Consistency:** In both Catalog Mode and Profile Mode, `ControlDetailView` provides identical inline editing capabilities for control parts, sub-parts/items, and links, including the `🔧` Advanced Settings toggle button for optional attributes (`ns`, `class`, `title`, `props`, `links`).
 
----
-
 ### US 2.16: Extended Management of Tags and Existing Properties in the Document Overview
 > *Implements [US 0.P3](step0_global_requirements.md) with profile-specific additions.*
 
@@ -281,9 +217,8 @@
     *   **Dropdown of Used Values:** For each existing tag, next to its name and frequency (count), a dropdown field (`<select>`) is displayed listing all unique values already entered for this tag in the document.
     *   ~~**Quick Promotion (Promote):**~~ *Removed per [DD-011](../design_decisions/DD-011_properties_vs_parameters_separation.md) — `metadata.props` does not cascade to controls, so promoting a used tag to a "global property" would be semantically misleading. Property Usage Overview (US 0.P3) provides read-only visibility instead.*
 
----
-
 ### US 2.17: Profile Parameter Overrides (`modify.set-parameters`) & Dropdown Value Selection
+> *References DD-012*
 
 > **As an** Enterprise Architect (Alice)  
 > **I want to** configure parameter overrides in the Profile Builder using interactive choice dropdowns and validated value inputs,  
@@ -361,6 +296,7 @@
     *   **AC 4**: The second line displays the formatted prose text (in view mode) or the `DebouncedTextarea` (in edit mode).
 
 ### US 2.23: Visual Consistency of the Profile Control Detail View with the Catalog Editor through Shared Components
+> *References DD-008*
 
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want** the detail view of a control in the Profile Editor (right pane) to look and behave visually and interactively identically to the perfected Catalog detail view,  
@@ -408,7 +344,6 @@
     *   **Object-bound Group Revert (Group Level):** If an entire group or subgroup is deleted/deselected, the system identifies all controls contained in this group and prunes in a targeted manner only the modifications of this affected list of objects.
     *   **Object-bound Import Revert (Source Level):** If a specific catalog source is removed, exactly the modifications that relate to the controls from this specific catalog are discarded.
     *   **No Blanket Global Wipes:** The system does not perform any undirected blanket pruning, but always acts event- and context-driven based on the respective target object.
-
 
 ### US 2.27: Interactive Merge Structuring Mode Selector (as-is / flat / custom) in the Profile UI
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
@@ -461,18 +396,75 @@
     *   **Diff View:** A "🔍 Baseline Diff" tab in the profile editor compares the profile with the base catalogs.
     *   **Visual Highlighting:** Additions (green), deviations/modifications (blue), parameter overrides (yellow), and exclusions (red) are clearly listed.
 
+---
 
+## 2. Alice's Detailed Workflow & User Journey
 
+1.  **Control Selection (Tab 1):** Alice creates the profile *"Reposol Corporate Baseline v2.0"*. She selects the *NIST SP 800-53 Rev 5 Catalog* and the *Industry Base Profile* as import baselines. Directly above the checklist of NIST controls, she activates "Import All" (Include All) and enters `pe-*` under exclusions. As a result, all physical controls in the checklist are immediately deselected. For the Industry Base Profile, she selects controls manually via checkbox.
+2.  **Modifications (Tab 2):** In the second tab, Alice sees only the controls selected in Step 1. She makes detailed adjustments for these:
+    *   She overrides parameter values (e.g., password length).
+    *   She adds text at the beginning of the statement of `ac-2` and removes an invalid reference (alters).
+    *   She defines local custom controls (e.g., `corp-sec-1`).
+3.  **Restructuring (Tab 3):** In the third tab, Alice switches the merge directive to `custom`, creates a new group *"Corporate Access Policy"*, and assigns `ac-2` and `corp-sec-1` exclusively to this group.
+4.  **Profile Resolution & Export:** She clicks **Resolve Profile**. The system generates the live preview of the resolved profile. Alice validates the document and exports it.
 
+---
 
+---
 
+## 3. Functional Requirements for the System
 
+- **Cascading Imports:** Support for importing catalogs and other profiles (`imports`) (US 2.1).
+- **Advanced Filtering:** Exclusion (`exclude-controls`) and inclusion (`include-controls`) of control elements by IDs or type classes (US 2.2).
+- **Centralized Parameter Management:** Setting global parameter values (`set-parameters`) including arrays of values (US 2.3).
+- **Fine-Grained Modifications (`alters`):**
+  - **Adds:** Adding parts, props, or parameters at `starting`, `ending`, `before`, and `after` positions (US 2.4).
+  - **Removes:** Deletion of specific child elements of imported controls using selectors (e.g., `by-id`, `by-name`) (US 2.4).
+- **Local Controls:** Definition of company-specific controls in a managed OSCAL catalog that is regularly imported by the profile (US 2.5).
+- **Merge Directives and Grouping (Merge Phase):**
+  - Selection of directive (`as-is`, `flat`, `custom`).
+  - Graphical editor for defining groups, subgroups, and assigning imported controls (US 2.7).
+- **Profile Resolution Engine:** Algorithm for resolving all imports, modifications, and custom groupings to display the profile as a structured, readable catalog (preview & validation) (US 2.6).
+- **Parameter Constraints:** Defining selection constraints (`select` and `choice`) for parameters (US 2.8).
+- **Pattern-based Filtering:** Support for wildcard patterns (`matching`) when importing controls (US 2.9).
+- **Role and Responsibility Assignment:** Defining global roles and assigning responsibilities (`responsible-parties`) in the metadata section of the profile (US 2.10).
+- **Advanced Removal:** Deleting elements by type/name (`removes.by-name`) (US 2.11).
+- **Combination Rules:** Defining strategies in case of control collisions (`merge.combine`) (US 2.12).
 
+---
 
+---
 
+## 4. Functional Acceptance Criteria (Summary)
 
-
-
-
-
-
+- [ ] US 2.1: Simplified Profile Creation & Direct Editing (Inner View)
+- [ ] US 2.2: Live Tailoring via Sidebar Checkboxes (Inclusion & Exclusion)
+- [ ] US 2.3: Global Parameter Assignments (`set-parameters`)
+- [ ] US 2.4: Context-Aware Modification Tab — Inline Editing of Control Text with Transparent OSCAL Mapping
+- [ ] US 2.5: Local Custom Controls via Managed Catalog Import (OSCAL-compliant)
+- [ ] US 2.6: Profile Resolution Engine & Preview
+- [ ] US 2.7: High-Level Restructuring and Grouping (Merge Phase) in the GUI
+- [ ] US 2.8: Parameter Selection Rules, Validations, and Constraints (select & choice) in the GUI
+- [ ] US 2.9: Dynamic Filtering via Pattern Matching (matching) in the GUI
+- [ ] US 2.10: Assignment of Global Roles and Responsibilities (responsible-parties) in Metadata
+- [ ] US 2.11: Advanced Deletion of Control Components (removes) in the GUI
+- [ ] US 2.12: Collision and Merge Rules (merge.combine) in the GUI
+- [ ] US 2.13: Integrated Profile Versioning in the Backend
+- [ ] US 2.14: Assignment in the Right Pane (Document Overview) & Default Structure in the Sidebar
+- [ ] US 2.15: Detailed Editability of Controls (Title, IDs, Labels & Enhancements in-place)
+- [ ] US 2.16: Extended Management of Tags and Existing Properties in the Document Overview
+- [ ] US 2.17: Profile Parameter Overrides (`modify.set-parameters`) & Dropdown Value Selection
+- [ ] US 2.18: Profile Resolution Export
+- [ ] US 2.19: Profile Back-Matter and Resource Management
+- [ ] US 2.20: Drag-to-Delete Target for Groups and Controls in the Sidebar (Full-Width & Dynamic)
+- [ ] US 2.21: Resolution of Back-Matter Resources in Profile Imports
+- [ ] US 2.22: Two-line Display of Prose Parts with ID Display (analogous to Catalogs)
+- [ ] US 2.23: Visual Consistency of the Profile Control Detail View with the Catalog Editor through Shared Components
+- [ ] US 2.24: Enhancements Accordion Inline Expansion & Parameter Placement in Profile Mode (New for R1)
+- [ ] US 2.25: Properties Overhaul in Profile Editor (Deletion & Revert) (New for Step 2)
+- [ ] US 2.26: Object-Bound Targeted Modification Reverting & Pruning (Control, Group & Text Scope)
+- [ ] US 2.27: Interactive Merge Structuring Mode Selector (as-is / flat / custom) in the Profile UI
+- [ ] US 2.28: Profile Statement & Sub-item Addition (Streamlined UX & Engine Resolution)
+- [ ] US 2.29: Multi-Catalog Conflict Resolution and Combination Rules (`merge.combine`)
+- [ ] US 2.30: Cascading Profile Imports (Profile from Profiles)
+- [ ] US 2.31: Visual Baseline Comparison & Diff Viewer (Profile vs. Base Catalog)

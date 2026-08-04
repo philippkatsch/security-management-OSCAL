@@ -109,7 +109,7 @@ export function VersionDrawer({
         {/* Save Version Form */}
         {isEditing && (
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid var(--color-border)' }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '14px' }}>Save New Version</h4>
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: 'var(--color-success)', fontWeight: 'bold' }}>🚀 Publish New Version</h4>
             
             {error && <div style={{ color: 'var(--color-danger)', fontSize: '12px' }}>⚠️ {error}</div>}
 
@@ -127,7 +127,7 @@ export function VersionDrawer({
             </div>
 
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Remarks</label>
+              <label style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Remarks / Release Notes</label>
               <input
                 type="text"
                 value={remarks}
@@ -142,10 +142,10 @@ export function VersionDrawer({
             <button
               type="submit"
               className="btn-primary"
-              style={{ width: '100%', padding: '6px', fontSize: '12px', marginTop: '4px' }}
+              style={{ width: '100%', padding: '8px', fontSize: '13px', marginTop: '4px', background: 'var(--color-success)', borderColor: 'var(--color-success)', color: '#fff' }}
               disabled={saving}
             >
-              {saving ? 'Saving...' : '💾 Create Version'}
+              {saving ? 'Publishing...' : '🚀 Publish Version'}
             </button>
           </form>
         )}

@@ -531,12 +531,25 @@ class GenericDocumentFactory:
 
     STAGE_ROOT_KEYS = {
         "catalog": "catalog",
+        "catalogs": "catalog",
         "profile": "profile",
+        "profiles": "profile",
         "ssp": "system-security-plan",
+        "ssps": "system-security-plan",
         "component": "component-definition",
+        "components": "component-definition",
+        "component-definition": "component-definition",
+        "component-definitions": "component-definition",
         "assessment-plan": "assessment-plan",
+        "assessment-plans": "assessment-plan",
+        "assessment-result": "assessment-results",
         "assessment-results": "assessment-results",
         "poam": "plan-of-action-and-milestones",
+        "poams": "plan-of-action-and-milestones",
+        "control-mapping": "mapping-collection",
+        "control-mappings": "mapping-collection",
+        "mapping": "mapping-collection",
+        "mappings": "mapping-collection",
     }
 
     @staticmethod
