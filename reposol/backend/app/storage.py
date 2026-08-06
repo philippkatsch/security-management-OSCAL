@@ -109,7 +109,10 @@ def _seed_stage_templates(stage_dir: str, stage: str):
                     src = os.path.join(template_stage_dir, item)
                     dst = os.path.join(stage_dir, item)
                     if os.path.isfile(src) and not os.path.exists(dst):
-                        shutil.copy2(src, dst)
+                        try:
+                            shutil.copy2(src, dst)
+                        except Exception:
+                            pass
 
 def get_stage_dir(stage: str, workspace_id: Optional[str] = None) -> str:
     """Gets and creates the directory for a stage safely, seeding templates from default for anonymous session workspaces."""
@@ -394,8 +397,8 @@ def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] =
 
                     if "groups" in cat_obj and isinstance(cat_obj["groups"], list):
                         collect_groups(cat_obj["groups"])
-            except Exception:
-                logger.warning("Failed to read catalog %s for alter pruning", cat_path, exc_info=True)
+            except Exception as e:
+                logger.warning("Failed to read catalog %s for alter pruning: %s", cat_path, str(e))
 
     if not found_any_catalog and not profile.get("local-controls"):
         # If no imported catalog file exists locally yet, avoid wiping alters prematurely
@@ -655,17 +658,29 @@ def delete_document(stage: str, doc_id: str, workspace_id: Optional[str] = None)
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"Document {doc_id} not found in stage {stage}")
         
-    os.remove(file_path)
+    import time
+    for attempt in range(3):
+        try:
+            os.remove(file_path)
+            break
+        except PermissionError:
+            if attempt < 2:
+                time.sleep(0.1)
+            else:
+                raise
 
     # Clean up all version files (doc_id_v*.json)
     import glob
     pattern = os.path.join(stage_dir, f"{doc_id}_v*.json")
     for filepath in glob.glob(pattern):
         if is_safe_subdir(stage_dir, filepath):
-            try:
-                os.remove(filepath)
-            except OSError:
-                pass
+            for attempt in range(3):
+                try:
+                    os.remove(filepath)
+                    break
+                except OSError:
+                    if attempt < 2:
+                        time.sleep(0.1)
 
     cleanup_local_catalogs(workspace_id=workspace_id)
 
@@ -837,6 +852,23 @@ def save_document_version(stage: str, doc_id: str, version: str, document: Dict[
         json.dump(document, f, indent=2, ensure_ascii=False)
         
     if not is_draft:
+        # Before overwriting active file, archive current active version to _v{old_ver}.json if not already archived
+        if os.path.isfile(active_file_path):
+            try:
+                with open(active_file_path, "r", encoding="utf-8") as f:
+                    existing_doc = json.load(f)
+                    from app.validation import STAGE_ROOT_KEYS
+                    root_key = STAGE_ROOT_KEYS.get(stage, stage[:-1] if stage.endswith('s') else stage)
+                    old_ver = existing_doc.get(root_key, {}).get("metadata", {}).get("version")
+                    if old_ver and old_ver != version:
+                        safe_old_ver = re.sub(r'[^a-zA-Z0-9.-]', '_', old_ver)
+                        old_ver_path = os.path.abspath(os.path.join(stage_dir, f"{doc_id}_v{safe_old_ver}.json"))
+                        if not os.path.isfile(old_ver_path):
+                            with open(old_ver_path, "w", encoding="utf-8") as old_f:
+                                json.dump(existing_doc, old_f, indent=2, ensure_ascii=False)
+            except Exception:
+                pass
+
         # Write active file (always overwrite active file as well, since this represents the latest updated state)
         if not is_safe_subdir(stage_dir, active_file_path):
             raise ValueError("Directory traversal attempt detected.")

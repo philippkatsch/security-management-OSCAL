@@ -561,9 +561,14 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
   const allMergedControls = [];
 
   for (const imp of imports) {
-    const match = imp.href.match(/([a-f0-9-]{36})/i);
+    const match = imp.href ? imp.href.match(/([a-f0-9-]{36})/i) : null;
     const uuid = match ? match[1]?.toLowerCase() : null;
-    if (!uuid || !cache.has(uuid)) continue;
+    if (!uuid || !cache.has(uuid)) {
+      if (imp.href && imp.href !== '#placeholder') {
+        throw new Error(`Failed to fetch imported catalog '${imp.href}' (Not Found)`);
+      }
+      continue;
+    }
 
     const sourceEntry = cache.get(uuid);
     let resolvedImportedCatalog;

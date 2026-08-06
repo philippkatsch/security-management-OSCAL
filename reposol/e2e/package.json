@@ -1,0 +1,21 @@
+{
+  "name": "reposol-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:codegen": "playwright codegen http://localhost:5173",
+    "test:report": "playwright show-report",
+    "test:debug": "playwright test --debug",
+    "test:smoke": "playwright test tests/smoke.spec.ts",
+    "test:catalog": "playwright test tests/catalog/",
+    "test:profile": "playwright test tests/profile/"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  }
+}

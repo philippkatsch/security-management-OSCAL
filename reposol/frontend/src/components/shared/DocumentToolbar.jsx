@@ -1,4 +1,5 @@
 import React from 'react';
+import LifecycleSelector from './status/LifecycleSelector';
 
 /**
  * Badge color mapping for all OSCAL document types.
@@ -61,6 +62,8 @@ export function DocumentToolbar({
   saving = false,
   validating = false,
   isSaving = false,
+  status,
+  onStatusChange,
   // --- Document type (accepts aliases) ---
   mode: modeProp = 'catalog',
   typeLabel: typeLabelProp,
@@ -141,6 +144,13 @@ export function DocumentToolbar({
             <span className="badge" style={{ background: 'var(--color-surface-3)', fontSize: '10px' }}>
               v{activeVersion}
             </span>
+            {status && (
+              <LifecycleSelector
+                currentStatus={status}
+                onStatusChange={onStatusChange}
+                documentTitle={title}
+              />
+            )}
             {resolvedMode === 'profile' && resolving && (
               <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
                 ⚙️ Live Resolving...

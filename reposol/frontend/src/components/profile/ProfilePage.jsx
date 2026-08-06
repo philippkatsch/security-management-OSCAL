@@ -15,6 +15,8 @@ import { ValidationFeedback } from '../shared/ValidationFeedback';
 import { JsonEditor } from '../shared/JsonEditor';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { fetchDocuments } from '../../lib/api';
+import LifecycleBanner from '../shared/status/LifecycleBanner';
+import { getDocumentStatus, setDocumentStatus } from '../../lib/status-machine';
 
 const getAncestors = (targetId, root) => {
   if (!targetId || !root) return [];
@@ -552,6 +554,13 @@ export function ProfilePage({
     ...(profileData.metadata?.props || []).map(p => p.name).filter(Boolean)
   ]));
 
+  const status = getDocumentStatus(activeDoc?.profile);
+  const handleStatusChange = (newStatus, successorUuid) => {
+    if (!activeDoc?.profile) return;
+    const updatedProfile = setDocumentStatus(activeDoc.profile, newStatus, successorUuid);
+    handleDocChange({ ...activeDoc, profile: updatedProfile });
+  };
+
   return (
     <div
       className="profile-viewer"
@@ -568,6 +577,8 @@ export function ProfilePage({
       {/* Header Toolbar */}
       <DocumentToolbar
         title={profileData.metadata?.title}
+        status={status}
+        onStatusChange={handleStatusChange}
         isEditing={isEditing}
         onToggleEdit={handleToggleEdit}
         onExport={handleExport}
@@ -598,6 +609,12 @@ export function ProfilePage({
         validating={validating}
         mode="profile"
         resolving={resolving}
+      />
+
+      <LifecycleBanner
+        status={status}
+        documentId={profileId}
+        onReactivate={() => handleStatusChange('active')}
       />
 
       {/* Validation / Resolution error feedbacks */}

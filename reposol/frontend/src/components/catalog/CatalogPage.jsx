@@ -12,6 +12,8 @@ import { VersionDrawer } from '../shared/VersionDrawer';
 import { ValidationFeedback } from '../shared/ValidationFeedback';
 import { JsonEditor } from '../shared/JsonEditor';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
+import LifecycleBanner from '../shared/status/LifecycleBanner';
+import { getDocumentStatus, setDocumentStatus } from '../../lib/status-machine';
 
 const getAncestors = (targetId, root) => {
   if (!targetId || !root) return [];
@@ -891,6 +893,13 @@ export function CatalogPage({
     ...(catalogData.metadata?.props || []).map(p => p.name).filter(Boolean)
   ]));
 
+  const status = getDocumentStatus(activeDoc?.catalog);
+  const handleStatusChange = (newStatus, successorUuid) => {
+    if (!activeDoc?.catalog) return;
+    const updatedCatalog = setDocumentStatus(activeDoc.catalog, newStatus, successorUuid);
+    handleDocChange({ ...activeDoc, catalog: updatedCatalog });
+  };
+
   return (
     <div
       className="catalog-viewer"
@@ -907,6 +916,8 @@ export function CatalogPage({
       {/* 1. Header Toolbar */}
       <DocumentToolbar
         title={catalogData.metadata?.title}
+        status={status}
+        onStatusChange={handleStatusChange}
         isEditing={isEditing}
         onToggleEdit={handleToggleEdit}
         onCopy={handleCopy}
@@ -937,6 +948,12 @@ export function CatalogPage({
         saving={saving}
         validating={validating}
         mode="catalog"
+      />
+
+      <LifecycleBanner
+        status={status}
+        documentId={catalogId}
+        onReactivate={() => handleStatusChange('active')}
       />
 
       {/* Validation Feedback Box */}

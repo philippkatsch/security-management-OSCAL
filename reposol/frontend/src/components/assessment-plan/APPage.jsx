@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import './APPage.css';
 
 import { DocumentToolbar } from '../shared/DocumentToolbar';
@@ -287,8 +287,14 @@ export function APPage({ apId, initialEditMode, onClose }) {
   const [editMode, setEditMode] = useState(initialEditMode || false);
 
   const { doc, loading, error, saveDoc } = useDocument('assessment-plan', apId);
-  const { state, set, undo, redo, canUndo, canRedo } = useUndoRedo(doc);
+  const { current: state, pushState: set, undo, redo, canUndo, canRedo, reset } = useUndoRedo(doc);
   const { versions, fetchVersions, restoreVersion } = useVersions('assessment-plan', apId);
+
+  useEffect(() => {
+    if (doc && !state) {
+      reset(doc);
+    }
+  }, [doc, state, reset]);
 
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);

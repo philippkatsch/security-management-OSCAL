@@ -37,6 +37,8 @@ reposol/data/workspaces/*
 !reposol/data/workspaces/default
 !reposol/data/workspaces/.gitkeep
 reposol/data/workspaces/default/**/*_draft.json
+reposol/data/workspaces/default/catalogs/*.json
+reposol/data/workspaces/default/profiles/*.json
 
 # Ignore temporary uploads (except .gitkeep)
 reposol/data/uploads/*
@@ -49,4 +51,7 @@ reposol/data/uploads/*
 !.agents/skills/
 !.agents/skills/**
 
+# Playwright test results & reports
+test-results/
+playwright-report/
 

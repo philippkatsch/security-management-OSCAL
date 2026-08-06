@@ -3,14 +3,15 @@ import './StatusBadge.css';
 import { getStatusConfig } from './statusConfig';
 
 export default function StatusBadge({
-  category,
+  category = 'document-lifecycle',
   value,
+  status,
   size = 'md',
   variant = 'pill',
   showIcon = true,
   className = ''
 }) {
-  const config = getStatusConfig(category, value);
+  const config = getStatusConfig(category, value || status);
   const color = config.color;
   const textColor = config.textColor;
   

@@ -37,7 +37,7 @@ reposol/
 │   └── tests/               # Frontend component tests
 │
 ├── data/                    # Persisted OSCAL JSON documents (auto-created)
-└── e2e_tests/               # End-to-end test suite
+└── e2e/                     # Playwright browser-based E2E tests (see DD-024)
 ```
 
 ### 2. Frontend Decomposition & Domain-Driven Folders
