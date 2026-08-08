@@ -325,18 +325,151 @@ const FindingEditor = ({ item, onSave, onClose, readOnly }) => {
   );
 };
 
+const ComponentEditor = ({ item, onSave, onClose, readOnly }) => {
+  const [edited, setEdited] = useState(item);
+  const updateField = (field, value) => setEdited(prev => ({ ...prev, [field]: value }));
+
+  return (
+    <div className="bespoke-editor-overlay">
+      <div className="bespoke-editor-modal">
+        <div className="bespoke-editor-header">
+          <h2>Component Editor</h2>
+          <button onClick={onClose}>Close</button>
+        </div>
+        <div className="bespoke-editor-content">
+          <label>Title</label>
+          <input type="text" value={edited.title || ''} onChange={e => updateField('title', e.target.value)} disabled={readOnly} />
+          
+          <label>Type</label>
+          <input type="text" value={edited.type || ''} onChange={e => updateField('type', e.target.value)} disabled={readOnly} />
+          
+          <label>Description</label>
+          <textarea value={edited.description || ''} onChange={e => updateField('description', e.target.value)} disabled={readOnly} />
+          
+          <label>Status (State)</label>
+          <select value={edited.status?.state || ''} onChange={e => updateField('status', { state: e.target.value })} disabled={readOnly}>
+            <option value="">Select...</option>
+            <option value="operational">Operational</option>
+            <option value="under-development">Under Development</option>
+            <option value="under-major-modification">Under Major Modification</option>
+            <option value="disposition">Disposition</option>
+            <option value="other">Other</option>
+          </select>
+
+          <div className="inline-editor-section">
+            <h3>Properties</h3>
+            <PropsEditor props={edited.props || []} onChange={p => updateField('props', p)} readOnly={readOnly} />
+          </div>
+        </div>
+        {!readOnly && (
+          <div className="bespoke-editor-footer">
+            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const InventoryItemEditor = ({ item, onSave, onClose, readOnly }) => {
+  const [edited, setEdited] = useState(item);
+  const updateField = (field, value) => setEdited(prev => ({ ...prev, [field]: value }));
+
+  return (
+    <div className="bespoke-editor-overlay">
+      <div className="bespoke-editor-modal">
+        <div className="bespoke-editor-header">
+          <h2>Inventory Item Editor</h2>
+          <button onClick={onClose}>Close</button>
+        </div>
+        <div className="bespoke-editor-content">
+          <label>Description</label>
+          <textarea value={edited.description || ''} onChange={e => updateField('description', e.target.value)} disabled={readOnly} />
+          
+          <label>Asset ID</label>
+          <input type="text" value={edited['asset-id'] || ''} onChange={e => updateField('asset-id', e.target.value)} disabled={readOnly} />
+          
+          <div className="inline-editor-section">
+            <h3>Properties</h3>
+            <PropsEditor props={edited.props || []} onChange={p => updateField('props', p)} readOnly={readOnly} />
+          </div>
+
+          <div className="inline-editor-section">
+             <h3>Implemented Components (JSON)</h3>
+             <textarea placeholder="JSON representing implemented components..." value={JSON.stringify(edited['implemented-components'] || [], null, 2)} onChange={e => {
+               try { updateField('implemented-components', JSON.parse(e.target.value)) } catch(e){} 
+             }} disabled={readOnly} rows={5}/>
+          </div>
+        </div>
+        {!readOnly && (
+          <div className="bespoke-editor-footer">
+            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const UserEditor = ({ item, onSave, onClose, readOnly }) => {
+  const [edited, setEdited] = useState(item);
+  const updateField = (field, value) => setEdited(prev => ({ ...prev, [field]: value }));
+
+  return (
+    <div className="bespoke-editor-overlay">
+      <div className="bespoke-editor-modal">
+        <div className="bespoke-editor-header">
+          <h2>User Editor</h2>
+          <button onClick={onClose}>Close</button>
+        </div>
+        <div className="bespoke-editor-content">
+          <label>Title</label>
+          <input type="text" value={edited.title || ''} onChange={e => updateField('title', e.target.value)} disabled={readOnly} />
+          
+          <label>Role IDs (comma separated)</label>
+          <input type="text" value={(edited['role-ids'] || []).join(', ')} onChange={e => updateField('role-ids', e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} disabled={readOnly} />
+          
+          <div className="inline-editor-section">
+             <h3>Authorized Privileges (JSON)</h3>
+             <textarea placeholder="JSON representing authorized privileges..." value={JSON.stringify(edited['authorized-privileges'] || [], null, 2)} onChange={e => {
+               try { updateField('authorized-privileges', JSON.parse(e.target.value)) } catch(e){} 
+             }} disabled={readOnly} rows={5}/>
+          </div>
+        </div>
+        {!readOnly && (
+          <div className="bespoke-editor-footer">
+            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const ArImportModal = ({ onClose, onImport }) => {
   const [arDocs, setArDocs] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState('');
   const [findings, setFindings] = useState([]);
+  const [risks, setRisks] = useState([]);
+  const [observations, setObservations] = useState([]);
   const [selectedFindings, setSelectedFindings] = useState(new Set());
+  const [selectedRisks, setSelectedRisks] = useState(new Set());
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     authFetch("/api/documents/assessment-results")
       .then(res => res.json())
-      .then(data => setArDocs(data))
+      .then(data => {
+        const list = (Array.isArray(data) ? data : []).map(item => {
+          const ar = item['assessment-results'] || item;
+          return {
+            id: ar.uuid || item.id || item.uuid,
+            title: ar.metadata?.title || ar.title || 'Untitled AR',
+            version: ar.metadata?.version || ar.version || '1.0'
+          };
+        });
+        setArDocs(list);
+      })
       .catch(console.error);
   }, []);
 
@@ -345,23 +478,31 @@ const ArImportModal = ({ onClose, onImport }) => {
     setSelectedDocId(id);
     if (!id) {
       setFindings([]);
+      setRisks([]);
+      setObservations([]);
       return;
     }
     setLoading(true);
     try {
       const res = await authFetch("/api/documents/assessment-results/" + id);
       const data = await res.json();
-      const ar = data['assessment-results'] || {};
-      const allFindings = [];
-      (ar.results || []).forEach(res => {
-        (res.findings || []).forEach(f => {
-          if (f.target?.status?.state === 'not-satisfied') {
-            allFindings.push(f);
-          }
-        });
+      const ar = data['assessment-results'] || data || {};
+      const rawFindings = ar.findings || (ar.results || []).flatMap(r => r.findings || []);
+      const rawRisks = ar.risks || (ar.results || []).flatMap(r => r.risks || []);
+      const rawObservations = ar.observations || (ar.results || []).flatMap(r => r.observations || []);
+
+      const allFindings = rawFindings.filter(f => {
+        const st = f.target?.status?.state || f.targets?.[0]?.status?.state;
+        return !st || st === 'not-satisfied';
       });
+      const allRisks = [...rawRisks];
+      const allObservations = [...rawObservations];
+      
       setFindings(allFindings);
+      setRisks(allRisks);
+      setObservations(allObservations);
       setSelectedFindings(new Set(allFindings.map(f => f.uuid)));
+      setSelectedRisks(new Set(allRisks.map(r => r.uuid)));
     } catch (err) {
       console.error(err);
     } finally {
@@ -374,6 +515,13 @@ const ArImportModal = ({ onClose, onImport }) => {
     if (next.has(uuid)) next.delete(uuid);
     else next.add(uuid);
     setSelectedFindings(next);
+  };
+
+  const toggleRisk = (uuid) => {
+    const next = new Set(selectedRisks);
+    if (next.has(uuid)) next.delete(uuid);
+    else next.add(uuid);
+    setSelectedRisks(next);
   };
 
   return (
@@ -391,31 +539,57 @@ const ArImportModal = ({ onClose, onImport }) => {
               <option key={d.id} value={d.id}>{d.title} (v{d.version})</option>
             ))}
           </select>
-          {loading && <div>Loading findings...</div>}
-          {!loading && findings.length > 0 && (
-            <div style={{ marginTop: '16px' }}>
-              <h3>Select Findings to Import</h3>
-              <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--color-border)', padding: '8px', borderRadius: '4px' }}>
-                {findings.map(f => (
-                  <div key={f.uuid} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                    <input type="checkbox" checked={selectedFindings.has(f.uuid)} onChange={() => toggleFinding(f.uuid)} />
-                    <div>
-                      <strong>{f.title}</strong>
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{f.description}</div>
-                    </div>
+          {loading && <div>Loading...</div>}
+          {!loading && (findings.length > 0 || risks.length > 0) && (
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {findings.length > 0 && (
+                <div>
+                  <h3>Select Findings to Import</h3>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--color-border)', padding: '8px', borderRadius: '4px' }}>
+                    {findings.map(f => (
+                      <div key={f.uuid} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                        <input type="checkbox" checked={selectedFindings.has(f.uuid)} onChange={() => toggleFinding(f.uuid)} />
+                        <div>
+                          <strong>{f.title}</strong>
+                          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{f.description}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+              {risks.length > 0 && (
+                <div>
+                  <h3>Select Risks to Import</h3>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--color-border)', padding: '8px', borderRadius: '4px' }}>
+                    {risks.map(r => (
+                      <div key={r.uuid} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                        <input type="checkbox" checked={selectedRisks.has(r.uuid)} onChange={() => toggleRisk(r.uuid)} />
+                        <div>
+                          <strong>{r.title}</strong>
+                          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{r.description}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          {!loading && selectedDocId && findings.length === 0 && (
-            <div style={{ marginTop: '16px', color: 'var(--color-text-muted)' }}>No "not-satisfied" findings found.</div>
+          {!loading && selectedDocId && findings.length === 0 && risks.length === 0 && (
+            <div style={{ marginTop: '16px', color: 'var(--color-text-muted)' }}>No "not-satisfied" findings or risks found.</div>
           )}
         </div>
         <div className="bespoke-editor-footer">
-          <button className="save-btn" disabled={selectedFindings.size === 0} onClick={() => {
-            const toImport = findings.filter(f => selectedFindings.has(f.uuid));
-            onImport(toImport);
+          <button className="save-btn" disabled={selectedFindings.size === 0 && selectedRisks.size === 0} onClick={() => {
+            const toImportFindings = findings.filter(f => selectedFindings.has(f.uuid));
+            const toImportRisks = risks.filter(r => selectedRisks.has(r.uuid));
+            onImport({
+              findings: toImportFindings,
+              risks: toImportRisks,
+              allRisks: risks,
+              allObservations: observations
+            });
           }}>Import Selected</button>
         </div>
       </div>
@@ -427,20 +601,46 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editMode, setEditMode] = useState(initialEditMode || false);
+  const [editMode, setEditMode] = useState(() => {
+    if (typeof initialEditMode === 'boolean') return initialEditMode;
+    return window.location.search.includes('edit=true');
+  });
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [entityType, setEntityType] = useState(null);
   const [showArImport, setShowArImport] = useState(false);
 
+  const draftKey = `reposol_draft_poam_${poamId}`;
+
   useEffect(() => {
     fetchDoc();
+    if (window.location.search.includes('edit=true')) {
+      setEditMode(true);
+    }
   }, [poamId]);
 
   const fetchDoc = async () => {
     try {
       setLoading(true);
+      
+      const draft = localStorage.getItem(draftKey);
+      if (draft && window.location.search.includes('edit=true')) {
+        try {
+          const parsed = JSON.parse(draft);
+          if (parsed && parsed['plan-of-action-and-milestones']) {
+            setDoc(parsed);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          localStorage.removeItem(draftKey);
+        }
+      } else {
+        localStorage.removeItem(draftKey);
+      }
+
       const res = await authFetch("/api/documents/poams/" + poamId);
       if (!res.ok) throw new Error('Failed to fetch POA&M');
       const data = await res.json();
@@ -452,20 +652,40 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
     }
   };
 
+  useEffect(() => {
+    if (editMode && doc) {
+      localStorage.setItem(draftKey, JSON.stringify(doc));
+    }
+  }, [doc, editMode]);
+
   const handleSave = async (updatedDoc = doc) => {
     try {
-      const res = await authFetch("/api/documents/poams/" + poamId, {
-        method: 'PUT',
+      const res = await authFetch("/api/documents/poams", {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedDoc)
       });
       if (!res.ok) throw new Error('Failed to save POA&M');
       const saved = await res.json();
       setDoc(saved);
+      localStorage.removeItem(draftKey);
+      setEditMode(false);
+      const params = new URLSearchParams(window.location.search);
+      params.delete('edit');
+      const newSearch = params.toString() ? `?${params.toString()}` : '';
+      window.history.replaceState(null, '', window.location.pathname + newSearch);
       return saved;
     } catch (err) {
       alert(err.message);
       throw err;
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    if (window.confirm("Do you want to discard all unsaved changes?")) {
+      localStorage.removeItem(draftKey);
+      setEditMode(false);
+      fetchDoc();
     }
   };
 
@@ -533,7 +753,10 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
   const handleEntityEdit = (type, oldEntity, newEntity) => {
     const newDoc = { ...doc };
     const p = newDoc['plan-of-action-and-milestones'];
-    let list = p[type] ? [...p[type]] : [];
+    
+    let isLocalDef = ['components', 'inventory-items', 'users'].includes(type);
+    let targetObj = isLocalDef ? (p['local-definitions'] = p['local-definitions'] || {}) : p;
+    let list = targetObj[type] ? [...targetObj[type]] : [];
     
     if (oldEntity && oldEntity.uuid) {
       const idx = list.findIndex(e => e.uuid === oldEntity.uuid);
@@ -544,32 +767,88 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
       list.push(newEntity);
     }
     
-    p[type] = list;
+    targetObj[type] = list;
     setDoc(newDoc);
     setSelectedEntity(newEntity);
   };
 
-  const handleArImport = (selectedFindings) => {
+  const handleArImport = ({ findings: selectedFindings, risks: selectedRisks, allRisks, allObservations }) => {
     const newDoc = { ...doc };
     const p = newDoc['plan-of-action-and-milestones'];
     let list = p['poam-items'] ? [...p['poam-items']] : [];
+    let pFindings = p.findings ? [...p.findings] : [];
+    let pRisks = p.risks ? [...p.risks] : [];
+    let pObservations = p.observations ? [...p.observations] : [];
     
+    // Map to keep track of old UUID -> new UUID
+    const idMap = new Map();
+
+    // Helper to get or create a deep copy with a new UUID
+    const importEntity = (entity, targetArray) => {
+      if (!entity) return null;
+      if (idMap.has(entity.uuid)) {
+        return idMap.get(entity.uuid);
+      }
+      const newEntity = JSON.parse(JSON.stringify(entity));
+      const newUuid = crypto.randomUUID();
+      newEntity.uuid = newUuid;
+      idMap.set(entity.uuid, newUuid);
+      targetArray.push(newEntity);
+      return newUuid;
+    };
+
+    // Import explicitly selected risks
+    selectedRisks.forEach(r => {
+      importEntity(r, pRisks);
+    });
+
     selectedFindings.forEach(f => {
+      const newFindingUuid = importEntity(f, pFindings);
+      const newFinding = pFindings.find(x => x.uuid === newFindingUuid);
+
       const newItem = {
         uuid: crypto.randomUUID(),
         title: f.title,
         description: f.description || '',
         props: [{ name: 'priority', value: '3' }],
-        'related-findings': [{ 'finding-uuid': f.uuid }]
+        'related-findings': [{ 'finding-uuid': newFindingUuid }]
       };
-      // if finding has related risks, link those too
+      
+      // Copy related risks
       if (f['related-risks']) {
-        newItem['related-risks'] = f['related-risks'].map(r => ({ 'risk-uuid': r['risk-uuid'] }));
+        const mappedRisks = f['related-risks'].map(rr => {
+          const originalRisk = allRisks.find(x => x.uuid === rr['risk-uuid']);
+          if (originalRisk) {
+            const newRiskId = importEntity(originalRisk, pRisks);
+            return { 'risk-uuid': newRiskId };
+          }
+          return rr;
+        });
+        newItem['related-risks'] = mappedRisks;
+        newFinding['related-risks'] = mappedRisks;
       }
+
+      // Copy related observations
+      if (f['related-observations']) {
+        const mappedObs = f['related-observations'].map(ro => {
+          const originalObs = allObservations.find(x => x.uuid === ro['observation-uuid']);
+          if (originalObs) {
+            const newObsId = importEntity(originalObs, pObservations);
+            return { 'observation-uuid': newObsId };
+          }
+          return ro;
+        });
+        newItem['related-observations'] = mappedObs;
+        newFinding['related-observations'] = mappedObs;
+      }
+      
       list.push(newItem);
     });
     
     p['poam-items'] = list;
+    p.findings = pFindings;
+    p.risks = pRisks;
+    p.observations = pObservations;
     setDoc(newDoc);
     setShowArImport(false);
   };
@@ -640,27 +919,34 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
                   label: 'Priority',
                   sortable: true,
                   filterable: true,
-                  render: (item) => {
-                    const pProp = (item.props || []).find(p => p.name === 'priority');
-                    const val = pProp ? pProp.value : '';
-                    if (!val) return '—';
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    const pProp = (row.props || []).find(p => p.name === 'priority');
+                    const pVal = pProp ? pProp.value : '';
+                    if (!pVal) return '—';
                     let cat = 'info';
-                    if (val === '1') cat = 'critical';
-                    if (val === '2') cat = 'high';
-                    if (val === '3') cat = 'medium';
-                    if (val === '4') cat = 'low';
-                    return <StatusBadge status={`P${val}`} category={cat} />;
+                    if (pVal === '1') cat = 'critical';
+                    if (pVal === '2') cat = 'high';
+                    if (pVal === '3') cat = 'medium';
+                    if (pVal === '4') cat = 'low';
+                    return <StatusBadge status={`P${pVal}`} category={cat} />;
                   }
                 },
                 { 
                   key: 'risks', 
                   label: 'Risks',
-                  render: (item) => (item['related-risks'] || []).length
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    return (row['related-risks'] || []).length;
+                  }
                 },
                 { 
                   key: 'observations', 
                   label: 'Observations',
-                  render: (item) => (item['related-observations'] || []).length
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    return (row['related-observations'] || []).length;
+                  }
                 }
               ]}
               onRowClick={(item) => { setSelectedEntity(item); setEntityType('poam-items'); }}
@@ -683,12 +969,18 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
                 { 
                   key: 'methods', 
                   label: 'Methods',
-                  render: (obs) => (obs.methods || []).join(', ')
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    return (row.methods || []).join(', ');
+                  }
                 },
                 { 
                   key: 'date', 
                   label: 'Collected Date',
-                  render: (obs) => obs['collected-date'] ? new Date(obs['collected-date']).toLocaleDateString() : '—'
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    return row['collected-date'] ? new Date(row['collected-date']).toLocaleDateString() : '—';
+                  }
                 }
               ]}
               onRowClick={(obs) => { setSelectedEntity(obs); setEntityType('observations'); }}
@@ -711,12 +1003,18 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
                 { 
                   key: 'status', 
                   label: 'Status',
-                  render: (r) => <StatusBadge status={r.status || 'unknown'} category="risk-status" />
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    return <StatusBadge status={row.status || 'unknown'} category="risk-status" />;
+                  }
                 },
                 { 
                   key: 'remediations', 
                   label: 'Remediations',
-                  render: (r) => (r.remediations || []).length
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    return (row.remediations || []).length;
+                  }
                 }
               ]}
               onRowClick={(risk) => { setSelectedEntity(risk); setEntityType('risks'); }}
@@ -736,7 +1034,15 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
               entities={findings}
               columns={[
                 { key: 'title', label: 'Title', sortable: true, filterable: true },
-                { key: 'description', label: 'Description', render: (f) => f.description ? (f.description.length > 50 ? f.description.substring(0, 50) + '...' : f.description) : '—' }
+                { 
+                  key: 'description', 
+                  label: 'Description', 
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    const desc = row.description || (typeof val === 'string' ? val : '');
+                    return desc ? (desc.length > 50 ? desc.substring(0, 50) + '...' : desc) : '—';
+                  } 
+                }
               ]}
               onRowClick={(finding) => { setSelectedEntity(finding); setEntityType('findings'); }}
             />
@@ -768,6 +1074,85 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
           </div>
         );
 
+      case 'local-definitions':
+        const localDefs = poam['local-definitions'] || {};
+        const components = localDefs.components || [];
+        const inventoryItems = localDefs['inventory-items'] || [];
+        const users = localDefs.users || [];
+        
+        return (
+          <div className="poam-entity-section">
+            <h2 style={{ marginTop: 0 }}>Components</h2>
+            {editMode && (
+              <div style={{ marginBottom: '16px' }}>
+                <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('components'); }}>+ Add Component</button>
+              </div>
+            )}
+            <EntityTable
+              entities={components}
+              columns={[
+                { key: 'title', label: 'Title', sortable: true, filterable: true },
+                { key: 'type', label: 'Type', sortable: true, filterable: true },
+                { 
+                  key: 'description', 
+                  label: 'Description', 
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    const desc = row.description || (typeof val === 'string' ? val : '');
+                    return desc ? (desc.length > 50 ? desc.substring(0, 50) + '...' : desc) : '—';
+                  } 
+                }
+              ]}
+              onRowClick={(comp) => { setSelectedEntity(comp); setEntityType('components'); }}
+            />
+            
+            <h2 style={{ marginTop: '32px' }}>Inventory Items</h2>
+            {editMode && (
+              <div style={{ marginBottom: '16px' }}>
+                <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('inventory-items'); }}>+ Add Inventory Item</button>
+              </div>
+            )}
+            <EntityTable
+              entities={inventoryItems}
+              columns={[
+                { 
+                  key: 'description', 
+                  label: 'Description', 
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    const desc = row.description || (typeof val === 'string' ? val : '');
+                    return desc ? (desc.length > 50 ? desc.substring(0, 50) + '...' : desc) : '—';
+                  } 
+                },
+                { 
+                  key: 'asset-id', 
+                  label: 'Asset ID', 
+                  render: (val, item) => {
+                    const row = item || (typeof val === 'object' ? val : {});
+                    return row['asset-id'] || (typeof val === 'string' ? val : '—');
+                  } 
+                }
+              ]}
+              onRowClick={(item) => { setSelectedEntity(item); setEntityType('inventory-items'); }}
+            />
+
+            <h2 style={{ marginTop: '32px' }}>Users</h2>
+            {editMode && (
+              <div style={{ marginBottom: '16px' }}>
+                <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('users'); }}>+ Add User</button>
+              </div>
+            )}
+            <EntityTable
+              entities={users}
+              columns={[
+                { key: 'title', label: 'Title', sortable: true, filterable: true },
+                { key: 'role-ids', label: 'Roles', render: (u) => (u['role-ids'] || []).join(', ') }
+              ]}
+              onRowClick={(user) => { setSelectedEntity(user); setEntityType('users'); }}
+            />
+          </div>
+        );
+
       case 'json':
         return (
           <JsonEditor 
@@ -795,6 +1180,9 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
     if (entityType === 'risks') return <RiskEditor {...commonProps} />;
     if (entityType === 'observations') return <ObservationEditor {...commonProps} />;
     if (entityType === 'findings') return <FindingEditor {...commonProps} />;
+    if (entityType === 'components') return <ComponentEditor {...commonProps} />;
+    if (entityType === 'inventory-items') return <InventoryItemEditor {...commonProps} />;
+    if (entityType === 'users') return <UserEditor {...commonProps} />;
     return null;
   };
 
@@ -807,13 +1195,17 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
         onToggleEdit={() => {
           const next = !editMode;
           setEditMode(next);
+          const params = new URLSearchParams(window.location.search);
           if (next) {
-            if (!window.location.search.includes('edit=true')) window.history.replaceState(null, '', window.location.pathname + '?edit=true');
+            params.set('edit', 'true');
           } else {
-            if (window.location.search.includes('edit=true')) window.history.replaceState(null, '', window.location.pathname);
+            params.delete('edit');
           }
+          const newSearch = params.toString() ? `?${params.toString()}` : '';
+          window.history.replaceState(null, '', window.location.pathname + newSearch);
         }}
         onSave={() => handleSave()}
+        onCancel={handleDiscardChanges}
         onSaveVersion={() => setShowVersionHistory(true)}
         onBack={onClose}
         mode="poam"
@@ -835,6 +1227,9 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
           </button>
           <button className={`poam-tab ${activeTab === 'findings' ? 'active' : ''}`} onClick={() => setActiveTab('findings')}>
             Findings
+          </button>
+          <button className={`poam-tab ${activeTab === 'local-definitions' ? 'active' : ''}`} onClick={() => setActiveTab('local-definitions')}>
+            Local Definitions
           </button>
           <button className={`poam-tab ${activeTab === 'metadata' ? 'active' : ''}`} onClick={() => setActiveTab('metadata')}>
             Metadata

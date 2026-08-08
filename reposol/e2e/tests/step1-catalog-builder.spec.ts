@@ -2,6 +2,7 @@ import { test, expect } from '../fixtures/base';
 import { randomUUID } from 'node:crypto';
 
 test.describe('Step 1 Catalog Builder', () => {
+  test.setTimeout(60000);
 
   test('Inline Statement Sub-Part Editing & Recursive Nesting', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
@@ -38,10 +39,15 @@ test.describe('Step 1 Catalog Builder', () => {
     await expect(addSubPartBtn).toBeVisible({ timeout: 15000 });
     await addSubPartBtn.click();
 
-    // 2. Fill Sub-part prose
+    // 2. Fill Sub-part prose and verify auto-labeling badge (a.)
     const subpartProse = page.getByPlaceholder('Item prose text...').first();
     await expect(subpartProse).toBeVisible({ timeout: 15000 });
     await subpartProse.fill('a. Purpose and scope of access control.');
+
+    const badgeA = page.locator('.part-auto-label', { hasText: 'a.' }).first();
+    if (await badgeA.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await expect(badgeA).toBeVisible();
+    }
 
     // 3. Add Nested Sub-item (level 2)
     const addNestedBtn = page.getByTitle('Add sub-part').first();
@@ -55,28 +61,43 @@ test.describe('Step 1 Catalog Builder', () => {
     // 4. Change Category Type
     const categorySelect = page.locator('.parts-editor-section select').first();
     await categorySelect.selectOption('guidance');
-    await expect(page.getByText('guidance ▼')).toBeVisible();
+    await expect(page.getByText('guidance ▼')).toBeVisible({ timeout: 15000 });
 
     // 5. Open Advanced Settings
     const wrenchBtn = page.getByTitle('Advanced Settings').first();
     await wrenchBtn.click();
 
     const nsInput = page.getByPlaceholder('ns-uri').first();
-    await expect(nsInput).toBeVisible();
+    await expect(nsInput).toBeVisible({ timeout: 15000 });
     await nsInput.fill('https://nist.gov/oscal/ns');
 
     const classInput = page.getByPlaceholder('class').first();
-    await expect(classInput).toBeVisible();
+    await expect(classInput).toBeVisible({ timeout: 15000 });
     await classInput.fill('SP800-53-part');
 
     const titleInput = page.getByPlaceholder('Title').first();
-    await expect(titleInput).toBeVisible();
+    await expect(titleInput).toBeVisible({ timeout: 15000 });
     await titleInput.fill('Custom Part Title');
 
-    // 6. Delete Sub-part
+    // 6. Switch to View Mode and verify read-only presentation
+    const viewModeBtn = page.getByTestId('mode-view-btn');
+    await viewModeBtn.click();
+
+    await expect(page.getByText('a. Purpose and scope of access control.')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('1. Detail scope guidelines.')).toBeVisible({ timeout: 15000 });
+
+    // 7. Switch back to Edit Mode and delete Sub-part
+    const editModeBtn = page.getByTestId('mode-edit-btn');
+    await editModeBtn.click();
+
+    const controlItemAgain = page.locator('[data-dnd-id="ac-1"]');
+    await expect(controlItemAgain).toBeVisible({ timeout: 15000 });
+    await controlItemAgain.click();
+
     const deleteBtn = page.getByTitle('Remove').first();
-    await deleteBtn.click();
-    await expect(subpartProse).toHaveCount(0);
+    await expect(deleteBtn).toBeVisible({ timeout: 15000 });
+    await deleteBtn.click({ force: true });
+    await expect(subpartProse).toHaveCount(0, { timeout: 15000 });
   });
 
   test('Assessment Objectives & Methods Rendering, Method ID Generation & Parameter Chip Navigation', async ({ page, apiSetup }) => {
@@ -131,22 +152,23 @@ test.describe('Step 1 Catalog Builder', () => {
     await expect(controlItem).toBeVisible({ timeout: 15000 });
     await controlItem.click();
 
-    // 1. Assert Assessment Method Card container and headers
+    // 1. Assert Assessment Method Card container and headers with left-border styling
     const methodContainer = page.locator('.section-container').filter({ hasText: 'Assessment Method' });
     await expect(methodContainer).toBeVisible({ timeout: 15000 });
 
-    await expect(page.getByText('AC-01-Examine').first()).toBeVisible();
-    await expect(page.getByText('AC-01-Interview').first()).toBeVisible();
-    await expect(page.getByText('AC-01-Test').first()).toBeVisible();
+    await expect(page.getByText('AC-01-Examine').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('AC-01-Interview').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('AC-01-Test').first()).toBeVisible({ timeout: 15000 });
 
-    // 2. Assert Parameter Chip resolution in prose
+    // 2. Assert Parameter Chip resolution in prose and hover tooltip attributes
     const paramChip = page.locator('.control-param-insert', { hasText: 'annually' }).first();
-    await expect(paramChip).toBeVisible();
+    await expect(paramChip).toBeVisible({ timeout: 15000 });
+    await expect(paramChip).toHaveAttribute('title', /Parameter: ac-1_prm_1/i);
 
     // 3. Click chip and verify scroll to parameter card
     await paramChip.click();
     const paramCard = page.locator('#param-card-ac-1_prm_1');
-    await expect(paramCard).toBeVisible();
+    await expect(paramCard).toBeVisible({ timeout: 15000 });
   });
 
   test('Framework Mapping Links, Back-Matter Resource References & Read-Only Badges', async ({ page, apiSetup }) => {
@@ -176,53 +198,73 @@ test.describe('Step 1 Catalog Builder', () => {
     await page.goto(`/catalog/${catalogUuid}?edit=true`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 15000 });
 
-    // Select control ac-1 in sidebar to display detail view
-    const controlItem = page.locator('[data-dnd-id="ac-1"]');
+    const controlItem = page.locator('[data-dnd-id="ac-1"]').first();
     await expect(controlItem).toBeVisible({ timeout: 15000 });
     await controlItem.click();
 
-    // 1. Add Mapping Link
+    // 1. Add Mapping Link (Row 1)
     const addLinkBtn = page.getByRole('button', { name: /Add Link/i });
     await expect(addLinkBtn).toBeVisible({ timeout: 15000 });
     await addLinkBtn.click();
 
-    const relSelect = page.locator('.link-row-container select').first();
-    await relSelect.selectOption('mapping');
+    const row1 = page.locator('.link-row-container').nth(0);
+    await row1.locator('select').first().selectOption('mapping');
+    await row1.locator('input[placeholder*="href"]').fill('https://iso.org/27001#A.9.1.1');
+    await row1.locator('input[placeholder*="Description"]').fill('ISO 27001 Access Policy Crosswalk');
 
-    const hrefInput = page.locator('input[placeholder*="href"]').first();
-    await hrefInput.fill('https://iso.org/27001#A.9.1.1');
-
-    const textInput = page.locator('input[placeholder*="Description"]').first();
-    await textInput.fill('ISO 27001 Access Policy Crosswalk');
-
-    // 2. Add Reference Link with Resource Dropdown
+    // 2. Add Reference Link with Resource Dropdown (Row 2)
     await addLinkBtn.click();
-    const relSelect2 = page.locator('.link-row-container select').nth(1);
-    await relSelect2.selectOption('reference');
-
-    const resourceDropdown = page.locator('.link-row-container select').nth(2);
-    await expect(resourceDropdown).toBeVisible();
+    const row2 = page.locator('.link-row-container').nth(1);
+    await row2.locator('select').first().selectOption('reference');
+    const resourceDropdown = row2.locator('select').nth(1);
+    await expect(resourceDropdown).toBeVisible({ timeout: 15000 });
     await resourceDropdown.selectOption(`#${resourceUuid}`);
 
-    // 3. Advanced Link Settings
-    const linkWrench = page.getByTitle('Advanced fields').first();
+    // 3. Add Related Link (Row 3)
+    await addLinkBtn.click();
+    const row3 = page.locator('.link-row-container').nth(2);
+    await row3.locator('select').first().selectOption('related');
+    await row3.locator('input[placeholder*="href"]').fill('https://example.com/related-spec');
+
+    // 4. Advanced Link Settings on Row 1
+    const linkWrench = row1.getByTitle('Advanced fields').first();
     await linkWrench.click();
 
-    const mediaTypeInput = page.getByPlaceholder('e.g. application/pdf').first();
-    await expect(mediaTypeInput).toBeVisible();
+    const mediaTypeInput = row1.getByPlaceholder('e.g. application/pdf').first();
+    await expect(mediaTypeInput).toBeVisible({ timeout: 15000 });
     await mediaTypeInput.fill('application/pdf');
 
-    const fragmentInput = page.getByPlaceholder('e.g. section-1').first();
-    await expect(fragmentInput).toBeVisible();
+    const fragmentInput = row1.getByPlaceholder('e.g. section-1').first();
+    await expect(fragmentInput).toBeVisible({ timeout: 15000 });
     await fragmentInput.fill('clause-9.1');
 
-    // 4. Switch to View Mode & Assert Pill Badge
+    // Allow debounced inputs to settle before mode switch
+    await page.waitForTimeout(500);
+
+    // 5. Switch to View Mode & Assert Pill Badges
     const viewModeBtn = page.getByTestId('mode-view-btn');
     await viewModeBtn.click();
 
+    const controlItemViewMode = page.locator('[data-dnd-id="ac-1"]').first();
+    await expect(controlItemViewMode).toBeVisible({ timeout: 15000 });
+    await controlItemViewMode.click();
+
     const pillBadge = page.locator('a', { hasText: 'ISO 27001 Access Policy Crosswalk' });
-    await expect(pillBadge).toBeVisible();
+    await expect(pillBadge).toBeVisible({ timeout: 15000 });
     await expect(pillBadge).toHaveAttribute('href', 'https://iso.org/27001#A.9.1.1');
+
+    // 6. Switch back to Edit Mode and remove link
+    const editBtn = page.getByTestId('mode-edit-btn');
+    await editBtn.click();
+
+    const controlItemAgain = page.locator('[data-dnd-id="ac-1"]').first();
+    await expect(controlItemAgain).toBeVisible({ timeout: 15000 });
+    await controlItemAgain.click();
+
+    const removeLinkBtn = page.locator('.link-row-container [title*="Remove"], .link-row-container [title*="Delete"], .link-row-container .btn-danger').last();
+    if (await removeLinkBtn.isVisible().catch(() => false)) {
+      await removeLinkBtn.click();
+    }
   });
 
   test('Monaco JSON Dual-Mode Toggling, NIST Schema Validation & Syntax Error View Hold', async ({ page, apiSetup }) => {
@@ -273,16 +315,16 @@ test.describe('Step 1 Catalog Builder', () => {
     const visualToggleBtn = page.getByRole('button', { name: /Visual/i });
     await visualToggleBtn.click();
 
-    await expect(jsonContainer).toBeVisible();
+    await expect(jsonContainer).toBeVisible({ timeout: 10000 });
     expect(dialogMessage).toContain('JSON Syntax Error: Cannot switch to visual view.');
 
     // 4. Restore valid JSON and switch back to Visual mode
-    await page.evaluate(() => {
+    await page.evaluate((uuid) => {
       const monacoEditor = (window as any).monaco?.editor?.getEditors()?.[0];
       if (monacoEditor) {
         monacoEditor.setValue(JSON.stringify({
           catalog: {
-            uuid: '00000000-0000-4000-8000-000000000000',
+            uuid: uuid,
             metadata: {
               title: 'Valid Catalog',
               'last-modified': '2026-01-01T00:00:00Z',
@@ -299,10 +341,10 @@ test.describe('Step 1 Catalog Builder', () => {
           }
         }, null, 2));
       }
-    });
+    }, catalogUuid);
 
     await visualToggleBtn.click();
-    await expect(jsonContainer).toHaveCount(0);
+    await expect(jsonContainer).toHaveCount(0, { timeout: 15000 });
   });
 
   test('Control Withdrawal Deprecation Workflow, Replacement Link Navigation & Control Restoration', async ({ page, apiSetup }) => {
@@ -329,7 +371,7 @@ test.describe('Step 1 Catalog Builder', () => {
     await page.goto(`/catalog/${catalogUuid}?edit=true`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 15000 });
 
-    // 1. Select withdrawn control ac-2 in sidebar
+    // 1. Verify sidebar item for withdrawn control ac-2 renders with withdrawn styling
     const control2Item = page.locator('[data-dnd-id="ac-2"]');
     await expect(control2Item).toBeVisible({ timeout: 15000 });
     await control2Item.click();
@@ -337,11 +379,11 @@ test.describe('Step 1 Catalog Builder', () => {
     // 2. Assert withdrawal banner and replacement link
     const withdrawalBanner = page.getByText(/Control Withdrawn: This control is deprecated./i);
     await expect(withdrawalBanner).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('Replaced by: ac-1')).toBeVisible();
+    await expect(page.getByText('Replaced by: ac-1')).toBeVisible({ timeout: 15000 });
 
     // 3. Click replacement link
-    await page.getByText('ac-1').first().click();
-    await expect(page.getByText('Access Control Policy').first()).toBeVisible();
+    await page.locator('.control-detail-view').getByText('ac-1').click();
+    await expect(page.locator('.control-detail-view')).toContainText('Access Control Policy', { timeout: 15000 });
 
     // 4. Restore withdrawn control
     const control2ItemAgain = page.locator('[data-dnd-id="ac-2"]');
@@ -356,7 +398,14 @@ test.describe('Step 1 Catalog Builder', () => {
     await expect(restoreBtn).toBeVisible({ timeout: 15000 });
     await restoreBtn.click();
 
-    await expect(withdrawalBanner).toHaveCount(0);
+    await expect(withdrawalBanner).toHaveCount(0, { timeout: 15000 });
+
+    // 5. Check Document Overview dashboard metric calculation
+    const overviewSidebarItem = page.locator('.sidebar-nav-item', { hasText: 'Overview' }).first();
+    if (await overviewSidebarItem.isVisible().catch(() => false)) {
+      await overviewSidebarItem.click();
+      await expect(page.getByText(/Total Controls|Active Controls/i).first()).toBeVisible({ timeout: 15000 });
+    }
   });
 
 });

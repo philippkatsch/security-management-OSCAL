@@ -19,7 +19,7 @@ export function getWorkspaceId() {
     const params = new URLSearchParams(window.location.search);
     const urlWsId = params.get('w') || params.get('workspace');
     if (urlWsId) {
-      const cleanWsId = urlWsId.replace(/[^a-zA-Z0-9_-]/g, '');
+      const cleanWsId = urlWsId.replace(/[^a-zA-Z0-9_\-]/g, '');
       if (cleanWsId) {
         localStorage.setItem('reposol_workspace_id', cleanWsId);
         return cleanWsId;

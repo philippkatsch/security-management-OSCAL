@@ -6,6 +6,7 @@ export const STATUS_CONFIG = {
       'active': { label: 'Active', color: 'hsl(142, 71%, 45%)', icon: '✅', textColor: '#fff' },
       'archived': { label: 'Archived', color: 'hsl(0, 0%, 60%)', icon: '📦', textColor: '#fff' },
       'superseded': { label: 'Superseded', color: 'hsl(0, 72%, 51%)', icon: '🔄', textColor: '#fff' },
+      'deprecated': { label: 'Deprecated', color: 'hsl(24, 98%, 53%)', icon: '⚠️', textColor: '#fff' },
     }
   },
   'operational-status': {

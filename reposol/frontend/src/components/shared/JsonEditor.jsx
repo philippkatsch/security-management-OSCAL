@@ -9,11 +9,14 @@ import Editor from '@monaco-editor/react';
  */
 export const JsonEditor = forwardRef(({
   value = '',
+  data = '',
   onChange,
   onValidate,
   readOnly = false,
   highlightId = null
 }, ref) => {
+  const rawInput = value || data;
+  const formattedValue = typeof rawInput === 'object' ? JSON.stringify(rawInput, null, 2) : String(rawInput || '');
   const [error, setError] = useState('');
   const editorRef = useRef(null);
   const scrolledForRef = useRef(null);
@@ -182,7 +185,7 @@ export const JsonEditor = forwardRef(({
         <Editor
           height="100%"
           defaultLanguage="json"
-          value={value}
+          value={formattedValue}
           onChange={handleEditorChange}
           onMount={handleEditorDidMount}
           theme="vs-dark"

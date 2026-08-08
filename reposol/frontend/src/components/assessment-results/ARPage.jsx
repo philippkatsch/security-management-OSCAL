@@ -270,17 +270,101 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <button className={resultSetTab === 'observations' ? 'active' : ''} onClick={() => setResultSetTab('observations')}>Observations ({(activeResultSet.observations || []).length})</button>
                 <button className={resultSetTab === 'findings' ? 'active' : ''} onClick={() => setResultSetTab('findings')}>Findings ({(activeResultSet.findings || []).length})</button>
                 <button className={resultSetTab === 'risks' ? 'active' : ''} onClick={() => setResultSetTab('risks')}>Risks ({(activeResultSet.risks || []).length})</button>
+                <button className={resultSetTab === 'local-definitions' ? 'active' : ''} onClick={() => setResultSetTab('local-definitions')}>Local Definitions</button>
+                <button className={resultSetTab === 'assessment-log' ? 'active' : ''} onClick={() => setResultSetTab('assessment-log')}>Assessment Log</button>
+                <button className={resultSetTab === 'attestations' ? 'active' : ''} onClick={() => setResultSetTab('attestations')}>Attestations</button>
               </div>
               <div className="rs-tab-content">
                 {resultSetTab === 'observations' && renderObservations(activeResultSet)}
                 {resultSetTab === 'findings' && renderFindings(activeResultSet)}
                 {resultSetTab === 'risks' && renderRisks(activeResultSet)}
+                {resultSetTab === 'local-definitions' && renderLocalDefinitions(activeResultSet)}
+                {resultSetTab === 'assessment-log' && renderAssessmentLog(activeResultSet)}
+                {resultSetTab === 'attestations' && renderAttestations(activeResultSet)}
               </div>
             </>
           ) : (
             <div className="empty-state">No Result Sets</div>
           )}
         </div>
+      </div>
+    );
+  };
+
+  const renderLocalDefinitions = (rs) => {
+    const componentsData = (rs['local-definitions']?.components || []).map(c => ({...c, id: c.uuid}));
+    const usersData = (rs['local-definitions']?.users || []).map(u => ({...u, id: u.uuid, rolesStr: (u['role-ids']||[]).join(', ')}));
+    const tasksData = (rs['local-definitions']?.tasks || []).map(t => ({...t, id: t.uuid}));
+
+    return (
+      <div className="entity-section">
+        <h3 style={{marginTop: '20px'}}>Components</h3>
+        <EntityTable 
+          columns={[{key:'title', label:'Title'}, {key:'type', label:'Type'}, {key:'description', label:'Description'}, {key:'status', label:'Status', render: (_,c) => c.status?.state}]} 
+          data={componentsData} 
+          onRowClick={() => {}} 
+        />
+        
+        <h3 style={{marginTop: '20px'}}>Users</h3>
+        <EntityTable 
+          columns={[{key:'title', label:'Title'}, {key:'rolesStr', label:'Roles'}]} 
+          data={usersData} 
+          onRowClick={() => {}} 
+        />
+        
+        <h3 style={{marginTop: '20px'}}>Tasks</h3>
+        <EntityTable 
+          columns={[{key:'title', label:'Title'}, {key:'type', label:'Type'}, {key:'description', label:'Description'}]} 
+          data={tasksData} 
+          onRowClick={() => {}} 
+        />
+      </div>
+    );
+  };
+
+  const renderAssessmentLog = (rs) => {
+    const entriesData = (rs['assessment-log']?.entries || []).map(e => ({
+      ...e,
+      id: e.uuid,
+      startStr: e.start ? new Date(e.start).toLocaleString() : '',
+      endStr: e.end ? new Date(e.end).toLocaleString() : '',
+      loggedByStr: (e['logged-by'] || []).map(l => l['role-id'] || l['party-uuid']).join(', ')
+    }));
+
+    return (
+      <div className="entity-section">
+        <EntityTable 
+          columns={[
+            {key:'title', label:'Title'},
+            {key:'startStr', label:'Start'},
+            {key:'endStr', label:'End'},
+            {key:'loggedByStr', label:'Logged By'}
+          ]}
+          data={entriesData}
+          onRowClick={() => {}}
+        />
+      </div>
+    );
+  };
+
+  const renderAttestations = (rs) => {
+    const attestationsData = (rs.attestations || []).map((a, i) => ({
+      ...a,
+      id: a.uuid || `attestation-${i}`,
+      partiesStr: (a['responsible-parties'] || []).map(p => p['role-id']).join(', '),
+      partsStr: (a.parts || []).map(p => p.name).join(', ')
+    }));
+
+    return (
+      <div className="entity-section">
+        <EntityTable 
+          columns={[
+            {key:'partiesStr', label:'Responsible Parties'},
+            {key:'partsStr', label:'Parts'}
+          ]}
+          data={attestationsData}
+          onRowClick={() => {}}
+        />
       </div>
     );
   };

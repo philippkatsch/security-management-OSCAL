@@ -3,6 +3,7 @@ import './Dashboard.css';
 
 export default function MetricCard({ 
   label, 
+  title,
   value, 
   icon, 
   trend, 
@@ -11,6 +12,7 @@ export default function MetricCard({
   className = '' 
 }) {
   const isClickable = typeof onClick === 'function';
+  const displayLabel = label || title;
   
   const renderTrendIcon = (direction) => {
     switch (direction) {
@@ -30,7 +32,7 @@ export default function MetricCard({
       tabIndex={isClickable ? 0 : undefined}
     >
       <div className="metric-card-header">
-        <span className="metric-card-label">{label}</span>
+        <span className="metric-card-label">{displayLabel}</span>
         {icon && <span className="metric-card-icon">{icon}</span>}
       </div>
       

@@ -150,17 +150,20 @@ async def save_doc_version(stage: str, doc_id: str, request: Request, remarks: O
     ws_id = get_ws_id(request)
     if not is_valid_uuid(doc_id):
         raise HTTPException(status_code=400, detail=f"Invalid UUID format: '{doc_id}'")
-        
+
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON body")
-        
+
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
     # Extract version
     root_key = STAGE_ROOT_KEYS[normalized]
     try:
         version = body[root_key]["metadata"]["version"]
-    except KeyError:
+    except (KeyError, TypeError):
         raise HTTPException(status_code=400, detail="Missing version in document metadata")
 
     # Automatic revision tracking (US 0.7) - Only for official versions

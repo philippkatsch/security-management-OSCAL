@@ -2,7 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import './EntityTable.css';
 import BatchActionToolbar from './BatchActionToolbar';
 
-export default function EntityTable({ columns, data, onRowClick, onSelectionChange, actions, emptyState, addButton, className = '' }) {
+export default function EntityTable({ columns, data, entities, onRowClick, onSelectionChange, actions, emptyState, addButton, onAdd, addLabel, className = '' }) {
+  const rowData = data || entities || [];
+  const finalAddBtn = addButton || (onAdd ? { label: addLabel || '+ Add Item', onClick: onAdd } : null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
@@ -38,7 +40,7 @@ export default function EntityTable({ columns, data, onRowClick, onSelectionChan
   };
 
   const filteredData = useMemo(() => {
-    let result = [...data];
+    let result = [...rowData];
 
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -96,13 +98,13 @@ export default function EntityTable({ columns, data, onRowClick, onSelectionChan
     }
     setSelectedRows(newSelection);
     if (onSelectionChange) {
-      const selected = data.filter(d => newSelection.has(d.id));
+      const selected = rowData.filter(d => newSelection.has(d.uuid || d.id));
       onSelectionChange(selected);
     }
   };
 
   const getUniqueValues = (key) => {
-    return [...new Set(data.map(row => row[key]).filter(Boolean))];
+    return [...new Set(rowData.map(row => row[key]).filter(Boolean))];
   };
 
   return (
@@ -120,9 +122,9 @@ export default function EntityTable({ columns, data, onRowClick, onSelectionChan
             <button className="clear-search" onClick={() => setSearchInput('')}>×</button>
           )}
         </div>
-        {addButton && (
-          <button className="btn-primary add-button" onClick={addButton.onClick}>
-            {addButton.label}
+        {finalAddBtn && (
+          <button className="btn-primary add-button" onClick={finalAddBtn.onClick}>
+            {finalAddBtn.label}
           </button>
         )}
       </div>
@@ -192,28 +194,35 @@ export default function EntityTable({ columns, data, onRowClick, onSelectionChan
                 </td>
               </tr>
             ) : (
-              paginatedData.map(row => (
-                <tr 
-                  key={row.id} 
-                  onClick={() => onRowClick && onRowClick(row)}
-                  className={selectedRows.has(row.id) ? 'selected' : ''}
-                >
-                  {onSelectionChange && (
-                    <td className="checkbox-cell" onClick={e => e.stopPropagation()}>
-                      <input 
-                        type="checkbox" 
-                        checked={selectedRows.has(row.id)}
-                        onChange={(e) => handleSelectRow(row, e)}
-                      />
-                    </td>
-                  )}
-                  {columns.map(col => (
-                    <td key={col.key}>
-                      {col.render ? col.render(row[col.key], row) : row[col.key]}
-                    </td>
-                  ))}
-                </tr>
-              ))
+              paginatedData.map((row, idx) => {
+                const rowKey = row.uuid || row.id || `row-${idx}`;
+                return (
+                  <tr 
+                    key={rowKey} 
+                    onClick={() => onRowClick && onRowClick(row)}
+                    className={selectedRows.has(rowKey) ? 'selected' : ''}
+                  >
+                    {onSelectionChange && (
+                      <td className="checkbox-cell" onClick={e => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedRows.has(rowKey)}
+                          onChange={(e) => handleSelectRow(row, e)}
+                        />
+                      </td>
+                    )}
+                    {columns.map(col => {
+                      const val = row[col.key];
+                      const cellContent = col.render ? col.render(val, row) : val;
+                      return (
+                        <td key={col.key}>
+                          {cellContent}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

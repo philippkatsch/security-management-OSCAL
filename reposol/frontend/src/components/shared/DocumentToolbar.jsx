@@ -34,7 +34,6 @@ export function DocumentToolbar({
   title = 'Untitled Document',
   // --- Edit state (accepts aliases) ---
   isEditing: isEditingProp = false,
-  editMode: editModePropRaw,
   isEditMode: isEditModeProp,
   // --- Toggle edit callback (accepts aliases) ---
   onToggleEdit: onToggleEditProp,
@@ -85,9 +84,7 @@ export function DocumentToolbar({
   ...rest
 }) {
   // ── Normalize: isEditing ──
-  // editModeProp can be a string ('visual'/'json') or boolean (APPage/POAMPage use it as boolean)
-  const editModeIsBoolean = typeof editModePropRaw === 'boolean';
-  const isEditing = isEditingProp || isEditModeProp === true || (editModeIsBoolean && editModePropRaw === true);
+  const isEditing = isEditingProp || isEditModeProp === true || editModeProp === true;
 
   // ── Normalize: editMode (visual/json string) ──
   const editMode = (typeof editModeProp === 'string') ? editModeProp : 'visual';
@@ -235,6 +232,23 @@ export function DocumentToolbar({
           <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', marginRight: '8px' }}>
             {saving || isSaving ? 'Saving...' : 'Validating...'}
           </span>
+        )}
+
+        {/* Save Button — Edit mode only when onSave handler provided */}
+        {isEditing && onSave && (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={(e) => {
+              console.log('[DocumentToolbar] Save button clicked! isBusy:', isBusy);
+              onSave(e);
+            }}
+            disabled={isBusy}
+            data-testid="save-btn"
+            style={{ padding: '6px 14px', fontSize: '13px' }}
+          >
+            💾 Save
+          </button>
         )}
 
         {/* Version History Button — Available in both View and Edit modes */}

@@ -284,7 +284,7 @@ const resolveProfileSync = (profileDoc, cache) => {
     if (!patterns || patterns.length === 0) return false;
     const idLower = controlId.toLowerCase();
     return patterns.some(pat => {
-      const regexStr = '^' + pat.toLowerCase().replace(/\*/g, '.*') + '$';
+      const regexStr = '^' + pat.toLowerCase().replace(/\*/g, '.*').replace(/\?/g, '.') + '$';
       try {
         return new RegExp(regexStr).test(idLower);
       } catch (e) {
@@ -457,7 +457,7 @@ const resolveProfileSync = (profileDoc, cache) => {
                 inc['matching'].forEach(m => {
                   const pattern = m.pattern;
                   if (pattern) {
-                    const regexStr = '^' + pattern.toLowerCase().replace(/\*/g, '.*') + '$';
+                    const regexStr = '^' + pattern.toLowerCase().replace(/\*/g, '.*').replace(/\?/g, '.') + '$';
                     try {
                       const regex = new RegExp(regexStr);
                       Array.from(flatControlsMap.keys()).forEach(k => {

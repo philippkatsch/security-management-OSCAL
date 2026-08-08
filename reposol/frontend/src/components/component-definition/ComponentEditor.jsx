@@ -4,6 +4,7 @@ import { LinksEditor } from '../shared/LinksEditor';
 import StatusBadge from '../shared/status/StatusBadge';
 import { ProseWithParams } from '../shared/ProseWithParams';
 import EntityTable from '../shared/entity/EntityTable';
+import { generateUUID } from '../../lib/oscal-utils';
 import './ComponentEditor.css';
 
 const Accordion = ({ title, children, defaultOpen = false }) => {
@@ -26,7 +27,7 @@ const ProtocolsEditor = ({ component, onChange, editMode }) => {
   const protocols = component.protocols || [];
   const [expandedIndex, setExpandedIndex] = useState(null);
 
-  const addProtocol = () => { if (editMode) onChange('protocols', [...protocols, { name: '', title: '', 'port-ranges': [] }]); };
+  const addProtocol = () => { if (editMode) onChange('protocols', [...protocols, { uuid: generateUUID(), name: '', title: '', 'port-ranges': [] }]); };
   const removeProtocol = (idx) => { if (editMode) { const newP = [...protocols]; newP.splice(idx, 1); onChange('protocols', newP); } };
   const updateProtocol = (idx, field, val) => { if (editMode) { const newP = [...protocols]; newP[idx] = { ...newP[idx], [field]: val }; onChange('protocols', newP); } };
 
@@ -105,7 +106,7 @@ const ControlImplementationsEditor = ({ component, onChange, editMode }) => {
 
   const addImpl = () => {
     if (!editMode) return;
-    onChange('control-implementations', [...impls, { source: '', description: '', 'implemented-requirements': [] }]);
+    onChange('control-implementations', [...impls, { uuid: generateUUID(), source: '', description: '', 'implemented-requirements': [] }]);
   };
 
   const removeImpl = (idx) => {
@@ -125,7 +126,7 @@ const ControlImplementationsEditor = ({ component, onChange, editMode }) => {
   const addReq = (implIdx) => {
     if (!editMode) return;
     const newImpls = [...impls];
-    const newReqs = [...(newImpls[implIdx]['implemented-requirements'] || []), { 'control-id': 'new-control', description: '' }];
+    const newReqs = [...(newImpls[implIdx]['implemented-requirements'] || []), { uuid: generateUUID(), 'control-id': 'new-control', description: '' }];
     newImpls[implIdx]['implemented-requirements'] = newReqs;
     onChange('control-implementations', newImpls);
   };
@@ -263,11 +264,7 @@ export default function ComponentEditor({ component, onUpdate, onClose, editMode
   // Removed inline protocol and control impl methods here since they are inside the sub-components
 
   return (
-    <div className="component-editor panel slide-out">
-      <div className="panel-header">
-        <h3>Component Editor</h3>
-        <button className="btn btn-close" onClick={onClose}>×</button>
-      </div>
+    <div className="component-editor">
       <div className="panel-body">
         
         {/* 1. Basic Info */}
@@ -319,6 +316,20 @@ export default function ComponentEditor({ component, onUpdate, onClose, editMode
             />
           </div>
           <div className="form-group">
+            <label className="form-label">Remarks</label>
+            {editMode ? (
+              <textarea 
+                className="form-textarea" 
+                value={component.remarks || ''} 
+                onChange={(e) => handleChange('remarks', e.target.value)}
+              />
+            ) : (
+              <div className="prose-readonly">
+                <ProseWithParams text={component.remarks} />
+              </div>
+            )}
+          </div>
+          <div className="form-group">
             <label className="form-label">Status</label>
             <div className="status-row">
               <select 
@@ -350,9 +361,9 @@ export default function ComponentEditor({ component, onUpdate, onClose, editMode
         {/* 2. Properties & Links */}
         <Accordion title="Properties & Links">
           <PropsEditor 
-            properties={component.props || []} 
+            props={component.props || []} 
             onChange={(props) => handleChange('props', props)}
-            editMode={editMode}
+            readOnly={!editMode}
           />
           <LinksEditor 
             links={component.links || []} 

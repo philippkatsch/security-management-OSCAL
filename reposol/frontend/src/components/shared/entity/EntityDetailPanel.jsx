@@ -2,6 +2,16 @@ import React from 'react';
 import './EntityTable.css';
 
 export default function EntityDetailPanel({ mode = 'slide-out', isOpen, onClose, title, subtitle, badge, actions, children, className = '' }) {
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (mode === 'slide-out' && !isOpen) return null;
 
   const renderHeader = () => (

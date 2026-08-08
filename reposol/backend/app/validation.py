@@ -139,6 +139,10 @@ def validate_document(stage: str, document: Dict[str, Any], check_refs: bool = T
             if uuid_match:
                 ref_uuid = uuid_match.group(1)
                 profile_path = os.path.join(get_stage_dir("profiles", workspace_id), f"{ref_uuid}.json")
+                if not os.path.exists(profile_path) and workspace_id and workspace_id != "default":
+                    default_profile_path = os.path.join(get_stage_dir("profiles", "default"), f"{ref_uuid}.json")
+                    if os.path.exists(default_profile_path):
+                        profile_path = default_profile_path
                 if not os.path.exists(profile_path):
                     errors.append({
                         "path": f"{root_key}.import-profile.href",
@@ -153,6 +157,31 @@ def validate_document(stage: str, document: Dict[str, Any], check_refs: bool = T
                 })
                 
         # 2. Component existence & duplicate checks
+        valid_comp_uuids = {"this-system"}
+        for comp in ssp.get("system-implementation", {}).get("components", []):
+            if "uuid" in comp:
+                valid_comp_uuids.add(comp["uuid"])
+
+        for ws in ([workspace_id] if workspace_id == "default" else [workspace_id, "default"]):
+            if not ws:
+                continue
+            cdef_dir = get_stage_dir("component-definitions", ws)
+            if os.path.exists(cdef_dir):
+                for fname in os.listdir(cdef_dir):
+                    if fname.endswith(".json"):
+                        cdef_uuid = fname[:-5]
+                        valid_comp_uuids.add(cdef_uuid)
+                        try:
+                            with open(os.path.join(cdef_dir, fname), "r", encoding="utf-8") as f:
+                                cdata = json.load(f)
+                                cdef_obj = cdata.get("component-definition", {})
+                                for c_item in cdef_obj.get("components", []):
+                                    if "uuid" in c_item:
+                                        valid_comp_uuids.add(c_item["uuid"])
+                        except Exception:
+                            pass
+
+
         control_impl = ssp.get("control-implementation")
         if control_impl and "implemented-requirements" in control_impl:
             control_ids = []
@@ -185,8 +214,7 @@ def validate_document(stage: str, document: Dict[str, Any], check_refs: bool = T
                                 "schema_path": "custom/by-component-uuid-format"
                             })
                         else:
-                            comp_path = os.path.join(get_stage_dir("component-definitions", workspace_id), f"{comp_uuid}.json")
-                            if not os.path.exists(comp_path):
+                            if comp_uuid not in valid_comp_uuids:
                                 errors.append({
                                     "path": f"{root_key}.control-implementation.implemented-requirements[{idx}].by-components[{comp_idx}].component-uuid",
                                     "message": f"Referenced component {comp_uuid} does not exist",

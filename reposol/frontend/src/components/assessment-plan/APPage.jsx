@@ -299,6 +299,10 @@ export function APPage({ apId, initialEditMode, onClose }) {
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [selectedComponent, setSelectedComponent] = useState(null);
+  const [selectedInventory, setSelectedInventory] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedPlatform, setSelectedPlatform] = useState(null);
 
   const ap = state?.['assessment-plan'];
 
@@ -352,7 +356,46 @@ export function APPage({ apId, initialEditMode, onClose }) {
     }));
   }, [ap?.['assessment-subjects']]);
 
+  const componentsData = useMemo(() => {
+    return (ap?.['local-definitions']?.components || []).map(c => ({
+      ...c,
+      id: c.uuid,
+    }));
+  }, [ap?.['local-definitions']?.components]);
+
+  const inventoryData = useMemo(() => {
+    return (ap?.['local-definitions']?.['inventory-items'] || []).map(i => ({
+      ...i,
+      id: i.uuid,
+    }));
+  }, [ap?.['local-definitions']?.['inventory-items']]);
+
+  const usersData = useMemo(() => {
+    return (ap?.['local-definitions']?.users || []).map(u => ({
+      ...u,
+      id: u.uuid,
+      rolesStr: (u['role-ids'] || []).join(', ')
+    }));
+  }, [ap?.['local-definitions']?.users]);
+
+  const platformsData = useMemo(() => {
+    return (ap?.['assessment-assets']?.['assessment-platforms'] || []).map(p => ({
+      ...p,
+      id: p.uuid,
+      usesStr: (p['uses-components'] || []).length
+    }));
+  }, [ap?.['assessment-assets']?.['assessment-platforms']]);
+
+  const teamData = useMemo(() => {
+    return (ap?.['assessment-assets']?.['assessment-team'] || []).map(p => ({
+      ...p,
+      id: p.uuid || generateUUID(),
+      rolesStr: (p['role-ids'] || []).join(', ')
+    }));
+  }, [ap?.['assessment-assets']?.['assessment-team']]);
+
   const reviewedControls = ap?.['reviewed-controls']?.['control-selections'] || [];
+  const objectiveSelections = ap?.['reviewed-controls']?.['control-objective-selections'] || [];
 
   const handleUpdateAP = (updatedAP) => {
     set({ ...state, 'assessment-plan': updatedAP });
@@ -418,7 +461,9 @@ export function APPage({ apId, initialEditMode, onClose }) {
             <li className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')}>Overview</li>
             <li className={activeTab === 'reviewed-controls' ? 'active' : ''} onClick={() => setActiveTab('reviewed-controls')}>Reviewed Controls</li>
             <li className={activeTab === 'activities-tasks' ? 'active' : ''} onClick={() => setActiveTab('activities-tasks')}>Activities & Tasks</li>
+            <li className={activeTab === 'local-definitions' ? 'active' : ''} onClick={() => setActiveTab('local-definitions')}>Local Definitions</li>
             <li className={activeTab === 'assessment-subjects' ? 'active' : ''} onClick={() => setActiveTab('assessment-subjects')}>Assessment Subjects</li>
+            <li className={activeTab === 'assessment-assets' ? 'active' : ''} onClick={() => setActiveTab('assessment-assets')}>Assessment Assets</li>
             <li className={activeTab === 'terms-and-conditions' ? 'active' : ''} onClick={() => setActiveTab('terms-and-conditions')}>Terms & Conditions</li>
             <li className={activeTab === 'metadata' ? 'active' : ''} onClick={() => setActiveTab('metadata')}>Metadata</li>
             <li className={activeTab === 'json' ? 'active' : ''} onClick={() => setActiveTab('json')}>JSON Editor</li>
@@ -457,6 +502,26 @@ export function APPage({ apId, initialEditMode, onClose }) {
                       <div className="control-tags">
                         {(selection['include-controls'] || []).map((c, j) => (
                           <span key={j} className="control-tag">{c['control-id']}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+
+              <h2 className="ap-section-title" style={{ marginTop: '32px' }}>Control Objective Selections</h2>
+              {objectiveSelections.length === 0 ? (
+                <div className="empty-state">No objective selections defined.</div>
+              ) : (
+                objectiveSelections.map((selection, i) => (
+                  <div key={i} className="control-selection-card">
+                    <h4>Objective Selection {i + 1}</h4>
+                    {selection['include-all'] ? (
+                      <p>Includes all control objectives</p>
+                    ) : (
+                      <div className="control-tags">
+                        {(selection['include-objectives'] || []).map((o, j) => (
+                          <span key={j} className="control-tag">{o['objective-id']}</span>
                         ))}
                       </div>
                     )}
@@ -515,6 +580,40 @@ export function APPage({ apId, initialEditMode, onClose }) {
             </div>
           )}
 
+          {activeTab === 'local-definitions' && (
+            <div className="tab-pane">
+              <h2 className="ap-section-title">Components</h2>
+              <EntityTable
+                data={componentsData}
+                columns={[
+                  { key: 'title', label: 'Title' },
+                  { key: 'type', label: 'Type' },
+                  { key: 'description', label: 'Description' },
+                  { key: 'status', label: 'Status', render: (_, c) => c.status?.state }
+                ]}
+                onRowClick={setSelectedComponent}
+              />
+              <h2 className="ap-section-title" style={{ marginTop: '32px' }}>Inventory Items</h2>
+              <EntityTable
+                data={inventoryData}
+                columns={[
+                  { key: 'description', label: 'Description' },
+                  { key: 'implemented-components', label: 'Implemented Components', render: (_, i) => (i['implemented-components'] || []).length }
+                ]}
+                onRowClick={setSelectedInventory}
+              />
+              <h2 className="ap-section-title" style={{ marginTop: '32px' }}>Users</h2>
+              <EntityTable
+                data={usersData}
+                columns={[
+                  { key: 'title', label: 'Title' },
+                  { key: 'rolesStr', label: 'Roles' }
+                ]}
+                onRowClick={setSelectedUser}
+              />
+            </div>
+          )}
+
           {activeTab === 'assessment-subjects' && (
             <div className="tab-pane">
               <h2 className="ap-section-title">Assessment Subjects</h2>
@@ -526,6 +625,29 @@ export function APPage({ apId, initialEditMode, onClose }) {
                   { key: 'scope', label: 'Scope' }
                 ]}
                 onRowClick={setSelectedSubject}
+              />
+            </div>
+          )}
+
+          {activeTab === 'assessment-assets' && (
+            <div className="tab-pane">
+              <h2 className="ap-section-title">Assessment Platforms</h2>
+              <EntityTable
+                data={platformsData}
+                columns={[
+                  { key: 'title', label: 'Title' },
+                  { key: 'usesStr', label: 'Uses Components' }
+                ]}
+                onRowClick={setSelectedPlatform}
+              />
+              <h2 className="ap-section-title" style={{ marginTop: '32px' }}>Assessment Team</h2>
+              <EntityTable
+                data={teamData}
+                columns={[
+                  { key: 'title', label: 'Title' },
+                  { key: 'rolesStr', label: 'Roles' }
+                ]}
+                onRowClick={() => {}}
               />
             </div>
           )}
@@ -623,6 +745,42 @@ export function APPage({ apId, initialEditMode, onClose }) {
           title="Subject Details"
           entity={selectedSubject}
           onClose={() => setSelectedSubject(null)}
+          readOnly={!editMode}
+        />
+      )}
+
+      {selectedComponent && (
+        <EntityDetailPanel
+          title="Component Details"
+          entity={selectedComponent}
+          onClose={() => setSelectedComponent(null)}
+          readOnly={!editMode}
+        />
+      )}
+
+      {selectedInventory && (
+        <EntityDetailPanel
+          title="Inventory Item Details"
+          entity={selectedInventory}
+          onClose={() => setSelectedInventory(null)}
+          readOnly={!editMode}
+        />
+      )}
+
+      {selectedUser && (
+        <EntityDetailPanel
+          title="User Details"
+          entity={selectedUser}
+          onClose={() => setSelectedUser(null)}
+          readOnly={!editMode}
+        />
+      )}
+
+      {selectedPlatform && (
+        <EntityDetailPanel
+          title="Assessment Platform Details"
+          entity={selectedPlatform}
+          onClose={() => setSelectedPlatform(null)}
           readOnly={!editMode}
         />
       )}

@@ -46,15 +46,14 @@ export function useDraft(model, uuid, data, isEditing = false, interval = 30000,
   // Save on unmount / document change with closure data matching exact uuid
   useEffect(() => {
     const currentUuid = uuid;
-    const currentData = data;
     return () => {
-      if (isEditingRef.current && currentData && currentUuid && !isDiscardedRef.current && saveCallbackRef.current) {
-        saveCallbackRef.current(currentData).catch(err => {
+      if (isEditingRef.current && dataRef.current && currentUuid && !isDiscardedRef.current && saveCallbackRef.current) {
+        saveCallbackRef.current(dataRef.current).catch(err => {
           console.error('Backend save on unmount failed:', err);
         });
       }
     };
-  }, [model, uuid, data, saveDraftCallback]);
+  }, [model, uuid, saveDraftCallback]);
 
   const saveNow = useCallback(() => {
     if (dataRef.current && uuid && saveDraftCallback) {

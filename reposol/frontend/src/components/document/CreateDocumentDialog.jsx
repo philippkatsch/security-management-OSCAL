@@ -73,8 +73,10 @@ export function CreateDocumentDialog({
       ];
     } else if (stage === 'control-mappings') {
       newDoc['mapping-collection'].provenance = {
-        method: 'manual',
-        status: 'draft'
+        method: 'human',
+        status: 'draft',
+        'matching-rationale': 'semantic',
+        'mapping-description': 'Control mapping collection'
       };
       newDoc['mapping-collection'].mappings = [];
     }

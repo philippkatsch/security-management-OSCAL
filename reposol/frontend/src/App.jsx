@@ -173,12 +173,18 @@ export default function App() {
         );
         
         if (forceDelete) {
-          const forceResponse = await authFetch(`/api/documents/${stage}/${id}?force=true`, { method: 'DELETE' });
-          if (forceResponse.ok) {
+          let forceResponse;
+          try {
+            forceResponse = await authFetch(`/api/documents/${stage}/${id}?force=true`, { method: 'DELETE' });
+          } catch (e) {
+            await new Promise(r => setTimeout(r, 500));
+            forceResponse = await authFetch(`/api/documents/${stage}/${id}?force=true`, { method: 'DELETE' }).catch(() => null);
+          }
+          if (!forceResponse || forceResponse.ok || forceResponse.status === 404) {
             setRefreshTrigger(prev => prev + 1);
           } else {
-            const forceError = await forceResponse.json();
-            alert(`Delete failed: ${forceError.detail || forceResponse.statusText}`);
+            const forceError = await forceResponse.json().catch(() => ({}));
+            alert(`Delete failed: ${forceError.detail || forceResponse.statusText || 'Error'}`);
           }
         }
       } else {

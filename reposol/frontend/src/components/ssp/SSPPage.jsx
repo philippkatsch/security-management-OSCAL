@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDocument } from '../../hooks/useDocument';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { useVersions } from '../../hooks/useVersions';
@@ -25,20 +25,21 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
 
   const [selectedItem, setSelectedItem] = useState(null); // generic selection
   const [itemType, setItemType] = useState(null); // 'user', 'component', 'inventory', 'auth', 'infotype', 'control'
+  const [impTab, setImpTab] = useState('users');
 
   const {
     doc,
     setDoc,
     loading,
     error,
-    saveDocument,
-    isSaving,
+    save: saveDocument,
+    saving: isSaving,
     isDirty
   } = useDocument('ssps', sspId, initialEditMode);
 
   const {
-    state: undoState,
-    set: setUndoState,
+    current: undoState,
+    pushState: setUndoState,
     undo,
     redo,
     canUndo,
@@ -48,12 +49,12 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
 
   const {
     versions,
-    showVersions,
-    setShowVersions,
-    loadVersions,
-    restoreVersion,
-    isRestoring
-  } = useVersions('ssps', sspId, setDoc);
+    showDrawer: showVersions,
+    setShowDrawer: setShowVersions,
+    reload: loadVersions,
+    switchTo: restoreVersion,
+    isRestoring = false
+  } = useVersions('ssps', sspId);
 
   useEffect(() => {
     if (doc && !undoState) {
@@ -65,6 +66,32 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
     setUndoState(newDoc);
     setDoc(newDoc);
   }, [setDoc, setUndoState]);
+
+  const hasInitializedComponent = useRef(false);
+  useEffect(() => {
+    if (doc && doc['system-security-plan'] && !hasInitializedComponent.current) {
+      const ssp = doc['system-security-plan'];
+      const sysImp = ssp['system-implementation'];
+      
+      // If system-implementation or components array is entirely missing/empty on load
+      if (!sysImp || !sysImp.components || sysImp.components.length === 0) {
+        const sysName = ssp['system-characteristics']?.['system-name'] || 'New System';
+        const newDoc = JSON.parse(JSON.stringify(doc));
+        if (!newDoc['system-security-plan']['system-implementation']) {
+          newDoc['system-security-plan']['system-implementation'] = {};
+        }
+        newDoc['system-security-plan']['system-implementation'].components = [{
+          uuid: generateUUID(),
+          type: 'this-system',
+          title: sysName,
+          description: 'This system',
+          status: { state: 'operational' }
+        }];
+        handleUpdate(newDoc);
+      }
+      hasInitializedComponent.current = true;
+    }
+  }, [doc, handleUpdate]);
 
   const handleSave = async () => {
     await saveDocument(doc);
@@ -99,14 +126,16 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
   const implementedReqs = ctrlImp['implemented-requirements'] || [];
 
   const handleUpdateField = (path, value) => {
-    const newDoc = JSON.parse(JSON.stringify(doc));
-    let current = newDoc['system-security-plan'];
-    for (let i = 0; i < path.length - 1; i++) {
-      if (!current[path[i]]) current[path[i]] = {};
-      current = current[path[i]];
-    }
-    current[path[path.length - 1]] = value;
-    handleUpdate(newDoc);
+    handleUpdate(prevDoc => {
+      const newDoc = JSON.parse(JSON.stringify(prevDoc));
+      let current = newDoc['system-security-plan'];
+      for (let i = 0; i < path.length - 1; i++) {
+        if (!current[path[i]]) current[path[i]] = {};
+        current = current[path[i]];
+      }
+      current[path[path.length - 1]] = value;
+      return newDoc;
+    });
   };
 
   // Helper to open side panel
@@ -234,7 +263,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
 
       <div className="space-y-4">
         <h3 className="font-semibold text-lg border-b pb-2">Architecture & Boundaries</h3>
-        <div>
+        <div className="form-group">
           <label className="block font-medium mb-1">Authorization Boundary</label>
           <textarea className="w-full border rounded p-2 dark:bg-gray-700" rows="3" disabled={!isEditing}
                     value={sysChar['authorization-boundary']?.description || ''}
@@ -248,7 +277,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
             editMode={isEditing}
           />
         </div>
-        <div>
+        <div className="form-group">
           <label className="block font-medium mb-1">Network Architecture</label>
           <textarea className="w-full border rounded p-2 dark:bg-gray-700" rows="3" disabled={!isEditing}
                     value={sysChar['network-architecture']?.description || ''}
@@ -262,7 +291,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
             editMode={isEditing}
           />
         </div>
-        <div>
+        <div className="form-group">
           <label className="block font-medium mb-1">Data Flow</label>
           <textarea className="w-full border rounded p-2 dark:bg-gray-700" rows="3" disabled={!isEditing}
                     value={sysChar['data-flow']?.description || ''}
@@ -356,7 +385,6 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
   );
 
   // System Implementation Tab
-  const [impTab, setImpTab] = useState('users');
   const renderSysImp = () => (
     <div className="sys-imp-tab h-full flex flex-col">
       <div className="p-4 border-b flex gap-4 bg-gray-50 dark:bg-gray-800">
@@ -443,10 +471,11 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
           data={implementedReqs} 
           columns={[
             { key: 'control-id', label: 'Control ID', sortable: true, searchable: true },
-            { key: 'by-components', label: 'By Components', render: v => (v||[]).length },
-            { key: 'by-components', label: 'Status', render: v => {
-              const state = (v && v.length > 0 && v[0]['implementation-status']) ? v[0]['implementation-status'].state : 'unknown';
-              return <StatusBadge status={state} category="implementation-status" />
+            { key: 'by-components-count', label: 'By Components', render: (_, row) => (row['by-components']||[]).length },
+            { key: 'by-components-status', label: 'Status', render: (_, row) => {
+              const byComps = row['by-components'];
+              const state = (byComps && byComps.length > 0 && byComps[0]['implementation-status']) ? byComps[0]['implementation-status'].state : 'unknown';
+              return <StatusBadge status={state} category="implementation-status" />;
             }},
             { key: 'description', label: 'Description', render: v => {
               if (v) return v.length > 50 ? v.substring(0, 50)+'...' : v;
@@ -468,14 +497,26 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
     
     // Quick helper to update current list in state
     const updateListItem = (listPath, itemUuid, updates) => {
-      const list = listPath.reduce((obj, key) => obj[key] || [], ssp);
-      const idx = list.findIndex(x => x.uuid === itemUuid);
-      if (idx > -1) {
-        const newList = [...list];
-        newList[idx] = { ...newList[idx], ...updates };
-        handleUpdateField(listPath, newList);
-        setSelectedItem(newList[idx]);
-      }
+      handleUpdate(prevDoc => {
+        const ssp = prevDoc['system-security-plan'] || {};
+        const list = listPath.reduce((obj, key) => (obj && obj[key]) || [], ssp);
+        const idx = list.findIndex(x => x.uuid === itemUuid);
+        if (idx > -1) {
+          const newList = [...list];
+          const updatedItem = { ...newList[idx], ...updates };
+          newList[idx] = updatedItem;
+          setSelectedItem(updatedItem);
+          const newDoc = JSON.parse(JSON.stringify(prevDoc));
+          let current = newDoc['system-security-plan'];
+          for (let i = 0; i < listPath.length - 1; i++) {
+            if (!current[listPath[i]]) current[listPath[i]] = {};
+            current = current[listPath[i]];
+          }
+          current[listPath[listPath.length - 1]] = newList;
+          return newDoc;
+        }
+        return prevDoc;
+      });
     };
 
     if (itemType === 'infotype') {
@@ -621,6 +662,112 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
           )}
           {itemType === 'component' && (
             <div><label className="block text-sm font-medium">Type</label><input className="mt-1 block w-full rounded border-gray-300 dark:bg-gray-700" value={selectedItem.type||''} disabled={!isEditing} onChange={e=>updateListItem(['system-implementation', 'components'], selectedItem.uuid, {type: e.target.value})} /></div>
+          )}
+
+          {itemType === 'inventory' && (
+            <>
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-2">Properties</h4>
+                {isEditing && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {['ipv4-address', 'ipv6-address', 'fqdn', 'mac-address', 'asset-type', 'asset-id', 'vlan-id', 'baseline-configuration-name'].map(propName => (
+                      <button 
+                        key={propName}
+                        className="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 px-2 py-1 rounded"
+                        onClick={() => {
+                          const newProps = [...(selectedItem.props || []), { name: propName, value: '', ns: 'https://fedramp.gov/ns/oscal' }];
+                          updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { props: newProps });
+                        }}
+                      >
+                        + {propName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <PropsEditor 
+                  props={selectedItem.props || []} 
+                  onChange={(p) => updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { props: p })} 
+                  isEditing={isEditing} 
+                />
+              </div>
+
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-2">Implemented Components</h4>
+                {(selectedItem['implemented-components'] || []).map((ic, i) => (
+                  <div key={i} className="flex gap-2 mb-2">
+                    <select 
+                      className="flex-1 border rounded p-2 dark:bg-gray-700"
+                      value={ic['component-uuid'] || ''}
+                      disabled={!isEditing}
+                      onChange={e => {
+                        const newIc = [...(selectedItem['implemented-components'] || [])];
+                        newIc[i] = { ...newIc[i], 'component-uuid': e.target.value };
+                        updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { 'implemented-components': newIc });
+                      }}
+                    >
+                      <option value="">Select Component...</option>
+                      {components.map(c => <option key={c.uuid} value={c.uuid}>{c.title || c.uuid}</option>)}
+                    </select>
+                    {isEditing && (
+                      <button className="text-red-500 px-2" onClick={() => {
+                        const newIc = [...(selectedItem['implemented-components'] || [])];
+                        newIc.splice(i, 1);
+                        updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { 'implemented-components': newIc });
+                      }}>X</button>
+                    )}
+                  </div>
+                ))}
+                {isEditing && (
+                  <button className="text-sm text-blue-600 hover:underline" onClick={() => {
+                    const newIc = [...(selectedItem['implemented-components'] || []), { 'component-uuid': '' }];
+                    updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { 'implemented-components': newIc });
+                  }}>+ Add Implemented Component</button>
+                )}
+              </div>
+
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-2">Responsible Parties</h4>
+                {(selectedItem['responsible-parties'] || []).map((rp, i) => (
+                  <div key={i} className="flex gap-2 mb-2">
+                    <input 
+                      className="w-1/3 border rounded p-2 dark:bg-gray-700" 
+                      placeholder="Role ID" 
+                      value={rp['role-id'] || ''} 
+                      disabled={!isEditing} 
+                      onChange={e => {
+                        const newRp = [...(selectedItem['responsible-parties'] || [])];
+                        newRp[i] = { ...newRp[i], 'role-id': e.target.value };
+                        updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { 'responsible-parties': newRp });
+                      }} 
+                    />
+                    <input 
+                      className="flex-1 border rounded p-2 dark:bg-gray-700" 
+                      placeholder="Party UUIDs (comma separated)" 
+                      value={(rp['party-uuids'] || []).join(', ')} 
+                      disabled={!isEditing} 
+                      onChange={e => {
+                        const newRp = [...(selectedItem['responsible-parties'] || [])];
+                        newRp[i] = { ...newRp[i], 'party-uuids': e.target.value.split(',').filter(Boolean).map(s=>s.trim()) };
+                        updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { 'responsible-parties': newRp });
+                      }} 
+                    />
+                    {isEditing && (
+                      <button className="text-red-500 px-2" onClick={() => {
+                        const newRp = [...(selectedItem['responsible-parties'] || [])];
+                        newRp.splice(i, 1);
+                        updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { 'responsible-parties': newRp });
+                      }}>X</button>
+                    )}
+                  </div>
+                ))}
+                {isEditing && (
+                  <button className="text-sm text-blue-600 hover:underline" onClick={() => {
+                    const newRp = [...(selectedItem['responsible-parties'] || []), { 'role-id': '', 'party-uuids': [] }];
+                    updateListItem(['system-implementation', 'inventory-items'], selectedItem.uuid, { 'responsible-parties': newRp });
+                  }}>+ Add Responsible Party</button>
+                )}
+              </div>
+            </>
           )}
         </div>
       );
@@ -877,11 +1024,14 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
         onToggleEdit={() => {
           const next = !isEditing;
           setIsEditing(next);
+          const params = new URLSearchParams(window.location.search);
           if (next) {
-            if (!window.location.search.includes('edit=true')) window.history.replaceState(null, '', window.location.pathname + '?edit=true');
+            params.set('edit', 'true');
           } else {
-            if (window.location.search.includes('edit=true')) window.history.replaceState(null, '', window.location.pathname);
+            params.delete('edit');
           }
+          const newSearch = params.toString() ? `?${params.toString()}` : '';
+          window.history.replaceState(null, '', window.location.pathname + newSearch);
         }}
         onSave={handleSave}
         isDirty={isDirty}

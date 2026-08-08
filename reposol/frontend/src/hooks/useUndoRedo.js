@@ -1,6 +1,19 @@
 import { useReducer, useCallback, useRef } from 'react';
 
 /**
+ * Helper to safely deep clone an object without throwing on undefined or null.
+ */
+function safeClone(obj) {
+  if (obj === null || obj === undefined) return null;
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (err) {
+    console.error('safeClone failed:', err);
+    return null;
+  }
+}
+
+/**
  * Hook for undo/redo history management.
  * Uses useReducer to avoid stale closure issues with separate history/index state.
  * @param {object} initialState - Initial document state
@@ -11,8 +24,11 @@ import { useReducer, useCallback, useRef } from 'react';
 function undoRedoReducer(state, action) {
   switch (action.type) {
     case 'PUSH': {
+      if (!action.payload) return state;
+      const cloned = safeClone(action.payload);
+      if (!cloned) return state;
       const newHistory = state.history.slice(0, state.index + 1);
-      newHistory.push(JSON.parse(JSON.stringify(action.payload)));
+      newHistory.push(cloned);
       if (newHistory.length > action.maxHistory) {
         newHistory.shift();
         return { history: newHistory, index: newHistory.length - 1 };
@@ -27,20 +43,24 @@ function undoRedoReducer(state, action) {
       return state.index < state.history.length - 1
         ? { ...state, index: state.index + 1 }
         : state;
-    case 'RESET':
-      return action.payload
-        ? { history: [JSON.parse(JSON.stringify(action.payload))], index: 0 }
-        : { history: [], index: -1 };
+    case 'RESET': {
+      if (!action.payload) return { history: [], index: -1 };
+      const cloned = safeClone(action.payload);
+      return cloned ? { history: [cloned], index: 0 } : { history: [], index: -1 };
+    }
     default:
       return state;
   }
 }
 
 export function useUndoRedo(initialState = null, maxHistory = 50) {
-  const [state, dispatch] = useReducer(undoRedoReducer, null, () => ({
-    history: initialState ? [JSON.parse(JSON.stringify(initialState))] : [],
-    index: initialState ? 0 : -1,
-  }));
+  const [state, dispatch] = useReducer(undoRedoReducer, null, () => {
+    const cloned = safeClone(initialState);
+    return {
+      history: cloned ? [cloned] : [],
+      index: cloned ? 0 : -1,
+    };
+  });
   const isUndoRedoRef = useRef(false);
 
   const { history, index } = state;
@@ -51,7 +71,9 @@ export function useUndoRedo(initialState = null, maxHistory = 50) {
       isUndoRedoRef.current = false;
       return;
     }
-    dispatch({ type: 'PUSH', payload: newState, maxHistory });
+    if (newState) {
+      dispatch({ type: 'PUSH', payload: newState, maxHistory });
+    }
   }, [maxHistory]);
 
   const undo = useCallback(() => {
@@ -72,12 +94,19 @@ export function useUndoRedo(initialState = null, maxHistory = 50) {
     return null;
   }, [index, history]);
 
-  const canUndo = index > 0;
-  const canRedo = index < history.length - 1;
-
-  const reset = useCallback((resetState) => {
-    dispatch({ type: 'RESET', payload: resetState });
+  const reset = useCallback((newState) => {
+    dispatch({ type: 'RESET', payload: newState });
   }, []);
 
-  return { current, pushState, undo, redo, canUndo, canRedo, reset };
+  return {
+    current,
+    pushState,
+    undo,
+    redo,
+    reset,
+    canUndo: index > 0,
+    canRedo: index < history.length - 1,
+    historyLength: history.length,
+    currentIndex: index,
+  };
 }

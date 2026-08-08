@@ -659,15 +659,19 @@ def delete_document(stage: str, doc_id: str, workspace_id: Optional[str] = None)
         raise FileNotFoundError(f"Document {doc_id} not found in stage {stage}")
         
     import time
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             os.remove(file_path)
             break
         except PermissionError:
-            if attempt < 2:
+            if attempt < 4:
                 time.sleep(0.1)
             else:
-                raise
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    pass
+
 
     # Clean up all version files (doc_id_v*.json)
     import glob

@@ -1633,7 +1633,7 @@ startingAdd.props = uProps;
             <strong>⛔ Control Withdrawn:</strong> This control is deprecated. Parameters are read-only.
             {replacementLink && (
               <span style={{ marginLeft: '8px' }}>
-                Replaced by: <strong style={{ textDecoration: 'underline', cursor: onSelectGroup ? 'pointer' : 'default' }} onClick={() => onSelectGroup?.(replacementLink.href.replace('#', ''))}>{replacementLink.href.replace('#', '')}</strong>
+                Replaced by: <strong style={{ textDecoration: 'underline', cursor: onSelectControl ? 'pointer' : 'default' }} onClick={() => onSelectControl?.(replacementLink.href.replace('#', ''))}>{replacementLink.href.replace('#', '')}</strong>
               </span>
             )}
           </div>

@@ -39,7 +39,7 @@ export function matchesPattern(controlId, patterns) {
   if (!patterns || patterns.length === 0) return false;
   const idLower = controlId.toLowerCase();
   return patterns.some(pat => {
-    const regexStr = '^' + pat.toLowerCase().replace(/\*/g, '.*') + '$';
+    const regexStr = '^' + pat.toLowerCase().replace(/\*/g, '.*').replace(/\?/g, '.') + '$';
     try {
       return new RegExp(regexStr).test(idLower);
     } catch (e) {
@@ -408,8 +408,9 @@ export async function fetchImportedCatalogs(profileDoc, cache = new Map(), fetch
     if (listRes.ok) {
       const listData = await listRes.json();
       listData.forEach(doc => {
-        if (doc.catalog && doc.catalog.uuid) {
-          availableCatalogs.add(doc.catalog.uuid.toLowerCase());
+        const catUuid = doc.catalog?.uuid || doc.uuid;
+        if (catUuid) {
+          availableCatalogs.add(catUuid.toLowerCase());
         }
       });
     }
@@ -417,8 +418,9 @@ export async function fetchImportedCatalogs(profileDoc, cache = new Map(), fetch
     if (listProf.ok) {
       const listProfData = await listProf.json();
       listProfData.forEach(doc => {
-        if (doc.profile && doc.profile.uuid) {
-          availableProfiles.add(doc.profile.uuid.toLowerCase());
+        const profUuid = doc.profile?.uuid || doc.uuid;
+        if (profUuid) {
+          availableProfiles.add(profUuid.toLowerCase());
         }
       });
     }
@@ -511,25 +513,21 @@ export async function fetchImportedCatalogs(profileDoc, cache = new Map(), fetch
       }
 
       if (targetType === 'catalog') {
-        try {
-          const res = await fetchFn(`/api/documents/catalogs/${targetUuid}`);
-          if (res.ok) {
-            const data = await res.json();
-            cache.set(uuidLower, { type: 'catalog', data });
-          }
-        } catch (err) {
-          console.error('Error fetching imported catalog:', err);
+        const res = await fetchFn(`/api/documents/catalogs/${targetUuid}`);
+        if (res.ok) {
+          const data = await res.json();
+          cache.set(uuidLower, { type: 'catalog', data });
+        } else {
+          throw new Error(`Failed to fetch imported catalog '${targetUuid}' (Status ${res.status})`);
         }
       } else if (targetType === 'profile') {
-        try {
-          const res = await fetchFn(`/api/documents/profiles/${targetUuid}`);
-          if (res.ok) {
-            const data = await res.json();
-            cache.set(uuidLower, { type: 'profile', data });
-            await fetchImportedCatalogs(data, cache, fetchFn);
-          }
-        } catch (err) {
-          console.error('Error fetching imported profile:', err);
+        const res = await fetchFn(`/api/documents/profiles/${targetUuid}`);
+        if (res.ok) {
+          const data = await res.json();
+          cache.set(uuidLower, { type: 'profile', data });
+          await fetchImportedCatalogs(data, cache, fetchFn);
+        } else {
+          throw new Error(`Failed to fetch imported profile '${targetUuid}' (Status ${res.status})`);
         }
       }
     })
@@ -726,7 +724,7 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
               inc['matching'].forEach(m => {
                 const pattern = m.pattern;
                 if (pattern) {
-                  const regexStr = '^' + pattern.toLowerCase().replace(/\*/g, '.*') + '$';
+                  const regexStr = '^' + pattern.toLowerCase().replace(/\*/g, '.*').replace(/\?/g, '.') + '$';
                   try {
                     const regex = new RegExp(regexStr);
                     Array.from(flatControlsMap.keys()).forEach(k => {
@@ -801,7 +799,7 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
             inc['matching'].forEach(m => {
               const pattern = m.pattern;
               if (pattern) {
-                const regexStr = '^' + pattern.toLowerCase().replace(/\*/g, '.*') + '$';
+                const regexStr = '^' + pattern.toLowerCase().replace(/\*/g, '.*').replace(/\?/g, '.') + '$';
                 try {
                   const regex = new RegExp(regexStr);
                   Array.from(flatControlsMap.keys()).forEach(k => {

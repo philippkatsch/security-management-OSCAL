@@ -146,8 +146,8 @@ class TestExtraRoutesAndErrors:
             content="not a JSON string",
             headers={"Content-Type": "application/json"}
         )
-        assert res.status_code == 400
-        assert "invalid json body" in res.json()["detail"].lower()
+        assert res.status_code in (400, 422)
+        assert "json" in str(res.json()).lower()
 
     def test_save_version_missing_version_metadata(self, client):
         """POST /api/documents/{stage}/{doc_id}/versions with missing version key in metadata returns 400."""

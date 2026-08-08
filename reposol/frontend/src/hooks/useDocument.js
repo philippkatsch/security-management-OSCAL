@@ -49,11 +49,12 @@ export function useDocument(stage, documentId) {
     return () => { if (cancelFn) cancelFn(); };
   }, [load]);
 
-  const save = useCallback(async (document) => {
+  const save = useCallback(async (documentToSave) => {
     setSaving(true);
     setError(null);
     try {
-      const result = await saveDocument(stage, document);
+      const targetDoc = documentToSave || doc;
+      const result = await saveDocument(stage, targetDoc);
       setDoc(result);
       return result;
     } catch (err) {
@@ -62,7 +63,7 @@ export function useDocument(stage, documentId) {
     } finally {
       setSaving(false);
     }
-  }, [stage]);
+  }, [stage, doc]);
 
   const validate = useCallback(async (document) => {
     setValidating(true);

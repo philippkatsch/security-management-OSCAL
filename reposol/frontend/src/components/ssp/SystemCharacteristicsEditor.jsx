@@ -34,6 +34,28 @@ export default function SystemCharacteristicsEditor({ systemChars, onUpdate, edi
     return fullLevel.replace('fips-199-', '');
   };
 
+  const getPropValue = (name) => {
+    const props = systemChars?.props || [];
+    const p = props.find(p => p.name === name);
+    return p ? p.value : '';
+  };
+
+  const setPropValue = (name, value, ns = 'https://fedramp.gov/ns/oscal') => {
+    if (!onUpdate) return;
+    const props = [...(systemChars?.props || [])];
+    const idx = props.findIndex(p => p.name === name);
+    if (idx > -1) {
+      if (value) {
+        props[idx] = { ...props[idx], value };
+      } else {
+        props.splice(idx, 1);
+      }
+    } else if (value) {
+      props.push({ name, value, ns });
+    }
+    onUpdate({ ...systemChars, props });
+  };
+
   return (
     <div className="ssp-editor system-characteristics-editor">
       {/* 1. System Identity */}
@@ -91,6 +113,119 @@ export default function SystemCharacteristicsEditor({ systemChars, onUpdate, edi
                 <div className="read-only-text">{systemChars?.['security-sensitivity-level'] || 'Not specified'}</div>
               )}
             </div>
+
+            <div className="form-group">
+              <label className="form-label">Date Authorized</label>
+              <input 
+                type="date" 
+                className="form-input"
+                value={systemChars?.['date-authorized'] || ''}
+                onChange={(e) => handleChange('date-authorized', e.target.value)}
+                readOnly={!editMode}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Privacy Sensitive System</label>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  checked={getPropValue('privacy-sensitive') === 'yes'}
+                  onChange={(e) => setPropValue('privacy-sensitive', e.target.checked ? 'yes' : 'no')}
+                  disabled={!editMode}
+                />
+                <span>Is this a privacy sensitive system?</span>
+              </div>
+            </div>
+
+            <div className="form-group mt-4 border-t pt-4">
+              <h4 className="font-semibold mb-2">Cloud Properties</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="form-label">Cloud Deployment Model</label>
+                  {editMode ? (
+                    <select 
+                      className="form-input"
+                      value={getPropValue('cloud-deployment-model')}
+                      onChange={(e) => setPropValue('cloud-deployment-model', e.target.value)}
+                    >
+                      <option value="">Select Model...</option>
+                      <option value="public-cloud">Public Cloud</option>
+                      <option value="private-cloud">Private Cloud</option>
+                      <option value="community-cloud">Community Cloud</option>
+                      <option value="hybrid-cloud">Hybrid Cloud</option>
+                      <option value="government-only-cloud">Government Only Cloud</option>
+                      <option value="other">Other</option>
+                    </select>
+                  ) : (
+                    <div className="read-only-text">{getPropValue('cloud-deployment-model') || 'Not specified'}</div>
+                  )}
+                </div>
+                <div>
+                  <label className="form-label">Cloud Service Model</label>
+                  {editMode ? (
+                    <select 
+                      className="form-input"
+                      value={getPropValue('cloud-service-model')}
+                      onChange={(e) => setPropValue('cloud-service-model', e.target.value)}
+                    >
+                      <option value="">Select Model...</option>
+                      <option value="iaas">IaaS</option>
+                      <option value="paas">PaaS</option>
+                      <option value="saas">SaaS</option>
+                      <option value="other">Other</option>
+                    </select>
+                  ) : (
+                    <div className="read-only-text">{getPropValue('cloud-service-model') || 'Not specified'}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group mt-4 border-t pt-4">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-semibold">System IDs</h4>
+                {editMode && (
+                  <button type="button" className="text-sm text-blue-600 hover:underline" onClick={() => {
+                    const newIds = [...(systemChars?.['system-ids'] || []), { id: '', 'identifier-type': '' }];
+                    handleChange('system-ids', newIds);
+                  }}>+ Add System ID</button>
+                )}
+              </div>
+              {(systemChars?.['system-ids'] || []).map((sysId, i) => (
+                <div key={i} className="flex gap-2 mb-2">
+                  <input 
+                    className="form-input flex-1" 
+                    placeholder="ID"
+                    value={sysId.id || ''} 
+                    onChange={e => {
+                      const newIds = [...(systemChars['system-ids'] || [])];
+                      newIds[i] = { ...newIds[i], id: e.target.value };
+                      handleChange('system-ids', newIds);
+                    }}
+                    disabled={!editMode}
+                  />
+                  <input 
+                    className="form-input flex-1" 
+                    placeholder="Identifier Type (URI/text)"
+                    value={sysId['identifier-type'] || ''} 
+                    onChange={e => {
+                      const newIds = [...(systemChars['system-ids'] || [])];
+                      newIds[i] = { ...newIds[i], 'identifier-type': e.target.value };
+                      handleChange('system-ids', newIds);
+                    }}
+                    disabled={!editMode}
+                  />
+                  {editMode && (
+                    <button type="button" className="text-red-500 px-2" onClick={() => {
+                      const newIds = [...(systemChars['system-ids'] || [])];
+                      newIds.splice(i, 1);
+                      handleChange('system-ids', newIds);
+                    }}>X</button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -128,7 +263,7 @@ export default function SystemCharacteristicsEditor({ systemChars, onUpdate, edi
                 />
               )}
             </div>
-            {systemChars?.status?.state !== 'operational' && (
+            {systemChars?.status?.state === 'other' && (
               <div className="form-group">
                 <label className="form-label">Remarks</label>
                 <textarea 
@@ -194,7 +329,51 @@ export default function SystemCharacteristicsEditor({ systemChars, onUpdate, edi
         </div>
         {expandedSection === 'info-types' && (
           <div className="accordion-content">
-             <div className="read-only-text">Information Types implementation...</div>
+             {(systemChars?.['system-information']?.['information-types'] || []).map((infoType, idx) => {
+               const pProp = (infoType.props || []).find(p => p.name === 'privacy-designation');
+               const pValue = pProp ? pProp.value : 'no';
+               return (
+                 <div key={infoType.uuid || idx} className="mb-4 p-4 border rounded bg-gray-50 dark:bg-gray-800">
+                   <div className="font-medium">{infoType.title || 'Unnamed Info Type'}</div>
+                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">{infoType.description}</div>
+                   <div className="flex items-center gap-2">
+                     <input 
+                       type="checkbox" 
+                       checked={pValue === 'yes'}
+                       onChange={(e) => {
+                         if (!onUpdate) return;
+                         const newTypes = [...(systemChars?.['system-information']?.['information-types'] || [])];
+                         const targetType = { ...newTypes[idx] };
+                         const targetProps = [...(targetType.props || [])];
+                         const pIdx = targetProps.findIndex(p => p.name === 'privacy-designation');
+                         const val = e.target.checked ? 'yes' : 'no';
+                         
+                         if (pIdx > -1) {
+                           targetProps[pIdx] = { ...targetProps[pIdx], value: val };
+                         } else {
+                           targetProps.push({ name: 'privacy-designation', value: val, ns: 'https://fedramp.gov/ns/oscal' });
+                         }
+                         targetType.props = targetProps;
+                         newTypes[idx] = targetType;
+                         
+                         onUpdate({
+                           ...systemChars,
+                           'system-information': {
+                             ...(systemChars['system-information'] || {}),
+                             'information-types': newTypes
+                           }
+                         });
+                       }}
+                       disabled={!editMode}
+                     />
+                     <span className="text-sm">Privacy Designation</span>
+                   </div>
+                 </div>
+               );
+             })}
+             {(!systemChars?.['system-information']?.['information-types'] || systemChars?.['system-information']?.['information-types'].length === 0) && (
+               <div className="read-only-text">No Information Types defined.</div>
+             )}
           </div>
         )}
       </div>

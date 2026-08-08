@@ -482,6 +482,10 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       expect(matchesPattern('ia-5', ['ac-*'])).toBe(false);
       expect(matchesPattern('ac-1', ['*-1'])).toBe(true);
       expect(matchesPattern('ac-2', ['*-1'])).toBe(false);
+      expect(matchesPattern('sc-1', ['sc-?'])).toBe(true);
+      expect(matchesPattern('sc-7', ['sc-?'])).toBe(true);
+      expect(matchesPattern('sc-12', ['sc-?'])).toBe(false);
+      expect(matchesPattern('sc-12', ['sc-??'])).toBe(true);
     });
 
     it('filterControls filters controls array accurately based on sets', () => {

@@ -27,10 +27,12 @@ export function VersionDrawer({
   onSwitch,
   onDelete,
   onSave,
-  show = false,
+  show: showProp = false,
+  isOpen = false,
   onClose,
   isEditing = false
 }) {
+  const show = showProp || isOpen;
   const [versionNum, setVersionNum] = useState('');
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
@@ -68,6 +70,7 @@ export function VersionDrawer({
   return (
     <div
       className="version-drawer-overlay"
+      data-testid="version-drawer"
       style={{
         position: 'fixed',
         top: 0,
@@ -82,7 +85,7 @@ export function VersionDrawer({
       onClick={onClose}
     >
       <div
-        className="version-drawer-panel shadow-2xl"
+        className="version-drawer-panel version-drawer shadow-2xl"
         style={{
           width: '380px',
           background: 'var(--color-surface)',

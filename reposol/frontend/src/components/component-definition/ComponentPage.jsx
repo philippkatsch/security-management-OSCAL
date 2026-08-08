@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { authFetch } from '../../lib/api';
 import { useDocument } from '../../hooks/useDocument';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
@@ -15,12 +15,25 @@ import { BackMatterEditor } from '../shared/BackMatterEditor';
 import { DocumentToolbar } from '../shared/DocumentToolbar';
 import { VersionDrawer } from '../shared/VersionDrawer';
 import { JsonEditor } from '../shared/JsonEditor';
+import ComponentEditor from './ComponentEditor';
+import CapabilityEditor from './CapabilityEditor';
 
 const generateUUID = () => crypto.randomUUID();
 
-export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose }) => {
+export const ComponentPage = ({ componentDefId, initialEditMode, onClose }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isEditing, setIsEditing] = useState(initialEditMode);
+  const [isEditing, setIsEditing] = useState(() => {
+    if (typeof initialEditMode === 'boolean') return initialEditMode;
+    return window.location.search.includes('edit=true');
+  });
+
+  useEffect(() => {
+    if (typeof initialEditMode === 'boolean') {
+      setIsEditing(initialEditMode);
+    } else if (window.location.search.includes('edit=true')) {
+      setIsEditing(true);
+    }
+  }, [initialEditMode]);
   
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [selectedCapability, setSelectedCapability] = useState(null);
@@ -30,14 +43,14 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
     setDoc,
     loading,
     error,
-    saveDocument,
-    isSaving,
+    save: saveDocument,
+    saving: isSaving,
     isDirty
   } = useDocument('component-definitions', componentDefId, initialEditMode);
 
   const {
-    state: undoState,
-    set: setUndoState,
+    current: undoState,
+    pushState: setUndoState,
     undo,
     redo,
     canUndo,
@@ -47,8 +60,8 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
 
   const {
     versions,
-    showVersions,
-    setShowVersions,
+    showDrawer: showVersions,
+    setShowDrawer: setShowVersions,
     loadVersions,
     restoreVersion,
     isRestoring
@@ -61,13 +74,40 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
     }
   }, [doc, undoState, resetUndo]);
 
-  const handleUpdate = useCallback((newDoc) => {
-    setUndoState(newDoc);
-    setDoc(newDoc);
-  }, [setDoc, setUndoState]);
+  const handleUpdate = useCallback((updaterOrDoc) => {
+    setDoc(prevDoc => {
+      const nextDoc = typeof updaterOrDoc === 'function' ? updaterOrDoc(prevDoc) : updaterOrDoc;
+      setUndoState(nextDoc);
+      return nextDoc;
+    });
+  }, [setUndoState]);
+
+  const cleanEmptyArrays = (obj) => {
+    if (Array.isArray(obj)) {
+      return obj.map(cleanEmptyArrays).filter(item => item !== undefined);
+    } else if (obj !== null && typeof obj === 'object') {
+      const cleaned = {};
+      for (const [key, val] of Object.entries(obj)) {
+        if (Array.isArray(val) && val.length === 0) {
+          continue;
+        }
+        cleaned[key] = cleanEmptyArrays(val);
+      }
+      return cleaned;
+    }
+    return obj;
+  };
 
   const handleSave = async () => {
-    await saveDocument(doc);
+    console.log('[ComponentPage] handleSave triggered!');
+    try {
+      const cleaned = cleanEmptyArrays(doc);
+      console.log('[ComponentPage] cleaned doc:', JSON.stringify(cleaned, null, 2));
+      const res = await saveDocument(cleaned);
+      console.log('[ComponentPage] saveDocument result:', res ? 'SUCCESS' : 'NULL');
+    } catch (err) {
+      console.error('[ComponentPage] handleSave error:', err);
+    }
   };
 
   const handleUndo = () => {
@@ -101,24 +141,30 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
       protocols: [],
       'control-implementations': []
     };
-    handleUpdate({
-      ...doc,
-      'component-definition': {
-        ...compDef,
-        components: [...components, newComp]
-      }
+    handleUpdate(prevDoc => {
+      const cDef = prevDoc['component-definition'] || {};
+      return {
+        ...prevDoc,
+        'component-definition': {
+          ...cDef,
+          components: [...(cDef.components || []), newComp]
+        }
+      };
     });
     setSelectedComponent(newComp);
   };
 
   const handleDeleteComponents = (uuids) => {
     if (!window.confirm(`Delete ${uuids.length} component(s)?`)) return;
-    handleUpdate({
-      ...doc,
-      'component-definition': {
-        ...compDef,
-        components: components.filter(c => !uuids.includes(c.uuid))
-      }
+    handleUpdate(prevDoc => {
+      const cDef = prevDoc['component-definition'] || {};
+      return {
+        ...prevDoc,
+        'component-definition': {
+          ...cDef,
+          components: (cDef.components || []).filter(c => !uuids.includes(c.uuid))
+        }
+      };
     });
     if (selectedComponent && uuids.includes(selectedComponent.uuid)) {
       setSelectedComponent(null);
@@ -126,15 +172,19 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
   };
 
   const handleUpdateComponent = (uuid, updates) => {
-    handleUpdate({
-      ...doc,
-      'component-definition': {
-        ...compDef,
-        components: components.map(c => c.uuid === uuid ? { ...c, ...updates } : c)
-      }
+    handleUpdate(prevDoc => {
+      const cDef = prevDoc['component-definition'] || {};
+      const comps = cDef.components || [];
+      return {
+        ...prevDoc,
+        'component-definition': {
+          ...cDef,
+          components: comps.map(c => c.uuid === uuid ? { ...c, ...updates } : c)
+        }
+      };
     });
     if (selectedComponent && selectedComponent.uuid === uuid) {
-      setSelectedComponent({ ...selectedComponent, ...updates });
+      setSelectedComponent(prev => ({ ...prev, ...updates }));
     }
   };
 
@@ -142,28 +192,32 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
     const newCap = {
       uuid: generateUUID(),
       name: 'New Capability',
-      description: '',
-      'incorporates-components': [],
-      'control-implementations': []
+      description: 'New Capability Description'
     };
-    handleUpdate({
-      ...doc,
-      'component-definition': {
-        ...compDef,
-        capabilities: [...capabilities, newCap]
-      }
+    handleUpdate(prevDoc => {
+      const cDef = prevDoc['component-definition'] || {};
+      return {
+        ...prevDoc,
+        'component-definition': {
+          ...cDef,
+          capabilities: [...(cDef.capabilities || []), newCap]
+        }
+      };
     });
     setSelectedCapability(newCap);
   };
 
   const handleDeleteCapabilities = (uuids) => {
     if (!window.confirm(`Delete ${uuids.length} capability(ies)?`)) return;
-    handleUpdate({
-      ...doc,
-      'component-definition': {
-        ...compDef,
-        capabilities: capabilities.filter(c => !uuids.includes(c.uuid))
-      }
+    handleUpdate(prevDoc => {
+      const cDef = prevDoc['component-definition'] || {};
+      return {
+        ...prevDoc,
+        'component-definition': {
+          ...cDef,
+          capabilities: (cDef.capabilities || []).filter(c => !uuids.includes(c.uuid))
+        }
+      };
     });
     if (selectedCapability && uuids.includes(selectedCapability.uuid)) {
       setSelectedCapability(null);
@@ -171,15 +225,19 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
   };
 
   const handleUpdateCapability = (uuid, updates) => {
-    handleUpdate({
-      ...doc,
-      'component-definition': {
-        ...compDef,
-        capabilities: capabilities.map(c => c.uuid === uuid ? { ...c, ...updates } : c)
-      }
+    handleUpdate(prevDoc => {
+      const cDef = prevDoc['component-definition'] || {};
+      const caps = cDef.capabilities || [];
+      return {
+        ...prevDoc,
+        'component-definition': {
+          ...cDef,
+          capabilities: caps.map(c => c.uuid === uuid ? { ...c, ...updates } : c)
+        }
+      };
     });
     if (selectedCapability && selectedCapability.uuid === uuid) {
-      setSelectedCapability({ ...selectedCapability, ...updates });
+      setSelectedCapability(prev => ({ ...prev, ...updates }));
     }
   };
 
@@ -238,11 +296,14 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
         onToggleEdit={() => {
           const next = !isEditing;
           setIsEditing(next);
+          const params = new URLSearchParams(window.location.search);
           if (next) {
-            if (!window.location.search.includes('edit=true')) window.history.replaceState(null, '', window.location.pathname + '?edit=true');
+            params.set('edit', 'true');
           } else {
-            if (window.location.search.includes('edit=true')) window.history.replaceState(null, '', window.location.pathname);
+            params.delete('edit');
           }
+          const newSearch = params.toString() ? `?${params.toString()}` : '';
+          window.history.replaceState(null, '', window.location.pathname + newSearch);
         }}
         onSave={handleSave}
         isDirty={isDirty}
@@ -375,69 +436,11 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
         title={selectedComponent?.title || 'Component Details'}
       >
         {selectedComponent && (
-          <div className="p-4 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
-              <input
-                type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                value={selectedComponent.title || ''}
-                onChange={(e) => handleUpdateComponent(selectedComponent.uuid, { title: e.target.value })}
-                disabled={!isEditing}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-              <select
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                value={selectedComponent.type || 'software'}
-                onChange={(e) => handleUpdateComponent(selectedComponent.uuid, { type: e.target.value })}
-                disabled={!isEditing}
-              >
-                <option value="this-system">This System</option>
-                <option value="system">System</option>
-                <option value="interconnection">Interconnection</option>
-                <option value="software">Software</option>
-                <option value="hardware">Hardware</option>
-                <option value="service">Service</option>
-                <option value="policy">Policy</option>
-                <option value="physical">Physical</option>
-                <option value="process-procedure">Process/Procedure</option>
-                <option value="plan">Plan</option>
-                <option value="guidance">Guidance</option>
-                <option value="standard">Standard</option>
-                <option value="validation">Validation</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-              <textarea
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                rows="3"
-                value={selectedComponent.description || ''}
-                onChange={(e) => handleUpdateComponent(selectedComponent.uuid, { description: e.target.value })}
-                disabled={!isEditing}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Purpose</label>
-              <textarea
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                rows="2"
-                value={selectedComponent.purpose || ''}
-                onChange={(e) => handleUpdateComponent(selectedComponent.uuid, { purpose: e.target.value })}
-                disabled={!isEditing}
-              />
-            </div>
-            <div className="pt-4 border-t">
-              <h4 className="font-medium text-gray-900 dark:text-gray-100">Properties</h4>
-              <PropsEditor
-                props={selectedComponent.props || []}
-                onChange={(props) => handleUpdateComponent(selectedComponent.uuid, { props })}
-                isEditing={isEditing}
-              />
-            </div>
-          </div>
+          <ComponentEditor
+            component={selectedComponent}
+            onUpdate={(updatedComponent) => handleUpdateComponent(selectedComponent.uuid, updatedComponent)}
+            editMode={isEditing}
+          />
         )}
       </EntityDetailPanel>
 
@@ -447,28 +450,12 @@ export const ComponentPage = ({ componentDefId, initialEditMode = false, onClose
         title={selectedCapability?.name || 'Capability Details'}
       >
         {selectedCapability && (
-          <div className="p-4 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-              <input
-                type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                value={selectedCapability.name || ''}
-                onChange={(e) => handleUpdateCapability(selectedCapability.uuid, { name: e.target.value })}
-                disabled={!isEditing}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-              <textarea
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                rows="3"
-                value={selectedCapability.description || ''}
-                onChange={(e) => handleUpdateCapability(selectedCapability.uuid, { description: e.target.value })}
-                disabled={!isEditing}
-              />
-            </div>
-          </div>
+          <CapabilityEditor
+            capability={selectedCapability}
+            components={components}
+            onUpdate={(updatedCapability) => handleUpdateCapability(selectedCapability.uuid, updatedCapability)}
+            editMode={isEditing}
+          />
         )}
       </EntityDetailPanel>
 

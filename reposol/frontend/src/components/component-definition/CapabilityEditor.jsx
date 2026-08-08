@@ -54,11 +54,7 @@ export default function CapabilityEditor({ capability, components = [], onUpdate
   };
 
   return (
-    <div className="component-editor capability-editor panel slide-out">
-      <div className="panel-header">
-        <h3>Capability Editor</h3>
-        <button className="btn btn-close" onClick={onClose}>×</button>
-      </div>
+    <div className="component-editor capability-editor">
       <div className="panel-body">
         
         {/* 1. Basic Info */}
