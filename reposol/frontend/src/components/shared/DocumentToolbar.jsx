@@ -1,5 +1,5 @@
 import React from 'react';
-import LifecycleSelector from './status/LifecycleSelector';
+import VersionDropdown from './version/VersionDropdown';
 
 /**
  * Badge color mapping for all OSCAL document types.
@@ -20,12 +20,10 @@ const MODE_CONFIG = {
  *
  * Provides a consistent toolbar with:
  * - Back button
- * - Document type badge + version badge
+ * - Document type badge + VersionDropdown (handles Draft & Version History)
  * - Undo/Redo (edit mode only)
  * - Visual/JSON mode switch (edit mode only)
  * - Segmented View/Edit mode toggle
- * - Version History button (view mode only)
- * - Publish Version button (edit mode only)
  *
  * Props are normalized: accepts common aliases so all page components
  * work with a single consistent API.
@@ -37,6 +35,7 @@ export function DocumentToolbar({
   onBack,
   onSaveVersion,
   onShowVersions,
+  onSelectVersion,
   versions = [],
   version: activeVersionStr,
   editMode = 'visual',
@@ -59,19 +58,23 @@ export function DocumentToolbar({
   onExport,
   onSave,
   onCancel,
-  isDirty,
+  isDirty = false,
+  hasDraft = false,
   saveStatus,
   oscalVersion: _oscalVersion,
   documentId: _documentId,
-  documentTitle: _documentTitle,
+  documentTitle,
   doc: _doc,
   ...rest
 }) {
+  const effectiveTitle = title !== 'Untitled Document' ? title : (documentTitle || title);
   // ── Handlers & Fallbacks ──
   // Minimal fallback for missing handlers if someone was relying on aliases
   const handleToggleEdit = onToggleEdit || rest.onEdit;
   const handleBack = onBack || rest.onClose;
-  const handleVersionAction = onSaveVersion || onShowVersions || rest.onHistoryClick || rest.onVersionsToggle;
+  const handleSaveVersion = onSaveVersion || rest.onSaveVersion;
+  const handleSelectVersion = onSelectVersion || rest.onSelectVersion || rest.onVersionSelect || rest.onSwitchVersion;
+  const handleDeleteDraft = rest.onDeleteDraft || rest.onDiscardDraft;
 
   // ── Normalize: saving state ──
   const isBusy = saving || validating || isSaving;
@@ -83,7 +86,7 @@ export function DocumentToolbar({
   const badgeColor = { bg: modeConfig.bg, color: modeConfig.color };
 
   // ── Normalize: version display ──
-  const activeVersion = activeVersionStr || versions.find(v => v.is_active)?.version || '—';
+  const activeVersion = activeVersionStr || versions.find(v => v.is_active)?.version || '1.0.0';
 
   return (
     <div
@@ -117,23 +120,24 @@ export function DocumentToolbar({
             <span className="badge" style={{ background: badgeColor.bg, color: badgeColor.color, fontSize: '10px' }}>
               {badgeLabel}
             </span>
-            <span className="badge" style={{ background: 'var(--color-surface-3)', fontSize: '10px' }}>
-              v{activeVersion}
-            </span>
-            {status && (
-              <LifecycleSelector
-                currentStatus={status}
-                onStatusChange={onStatusChange}
-                documentTitle={title}
-              />
-            )}
+            <VersionDropdown
+              activeVersion={activeVersion}
+              versions={versions}
+              hasDraft={hasDraft || isDirty}
+              isDirty={isDirty}
+              isEditing={isEditing}
+              onSelectVersion={handleSelectVersion}
+              onSaveVersion={handleSaveVersion}
+              onDeleteDraft={handleDeleteDraft}
+              documentTitle={title}
+            />
             {resolvedMode === 'profile' && resolving && (
               <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
                 ⚙️ Live Resolving...
               </span>
             )}
           </div>
-          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>{title}</h2>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>{effectiveTitle}</h2>
         </div>
       </div>
 
@@ -227,19 +231,6 @@ export function DocumentToolbar({
             style={{ padding: '6px 14px', fontSize: '13px' }}
           >
             💾 Save
-          </button>
-        )}
-
-        {/* Version History Button — Available in both View and Edit modes */}
-        {handleVersionAction && (
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleVersionAction}
-            data-testid="version-history-btn"
-            style={{ padding: '6px 12px', fontSize: '13px' }}
-          >
-            📜 Version History
           </button>
         )}
 

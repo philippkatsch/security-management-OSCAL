@@ -5,7 +5,7 @@
 
 ## 1. Breakdown of User Stories
 
-### US 8.1: Mapping Document Creation & Inner View (US 0.P1)
+### US 8.1: Mapping Document Creation & Inner View (US 0.14)
 > **As a** Compliance Officer
 > **I want to** create a new OSCAL `mapping-collection` document and access its inner workspace view
 > **so that** I have a dedicated, isolated environment to define and review mappings between two or more security frameworks without interfering with other platform data.
@@ -65,22 +65,22 @@
 > **I want to** be able to override the provenance defaults (`method`, `matching-rationale`, `status`) at the specific `mapping` or `map` level
 > **so that** I can accommodate exceptions where a single map or mapping group was performed via `human` method when the overarching provenance was `automation`.
 
-### US 8.13: Mapping Table & Navigation (US 0.P5)
+### US 8.13: Mapping Table & Navigation (US 0.18)
 > **As a** Compliance Officer
 > **I want to** use a sortable, filterable data table for all `maps` inside the `mapping-collection`
 > **so that** I can search by source/target ID, filter by `relationship` type, or sort by `confidence-score` to efficiently manage hundreds or thousands of mapping entries.
 
-### US 8.14: Document Overview & Tags (US 0.P3)
+### US 8.14: Document Overview & Tags (US 0.16)
 > **As a** Compliance Officer
 > **I want to** view document `metadata` including remarks, roles, and props (tags)
 > **so that** I can easily label, search, and manage the `mapping-collection` lifecycle inside the platform workspace.
 
-### US 8.15: In-Card Editing & Draft Persistence (US 0.P4)
+### US 8.15: In-Card Editing & Draft Persistence (US 0.17)
 > **As a** Compliance Officer
 > **I want to** edit mapping details within slide-out panels or expansion cards that auto-save drafts
 > **so that** I can map complex statement relationships or write qualifier descriptions without fear of losing unsaved work if I navigate away.
 
-### US 8.16: Integrated Backend Versioning (US 0.P2)
+### US 8.16: Integrated Backend Versioning (US 0.15)
 > **As a** Framework Developer
 > **I want to** explicitly publish new versions of the `mapping-collection`
 > **so that** historical mappings are preserved and system-wide references to previous mapping iterations remain intact.
@@ -147,58 +147,59 @@
 
 ## 4. Functional Acceptance Criteria (Summary)
 
-### US 8.1: Mapping Document Creation & Inner View (US 0.P1)
-- [ ] **Validation:** The system mandates exactly one `metadata` and exactly one `mapping-provenance` block per document.
-- [ ] **Root Array:** The system ensures at least one entry exists in the `mappings` array before validation passes.
+- [ ] **US 8.1: Mapping Document Creation & Inner View (US 0.14)**
+  - [ ] **Validation:** The system mandates exactly one `metadata` and exactly one `mapping-provenance` block per document.
+  - [ ] **Root Array:** The system ensures at least one entry exists in the `mappings` array before validation passes.
 
-### US 8.2: Mapping Provenance & Methodology Declaration
-- [ ] **Provenance Enforcement:** The UI enforces selection of `method`, `matching-rationale`, and `status` from exact predefined OSCAL allowed lists.
-- [ ] **Description Editor:** The `mapping-description` field renders as a rich-text markup-multiline editor.
+- [ ] **US 8.2: Mapping Provenance & Methodology Declaration**
+  - [ ] **Provenance Enforcement:** The UI enforces selection of `method`, `matching-rationale`, and `status` from exact predefined OSCAL allowed lists.
+  - [ ] **Description Editor:** The `mapping-description` field renders as a rich-text markup-multiline editor.
 
-### US 8.3: Source & Target Resource Declaration
-- [ ] **Resource Reference Handling:** `source-resource` and `target-resource` must have a defined `type` (`catalog` or `profile`) and a valid `href` URI.
+- [ ] **US 8.3: Source & Target Resource Declaration**
+  - [ ] **Resource Reference Handling:** `source-resource` and `target-resource` must have a defined `type` (`catalog` or `profile`) and a valid `href` URI.
 
-### US 8.4: Mapping Entry Creation with Relationship Types
-- [ ] **Relationship Enum:** `relationship` token must be strictly selected from the 6 allowed values (equivalent-to, equal-to, subset-of, superset-of, intersects-with, no-relationship).
+- [ ] **US 8.4: Mapping Entry Creation with Relationship Types**
+  - [ ] **Relationship Enum:** `relationship` token must be strictly selected from the 6 allowed values (equivalent-to, equal-to, subset-of, superset-of, intersects-with, no-relationship).
 
-### US 8.5: Source & Target Item References
-- [ ] **Multi-Item References:** `sources` and `targets` allow adding multiple items (1:N, N:1, N:M mappings supported).
-- [ ] **Type Enforcement:** The system enforces `type` (`control` or `statement`) for all `sources` and `targets`.
+- [ ] **US 8.5: Source & Target Item References**
+  - [ ] **Multi-Item References:** `sources` and `targets` allow adding multiple items (1:N, N:1, N:M mappings supported).
+  - [ ] **Type Enforcement:** The system enforces `type` (`control` or `statement`) for all `sources` and `targets`.
 
-### US 8.6: Relationship Qualifiers
-- [ ] **Qualifiers Integration:** A map can accept multiple `qualifiers` with strict dropdowns for `subject`, `predicate`, and `category`.
-- [ ] **Description Requirement:** Every qualifier requires a markup-multiline `description`.
+- [ ] **US 8.6: Relationship Qualifiers**
+  - [ ] **Qualifiers Integration:** A map can accept multiple `qualifiers` with strict dropdowns for `subject`, `predicate`, and `category`.
+  - [ ] **Description Requirement:** Every qualifier requires a markup-multiline `description`.
 
-### US 8.7: Confidence Scoring
-- [ ] **Confidence Input:** `confidence-score` UI allows toggling between 'Category' mode (enum) and 'Percentage' mode (decimal 0.0 to 1.0 validation).
+- [ ] **US 8.7: Confidence Scoring**
+  - [ ] **Confidence Input:** `confidence-score` UI allows toggling between 'Category' mode (enum) and 'Percentage' mode (decimal 0.0 to 1.0 validation).
 
-### US 8.8: Coverage Tracking
-- [ ] **Coverage Validation:** `coverage` UI restricts decimal inputs to `0.0-1.0` range.
+- [ ] **US 8.8: Coverage Tracking**
+  - [ ] **Coverage Validation:** `coverage` UI restricts decimal inputs to `0.0-1.0` range.
 
-### US 8.9: Gap Summary & Unmapped Controls
-- [ ] **Gap Logging:** `source-gap-summary` and `target-gap-summary` allow appending `unmapped-controls` lists.
+- [ ] **US 8.9: Gap Summary & Unmapped Controls**
+  - [ ] **Gap Logging:** `source-gap-summary` and `target-gap-summary` allow appending `unmapped-controls` lists.
 
-### US 8.10: Automatic Gap Analysis & Coverage Report
-- [ ] **Visual Report:** The platform offers a visual report highlighting unmapped controls vs. defined maps.
+- [ ] **US 8.10: Automatic Gap Analysis & Coverage Report**
+  - [ ] **Visual Report:** The platform offers a visual report highlighting unmapped controls vs. defined maps.
 
-### US 8.11: Mapping Visualization (Matrix & Sankey Diagrams)
-- [ ] **Matrix View:** The system MUST provide a matrix grid view showing the relationship mapping between source and target frameworks.
-- [ ] **Flow Diagram:** The system SHOULD offer a visual flow diagram (e.g., Sankey) to represent mapping topology.
+- [ ] **US 8.11: Mapping Visualization (Matrix & Sankey Diagrams)**
+  - [ ] **Matrix View:** The system MUST provide a matrix grid view showing the relationship mapping between source and target frameworks.
+  - [ ] **Flow Diagram:** The system SHOULD offer a visual flow diagram (e.g., Sankey) to represent mapping topology.
 
-### US 8.12: Mapping Overrides
-- [ ] **Local Overrides:** The system MUST allow users to override `method`, `matching-rationale`, and `status` at the `mapping` or `map` level, overriding document-level provenance defaults.
+- [ ] **US 8.12: Mapping Overrides**
+  - [ ] **Local Overrides:** The system MUST allow users to override `method`, `matching-rationale`, and `status` at the `mapping` or `map` level, overriding document-level provenance defaults.
 
-### US 8.13: Mapping Table & Navigation (US 0.P5)
-- [ ] **Table View:** A master mapping table supports filtering, search, and pagination (US 0.P5).
+- [ ] **US 8.13: Mapping Table & Navigation (US 0.18)**
+  - [ ] **Table View:** A master mapping table supports filtering, search, and pagination (US 0.18).
 
-### US 8.14: Document Overview & Tags (US 0.P3)
-- [ ] **Document Overview:** Document adheres strictly to OSCAL strict validation (DD-002) for the `mapping-collection` schema, supporting root metadata tags and props.
+- [ ] **US 8.14: Document Overview & Tags (US 0.16)**
+  - [ ] **Document Overview:** Document adheres strictly to OSCAL strict validation (DD-002) for the `mapping-collection` schema, supporting root metadata tags and props.
 
-### US 8.15: In-Card Editing & Draft Persistence (US 0.P4)
-- [ ] **Slide-out Panels:** Uses slide-out panels (US 0.P4 / DD-004) for detailed map configurations (qualifiers, local overrides).
+- [ ] **US 8.15: In-Card Editing & Draft Persistence (US 0.17)**
+  - [ ] **Slide-out Panels:** Uses slide-out panels (US 0.17 / DD-004) for detailed map configurations (qualifiers, local overrides).
 
-### US 8.16: Integrated Backend Versioning (US 0.P2)
-- [ ] **Versioning:** The system supports explicit publishing of new versions of the `mapping-collection`.
+- [ ] **US 8.16: Integrated Backend Versioning (US 0.15)**
+  - [ ] **Versioning:** The system supports explicit publishing of new versions of the `mapping-collection`.
 
-### US 8.17: Back-Matter & Resource Attachments
-- [ ] **Back-Matter Support:** Back-matter base64 attachment support is included (DD-007).
+- [ ] **US 8.17: Back-Matter & Resource Attachments**
+  - [ ] **Back-Matter Support:** Back-matter base64 attachment support is included (DD-007).
+

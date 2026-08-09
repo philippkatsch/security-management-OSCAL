@@ -17,20 +17,27 @@
 
 ## ✨ Current Status
 
-For now, the following features are **fully implemented**:
+The following OSCAL lifecycle stages are **fully implemented** (backend API, frontend UI, user stories, and design decisions):
 
-- **✅ Catalog Editor**: Create, view, and modify OSCAL Catalogs with ease.
-- **✅ Profile Builder**: Build, customize, and manage OSCAL Profiles.
+- **✅ Step 1 — Catalog Builder**: Create, view, and modify OSCAL Catalogs with full control/group/parameter management.
+- **✅ Step 2 — Profile Tailoring**: Build and customize OSCAL Profiles with baseline selection, parameter overrides, and merge directives.
+- **✅ Step 3 — Component Inventory**: Manage Component Definitions with 11 OSCAL component types, control implementations, and service protocols.
+- **✅ Step 4 — SSP Builder**: Create System Security Plans with baseline import, information types, boundary diagrams, and by-component narratives.
+- **✅ Step 5 — Assessment Plan**: Plan security assessments with objectives, methods, scheduling, and terms & conditions.
+- **✅ Step 6 — Assessment Results**: Document audit findings with observations, CVSS risk scoring, and attestation sign-offs.
+- **✅ Step 7 — POA&M Tracker**: Track remediation with auto-generated POA&M items, risk lifecycle management, and progress dashboards.
+- **✅ Step 8 — Control Mapping**: Map controls between frameworks with relationship types, confidence scoring, and gap analysis.
 
-**🚧 In Development:**
-- System Security Plans (SSP)
-- Component Definitions
-- Assessment Plans & Results
-- POA&M (Plan of Action and Milestones)
+**🔧 Cross-Cutting Features:**
+- OSCAL Lifecycle Dashboard, document lifecycle state machine, cross-document traceability
+- Multi-format import/export (JSON, XML, YAML), NIST schema validation
+- Visual/JSON dual-mode editor with Monaco, anonymous workspace isolation
+- Deployed on Fly.io with persistent storage
 
-*💡 I have more easy-to-edit features in the pipeline to make managing OSCAL documents seamless!*
+**🚧 In Progress:**
+- End-to-End (Playwright) test coverage for Steps 3–8
 
----
+
 
 ## 📸 User Interface
 

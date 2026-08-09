@@ -74,11 +74,12 @@ Cascading checks are performed:
 
 ### 5. UI Components
 
-#### Status Selector
-- Dropdown in document header/metadata section
-- Uses DD-020 StatusBadge for current state display
-- Dropdown only shows valid transitions from current state
-- 'Supersede' action opens modal: select successor document from workspace list
+#### Header Version & Draft Selector (`VersionDropdown`)
+- Replaces standalone manual status toggling dropdown with a unified version & draft selector located directly in the header toolbar.
+- Displays `📝 Draft` badge automatically whenever a working draft file exists on the server (`_draft.json`), as detected from the version list (`versions.some(v => v.is_draft)`).
+- **Important Distinction**: The `hasDraft` signal (whether a `_draft.json` file exists) is a **separate concept** from the OSCAL `document-status` metadata property (`draft`/`active`/`archived`/`superseded`). A document can have `document-status: active` while simultaneously having a working `_draft.json` with unsaved edits. The `VersionDropdown` only cares about `hasDraft`, not `document-status`.
+- When opened, displays the active **Draft** working copy and all published version history entries (`v1.0.0 (Active)`, `v0.9.0 (Archived)`), allowing direct point-in-time snapshot viewing and switching.
+- **Edit-Mode Locking**: When the user is in `✏️ Edit` mode, the dropdown is **locked** and always displays `📝 Draft (editing)` with a 🔒 indicator. Version switching is disabled to prevent accidental data loss. The dropdown unlocks when returning to `👁️ View` mode.
 
 #### Lifecycle Banner
 - Full-width dismissible banner below document header

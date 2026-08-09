@@ -8,7 +8,7 @@
 ## 1. Breakdown of User Stories
 
 ### US 3.1: Component Definition Document Creation & Inner View
-> Implements [US 0.P1](step0_global_requirements.md) with component-specific additions.
+> Implements [US 0.14](step0_global_requirements.md) with component-specific additions.
 > **As a** Compliance Officer and Lead Engineer (Alice)  
 > **I want to** create a new Component Definition document by entering only a document title and being immediately redirected to the in-place editing area (Inner View),  
 > **so that** I can begin declaring components without cumbersome preliminary wizards.
@@ -265,7 +265,7 @@
     *   **Import Browsing:** The user can browse the contents of imported component definitions in read-only mode to review available components and capabilities before deciding which to use.
 
 ### US 3.15: Component Table & List Navigation
-> Implements [US 0.P5](step0_global_requirements.md) with component-specific additions.
+> Implements [US 0.18](step0_global_requirements.md) with component-specific additions.
 > **As a** Compliance Officer and Lead Engineer (Alice)  
 > **I want to** see all components declared in the current document in a structured table view with filtering, sorting, and search capabilities,  
 > **so that** I can quickly navigate, search, and manage my component inventory.
@@ -279,7 +279,7 @@
     *   **Empty State:** When no components exist, a prominent empty-state message with a "Add First Component" call-to-action is displayed.
 
 ### US 3.16: Document Overview & Tag Management
-> Implements [US 0.P3](step0_global_requirements.md) with component-specific additions.
+> Implements [US 0.16](step0_global_requirements.md) with component-specific additions.
 > **As a** Compliance Officer (Alice)  
 > **I want to** manage document-level metadata and a tag system in the Document Overview pane when no specific component is selected,  
 > **so that** the overall document and its global tag structure are well-maintained.
@@ -291,7 +291,7 @@
     *   **Component Count Summary:** Dashboard-style overview showing total number of components, breakdown by type (e.g., "3 software, 2 services, 1 policy"), number of capabilities, and total number of control implementation sets.
 
 ### US 3.17: In-Card Editing & Draft Persistence
-> Implements [US 0.P4](step0_global_requirements.md) with component-specific additions.
+> Implements [US 0.17](step0_global_requirements.md) with component-specific additions.
 > **As a** Compliance Officer (Alice)  
 > **I want to** edit component details inline in a cohesive card layout and have unsaved changes cached locally,  
 > **so that** data entry is uniform, and no work is lost on accidental navigation or browser closure.
@@ -309,7 +309,7 @@
     *   **Discard Draft:** Option to explicitly discard cached changes and revert to the last persisted state.
 
 ### US 3.18: Integrated Backend Versioning
-> Implements [US 0.P2](step0_global_requirements.md) with component-specific additions.
+> Implements [US 0.15](step0_global_requirements.md) with component-specific additions.
 > **As a** Compliance Officer (Alice)  
 > **I want to** save, load, and delete versions of a Component Definition document directly in the backend,  
 > **so that** version states are managed persistently, cross-device, and are visible to other users in the workspace.

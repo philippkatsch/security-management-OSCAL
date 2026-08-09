@@ -26,8 +26,9 @@ import './MappingPage.css';
 
 export function MappingPage({ mappingId, initialEditMode, onClose }) {
   const { doc, setDoc, loading, error, save: saveDocument } = useDocument('control-mappings', mappingId);
-  const { state: undoState, setUndoState, undo, redo, canUndo, canRedo } = useUndoRedo(doc);
-  const { versions, showVersions, setShowVersions, saveVersion, restoreVersion, isRestoring } = useVersions('control-mappings', mappingId, setDoc);
+  const [showVersions, setShowVersions] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState(null);
+  const { versions, save: saveVersion } = useVersions('control-mappings', mappingId);
   
   const [isEditing, setIsEditing] = useState(initialEditMode);
   const [activeTab, setActiveTab] = useState('overview');
@@ -52,10 +53,6 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
       loadReferencedControls(doc['mapping-collection']);
     }
   }, [doc]);
-
-  useEffect(() => {
-    fetchCatalogsAndProfiles();
-  }, [mappingId]);
 
 
 
@@ -102,11 +99,17 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
         if (root) {
           if (resource.type === 'profile') {
             const resolvedRes = await authFetch(`/api/documents/profiles/${uuid}`);
-            const resolvedData = await resolvedRes.json();
-            if (resolvedData?.profile?.catalog) {
-              traverse(resolvedData.profile.catalog);
-            } else if (resolvedData?.catalog) {
-              traverse(resolvedData.catalog);
+            if (resolvedRes.ok) {
+              const resolvedData = await resolvedRes.json();
+              if (resolvedData?.profile?.catalog) {
+                traverse(resolvedData.profile.catalog);
+              } else if (resolvedData?.catalog) {
+                traverse(resolvedData.catalog);
+              } else {
+                traverse(root);
+              }
+            } else {
+              traverse(root);
             }
           } else {
             traverse(root);
@@ -122,11 +125,19 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
 
   const handleSaveDocument = async () => {
     try {
-      await saveDocument(doc);
-      alert("Saved successfully!");
+      const currentDoc = getCleanDocCopy(doc);
+      if (currentDoc) {
+        const mc = currentDoc['mapping-collection'] || {};
+        if (!mc.metadata) mc.metadata = {};
+        if (!mc.metadata.title) mc.metadata.title = 'Untitled Mapping';
+        if (!mc.metadata['last-modified']) mc.metadata['last-modified'] = new Date().toISOString();
+        if (!mc.metadata.version) mc.metadata.version = '1.0.0';
+        if (!mc.metadata['oscal-version']) mc.metadata['oscal-version'] = '1.1.2';
+      }
+      await saveDocument(currentDoc);
       setIsEditing(false);
-    } catch (e) {
-      alert("Error saving: " + e.message);
+    } catch (err) {
+      console.error('Save failed:', err);
     }
   };
 
@@ -168,25 +179,26 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
   };
 
   const calculateGapStats = () => {
-    if (!doc?.['mapping-collection']?.mappings?.[0]) {
+    const mcNode = doc?.['mapping-collection'] || doc?.['control-mapping'];
+    if (!mcNode?.mappings?.[0]) {
       return { coverage: 0, unmappedSource: [], unmappedTarget: [], avgConfidence: 0, methodStats: [] };
     }
-    const maps = doc['mapping-collection'].mappings[0].maps || [];
+    const maps = mcNode.mappings[0].maps || [];
     const mappedSourceIds = new Set(maps.flatMap(m => m.sources?.map(s => s['id-ref']) || []));
     const mappedTargetIds = new Set(maps.flatMap(m => m.targets?.map(t => t['id-ref']) || []));
 
-    const unmappedSource = sourceControls.filter(c => !mappedSourceIds.has(c.id));
-    const unmappedTarget = targetControls.filter(c => !mappedTargetIds.has(c.id));
+    const unmappedSource = (sourceControls || []).filter(c => !mappedSourceIds.has(c.id));
+    const unmappedTarget = (targetControls || []).filter(c => !mappedTargetIds.has(c.id));
 
-    const totalSource = sourceControls.length;
+    const totalSource = (sourceControls || []).length;
     const coverage = totalSource > 0 ? Math.round(((totalSource - unmappedSource.length) / totalSource) * 100) : 0;
 
     const confidences = maps.map(m => m.props?.find(p => p.name === 'confidence')?.value).filter(Boolean).map(Number);
     const avgConfidence = confidences.length ? Math.round(confidences.reduce((a,b)=>a+b,0)/confidences.length) : 0;
 
-    const methodCounts = {};
+    const methodCounts = { manual: 0, automated: 0, mixed: 0 };
     maps.forEach(m => {
-      const method = m.props?.find(p => p.name === 'method')?.value || 'unknown';
+      const method = m.props?.find(p => p.name === 'method')?.value || 'manual';
       methodCounts[method] = (methodCounts[method] || 0) + 1;
     });
     const methodStats = Object.entries(methodCounts).map(([label, count]) => ({ label, count }));
@@ -197,8 +209,9 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
   const stats = calculateGapStats();
 
   const getRelationshipStats = () => {
-    if (!doc?.['mapping-collection']?.mappings?.[0]) return [];
-    const maps = doc['mapping-collection'].mappings[0].maps || [];
+    const mcNode = doc?.['mapping-collection'] || doc?.['control-mapping'];
+    if (!mcNode?.mappings?.[0]) return [];
+    const maps = mcNode.mappings[0].maps || [];
     const counts = {};
     maps.forEach(m => {
       counts[m.relationship] = (counts[m.relationship] || 0) + 1;
@@ -206,10 +219,41 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
     return Object.entries(counts).map(([label, count]) => ({ label, count }));
   };
 
+  const getCleanDocCopy = (prev) => {
+    if (!prev) return prev;
+    const next = JSON.parse(JSON.stringify(prev));
+    if (next['control-mapping'] && !next['mapping-collection']) {
+      next['mapping-collection'] = next['control-mapping'];
+      delete next['control-mapping'];
+    }
+    if (!next['mapping-collection']) {
+      next['mapping-collection'] = { mappings: [{ maps: [] }] };
+    }
+    const mc = next['mapping-collection'];
+    if (!Array.isArray(mc.mappings) || mc.mappings.length === 0) {
+      mc.mappings = [{ maps: [] }];
+    }
+    if (!mc.mappings[0].maps) {
+      mc.mappings[0].maps = [];
+    }
+    return next;
+  };
+
+  const updateResourceField = (resType, field, val) => {
+    setDoc(prev => {
+      if (!prev) return prev;
+      const next = getCleanDocCopy(prev);
+      if (!next['mapping-collection'].mappings[0][resType]) next['mapping-collection'].mappings[0][resType] = {};
+      next['mapping-collection'].mappings[0][resType][field] = val;
+      return next;
+    });
+  };
+
   if (loading) return <div className="loading-indicator"><span className="spinner" /> Loading mapping workspace…</div>;
   if (error) return <div className="error-message">⚠️ {error}</div>;
+  if (!doc) return <div className="loading-indicator"><span className="spinner" /> Initializing mapping collection…</div>;
 
-  const mc = doc['mapping-collection'];
+  const mc = doc['mapping-collection'] || doc['control-mapping'] || {};
   const mappingNode = mc.mappings?.[0] || {};
   const maps = mappingNode.maps || [];
 
@@ -218,6 +262,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
       <DocumentToolbar
         mode="control-mappings"
         documentId={mappingId}
+        title={mc.metadata?.title || 'Untitled Mapping'}
         documentTitle={mc.metadata?.title || 'Untitled Mapping'}
         isEditing={isEditing}
         onToggleEdit={() => {
@@ -323,7 +368,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                         const rel = window.prompt("Enter relationship (equal-to, equivalent-to, subset-of, superset-of, intersects-with):");
                         if (rel) {
                           setDoc(prev => {
-                            const next = { ...prev };
+                            const next = getCleanDocCopy(prev);
                             const nextMaps = next['mapping-collection'].mappings[0].maps;
                             selected.forEach(s => {
                               const m = nextMaps.find(x => x.uuid === s.id);
@@ -337,7 +382,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                     { label: 'Delete Selected', icon: '🗑️', onClick: (selected) => {
                         if (window.confirm("Delete selected maps?")) {
                           setDoc(prev => {
-                            const next = { ...prev };
+                            const next = getCleanDocCopy(prev);
                             const nextMaps = next['mapping-collection'].mappings[0].maps;
                             const idsToRemove = new Set(selected.map(s => s.id));
                             next['mapping-collection'].mappings[0].maps = nextMaps.filter(m => !idsToRemove.has(m.uuid));
@@ -352,6 +397,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
               </div>
               {selectedMapEntry && (
                 <EntityDetailPanel
+                  isOpen={true}
                   title="Mapping Entry Detail"
                   onClose={() => setSelectedMapEntry(null)}
                 >
@@ -371,10 +417,11 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                           value={selectedMapEntry.relationship || ''} 
                           onChange={(e) => {
                             setDoc(prev => {
-                              const next = { ...prev };
-                              const m = next['mapping-collection'].mappings[0].maps.find(x => x.uuid === selectedMapEntry.uuid);
+                              if (!prev) return prev;
+                              const next = getCleanDocCopy(prev);
+                              const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
                               if (m) m.relationship = e.target.value;
-                              setSelectedMapEntry(m);
+                              setSelectedMapEntry(m ? { ...m } : null);
                               return next;
                             });
                           }}
@@ -402,15 +449,16 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                             value={selectedMapEntry.props?.find(p => p.name === 'method')?.value || 'manual'}
                             onChange={(e) => {
                               setDoc(prev => {
-                                const next = { ...prev };
-                                const m = next['mapping-collection'].mappings[0].maps.find(x => x.uuid === selectedMapEntry.uuid);
+                                if (!prev) return prev;
+                                const next = getCleanDocCopy(prev);
+                                const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
                                 if (m) {
                                   if (!m.props) m.props = [];
                                   const idx = m.props.findIndex(p => p.name === 'method');
                                   if (idx >= 0) m.props[idx].value = e.target.value;
                                   else m.props.push({ name: 'method', value: e.target.value });
                                 }
-                                setSelectedMapEntry(m);
+                                setSelectedMapEntry(m ? { ...m } : null);
                                 return next;
                               });
                             }}
@@ -432,15 +480,16 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                             value={selectedMapEntry.props?.find(p => p.name === 'confidence')?.value || '0'}
                             onChange={(e) => {
                               setDoc(prev => {
-                                const next = { ...prev };
-                                const m = next['mapping-collection'].mappings[0].maps.find(x => x.uuid === selectedMapEntry.uuid);
+                                if (!prev) return prev;
+                                const next = getCleanDocCopy(prev);
+                                const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
                                 if (m) {
                                   if (!m.props) m.props = [];
                                   const idx = m.props.findIndex(p => p.name === 'confidence');
                                   if (idx >= 0) m.props[idx].value = e.target.value;
                                   else m.props.push({ name: 'confidence', value: e.target.value });
                                 }
-                                setSelectedMapEntry(m);
+                                setSelectedMapEntry(m ? { ...m } : null);
                                 return next;
                               });
                             }}
@@ -458,15 +507,16 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                             value={selectedMapEntry.props?.find(p => p.name === 'rationale')?.value || ''}
                             onChange={(e) => {
                               setDoc(prev => {
-                                const next = { ...prev };
-                                const m = next['mapping-collection'].mappings[0].maps.find(x => x.uuid === selectedMapEntry.uuid);
+                                if (!prev) return prev;
+                                const next = getCleanDocCopy(prev);
+                                const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
                                 if (m) {
                                   if (!m.props) m.props = [];
                                   const idx = m.props.findIndex(p => p.name === 'rationale');
                                   if (idx >= 0) m.props[idx].value = e.target.value;
                                   else m.props.push({ name: 'rationale', value: e.target.value });
                                 }
-                                setSelectedMapEntry(m);
+                                setSelectedMapEntry(m ? { ...m } : null);
                                 return next;
                               });
                             }}
@@ -487,10 +537,11 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                           value={selectedMapEntry.remarks || ''}
                           onChange={(e) => {
                             setDoc(prev => {
-                              const next = { ...prev };
-                              const m = next['mapping-collection'].mappings[0].maps.find(x => x.uuid === selectedMapEntry.uuid);
+                              if (!prev) return prev;
+                              const next = getCleanDocCopy(prev);
+                              const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
                               if (m) m.remarks = e.target.value;
-                              setSelectedMapEntry(m);
+                              setSelectedMapEntry(m ? { ...m } : null);
                               return next;
                             });
                           }}
@@ -507,10 +558,11 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                         isEditing={isEditing}
                         onChange={(props) => {
                           setDoc(prev => {
-                            const next = { ...prev };
-                            const m = next['mapping-collection'].mappings[0].maps.find(x => x.uuid === selectedMapEntry.uuid);
+                            if (!prev) return prev;
+                            const next = getCleanDocCopy(prev);
+                            const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
                             if (m) m.props = props;
-                            setSelectedMapEntry(m);
+                            setSelectedMapEntry(m ? { ...m } : null);
                             return next;
                           });
                         }}
@@ -645,14 +697,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                       <select
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['source-resource']?.type || 'catalog'}
-                        onChange={(e) => {
-                          setDoc(prev => {
-                            const next = { ...prev };
-                            if (!next['mapping-collection'].mappings[0]['source-resource']) next['mapping-collection'].mappings[0]['source-resource'] = {};
-                            next['mapping-collection'].mappings[0]['source-resource'].type = e.target.value;
-                            return next;
-                          });
-                        }}
+                        onChange={(e) => updateResourceField('source-resource', 'type', e.target.value)}
                       >
                         <option value="catalog">Catalog</option>
                         <option value="profile">Profile</option>
@@ -671,14 +716,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                       <input
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['source-resource']?.title || ''}
-                        onChange={(e) => {
-                          setDoc(prev => {
-                            const next = { ...prev };
-                            if (!next['mapping-collection'].mappings[0]['source-resource']) next['mapping-collection'].mappings[0]['source-resource'] = {};
-                            next['mapping-collection'].mappings[0]['source-resource'].title = e.target.value;
-                            return next;
-                          });
-                        }}
+                        onChange={(e) => updateResourceField('source-resource', 'title', e.target.value)}
                       />
                     ) : (
                       <div style={{ padding: '8px', background: 'var(--color-surface)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
@@ -692,14 +730,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                       <input
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['source-resource']?.href || ''}
-                        onChange={(e) => {
-                          setDoc(prev => {
-                            const next = { ...prev };
-                            if (!next['mapping-collection'].mappings[0]['source-resource']) next['mapping-collection'].mappings[0]['source-resource'] = {};
-                            next['mapping-collection'].mappings[0]['source-resource'].href = e.target.value;
-                            return next;
-                          });
-                        }}
+                        onChange={(e) => updateResourceField('source-resource', 'href', e.target.value)}
                       />
                     ) : (
                       <div style={{ padding: '8px', background: 'var(--color-surface)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
@@ -712,14 +743,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                 <PropsEditor
                   properties={mappingNode['source-resource']?.props || []}
                   isEditing={isEditing}
-                  onChange={(props) => {
-                    setDoc(prev => {
-                      const next = { ...prev };
-                      if (!next['mapping-collection'].mappings[0]['source-resource']) next['mapping-collection'].mappings[0]['source-resource'] = {};
-                      next['mapping-collection'].mappings[0]['source-resource'].props = props;
-                      return next;
-                    });
-                  }}
+                  onChange={(props) => updateResourceField('source-resource', 'props', props)}
                 />
               </div>
 
@@ -732,14 +756,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                       <select
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['target-resource']?.type || 'catalog'}
-                        onChange={(e) => {
-                          setDoc(prev => {
-                            const next = { ...prev };
-                            if (!next['mapping-collection'].mappings[0]['target-resource']) next['mapping-collection'].mappings[0]['target-resource'] = {};
-                            next['mapping-collection'].mappings[0]['target-resource'].type = e.target.value;
-                            return next;
-                          });
-                        }}
+                        onChange={(e) => updateResourceField('target-resource', 'type', e.target.value)}
                       >
                         <option value="catalog">Catalog</option>
                         <option value="profile">Profile</option>
@@ -758,14 +775,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                       <input
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['target-resource']?.title || ''}
-                        onChange={(e) => {
-                          setDoc(prev => {
-                            const next = { ...prev };
-                            if (!next['mapping-collection'].mappings[0]['target-resource']) next['mapping-collection'].mappings[0]['target-resource'] = {};
-                            next['mapping-collection'].mappings[0]['target-resource'].title = e.target.value;
-                            return next;
-                          });
-                        }}
+                        onChange={(e) => updateResourceField('target-resource', 'title', e.target.value)}
                       />
                     ) : (
                       <div style={{ padding: '8px', background: 'var(--color-surface)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
@@ -779,14 +789,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                       <input
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['target-resource']?.href || ''}
-                        onChange={(e) => {
-                          setDoc(prev => {
-                            const next = { ...prev };
-                            if (!next['mapping-collection'].mappings[0]['target-resource']) next['mapping-collection'].mappings[0]['target-resource'] = {};
-                            next['mapping-collection'].mappings[0]['target-resource'].href = e.target.value;
-                            return next;
-                          });
-                        }}
+                        onChange={(e) => updateResourceField('target-resource', 'href', e.target.value)}
                       />
                     ) : (
                       <div style={{ padding: '8px', background: 'var(--color-surface)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
@@ -799,14 +802,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                 <PropsEditor
                   properties={mappingNode['target-resource']?.props || []}
                   isEditing={isEditing}
-                  onChange={(props) => {
-                    setDoc(prev => {
-                      const next = { ...prev };
-                      if (!next['mapping-collection'].mappings[0]['target-resource']) next['mapping-collection'].mappings[0]['target-resource'] = {};
-                      next['mapping-collection'].mappings[0]['target-resource'].props = props;
-                      return next;
-                    });
-                  }}
+                  onChange={(props) => updateResourceField('target-resource', 'props', props)}
                 />
               </div>
 
@@ -815,8 +811,11 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                 isEditing={isEditing}
                 onChange={(md) => {
                   setDoc(prev => {
-                    const next = { ...prev };
-                    next['mapping-collection'].metadata = md;
+                    if (!prev) return prev;
+                    const next = JSON.parse(JSON.stringify(prev));
+                    const rootKey = next['mapping-collection'] ? 'mapping-collection' : (next['control-mapping'] ? 'control-mapping' : 'mapping-collection');
+                    if (!next[rootKey]) next[rootKey] = {};
+                    next[rootKey].metadata = md;
                     return next;
                   });
                 }}
@@ -826,9 +825,12 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                 isEditing={isEditing}
                 onChange={(props) => {
                   setDoc(prev => {
-                    const next = { ...prev };
-                    if (!next['mapping-collection'].metadata) next['mapping-collection'].metadata = {};
-                    next['mapping-collection'].metadata.props = props;
+                    if (!prev) return prev;
+                    const next = JSON.parse(JSON.stringify(prev));
+                    const rootKey = next['mapping-collection'] ? 'mapping-collection' : (next['control-mapping'] ? 'control-mapping' : 'mapping-collection');
+                    if (!next[rootKey]) next[rootKey] = {};
+                    if (!next[rootKey].metadata) next[rootKey].metadata = {};
+                    next[rootKey].metadata.props = props;
                     return next;
                   });
                 }}
@@ -838,8 +840,11 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                 isEditing={isEditing}
                 onChange={(bm) => {
                   setDoc(prev => {
-                    const next = { ...prev };
-                    next['mapping-collection']['back-matter'] = bm;
+                    if (!prev) return prev;
+                    const next = JSON.parse(JSON.stringify(prev));
+                    const rootKey = next['mapping-collection'] ? 'mapping-collection' : (next['control-mapping'] ? 'control-mapping' : 'mapping-collection');
+                    if (!next[rootKey]) next[rootKey] = {};
+                    next[rootKey]['back-matter'] = bm;
                     return next;
                   });
                 }}

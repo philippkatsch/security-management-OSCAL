@@ -107,8 +107,8 @@ export function VersionDrawer({
           </button>
         </div>
 
-        {/* Save Version Form */}
-        {isEditing && (
+        {/* Save Version Form — visible in edit mode or when active draft exists */}
+        {(isEditing || versions.some(v => v.is_draft || (typeof v.version === 'string' && v.version.endsWith('-draft')))) && (
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid var(--color-border)' }}>
             <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: 'var(--color-success)', fontWeight: 'bold' }}>🚀 Publish New Version</h4>
             

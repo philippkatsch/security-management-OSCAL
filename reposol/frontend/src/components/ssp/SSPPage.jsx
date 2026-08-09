@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useDocument } from '../../hooks/useDocument';
-import { useUndoRedo } from '../../hooks/useUndoRedo';
-import { useVersions } from '../../hooks/useVersions';
+import { useDocumentLifecycle } from '../../hooks/useDocumentLifecycle';
 import EntityTable from '../shared/entity/EntityTable';
 import EntityDetailPanel from '../shared/entity/EntityDetailPanel';
 import StatusBadge from '../shared/status/StatusBadge';
@@ -21,46 +19,52 @@ const generateUUID = () => crypto.randomUUID();
 
 export function SSPPage({ sspId, initialEditMode = false, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isEditing, setIsEditing] = useState(initialEditMode);
-
   const [selectedItem, setSelectedItem] = useState(null); // generic selection
   const [itemType, setItemType] = useState(null); // 'user', 'component', 'inventory', 'auth', 'infotype', 'control'
   const [impTab, setImpTab] = useState('users');
 
+  // Unified Document Lifecycle Hook
   const {
     doc,
+    activeDoc,
     setDoc,
     loading,
     error,
-    save: saveDocument,
     saving: isSaving,
-    isDirty
-  } = useDocument('ssps', sspId, initialEditMode);
+    save: saveDocument,
+    reload,
 
-  const {
-    current: undoState,
-    pushState: setUndoState,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    reset: resetUndo
-  } = useUndoRedo(doc);
-
-  const {
     versions,
+    hasDraft,
+    currentVersion,
+    inspectedVersion,
+    setInspectedVersion,
+
+    isEditing,
+    setIsEditing,
+    editMode,
+    setEditMode,
+
     showDrawer: showVersions,
     setShowDrawer: setShowVersions,
-    reload: loadVersions,
-    switchTo: restoreVersion,
-    isRestoring = false
-  } = useVersions('ssps', sspId);
 
-  useEffect(() => {
-    if (doc && !undoState) {
-      resetUndo(doc);
-    }
-  }, [doc, undoState, resetUndo]);
+    handleToggleEdit,
+    handleSelectVersion,
+    handleDeleteDraft,
+    handlePublishVersion,
+    handleBack,
+
+    undo: handleUndo,
+    redo: handleRedo,
+    canUndo,
+    canRedo,
+    pushUndoRedoState: setUndoState,
+    resetUndoRedo: resetUndo,
+    saveDraftTag,
+    saveVersionTag,
+    deleteVersionTag,
+    loadVersions
+  } = useDocumentLifecycle('ssps', 'system-security-plan', sspId, initialEditMode);
 
   const handleUpdate = useCallback((newDoc) => {
     setUndoState(newDoc);
@@ -95,16 +99,6 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
 
   const handleSave = async () => {
     await saveDocument(doc);
-  };
-
-  const handleUndo = () => {
-    const prevState = undo();
-    if (prevState) setDoc(prevState);
-  };
-
-  const handleRedo = () => {
-    const nextState = redo();
-    if (nextState) setDoc(nextState);
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading SSP...</div>;
@@ -1019,32 +1013,25 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
     <div className="document-page h-full flex flex-col">
       <DocumentToolbar
         title={ssp.metadata?.title || 'Untitled SSP'}
+        version={ssp.metadata?.version}
         mode="ssp"
         isEditing={isEditing}
-        onToggleEdit={() => {
-          const next = !isEditing;
-          setIsEditing(next);
-          const params = new URLSearchParams(window.location.search);
-          if (next) {
-            params.set('edit', 'true');
-          } else {
-            params.delete('edit');
-          }
-          const newSearch = params.toString() ? `?${params.toString()}` : '';
-          window.history.replaceState(null, '', window.location.pathname + newSearch);
-        }}
+        hasDraft={hasDraft}
+        onToggleEdit={handleToggleEdit}
         onSave={handleSave}
-        isDirty={isDirty}
         isSaving={isSaving}
         onUndo={handleUndo}
         onRedo={handleRedo}
         canUndo={canUndo}
         canRedo={canRedo}
+        versions={versions}
+        onSelectVersion={handleSelectVersion}
+        onDeleteDraft={handleDeleteDraft}
         onSaveVersion={() => {
           loadVersions();
           setShowVersions(true);
         }}
-        onBack={onClose}
+        onBack={() => handleBack(onClose)}
       />
 
       <div className="document-tabs">
@@ -1119,8 +1106,15 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }) {
         isOpen={showVersions}
         onClose={() => setShowVersions(false)}
         versions={versions}
-        onRestore={restoreVersion}
-        isRestoring={isRestoring}
+        isEditing={isEditing}
+        currentVersion={ssp.metadata?.version}
+        onSwitch={async (version) => {
+          await handleSelectVersion(version);
+          setShowVersions(false);
+        }}
+        onSave={async (versionNum, remarks) => {
+          await handlePublishVersion(versionNum, activeDoc, remarks);
+        }}
       />
     </div>
   );

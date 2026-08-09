@@ -260,12 +260,18 @@ def get_document_versions(stage: str, doc_id: str, workspace_id: Optional[str] =
                     root_key = STAGE_ROOT_KEYS[stage]
                     metadata = doc.get(root_key, {}).get("metadata", {})
                     active_version = metadata.get("version", "")
-                    if not any(v["version"] == active_version for v in versions):
+                    matched = False
+                    for v in versions:
+                        if v.get("version") == active_version:
+                            v["is_active"] = True
+                            matched = True
+                    if not matched and active_version:
                         versions.append({
                             "version": active_version,
                             "last-modified": metadata.get("last-modified", ""),
                             "title": metadata.get("title", ""),
                             "remarks": "Active version",
+                            "is_active": True,
                             "filename": f"{doc_id}.json"
                         })
         except Exception:

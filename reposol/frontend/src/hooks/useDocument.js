@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchDocument, saveDocument, validateDocument } from '../lib/api';
 import { cleanEmptyArrays } from '../lib/oscal-utils';
 
@@ -16,48 +16,56 @@ export function useDocument(stage, documentId) {
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
 
+  const docRef = useRef(doc);
+  docRef.current = doc;
+  useEffect(() => {
+    docRef.current = doc;
+  }, [doc]);
+
+  const updateDoc = useCallback((updater) => {
+    setDoc(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      docRef.current = next;
+      return next;
+    });
+  }, []);
+
   const load = useCallback(async (options = {}) => {
-    if (!documentId) return;
+    if (!documentId) return null;
     const isSilent = typeof options === 'boolean' ? options : !!options?.silent;
-    let isCurrent = true;
     if (!isSilent) {
       setLoading(true);
     }
     setError(null);
     try {
       const data = await fetchDocument(stage, documentId);
-      if (isCurrent) {
-        setDoc(data);
-      }
+      updateDoc(data);
+      return data;
     } catch (err) {
-      if (isCurrent) {
-        if (!isSilent) {
-          setDoc(null);
-        }
-        setError(err.message);
+      if (!isSilent) {
+        updateDoc(null);
       }
+      setError(err.message);
+      return null;
     } finally {
-      if (isCurrent && !isSilent) {
+      if (!isSilent) {
         setLoading(false);
       }
     }
-    return () => { isCurrent = false; };
-  }, [stage, documentId]);
+  }, [stage, documentId, updateDoc]);
 
   useEffect(() => {
-    let cancelFn;
-    load().then(cleanup => { cancelFn = cleanup; });
-    return () => { if (cancelFn) cancelFn(); };
+    load();
   }, [load]);
 
   const save = useCallback(async (documentToSave) => {
     setSaving(true);
     setError(null);
     try {
-      const targetDoc = documentToSave || doc;
+      const targetDoc = documentToSave || docRef.current || doc;
       const cleaned = cleanEmptyArrays(targetDoc);
       const result = await saveDocument(stage, cleaned);
-      setDoc(result);
+      updateDoc(result);
       return result;
     } catch (err) {
       setError(err.message);
@@ -65,7 +73,7 @@ export function useDocument(stage, documentId) {
     } finally {
       setSaving(false);
     }
-  }, [stage, doc]);
+  }, [stage, doc, updateDoc]);
 
   const validate = useCallback(async (document) => {
     setValidating(true);
@@ -83,5 +91,5 @@ export function useDocument(stage, documentId) {
     }
   }, [stage, doc]);
 
-  return { doc, setDoc, loading, error, saving, validating, validationResult, save, validate, reload: load };
+  return { doc, setDoc: updateDoc, loading, error, saving, validating, validationResult, save, validate, reload: load };
 }

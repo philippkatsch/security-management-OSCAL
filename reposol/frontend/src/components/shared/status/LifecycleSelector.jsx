@@ -54,7 +54,7 @@ export default function LifecycleSelector({ currentStatus, onStatusChange, docum
 
       {isOpen && (
         <div className="lifecycle-selector-dropdown">
-          <div className="lifecycle-selector-header">Change Status</div>
+          <div className="lifecycle-selector-header">Document Status</div>
           
           {confirmingStatus ? (
             <div className="lifecycle-selector-confirm">
@@ -98,7 +98,9 @@ export default function LifecycleSelector({ currentStatus, onStatusChange, docum
                     className={`lifecycle-selector-item ${isValid ? '' : 'disabled'}`}
                     onClick={() => isValid && handleSelect(status)}
                   >
-                    <StatusBadge status={status} />
+                    <div className="lifecycle-selector-item-title">
+                      <StatusBadge status={status} variant="dot" size="md" />
+                    </div>
                     <span className="lifecycle-selector-desc">{DESCRIPTIONS[status]}</span>
                   </li>
                 );

@@ -7,6 +7,7 @@
 > **Related Parameter Decisions:** This DD is part of the Parameter Architecture family:
 > - **DD-009** (this): Lifecycle strategy — Profile vs. SSP vs. Component
 > - [DD-010](DD-010_parameter_scoping_and_inheritance.md): Scoping & Inheritance — Catalog → Group → Control hierarchy
+> - [DD-011](DD-011_properties_vs_parameters_separation.md): Conceptual Separation — Properties (static metadata) vs. Parameters (dynamic placeholders)
 > - [DD-012](DD-012_parameter_value_assignment_and_override_strategy.md): Value Assignment UX — Choice dropdowns, constraints, override rendering
 > - [DD-013](DD-013_universal_prose_with_params_integration.md): Prose Integration — `ProseWithParams` component architecture
 

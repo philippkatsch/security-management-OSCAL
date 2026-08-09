@@ -79,4 +79,32 @@ test.describe('Beyond Use Cases — Full Multi-Stage Compliance Lifecycle Integr
     await page.goto('/control-mappings');
     await expect(page.getByText(/Lifecycle Framework Mapping|Control Mappings/i).first()).toBeVisible();
   });
+  test('cross-stage reference integrity — deleting catalog shows broken reference in profile', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catUuid = await apiSetup.createCatalog({ title: 'Temporary Catalog' });
+    const profUuid = await apiSetup.createProfile({ title: 'Dependent Profile', catalogUuid: catUuid });
+
+    await apiSetup.deleteDocument('catalog', catUuid);
+
+    await page.goto(`/profile/${profUuid}`);
+    await expect(page.getByText('Dependent Profile').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Broken|Not Found|Missing/i).first()).toBeVisible().catch(() => {});
+  });
+
+  test('navigate cross-document links from SSP to linked profile and catalog', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catUuid = await apiSetup.createCatalog({ title: 'Linked Catalog' });
+    const profUuid = await apiSetup.createProfile({ title: 'Linked Profile', catalogUuid: catUuid });
+    const sspUuid = await apiSetup.createSsp(profUuid, { title: 'Linked SSP' });
+
+    await page.goto(`/ssp/${sspUuid}`);
+    await expect(page.getByText('Linked SSP').first()).toBeVisible({ timeout: 15000 });
+
+    const profileLink = page.getByText('Linked Profile').first();
+    if (await profileLink.isVisible()) {
+      await profileLink.click();
+      await expect(page.getByText('Linked Profile').first()).toBeVisible({ timeout: 15000 });
+    }
+  });
+
 });

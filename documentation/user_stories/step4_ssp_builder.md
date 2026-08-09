@@ -8,7 +8,7 @@
 ## 1. Breakdown of User Stories
 
 ### US 4.1: SSP Document Creation & Inner View
-> Implements [US 0.P1](step0_global_requirements.md) with SSP-specific additions.
+> Implements [US 0.14](step0_global_requirements.md) with SSP-specific additions.
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** create a new System Security Plan by entering only a document title and being immediately redirected to the in-place editing area (Inner View),  
 > **so that** I can begin configuring system characteristics and control implementations without cumbersome preliminary wizards.
@@ -377,7 +377,7 @@
     *   **Validation Severity Levels:** Errors (schema violations, missing required fields) vs. Warnings (missing optional but recommended fields, open parameters).
 
 ### US 4.22: Document Overview, Import Management & Tags
-> Implements [US 0.P3](step0_global_requirements.md) with SSP-specific additions.
+> Implements [US 0.16](step0_global_requirements.md) with SSP-specific additions.
 > **As a** Compliance Officer (Alice)  
 > **I want to** manage SSP metadata, baseline profile imports, and tags in the Document Overview pane,  
 > **so that** the overall document structure and global tag system are well-maintained.
@@ -389,7 +389,7 @@
     *   **SSP Summary Dashboard:** Overview showing: system name, status, security impact levels, total controls, implementation progress (by status), open parameters count, component count, user count.
 
 ### US 4.23: In-Card Editing & Draft Persistence
-> Implements [US 0.P4](step0_global_requirements.md) with SSP-specific additions.
+> Implements [US 0.17](step0_global_requirements.md) with SSP-specific additions.
 > **As a** Compliance Officer (Alice)  
 > **I want to** edit SSP details inline in cohesive card layouts and have unsaved changes cached locally,  
 > **so that** data entry is uniform, and no work is lost on accidental navigation.
@@ -404,7 +404,7 @@
     *   **Discard Draft:** Option to explicitly discard cached changes and revert to last saved state.
 
 ### US 4.24: Integrated Backend Versioning
-> Implements [US 0.P2](step0_global_requirements.md) with SSP-specific additions.
+> Implements [US 0.15](step0_global_requirements.md) with SSP-specific additions.
 > **As a** Compliance Officer (Alice)  
 > **I want to** save, load, and delete versions of an SSP document directly in the backend,  
 > **so that** version states are managed persistently, cross-device, and are visible to other users.

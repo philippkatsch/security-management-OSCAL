@@ -15,11 +15,11 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const UUID_PREFIX_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const IS_TEST_WORKSPACE_REGEX = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|session-.+)$/i;
 const PROTECTED_NAMES = new Set(['default', 'master', 'templates']);
 
 async function globalTeardown() {
-  const workspacesDir = path.resolve(__dirname, '../backend/data/workspaces');
+  const workspacesDir = path.resolve(__dirname, '../data/workspaces');
 
   if (!fs.existsSync(workspacesDir)) {
     return;
@@ -32,8 +32,8 @@ async function globalTeardown() {
     if (!entry.isDirectory()) continue;
     if (PROTECTED_NAMES.has(entry.name)) continue;
 
-    // Only remove UUID-named directories (test workspaces)
-    if (!UUID_PREFIX_REGEX.test(entry.name)) continue;
+    // Only remove UUID-named or session-named directories (test workspaces)
+    if (!IS_TEST_WORKSPACE_REGEX.test(entry.name)) continue;
 
     const dirPath = path.join(workspacesDir, entry.name);
     try {

@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useDocument } from '../../hooks/useDocument';
-import { useVersions } from '../../hooks/useVersions';
-import { useUndoRedo } from '../../hooks/useUndoRedo';
-import { useDraft } from '../../hooks/useDraft';
+import { useDocumentLifecycle } from '../../hooks/useDocumentLifecycle';
 import { useProfileResolution } from '../../hooks/useProfileResolution';
 import { DocumentToolbar } from '../shared/DocumentToolbar';
 import { ProfileSidebar } from './ProfileSidebar';
@@ -52,39 +49,56 @@ export function ProfilePage({
   initialEditMode = false,
   onClose
 }) {
-  // 1. Backend Document Integration Hook
+  // Unified Document Lifecycle Hook
   const {
     doc,
+    activeDoc,
     setDoc,
     loading,
     error,
     saving,
     validating,
     validationResult,
-    save,
     validate,
-    reload
-  } = useDocument('profiles', profileId);
+    reload,
 
-  // 2. Versions Hook
-  const {
     versions,
+    hasDraft,
+    currentVersion,
+    inspectedVersion,
+    setInspectedVersion,
+
+    isEditing,
+    setIsEditing,
+    editMode,
+    setEditMode,
+
     showDrawer: showVersions,
     setShowDrawer: setShowVersions,
-    save: saveVersion,
-    saveDraft: saveDraftTag,
-    remove: deleteVersionTag,
-    switchTo: restoreVersion,
-    isRestoring
-  } = useVersions('profiles', profileId, setDoc);
 
-  // 3. States
-  const [isEditing, setIsEditing] = useState(initialEditMode);
+    handleToggleEdit,
+    handleSelectVersion,
+    handleDeleteDraft,
+    handlePublishVersion,
+    handleBack,
+
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    pushUndoRedoState,
+    resetUndoRedo,
+    markDraftDiscarded,
+    saveDraftTag,
+    saveVersionTag,
+    deleteVersionTag,
+    loadVersions
+  } = useDocumentLifecycle('profiles', 'profile', profileId, initialEditMode);
+
+  // 2. Local States
   const [selectedControlId, setSelectedControlId] = useState(null);
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [activeSidebarView, setActiveSidebarView] = useState('overview');
-  // No top-level tabs — mirrors CatalogPage pattern (sidebar selection drives right panel)
-  const [editMode, setEditMode] = useState('visual'); // visual | json
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({});
   const [jsonText, setJsonText] = useState('');
@@ -108,7 +122,7 @@ export function ProfilePage({
     setActiveSidebarView(null);
   };
 
-  // 4. Custom Profile Resolution Hook (live preview resolved state)
+  // 3. Custom Profile Resolution Hook (live preview resolved state)
   const {
     resolvedCatalog,
     resolving,
@@ -117,31 +131,6 @@ export function ProfilePage({
     clearCache,
     catalogCache
   } = useProfileResolution();
-
-  // 5. Undo / Redo History Hook
-  const {
-    current: undoRedoDoc,
-    pushState: pushUndoRedoState,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    reset: resetUndoRedo
-  } = useUndoRedo(doc);
-
-  // Sync undoRedo state with active doc state
-  useEffect(() => {
-    if (doc && !undoRedoDoc) {
-      resetUndoRedo(doc);
-    }
-  }, [doc, undoRedoDoc, resetUndoRedo]);
-
-  const activeDoc = undoRedoDoc || doc;
-
-  // 6. Backend Draft Hook for Auto-save
-  const {
-    saveNow: saveDraftNow
-  } = useDraft('profile', profileId, activeDoc, isEditing, 30000, saveDraftTag);
 
   // Auto-expand parent groups and the selected item itself when selection changes
   useEffect(() => {
@@ -246,49 +235,8 @@ export function ProfilePage({
     setEditMode(mode);
   };
 
-  const handleToggleEdit = async () => {
-    if (isEditing) {
-      try {
-        let finalDoc = activeDoc;
-        if (editMode === 'json') {
-          finalDoc = JSON.parse(jsonText);
-        }
-        await saveDraftTag(finalDoc);
-        setIsEditing(false);
-        if (window.location.search.includes('edit=true')) {
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-        await reload({ silent: true });
-      } catch (err) {
-        alert(`Save failed: ${err.message}`);
-      }
-    } else {
-      setIsEditing(true);
-      if (!window.location.search.includes('edit=true')) {
-        window.history.replaceState(null, '', window.location.pathname + '?edit=true');
-      }
-    }
-  };
-
-  const handleBack = async () => {
-    if (isEditing) {
-      try {
-        let finalDoc = activeDoc;
-        if (editMode === 'json') {
-          try {
-            finalDoc = JSON.parse(jsonText);
-          } catch (e) {
-            if (!window.confirm("The JSON content is invalid and cannot be saved. Do you want to continue anyway? Your unsaved JSON changes will be lost.")) {
-              return;
-            }
-          }
-        }
-        await saveDraftTag(finalDoc);
-      } catch (err) {
-        console.error("Back button draft save failed:", err);
-      }
-    }
-    onClose();
+  const handleBackWithNavigation = () => {
+    handleBack(onClose);
   };
 
   const handleExport = () => {
@@ -578,13 +526,17 @@ export function ProfilePage({
       {/* Header Toolbar */}
       <DocumentToolbar
         title={profileData.metadata?.title}
+        version={profileData.metadata?.version}
         status={status}
         onStatusChange={handleStatusChange}
         isEditing={isEditing}
+        hasDraft={hasDraft}
         onToggleEdit={handleToggleEdit}
         onExport={handleExport}
-        onBack={handleBack}
+        onBack={handleBackWithNavigation}
         onSaveVersion={() => setShowVersions(true)}
+        onSelectVersion={handleSelectVersion}
+        onDeleteDraft={handleDeleteDraft}
         versions={versions}
         editMode={editMode}
         onToggleEditMode={handleToggleEditMode}
@@ -774,31 +726,13 @@ export function ProfilePage({
         isEditing={isEditing}
         onClose={() => setShowVersions(false)}
         onSwitch={async (version) => {
-          const loaded = await restoreVersion(version);
-          setDoc(loaded);
-          resetUndoRedo(loaded);
-          clearCache(); // Reset catalog caches for the new version
+          await handleSelectVersion(version);
+          clearCache();
           setShowVersions(false);
         }}
-        onDelete={deleteVersionTag}
+        onDelete={saveVersionTag}
         onSave={async (versionNum, remarks) => {
-          await saveVersion(versionNum, activeDoc, remarks);
-          // Update local state with new version so currentVersion is in sync
-          const updatedDoc = JSON.parse(JSON.stringify(activeDoc));
-          if (updatedDoc.profile?.metadata) {
-            updatedDoc.profile.metadata.version = versionNum;
-          }
-          setDoc(updatedDoc);
-          resetUndoRedo(updatedDoc);
-          
-          // Exit edit mode when saving as a new version (backend automatically deletes draft)
-          setIsEditing(false);
-          if (window.location.search.includes('edit=true')) {
-            window.history.replaceState(null, '', window.location.pathname);
-          }
-          
-          setShowVersions(false);
-          await reload({ silent: true });
+          await handlePublishVersion(versionNum, activeDoc, remarks);
         }}
       />
     </div>

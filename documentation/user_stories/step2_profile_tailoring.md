@@ -8,7 +8,7 @@
 ## 1. Breakdown of User Stories
 
 ### US 2.1: Simplified Profile Creation & Direct Editing (Inner View)
-> *Implements [US 0.P1](step0_global_requirements.md) with profile-specific additions.*
+> *Implements [US 0.14](step0_global_requirements.md) with profile-specific additions.*
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** be able to create a new profile by initially entering only the title and being forwarded immediately to the in-place editor area (Inner View),  
 > **so that** I can configure the sources, structures, and metadata directly within the editing area without cumbersome preliminary wizards.
@@ -127,7 +127,7 @@
 *   **Acceptance Criteria:**
     *   **GUI Deletion Selectors (`alters.removes`):** The user can select the type of selector when adding a deletion rule in the UI: ID (`by-id`), name (`by-name`), element type (`by-item-name` with selection from `param`, `prop`, `link`, `part`, `mapping`, `map`), class (`by-class`), or namespace (`by-ns`).
     *   **Complete Removal Support:** The user can remove any existing structural element (`props`, `params`, `links`, or `parts`) of a control compliantly using these selectors.
-    *   **Visual Traceability (Edit vs. View Mode):** Elements marked for deletion via `removes` are displayed as struck through (strikethrough) und visuell deaktiviert in Editor Mode to maintain full traceability of deletions. In View Mode, these elements are completely hidden.
+    *   **Visual Traceability (Edit vs. View Mode):** Elements marked for deletion via `removes` are displayed as struck through (strikethrough) and visually disabled in Editor Mode to maintain full traceability of deletions. In View Mode, these elements are completely hidden.
     *   **Resolution Filtering:** During profile resolution, the resolution engine filters out all components of the control that match the selectors.
     *   **Round-tripping:** Correct saving and loading of `removes` directives in the Profile JSON.
 
@@ -140,12 +140,12 @@
     *   **Collision Handling:** The resolution engine handles ID duplicates in accordance with the selected strategy.
 
 ### US 2.13: Integrated Profile Versioning in the Backend
-> *Implements [US 0.P2](step0_global_requirements.md) with profile-specific additions.*
+> *Implements [US 0.15](step0_global_requirements.md) with profile-specific additions.*
 > **As a** Compliance Officer (Alice)  
 > **I want to** manage versions of a profile in the backend while adhering to strict OSCAL compliance,  
 > **so that** version states are saved persistently and compliantly.
 *   **Acceptance Criteria:**
-    *   Applies the global versioning pattern **US 0.P2** fully (schema validation, version synchronization, error feedback, drawer, read-only history).
+    *   Applies the global versioning pattern **US 0.15** fully (schema validation, version synchronization, error feedback, drawer, read-only history).
     *   **Profile-specific:** The document is validated against the official NIST OSCAL Profile schema.
     *   **Revision Sync:** Upon saving, `profile.metadata.revisions[]` is automatically updated (in accordance with US 0.7).
 
@@ -172,7 +172,7 @@
         *   **No Quick Setup Pop-ups:** Obsolete Quick Setup logic and intermediate pop-ups are removed. All structure and activity states are manipulated directly and live within the sidebar and the main pane.
 
 ### US 2.15: Detailed Editability of Controls (Title, IDs, Labels & Enhancements in-place)
-> *Implements [US 0.P4](step0_global_requirements.md) with profile-specific additions.*
+> *Implements [US 0.17](step0_global_requirements.md) with profile-specific additions.*
 
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** edit all components of a control and its enhancements directly inline in the right detail pane, without having to navigate through confusing subpages,  
@@ -203,7 +203,7 @@
         *   **Polymorphic ControlDetailView & Icon Taxonomy Consistency:** In both Catalog Mode and Profile Mode, `ControlDetailView` provides identical inline editing capabilities for control parts, sub-parts/items, and links, including the `🔧` Advanced Settings toggle button for optional attributes (`ns`, `class`, `title`, `props`, `links`).
 
 ### US 2.16: Extended Management of Tags and Existing Properties in the Document Overview
-> *Implements [US 0.P3](step0_global_requirements.md) with profile-specific additions.*
+> *Implements [US 0.16](step0_global_requirements.md) with profile-specific additions.*
 
 > **As a** Compliance Officer (Alice)  
 > **I want to** clearly see already used properties/tags and their used values in the Document Overview and be able to add them directly to the global tags,  
@@ -215,12 +215,12 @@
         *   **Global Property Tags:** The list of globally defined metadata properties, which can be added, edited, and deleted in edit mode, and are displayed read-only in view mode.
         *   **Used / Existing Tags:** A dynamically generated list of all tags actually used in controls/groups.
     *   **Dropdown of Used Values:** For each existing tag, next to its name and frequency (count), a dropdown field (`<select>`) is displayed listing all unique values already entered for this tag in the document.
-    *   ~~**Quick Promotion (Promote):**~~ *Removed per [DD-011](../design_decisions/DD-011_properties_vs_parameters_separation.md) — `metadata.props` does not cascade to controls, so promoting a used tag to a "global property" would be semantically misleading. Property Usage Overview (US 0.P3) provides read-only visibility instead.*
+    *   ~~**Quick Promotion (Promote):**~~ *Removed per [DD-011](../design_decisions/DD-011_properties_vs_parameters_separation.md) — `metadata.props` does not cascade to controls, so promoting a used tag to a "global property" would be semantically misleading. Property Usage Overview (US 0.16) provides read-only visibility instead.*
 
 ### US 2.17: Profile Parameter Overrides (`modify.set-parameters`) & Dropdown Value Selection
 > *References DD-012*
 
-> **As an** Enterprise Architect (Alice)  
+> **As a** lead enterprise architect (Alice)  
 > **I want to** configure parameter overrides in the Profile Builder using interactive choice dropdowns and validated value inputs,  
 > **so that** I can customize baseline parameters with explicit `modify.set-parameters` entries while maintaining clean fallback to catalog defaults and zero schema pollution.
 
@@ -256,7 +256,7 @@
     *   **Resource CRUD:** In the Document Overview, there is a tab or section for managing back-matter resources. Resources can be added, edited, and deleted.
     *   **Full OSCAL Fields:** Support for all resource fields: UUID, title, description, properties, document IDs, citations (`citation`), resource links (`rlinks` with href, media-type, hashes), and embedded Base64 attachments.
     *   **Linking with Controls:** Controls can reference back-matter resources via `links` with `rel="reference"`. A dropdown offers all existing resources for selection.
-    *   **Parity with Catalog Editor:** The back-matter management uses the same UI components as the Catalog Editor (cf. US 0.P5).
+    *   **Parity with Catalog Editor:** The back-matter management uses the same UI components as the Catalog Editor (cf. US 0.18).
 
 ### US 2.20: Drag-to-Delete Target for Groups and Controls in the Sidebar (Full-Width & Dynamic)
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
@@ -277,7 +277,7 @@
 
 ### US 2.21: Resolution of Back-Matter Resources in Profile Imports
 > **As a** Compliance Officer (Alice)  
-> **I want** profile imports that reference resources in the back-matter (e.g., `#resource-uuid`) to be resolved correctly via their `rlinks` and the local catalog registry,  
+> **I want to** resolve profile imports that reference resources in back-matter (e.g., `#resource-uuid`) correctly via their `rlinks` and the local catalog registry,  
 > **so that** imported controls from official NIST catalogs and baselines can be loaded and edited in the Profile Editor.
 *   **Acceptance Criteria:**
     *   **Back-Matter Resolution:** If an import uses a fragment reference (e.g., `#uuid`), the Resolution Engine searches for the resource in the `back-matter`.
@@ -286,7 +286,7 @@
 
 ### US 2.22: Two-line Display of Prose Parts with ID Display (analogous to Catalogs)
 > **As a** Compliance Officer (Alice)  
-> **I want** the prose parts in the profile detail view and in the editor to also use the two-line display and additionally display the ID of the part,  
+> **I want to** see prose parts using two-line display with ID in profile detail view and editor,  
 > **so that** I can instantly see which ID a paragraph has in the source catalog and trace modifications specifically.
 
 *   **Acceptance Criteria:**
@@ -299,7 +299,7 @@
 > *References DD-008*
 
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
-> **I want** the detail view of a control in the Profile Editor (right pane) to look and behave visually and interactively identically to the perfected Catalog detail view,  
+> **I want to** have the detail view of a control in Profile Editor look and behave visually identical to Catalog view,  
 > **so that** when switching between the Catalog and Profile editors, I experience the same consistent, high-quality user interface and do not have to get used to different layouts and interaction patterns.
 
 *   **Acceptance Criteria:**
@@ -314,7 +314,7 @@
     *   **AC 9 — No Regression:** All existing Catalog and Profile functions (Undo/Redo, draft saving, versioning, Profile resolution, import sources, sidebar checkboxes) function unchanged after the transition.
 
 ### US 2.24: Enhancements Accordion Inline Expansion & Parameter Placement in Profile Mode (New for R1)
-> **As an** Enterprise Architect (Alice)  
+> **As a** lead enterprise architect (Alice)  
 > **I want to** be able to embed parameters directly into sub-control prose when sub-controls (enhancements) are expanded in the `EnhancementsAccordion` in the profile editor, as well as configure parameter overrides and profile-specific parameters at the sub-control level,  
 > **so that** I can fully tailor sub-controls in the profile without leaving the context of the main control.
 *   **Acceptance Criteria:**
@@ -336,7 +336,7 @@
 
 ### US 2.26: Object-Bound Targeted Modification Reverting & Pruning (Control, Group & Text Scope)
 > **As a** Compliance Officer (Alice)  
-> **I want** the discarding and pruning of modifications (`modify.alters` and `modify.set-parameters`) in the profile editor to always occur in a targeted and object-bound manner (at the level of individual controls, sub-controls, text elements, groups, or import sources),  
+> **I want to** discard and prune modifications in an object-bound manner (`modify.alters` and `modify.set-parameters`) in the profile editor (at the level of individual controls, sub-controls, text elements, groups, or import sources),  
 > **so that** when deselecting, removing, or resetting objects, exactly and exclusively the modifications belonging to that specific object are discarded.
 *   **Acceptance Criteria:**
     *   **Object-bound Control Revert (Control Level):** If a specific control is deselected, removed from a group, or taken out of the profile, the system checks specifically for this control (`control-id`) whether modifications exist in `modify.alters` or `modify.set-parameters`, and exclusively removes these specific entries.
@@ -372,7 +372,7 @@
     *   **Exact Replacement Check:** An add block is only treated by the resolution engine as a replacement (text overwrite) of an original statement if the original ID is explicitly listed in `alter.removes` and the add block defines a part with the same ID.
 
 ### US 2.29: Multi-Catalog Conflict Resolution and Combination Rules (`merge.combine`)
-> **As an** Enterprise Architect (Alice)  
+> **As a** lead enterprise architect (Alice)  
 > **I want to** configure the combination strategy (`use-first`, `merge`, `keep`) when importing multiple catalogs with identical control IDs,  
 > **so that** contradictory control definitions in the underlying rulebook are merged or prioritized in an orderly fashion.
 *   **Acceptance Criteria:**
@@ -381,7 +381,7 @@
     *   **Schema-compliant Engine Resolution:** The Profile Resolution Engine implements the chosen strategy during the generation of the Resolved Catalog.
 
 ### US 2.30: Cascading Profile Imports (Profile from Profiles)
-> **As an** Enterprise Architect (Alice)  
+> **As a** lead enterprise architect (Alice)  
 > **I want to** use existing baseline profiles (e.g., FedRAMP Moderate) as an import source for my new system profile and resolve them without recursion,  
 > **so that** I can inherit and customize corporate baselines across multiple levels.
 *   **Acceptance Criteria:**

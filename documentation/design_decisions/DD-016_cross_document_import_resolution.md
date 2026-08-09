@@ -70,7 +70,7 @@ When a parent document changes after an import was established:
 
 ## Consequences
 
-- All editors for Stage 5–8 documents gain a consistent "Imported Document" panel in the Document Overview (US 0.P3).
+- All editors for Stage 5–8 documents gain a consistent "Imported Document" panel in the Document Overview (US 0.16).
 - Cross-document integrity validation runs as supplementary checks alongside OSCAL schema validation (DD-002).
 - No persistent server-side caching or dependency graph database is required — resolution is stateless and on-demand.
 - Parent documents are never mutated by child documents.

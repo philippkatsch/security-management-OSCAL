@@ -336,4 +336,31 @@ test.describe('Step 5 Assessment Plan — Production-Grade E2E Specifications', 
     await expect(page.locator('.monaco-editor, textarea').first()).toBeVisible({ timeout: 15000 });
   });
 
+  test('create Assessment Plan via UI creation flow with SSP selection', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspId = await apiSetup.createSsp({ title: 'Target SSP for New AP' });
+    
+    await page.goto('/assessment-plans');
+    await page.getByRole('button', { name: 'Create Assessment Plan' }).click();
+    await expect(page.getByText('Create Assessment Plan')).toBeVisible();
+    
+    await page.getByLabel('Title').fill('UI Created Assessment Plan');
+    await page.locator('select').first().selectOption({ label: 'Target SSP for New AP' });
+    await page.getByRole('button', { name: 'Create' }).click();
+    
+    await expect(page.getByText('UI Created Assessment Plan').first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('pre-flight completeness report validates objectives and subjects', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspId = await apiSetup.createSsp();
+    const apUuid = await apiSetup.createAssessmentPlan(sspId, { title: 'Pre-flight Validation AP' });
+    
+    await page.goto(`/assessment-plan/${apUuid}`);
+    await expect(page.getByText('Pre-flight Validation AP').first()).toBeVisible({ timeout: 15000 });
+    
+    await expect(page.getByText('Plan Completeness').first()).toBeVisible();
+    await expect(page.locator('body')).toContainText(/objectives|subjects/i);
+  });
+
 });

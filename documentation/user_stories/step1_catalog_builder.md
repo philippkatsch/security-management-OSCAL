@@ -94,12 +94,12 @@
 > **I want to** manage versions of a catalog in the backend while adhering to strict OSCAL compliance,  
 > **so that** version states are saved persistently and compliantly.
 *   **Acceptance Criteria:**
-    *   Applies the global versioning pattern **US 0.P2** fully (schema validation, version synchronization, error feedback, drawer, read-only history).
+    *   Applies the global versioning pattern **US 0.15** fully (schema validation, version synchronization, error feedback, drawer, read-only history).
     *   **Catalog-specific:** The document is validated against the official NIST OSCAL Catalog schema.
     *   **Revision Sync:** Upon saving, `catalog.metadata.revisions[]` is automatically updated (in accordance with US 0.7).
 
 ### US 1.9: Simplified Catalog Creation & Direct Editing (Inner View)
-> *Implements [US 0.P1](step0_global_requirements.md) with catalog-specific additions.*
+> *Implements [US 0.14](step0_global_requirements.md) with catalog-specific additions.*
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** be able to create a new catalog by initially entering only the title and being forwarded immediately to the in-place editor area (Inner View),  
 > **so that** I can configure the structure and metadata directly within the editing area without cumbersome preliminary wizards.
@@ -110,7 +110,7 @@
     *   **Import Catalog Content:** In edit mode, the Document Overview contains the "Import Source" tab, which allows importing content from a registry template or a web URL (JSON) directly into the current catalog (preserving the original UUID). After a successful import, the content is automatically saved as a version in the backend, and the editor switches to the catalog's read-only view.
 
 ### US 1.10: Document Overview & Property Management in the Catalog
-> *Implements [US 0.P3](step0_global_requirements.md) with catalog-specific additions.*
+> *Implements [US 0.16](step0_global_requirements.md) with catalog-specific additions.*
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** manage the catalog's metadata and properties in clearly separated views within the Document Overview,  
 > **so that** I have a clear, OSCAL-correct overview of document metadata vs. property usage across controls and groups.
@@ -128,7 +128,7 @@
 > **Note (2026-07-22):** Standardized button label to `➕ Add Header Property` and added hover tooltips explaining Header Property vs. Element Property behavior.
 
 ### US 1.11: Detailed Editability of Controls & Exit Button in the Catalog
-> *Implements [US 0.P4](step0_global_requirements.md) with catalog-specific additions.*
+> *Implements [US 0.17](step0_global_requirements.md) with catalog-specific additions.*
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** edit all components of a control and its enhancements inline in a single cohesive detail card and save edits using an exit button,  
 > **so that** the operation is consistent and error-resistant.
@@ -221,7 +221,7 @@
 
 ### US 1.20: Functional Use of `label` and `sort-id` Properties in the UI
 > **As a** Framework Developer (Alice)  
-> **I want** the UI to functionally use the standard OSCAL properties `label` and `sort-id` (as primary display text and for sidebar sorting, respectively),  
+> **I want to** have the UI functionally use the standard OSCAL properties `label` and `sort-id` (as primary display text and for sidebar sorting, respectively),  
 > **so that** imported NIST catalogs are correctly displayed and sorted (e.g., `AC-1` instead of `ac-1`, and `ac-01, ac-02, ac-10` instead of `ac-1, ac-10, ac-2`).
 *   **Acceptance Criteria:**
     *   **Label as Display Text:** If a control or group has a property `prop name="label"`, its value (e.g., `AC-1`) is used as the primary display text in the sidebar, in breadcrumbs, and in the detail header (instead of the technical `id`).
@@ -266,7 +266,7 @@
 - **Parameter Inserts in Prose:** Insertion of standard-compliant parameter references (`insert type="param"`) in prose texts via a visual button (US 1.13).
 - **Audit Preparation (Objectives & Methods) & Mappings:** Assessment objectives, standardized test methods, and cross-framework mappings (US 1.5, US 1.6).
 - **Synchronous Dual-Mode Editor:** Synchronous switching between the graphical editor interface and the raw JSON/YAML mode without data loss (US 1.7).
-- **Integrated Versioning with Schema Validation:** Versioning in accordance with US 0.P2 with NIST Catalog schema validation and revision sync (US 1.8).
+- **Integrated Versioning with Schema Validation:** Versioning in accordance with US 0.15 with NIST Catalog schema validation and revision sync (US 1.8).
 - **Document Overview & Tag Control:** Centralized management of metadata and tag promotion in the right main pane (US 1.10).
 - **Combined Card Layout & Draft Recovery:** Cohesive detail editing card for header/properties, autocompletion for keys, and `localStorage`-based draft recovery upon exit (US 1.11).
 - **Full Control Editing:** Links, back-matter resources (including citations, Base64 attachments, hashes) and responsible roles can be maintained via the visual interface — full parity with the Profile Editor (US 1.12).
@@ -286,7 +286,7 @@
 - [x] The editor allows adding cross-links to external standards (US 1.6).
 - [x] The switcher between the graphical mask and JSON text synchronizes changes error-free in both directions and validates against the official NIST schema (US 1.7).
 - [x] Catalogs are exported 100% compliant with the official OSCAL Catalog schema (US 1.7).
-- [x] Versioning with NIST schema validation, revision sync, and reference to US 0.P2 (US 1.8).
+- [x] Versioning with NIST schema validation, revision sync, and reference to US 0.15 (US 1.8).
 - [x] Catalog creation redirects the user directly to the in-place editor (US 1.9).
 - [x] The Document Overview clearly displays metadata and tags (including used tags & promotion) (US 1.10).
 - [x] Edited controls are displayed in a cohesive card, and drafts are cached locally upon exit (US 1.11).

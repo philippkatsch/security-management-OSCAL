@@ -7,12 +7,13 @@ export default function StatusBreakdown({
   variant = 'list', 
   className = '' 
 }) {
-  const total = items.reduce((sum, item) => sum + (item.count || 0), 0);
+  const safeItems = Array.isArray(items) ? items : [];
+  const total = safeItems.reduce((sum, item) => sum + (item.count || 0), 0);
 
   const renderBarVariant = () => (
     <div className="status-breakdown-bar-variant">
       <div className="status-breakdown-stacked-bar">
-        {items.map((item, idx) => {
+        {safeItems.map((item, idx) => {
           const itemPercentage = total > 0 ? ((item.count || 0) / total) * 100 : 0;
           const displayPercent = item.percentage !== undefined ? item.percentage : itemPercentage;
           if (displayPercent <= 0) return null;
@@ -31,7 +32,7 @@ export default function StatusBreakdown({
         })}
       </div>
       <div className="status-breakdown-legend">
-        {items.map((item, idx) => (
+        {safeItems.map((item, idx) => (
           <div key={idx} className="status-breakdown-legend-item">
             <span className="status-dot" style={{ backgroundColor: item.color }} />
             <span className="status-label">{item.label}</span>
@@ -44,7 +45,7 @@ export default function StatusBreakdown({
 
   const renderListVariant = () => (
     <div className="status-breakdown-list-variant">
-      {items.map((item, idx) => {
+      {safeItems.map((item, idx) => {
         const itemPercentage = total > 0 ? ((item.count || 0) / total) * 100 : 0;
         const displayPercent = item.percentage !== undefined ? item.percentage : itemPercentage;
         

@@ -5,9 +5,9 @@
 
 ## 1. Breakdown of User Stories
 
-### US 5.1: AP Document Creation & Inner View (US 0.P1)
+### US 5.1: AP Document Creation & Inner View (US 0.14)
 > **As a** Lead Assessor
-> **I want to** create and view an `assessment-plan` document (US 0.P1)
+> **I want to** create and view an `assessment-plan` document (US 0.14)
 > **so that** I have a foundational workspace to outline the assessment strategy.
 
 ### US 5.2: SSP Import & System Context Resolution
@@ -70,24 +70,24 @@
 > **I want to** see a visual timeline of all assessment tasks showing scheduling, dependencies, and milestones
 > **so that** I can plan the assessment execution efficiently and identify scheduling conflicts.
 
-### US 5.13: AP Table & Navigation (US 0.P5)
+### US 5.13: AP Table & Navigation (US 0.18)
 > **As a** Lead Assessor
-> **I want to** navigate the complex Assessment Plan via a structured table (US 0.P5)
+> **I want to** navigate the complex Assessment Plan via a structured table (US 0.18)
 > **so that** I can easily jump between tasks, local definitions, and control scopes without losing context.
 
-### US 5.14: Document Overview & Tags (US 0.P3)
+### US 5.14: Document Overview & Tags (US 0.16)
 > **As a** Lead Assessor
-> **I want to** view a Document Overview and assign tags (US 0.P3)
+> **I want to** view a Document Overview and assign tags (US 0.16)
 > **so that** metadata, statuses, and high-level assessment parameters are easily identifiable.
 
-### US 5.15: In-Card Editing & Draft Persistence (US 0.P4)
+### US 5.15: In-Card Editing & Draft Persistence (US 0.17)
 > **As a** Lead Assessor
-> **I want to** use In-Card Editing with Draft Persistence (US 0.P4)
+> **I want to** use In-Card Editing with Draft Persistence (US 0.17)
 > **so that** I can iteratively flesh out complex tasks or assessment procedures without risking data loss.
 
-### US 5.16: Integrated Backend Versioning (US 0.P2)
+### US 5.16: Integrated Backend Versioning (US 0.15)
 > **As a** Lead Assessor
-> **I want to** rely on Integrated Backend Versioning (US 0.P2)
+> **I want to** rely on Integrated Backend Versioning (US 0.15)
 > **so that** changes to the assessment scope or methodology can be tracked and rolled back if negotiations change.
 
 ### US 5.17: Back-Matter & Resource Attachments
@@ -126,105 +126,106 @@
 
 ## 4. Functional Acceptance Criteria
 
-### US 5.1: AP Document Creation & Inner View (US 0.P1)
-- [ ] **Root Initialization**: The system MUST generate a valid `assessment-plan` root object with a globally unique, auto-generated `uuid` (required).
-- [ ] **Metadata Constraint**: The system MUST enforce the creation of exactly one `metadata` object (required 1..1) compliant with OSCAL standards.
-- [ ] **Validation Layer**: The document MUST be validated against the OSCAL metaschema for `assessment-plan` upon save (DD-002).
+- [ ] **US 5.1: AP Document Creation & Inner View (US 0.14)**
+  - [ ] **Root Initialization**: The system MUST generate a valid `assessment-plan` root object with a globally unique, auto-generated `uuid` (required).
+  - [ ] **Metadata Constraint**: The system MUST enforce the creation of exactly one `metadata` object (required 1..1) compliant with OSCAL standards.
+  - [ ] **Validation Layer**: The document MUST be validated against the OSCAL metaschema for `assessment-plan` upon save (DD-002).
 
-### US 5.2: SSP Import & System Context Resolution
-- [ ] **Mandatory Linkage**: The UI MUST enforce the presence of exactly one `import-ssp` object (required 1..1).
-- [ ] **Reference Capture**: The `import-ssp` MUST capture an `href` (required, `uri-reference`) pointing to the target SSP (DD-016).
-- [ ] **Remarks Support**: The editor MUST allow an optional `remarks` field for the `import-ssp` linkage.
+- [ ] **US 5.2: SSP Import & System Context Resolution**
+  - [ ] **Mandatory Linkage**: The UI MUST enforce the presence of exactly one `import-ssp` object (required 1..1).
+  - [ ] **Reference Capture**: The `import-ssp` MUST capture an `href` (required, `uri-reference`) pointing to the target SSP (DD-016).
+  - [ ] **Remarks Support**: The editor MUST allow an optional `remarks` field for the `import-ssp` linkage.
 
-### US 5.3: Local Definitions — Components, Inventory & Users
-- [ ] **Optional Section**: The system MUST support an optional `local-definitions` block (0..1).
-- [ ] **Component Definition**: Within `local-definitions`, users MUST be able to define `components` (0..*, `system-component` format).
-- [ ] **Inventory & User Definition**: The system MUST support defining `inventory-items` (0..*) and `users` (0..*).
-- [ ] **Uniqueness Constraint**: Every component, inventory-item, and user defined locally MUST have a unique `uuid`.
+- [ ] **US 5.3: Local Definitions — Components, Inventory & Users**
+  - [ ] **Optional Section**: The system MUST support an optional `local-definitions` block (0..1).
+  - [ ] **Component Definition**: Within `local-definitions`, users MUST be able to define `components` (0..*, `system-component` format).
+  - [ ] **Inventory & User Definition**: The system MUST support defining `inventory-items` (0..*) and `users` (0..*).
+  - [ ] **Uniqueness Constraint**: Every component, inventory-item, and user defined locally MUST have a unique `uuid`.
 
-### US 5.4: Assessment Objectives & Methods
-- [ ] **Objective Blocks**: Within `local-definitions`, the UI MUST allow creating `objectives-and-methods` (0..*, `local-objective`) using the Unified Control Detail Editor (DD-008) and ProseWithParams (DD-013).
-- [ ] **Control ID Mapping**: Each `local-objective` MUST include a `control-id` (required, token).
-- [ ] **Part Constraints**: The `local-objective` MUST have `parts` (required 1..*, `assessment-part`).
-- [ ] **Allowed Part Names**: The UI MUST restrict part names to `assessment-objective` (maximum 1) and `assessment-method`.
-- [ ] **Method Enforcement**: An `assessment-method` part MUST contain exactly 1 property named `method`, restricted to the values: `INTERVIEW`, `EXAMINE`, `TEST`.
-- [ ] **Objects Enforcement**: An `assessment-method` part MUST contain exactly 1 child part named `assessment-objects`.
-- [ ] **Objective Enforcement**: An `assessment-objective` part MUST contain at least 1 property named `method-id`.
+- [ ] **US 5.4: Assessment Objectives & Methods**
+  - [ ] **Objective Blocks**: Within `local-definitions`, the UI MUST allow creating `objectives-and-methods` (0..*, `local-objective`) using the Unified Control Detail Editor (DD-008) and ProseWithParams (DD-013).
+  - [ ] **Control ID Mapping**: Each `local-objective` MUST include a `control-id` (required, token).
+  - [ ] **Part Constraints**: The `local-objective` MUST have `parts` (required 1..*, `assessment-part`).
+  - [ ] **Allowed Part Names**: The UI MUST restrict part names to `assessment-objective` (maximum 1) and `assessment-method`.
+  - [ ] **Method Enforcement**: An `assessment-method` part MUST contain exactly 1 property named `method`, restricted to the values: `INTERVIEW`, `EXAMINE`, `TEST`.
+  - [ ] **Objects Enforcement**: An `assessment-method` part MUST contain exactly 1 child part named `assessment-objects`.
+  - [ ] **Objective Enforcement**: An `assessment-objective` part MUST contain at least 1 property named `method-id`.
 
-### US 5.5: Assessment Activities & Procedural Steps
-- [ ] **Activity Generation**: The system MUST support defining `activities` (0..*) within `local-definitions` utilizing the Unified Control Detail Editor (DD-008) and ProseWithParams (DD-013).
-- [ ] **Activity Requirements**: Each activity MUST have a `uuid` (required) and a `description` (required), along with an optional `title`.
-- [ ] **Step Sequencing**: Activities MUST support nested `steps` (0..*), each requiring a `uuid`, and `description`, and allowing optional `title`, `reviewed-controls`, and `responsible-roles`.
-- [ ] **Method Prop**: Each activity MUST have at least 1 property named `method` with allowed values: `INTERVIEW`, `EXAMINE`, `TEST`.
-- [ ] **Control Relation**: The UI MUST allow linking an activity to `related-controls` (0..1, `reviewed-controls`).
+- [ ] **US 5.5: Assessment Activities & Procedural Steps**
+  - [ ] **Activity Generation**: The system MUST support defining `activities` (0..*) within `local-definitions` utilizing the Unified Control Detail Editor (DD-008) and ProseWithParams (DD-013).
+  - [ ] **Activity Requirements**: Each activity MUST have a `uuid` (required) and a `description` (required), along with an optional `title`.
+  - [ ] **Step Sequencing**: Activities MUST support nested `steps` (0..*), each requiring a `uuid`, and `description`, and allowing optional `title`, `reviewed-controls`, and `responsible-roles`.
+  - [ ] **Method Prop**: Each activity MUST have at least 1 property named `method` with allowed values: `INTERVIEW`, `EXAMINE`, `TEST`.
+  - [ ] **Control Relation**: The UI MUST allow linking an activity to `related-controls` (0..1, `reviewed-controls`).
 
-### US 5.6: Reviewed Controls & Control Selections
-- [ ] **Mandatory Block**: The system MUST require exactly one `reviewed-controls` block (required 1..1) at the root level.
-- [ ] **Selection Strategy**: The UI MUST require 1..* `control-selections`.
-- [ ] **Inclusion Choice**: The system MUST enforce a choice between `include-all` (boolean/empty) OR `include-controls` (1..*, `select-control-by-id`).
-- [ ] **Granular Inclusion**: When using `include-controls`, the UI MUST capture the `control-id` and optional `statement-ids`.
-- [ ] **Exclusion Support**: The system MUST allow optional `exclude-controls` (0..*, `select-control-by-id`).
-- [ ] **SSP Auto-Population (DD-016):** Upon resolving the imported SSP, the system SHOULD offer to auto-populate `control-selections` from the SSP's `control-implementation.implemented-requirements[].control-id` list, pre-selecting all implemented controls as reviewed candidates.
+- [ ] **US 5.6: Reviewed Controls & Control Selections**
+  - [ ] **Mandatory Block**: The system MUST require exactly one `reviewed-controls` block (required 1..1) at the root level.
+  - [ ] **Selection Strategy**: The UI MUST require 1..* `control-selections`.
+  - [ ] **Inclusion Choice**: The system MUST enforce a choice between `include-all` (boolean/empty) OR `include-controls` (1..*, `select-control-by-id`).
+  - [ ] **Granular Inclusion**: When using `include-controls`, the UI MUST capture the `control-id` and optional `statement-ids`.
+  - [ ] **Exclusion Support**: The system MUST allow optional `exclude-controls` (0..*, `select-control-by-id`).
+  - [ ] **SSP Auto-Population (DD-016):** Upon resolving the imported SSP, the system SHOULD offer to auto-populate `control-selections` from the SSP's `control-implementation.implemented-requirements[].control-id` list, pre-selecting all implemented controls as reviewed candidates.
 
-### US 5.7: Control Objective Selections
-- [ ] **Objective Scoping**: The system MUST support optional `control-objective-selections` (0..*) within `reviewed-controls`.
-- [ ] **Objective Inclusion Choice**: The UI MUST enforce a choice between `include-all` OR `include-objectives` (1..*, `select-objective-by-id` requiring `objective-id`).
-- [ ] **Objective Exclusion**: The system MUST allow optional `exclude-objectives` (0..*, `select-objective-by-id`).
+- [ ] **US 5.7: Control Objective Selections**
+  - [ ] **Objective Scoping**: The system MUST support optional `control-objective-selections` (0..*) within `reviewed-controls`.
+  - [ ] **Objective Inclusion Choice**: The UI MUST enforce a choice between `include-all` OR `include-objectives` (1..*, `select-objective-by-id` requiring `objective-id`).
+  - [ ] **Objective Exclusion**: The system MUST allow optional `exclude-objectives` (0..*, `select-objective-by-id`).
 
-### US 5.8: Assessment Subjects & Scope Definition
-- [ ] **Subject Blocks**: The UI MUST support adding `assessment-subjects` (0..*).
-- [ ] **Subject Types**: Each subject MUST define a `type` (required, token) restricted to: `component`, `inventory-item`, `location`, `party`, `user` (or `allow-other` custom values).
-- [ ] **Subject Inclusion Choice**: The system MUST enforce a choice between `include-all` OR `include-subjects` (1..*, `select-subject-by-id` requiring `subject-uuid` and `type`).
-- [ ] **Subject Exclusion**: The system MUST allow `exclude-subjects` (0..*, `select-subject-by-id`).
+- [ ] **US 5.8: Assessment Subjects & Scope Definition**
+  - [ ] **Subject Blocks**: The UI MUST support adding `assessment-subjects` (0..*).
+  - [ ] **Subject Types**: Each subject MUST define a `type` (required, token) restricted to: `component`, `inventory-item`, `location`, `party`, `user` (or `allow-other` custom values).
+  - [ ] **Subject Inclusion Choice**: The system MUST enforce a choice between `include-all` OR `include-subjects` (1..*, `select-subject-by-id` requiring `subject-uuid` and `type`).
+  - [ ] **Subject Exclusion**: The system MUST allow `exclude-subjects` (0..*, `select-subject-by-id`).
 
-### US 5.9: Assessment Assets & Platforms
-- [ ] **Assets Block**: The system MUST support an optional `assessment-assets` (0..1) block.
-- [ ] **Asset Components**: The UI MUST allow defining `components` (0..*) directly under assets.
-- [ ] **Platform Definition**: The system MUST support `assessment-platforms` (required 1..* if assets are defined), requiring a `uuid` and allowing an optional `title`.
-- [ ] **Component Usage**: Each platform MUST support `uses-components` (0..*), mapping to a `component-uuid` and detailing `responsible-parties`.
+- [ ] **US 5.9: Assessment Assets & Platforms**
+  - [ ] **Assets Block**: The system MUST support an optional `assessment-assets` (0..1) block.
+  - [ ] **Asset Components**: The UI MUST allow defining `components` (0..*) directly under assets.
+  - [ ] **Platform Definition**: The system MUST support `assessment-platforms` (required 1..* if assets are defined), requiring a `uuid` and allowing an optional `title`.
+  - [ ] **Component Usage**: Each platform MUST support `uses-components` (0..*), mapping to a `component-uuid` and detailing `responsible-parties`.
 
-### US 5.10: Task Scheduling & Dependencies
-- [ ] **Task Creation**: The UI MUST allow creating `tasks` (0..*) with a `uuid` (required) and `title` (required).
-- [ ] **Task Types**: The `type` MUST be defined (required) and restricted to: `milestone` or `action`.
-- [ ] **Timing Choice**: The system MUST allow an optional `timing` block (0..1) presenting a choice of: `on-date` (requires date), `within-date-range` (requires start and end dates), or `at-frequency`.
-- [ ] **Frequency Validation**: If `at-frequency` is chosen, the UI MUST enforce a `period` (positive-integer) and a `unit` restricted to: `seconds`, `minutes`, `hours`, `days`, `months`, `years`.
-- [ ] **Dependencies & Nesting**: Tasks MUST support `dependencies` (0..*, requiring `task-uuid`) and nested sub-`tasks` (0..*).
-- [ ] **Activity Association**: Tasks MUST support `associated-activities` (0..*), requiring an `activity-uuid` and at least one `subjects` mapping (required 1..*).
+- [ ] **US 5.10: Task Scheduling & Dependencies**
+  - [ ] **Task Creation**: The UI MUST allow creating `tasks` (0..*) with a `uuid` (required) and `title` (required).
+  - [ ] **Task Types**: The `type` MUST be defined (required) and restricted to: `milestone` or `action`.
+  - [ ] **Timing Choice**: The system MUST allow an optional `timing` block (0..1) presenting a choice of: `on-date` (requires date), `within-date-range` (requires start and end dates), or `at-frequency`.
+  - [ ] **Frequency Validation**: If `at-frequency` is chosen, the UI MUST enforce a `period` (positive-integer) and a `unit` restricted to: `seconds`, `minutes`, `hours`, `days`, `months`, `years`.
+  - [ ] **Dependencies & Nesting**: Tasks MUST support `dependencies` (0..*, requiring `task-uuid`) and nested sub-`tasks` (0..*).
+  - [ ] **Activity Association**: Tasks MUST support `associated-activities` (0..*), requiring an `activity-uuid` and at least one `subjects` mapping (required 1..*).
 
-### US 5.11: Terms & Conditions
-- [ ] **Terms Block**: The system MUST support an optional `terms-and-conditions` block (0..1).
-- [ ] **Terms Parts**: The UI MUST require `parts` (required 1..*, `assessment-part`) if terms are defined.
-- [ ] **Allowed Part Names Enforcement**: The system MUST restrict part names to exactly these 7 types: `rules-of-engagement`, `disclosures`, `assessment-inclusions`, `assessment-exclusions`, `results-delivery`, `assumptions`, `methodology`.
-- [ ] **Child Part Constraints**: If `disclosures` or `assumptions` are used, the UI MUST support child parts named `item`.
+- [ ] **US 5.11: Terms & Conditions**
+  - [ ] **Terms Block**: The system MUST support an optional `terms-and-conditions` block (0..1).
+  - [ ] **Terms Parts**: The UI MUST require `parts` (required 1..*, `assessment-part`) if terms are defined.
+  - [ ] **Allowed Part Names Enforcement**: The system MUST restrict part names to exactly these 7 types: `rules-of-engagement`, `disclosures`, `assessment-inclusions`, `assessment-exclusions`, `results-delivery`, `assumptions`, `methodology`.
+  - [ ] **Child Part Constraints**: If `disclosures` or `assumptions` are used, the UI MUST support child parts named `item`.
 
-### US 5.12: Assessment Plan Completeness Validation
-- [ ] **Objective Coverage Check:** The system MUST verify that every `control-id` in `reviewed-controls.control-selections` has a corresponding `objectives-and-methods` entry in `local-definitions`. Missing objectives MUST be flagged as warnings (DD-002).
-- [ ] **Task-Activity Linkage Check:** The system MUST verify that every task with `associated-activities` references a valid `activity.uuid` in `local-definitions.activities` (DD-002).
-- [ ] **Subject Resolution Check:** The system MUST verify that every `include-subjects` entry references a valid component, inventory-item, location, party, or user in the imported SSP or local-definitions (DD-002).
-- [ ] **Completeness Report:** The system MUST display a structured report listing all validation results (pass/warn/fail) with actionable navigation links to the relevant sections.
+- [ ] **US 5.12: Assessment Plan Completeness Validation**
+  - [ ] **Objective Coverage Check:** The system MUST verify that every `control-id` in `reviewed-controls.control-selections` has a corresponding `objectives-and-methods` entry in `local-definitions`. Missing objectives MUST be flagged as warnings (DD-002).
+  - [ ] **Task-Activity Linkage Check:** The system MUST verify that every task with `associated-activities` references a valid `activity.uuid` in `local-definitions.activities` (DD-002).
+  - [ ] **Subject Resolution Check:** The system MUST verify that every `include-subjects` entry references a valid component, inventory-item, location, party, or user in the imported SSP or local-definitions (DD-002).
+  - [ ] **Completeness Report:** The system MUST display a structured report listing all validation results (pass/warn/fail) with actionable navigation links to the relevant sections.
 
-### US 5.12b: Assessment Task Timeline Visualization
-- [ ] **Timeline Rendering:** The system SHOULD render tasks on a horizontal timeline based on their `timing` configuration (`on-date`, `within-date-range`, `at-frequency`).
-- [ ] **Dependency Arrows:** Tasks with `dependencies[].task-uuid` SHOULD be connected with visual arrows showing execution order.
-- [ ] **Milestone Markers:** Tasks with `type="milestone"` SHOULD be rendered as diamond markers on the timeline.
-- [ ] **Action Bars:** Tasks with `type="action"` SHOULD be rendered as horizontal bars spanning their date range.
+- [ ] **US 5.12b: Assessment Task Timeline Visualization**
+  - [ ] **Timeline Rendering:** The system SHOULD render tasks on a horizontal timeline based on their `timing` configuration (`on-date`, `within-date-range`, `at-frequency`).
+  - [ ] **Dependency Arrows:** Tasks with `dependencies[].task-uuid` SHOULD be connected with visual arrows showing execution order.
+  - [ ] **Milestone Markers:** Tasks with `type="milestone"` SHOULD be rendered as diamond markers on the timeline.
+  - [ ] **Action Bars:** Tasks with `type="action"` SHOULD be rendered as horizontal bars spanning their date range.
 
-### US 5.13: AP Table & Navigation (US 0.P5)
-- [ ] **Structural Navigation**: The UI MUST render a persistent navigation table allowing quick access to `local-definitions`, `reviewed-controls`, `tasks`, and `terms-and-conditions`.
-- [ ] **Deep Linking**: Clicking an item in the navigation MUST scroll to and expand the relevant Assessment Plan section.
+- [ ] **US 5.13: AP Table & Navigation (US 0.18)**
+  - [ ] **Structural Navigation**: The UI MUST render a persistent navigation table allowing quick access to `local-definitions`, `reviewed-controls`, `tasks`, and `terms-and-conditions`.
+  - [ ] **Deep Linking**: Clicking an item in the navigation MUST scroll to and expand the relevant Assessment Plan section.
 
-### US 5.14: Document Overview & Tags (US 0.P3)
-- [ ] **Metadata Display**: The system MUST display a Document Overview summarizing the AP `metadata` and current `tasks` schedule.
-- [ ] **Tagging System**: The UI MUST allow adding standard tags via `props` on the root `assessment-plan`.
+- [ ] **US 5.14: Document Overview & Tags (US 0.16)**
+  - [ ] **Metadata Display**: The system MUST display a Document Overview summarizing the AP `metadata` and current `tasks` schedule.
+  - [ ] **Tagging System**: The UI MUST allow adding standard tags via `props` on the root `assessment-plan`.
 
-### US 5.15: In-Card Editing & Draft Persistence (US 0.P4)
-- [ ] **Unified Editor**: The platform MUST utilize the Unified Control Detail Editor (DD-008) for managing `local-objective` and `activity` data.
-- [ ] **Auto-save**: The system MUST save incomplete drafts of `tasks` or `steps` locally to prevent data loss (DD-004).
+- [ ] **US 5.15: In-Card Editing & Draft Persistence (US 0.17)**
+  - [ ] **Unified Editor**: The platform MUST utilize the Unified Control Detail Editor (DD-008) for managing `local-objective` and `activity` data.
+  - [ ] **Auto-save**: The system MUST save incomplete drafts of `tasks` or `steps` locally to prevent data loss (DD-004).
 
-### US 5.16: Integrated Backend Versioning (US 0.P2)
-- [ ] **Commit Tracking**: Every modification to the `assessment-plan` MUST be logged in the backend Git repository (DD-002).
-- [ ] **Diff Viewing**: The UI MUST provide a mechanism to view changes (e.g., modified task dates or scope inclusions) between document versions.
+- [ ] **US 5.16: Integrated Backend Versioning (US 0.15)**
+  - [ ] **Commit Tracking**: Every modification to the `assessment-plan` MUST be logged in the backend Git repository (DD-002).
+  - [ ] **Diff Viewing**: The UI MUST provide a mechanism to view changes (e.g., modified task dates or scope inclusions) between document versions.
 
-### US 5.17: Back-Matter & Resource Attachments
-- [ ] **Resource Integration**: The system MUST support an optional `back-matter` (0..1) block.
-- [ ] **Base64 Embeds**: Artifacts (like signed Rules of Engagement PDFs) MUST be stored as Base64 encoded strings within `back-matter` resources (DD-007).
+- [ ] **US 5.17: Back-Matter & Resource Attachments**
+  - [ ] **Resource Integration**: The system MUST support an optional `back-matter` (0..1) block.
+  - [ ] **Base64 Embeds**: Artifacts (like signed Rules of Engagement PDFs) MUST be stored as Base64 encoded strings within `back-matter` resources (DD-007).
+

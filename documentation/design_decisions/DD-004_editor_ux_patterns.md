@@ -33,25 +33,32 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 
 ### 4. Draft Auto-Save & Mode Navigation (Toolbar UX)
 - Auto-save to backend every 30 seconds during editing (`<uuid>_draft.json`).
-- Drafts are automatically loaded by the backend API if they exist (overriding older published version data).
-- **Segmented Mode Toggle (`[ 👁️ View | ✏️ Edit ]`)**: A persistent segmented control replaces the single morphing `✏️ Edit` / `Exit` button pair across all OSCAL document toolbars (`DocumentToolbar`).
-  - Selecting `👁️ View` auto-saves any active draft silently in the background and switches the interface to Read-Only preview instantly without unmounting UI elements or displaying blocking loading screens (`reload({ silent: true })`).
-  - Selecting `✏️ Edit` activates inline editing instantly and reveals editing sub-controls (Undo/Redo, Visual/JSON mode switcher).
+- **Single Active Draft Rule**: Exactly one active draft exists per document (`<uuid>_draft.json`).
+- **Draft Detection (Server-Truth)**: The `hasDraft` signal is derived exclusively from the version list returned by the backend (`versions.some(v => v.is_draft)`), **not** from the OSCAL `document-status` metadata property (which represents a separate lifecycle concept per DD-023). This ensures the Draft pill in `VersionDropdown` only appears when a `_draft.json` file actually exists on the server.
+- **Segmented Mode Toggle (`[ 👁️ View | ✏️ Edit ]`)**: A persistent segmented control across all OSCAL document toolbars (`DocumentToolbar`).
+  - Selecting `👁️ View` auto-saves any active draft silently in the background and switches the interface to Read-Only preview instantly (`reload({ silent: true })`).
+  - While in `👁️ View` mode, the user can freely select and inspect historical published versions (`v1.0.0`, `v0.9.0`) or the active `📝 Draft` via the `VersionDropdown`.
+  - Selecting `✏️ Edit` activates inline editing:
+    - If a working `📝 Draft` already exists, the editor seamlessly loads that active `📝 Draft`.
+    - If no draft exists, it initializes a new working `📝 Draft` based on whichever published version the user was currently inspecting.
   - Both transitions synchronize browser history/URL search parameters (`?edit=true` vs base path) via `window.history.replaceState`.
-- **Contextual Action Buttons**: Toolbar actions change based on the active mode:
-  - **View Mode**: `📜 Version History` button (browse past published versions) + Mode Toggle.
-  - **Edit Mode**: Undo/Redo + Visual/JSON switch + Mode Toggle + `🚀 Publish Version` button (snapshot current draft as a formal immutable release).
-- This separation ensures users never see irrelevant actions: you browse versions when viewing, you publish versions when editing.
+- **Edit-Mode Locking Rule**: When `isEditing === true`, the `VersionDropdown` is **locked** and always displays `📝 Draft (editing)` with a 🔒 indicator. The dropdown toggle is disabled — no version switching is possible during editing. This prevents accidental data loss from switching versions with unsaved edits. The dropdown fully unlocks when the user returns to `👁️ View` mode.
+- **Unified Header Version Selector (`VersionDropdown`)**:
+  - Located directly in the top header toolbar title area next to the document type badge.
+  - Automatically displays **`📝 Draft`** whenever a working draft exists on the server (`_draft.json`).
+  - When viewing a published version, displays that version badge (e.g., `v1.0.0`).
+  - Contains a **`🗑️ Delete Draft`** button inside the draft menu item, allowing instant discarding of temporary draft edits (`<uuid>_draft.json`) and reverting to the last published active version.
+  - Replaces the separate right-side "Version History" drawer button and standalone status selector.
 
 ### 5. Version Management
-- Drawer-based version history (right sidebar)
-- "Save Version" dialog with version number input + optional remarks
-- Old versions are read-only
-- `metadata.version` auto-synchronized with the entered version number
-- `metadata.revisions[]` auto-updated on each version save
+- Dropdown-based version selector integrated directly into the header toolbar (`VersionDropdown`).
+- Opens a sleek menu listing the active **Draft** (if uncommitted changes exist) with a `🗑️ Delete Draft` action, and all historical published version snapshots (`v1.0.0`, `v0.9.0`, etc.) with timestamps and remarks.
+- "Publish Version" action triggers version bump dialog with version number input + remarks, converting `📝 Draft` into a permanent published version and clearing `<uuid>_draft.json`.
+- Historical published versions are read-only point-in-time snapshots.
+- `metadata.version` auto-synchronized with the active version number; `metadata.revisions[]` auto-updated on each version save.
 
 ### 6. Cross-Domain Visual Consistency (see DD-001)
-- Control detail views in Catalog and Profile editors are unified into a single polymorphic component, `ControlDetailView` (see [DD-008](file:///c:/Users/phili/Desktop/Projects/Security-Management-OSCAL/documentation/design_decisions/DD-008_unified_control_detail_editor.md))
+- Control detail views in Catalog and Profile editors are unified into a single polymorphic component, `ControlDetailView` (see [DD-008](DD-008_unified_control_detail_editor.md))
 - Data mutation logic remains domain-specific (direct mutation for Catalog, modify.alters for Profile, resolved using adapters/callbacks)
 - Prose formatting uses a single shared `formatProse()` utility from `oscal-utils.js`
 - Section layout pattern: `section-container` class with `border-top` separators, consistent spacing

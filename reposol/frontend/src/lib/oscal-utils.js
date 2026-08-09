@@ -276,13 +276,15 @@ export function reorderCatalog(catalog) {
  * @param {any} obj - The object to clean.
  * @returns {any} A new object with empty arrays removed.
  */
+const PRESERVE_EMPTY_ARRAYS = new Set(['maps', 'mappings', 'sources', 'targets']);
+
 export function cleanEmptyArrays(obj) {
   if (Array.isArray(obj)) {
     return obj.map(cleanEmptyArrays).filter(item => item !== undefined);
   } else if (obj !== null && typeof obj === 'object') {
     const cleaned = {};
     for (const [key, val] of Object.entries(obj)) {
-      if (Array.isArray(val) && val.length === 0) {
+      if (Array.isArray(val) && val.length === 0 && !PRESERVE_EMPTY_ARRAYS.has(key)) {
         continue;
       }
       cleaned[key] = cleanEmptyArrays(val);

@@ -43,7 +43,7 @@ export function useDraft(model, uuid, data, isEditing = false, interval = 30000,
     return () => clearInterval(timerRef.current);
   }, [model, uuid, isEditing, interval, saveDraftCallback]);
 
-  // Save on unmount / document change with closure data matching exact uuid
+  // Save on unmount with closure data matching exact uuid
   useEffect(() => {
     const currentUuid = uuid;
     return () => {
@@ -53,7 +53,11 @@ export function useDraft(model, uuid, data, isEditing = false, interval = 30000,
         });
       }
     };
-  }, [model, uuid, saveDraftCallback]);
+  }, [model, uuid]);
+
+  const markDiscarded = useCallback(() => {
+    isDiscardedRef.current = true;
+  }, []);
 
   const saveNow = useCallback(() => {
     if (dataRef.current && uuid && saveDraftCallback) {
@@ -63,6 +67,6 @@ export function useDraft(model, uuid, data, isEditing = false, interval = 30000,
     }
   }, [model, uuid, saveDraftCallback]);
 
-  return { saveNow };
+  return { saveNow, markDiscarded };
 }
 

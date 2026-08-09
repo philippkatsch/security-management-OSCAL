@@ -295,14 +295,15 @@ test.describe('Step 4 SSP Builder — E2E Specifications', () => {
     await expect(page.locator('.document-toolbar')).toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(300);
 
-    // Check Version Drawer
-    const versionBtn = page.getByTestId('version-history-btn').first();
+    // Check Version Dropdown
+    const versionBtn = page.getByTestId('version-dropdown-toggle').first();
+    await expect(versionBtn).toBeVisible({ timeout: 15000 });
     await versionBtn.click();
-    await expect(page.getByTestId('version-drawer')).toBeVisible();
+    await expect(page.locator('.version-dropdown-menu')).toBeVisible();
 
-    // Close Version Drawer explicitly via close button
-    await page.locator('.version-drawer-panel button', { hasText: '✕' }).first().click();
-    await expect(page.getByTestId('version-drawer')).toBeHidden();
+    // Close Version Dropdown by clicking toggle again
+    await versionBtn.click();
+    await expect(page.locator('.version-dropdown-menu')).toBeHidden();
 
     // Switch to Validation tab
     await page.locator('.document-tabs button', { hasText: 'Validation' }).click();

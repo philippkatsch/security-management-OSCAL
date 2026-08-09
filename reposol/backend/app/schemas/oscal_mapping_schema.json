@@ -89,16 +89,20 @@
                 "type": "object",
                 "required": ["type", "href"],
                 "properties": {
-                  "type": {"type": "string", "enum": ["catalog", "profile"]},
-                  "href": {"type": "string", "minLength": 1}
+                  "type": {"type": "string"},
+                  "href": {"type": "string", "minLength": 1},
+                  "title": {"type": "string"},
+                  "props": {"type": "array"}
                 }
               },
               "target-resource": {
                 "type": "object",
                 "required": ["type", "href"],
                 "properties": {
-                  "type": {"type": "string", "enum": ["catalog", "profile"]},
-                  "href": {"type": "string", "minLength": 1}
+                  "type": {"type": "string"},
+                  "href": {"type": "string", "minLength": 1},
+                  "title": {"type": "string"},
+                  "props": {"type": "array"}
                 }
               },
               "maps": {

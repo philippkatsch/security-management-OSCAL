@@ -4,7 +4,15 @@
 ## Date: 2026-07-20
 ## Decision Makers: Philip (Product Owner), Agent (Architect)
 
+> **Related Parameter Decisions:** This DD is part of the Parameter Architecture family:
+> - [DD-009](DD-009_parameter_strategy.md): Lifecycle strategy — Profile vs. SSP vs. Component
+> - [DD-010](DD-010_parameter_scoping_and_inheritance.md): Scoping & Inheritance — Catalog → Group → Control hierarchy
+> - **DD-011** (this): Conceptual Separation — Properties (static metadata) vs. Parameters (dynamic placeholders)
+> - [DD-012](DD-012_parameter_value_assignment_and_override_strategy.md): Value Assignment UX — Choice dropdowns, constraints, override rendering
+> - [DD-013](DD-013_universal_prose_with_params_integration.md): Prose Integration — `ProseWithParams` component architecture
+
 ## Context
+
 
 The current Metadata tab in the Document Overview conflates two concerns:
 1. **Document-level metadata** (title, version, roles, parties, etc. + `metadata.props`)

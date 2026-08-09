@@ -402,4 +402,121 @@ test.describe('Step 1 Catalog Builder', () => {
     await expect(page.getByText('AC-01').first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Statement content for AC-01.').first()).toBeVisible({ timeout: 15000 });
   });
+  test('Monaco dual-mode toggle between Visual and JSON editor', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catalogUuid = randomUUID();
+
+    await apiSetup.createCatalog({
+      uuid: catalogUuid,
+      title: `Monaco Catalog ${catalogUuid.substring(0, 8)}`,
+      controls: [
+        {
+          id: 'ac-1',
+          title: 'Access Control Policy'
+        }
+      ]
+    });
+
+    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+    await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 15000 });
+
+    const jsonBtn = page.getByRole('button', { name: /JSON|Raw JSON/i }).or(page.getByText(/JSON|Raw JSON/i)).first();
+    await expect(jsonBtn).toBeVisible({ timeout: 15000 });
+    await jsonBtn.click();
+
+    const editor = page.locator('.monaco-editor').or(page.locator('textarea.json-editor')).first();
+    await expect(editor).toBeVisible({ timeout: 15000 });
+
+    const visualBtn = page.getByRole('button', { name: /Visual/i }).or(page.getByText(/Visual/i)).first();
+    if (await visualBtn.isVisible().catch(() => false)) {
+      await visualBtn.click();
+      const controlSidebar = page.locator('[data-dnd-id="ac-1"]');
+      await expect(controlSidebar).toBeVisible({ timeout: 15000 });
+    }
+  });
+
+  test('catalog creation from list page via New button modal', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    await page.goto('/catalogs');
+
+    const newBtn = page.getByRole('button', { name: /new/i });
+    await expect(newBtn).toBeVisible({ timeout: 15000 });
+    await newBtn.click();
+
+    const titleInput = page.getByPlaceholder(/title/i).or(page.getByLabel(/title/i)).first();
+    await expect(titleInput).toBeVisible({ timeout: 15000 });
+    const newTitle = `New UI Catalog ${randomUUID().substring(0, 8)}`;
+    await titleInput.fill(newTitle);
+
+    const createBtn = page.getByRole('button', { name: /create/i });
+    await expect(createBtn).toBeVisible({ timeout: 15000 });
+    await createBtn.click();
+
+    await expect(page.locator('.sidebar-item-group').or(page.getByText(newTitle)).first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('assessment objectives display and method card rendering', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catalogUuid = randomUUID();
+
+    await apiSetup.createCatalog({
+      uuid: catalogUuid,
+      title: `Objectives Catalog ${catalogUuid.substring(0, 8)}`,
+      controls: [
+        {
+          id: 'ac-1',
+          title: 'Access Control',
+          parts: [
+            { id: 'ac-1_smt', name: 'statement', prose: 'Statement text' },
+            { id: 'ac-1_obj', name: 'objective', prose: 'Determine if the organization develops...',
+              parts: [
+                { id: 'ac-1_obj.a', name: 'objective', prose: 'develops an access control policy' }
+              ]
+            },
+            { id: 'ac-1_asm', name: 'assessment-method', props: [{ name: 'method', value: 'EXAMINE' }], prose: 'Examine the access control policy...' }
+          ]
+        }
+      ]
+    });
+
+    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+    const controlItem = page.locator('[data-dnd-id="ac-1"]');
+    await expect(controlItem).toBeVisible({ timeout: 15000 });
+    await controlItem.click();
+
+    const objHeading = page.getByText(/objective|Determine if the organization develops/i).first();
+    await expect(objHeading).toBeVisible({ timeout: 15000 });
+
+    const methodIndicator = page.getByText('EXAMINE').first();
+    await expect(methodIndicator).toBeVisible({ timeout: 15000 });
+  });
+
+  test('framework mapping links editor with rel types', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catalogUuid = randomUUID();
+
+    await apiSetup.createCatalog({
+      uuid: catalogUuid,
+      title: `Links Catalog ${catalogUuid.substring(0, 8)}`,
+      controls: [
+        {
+          id: 'ac-1',
+          title: 'Access Control',
+          links: [
+            { rel: 'reference', href: 'https://example.com/nist-sp-800-53' },
+            { rel: 'related', href: '#ac-2' }
+          ]
+        }
+      ]
+    });
+
+    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+    const controlItem = page.locator('[data-dnd-id="ac-1"]');
+    await expect(controlItem).toBeVisible({ timeout: 15000 });
+    await controlItem.click();
+
+    await expect(page.getByText('reference').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('https://example.com/nist-sp-800-53').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('related').first()).toBeVisible({ timeout: 15000 });
+  });
 });

@@ -665,5 +665,69 @@ test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () 
     // 2. Verify removed statement indicator in edit mode
     await expect(page.locator('body')).toContainText(/Removed|Original statement prose/i, { timeout: 15000 });
   });
+
+  test('US 2.11 extended: alters removes by-name and by-class verification', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({
+      title: 'Extended Removes Test Catalog',
+      controls: [
+        {
+          id: 'ac-1',
+          title: 'Access Control Policy',
+          parts: [
+            { id: 'ac-1_smt', name: 'statement', prose: 'Statement prose.' },
+            { id: 'ac-1_gdn', name: 'guidance', prose: 'Guidance prose.', class: 'supplemental' }
+          ]
+        }
+      ]
+    });
+
+    const profUuid = await apiSetup.createProfile({
+      title: 'Extended Removes Tailored Profile',
+      catalogUuid: catUuid,
+      modify: {
+        alters: [
+          {
+            'control-id': 'ac-1',
+            removes: [
+              { 'by-name': 'guidance' },
+              { 'by-class': 'supplemental' }
+            ]
+          }
+        ]
+      }
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    const controlItem = page.locator('[data-dnd-id="ac-1"]').or(page.getByText('Access Control Policy')).first();
+    await expect(controlItem).toBeVisible({ timeout: 15000 });
+    await controlItem.click();
+
+    await expect(page.locator('body')).toContainText(/Removed|Guidance prose/i, { timeout: 15000 });
+  });
+
+  test('profile creation from list page via New button modal', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catUuid = await apiSetup.createCatalog({ title: 'Base Catalog' });
+    await page.goto(`/?workspace=${apiSetup.workspaceId}`);
+    
+    const profilesTab = page.getByText('Profiles', { exact: true }).or(page.locator('a[href="/profiles"]'));
+    await profilesTab.first().click();
+    
+    const newBtn = page.getByRole('button', { name: 'New' }).or(page.getByText('New Profile', { exact: true }));
+    await newBtn.first().click();
+    
+    const titleInput = page.getByLabel(/title|name/i).first();
+    await expect(titleInput).toBeVisible({ timeout: 15000 });
+    await titleInput.fill('New Created Profile');
+    
+    const saveBtn = page.getByRole('button', { name: 'Save' });
+    await saveBtn.click();
+    
+    await expect(page.getByText('New Created Profile').first()).toBeVisible({ timeout: 15000 });
+    
+    await page.reload();
+    await expect(page.getByText('New Created Profile').first()).toBeVisible({ timeout: 15000 });
+  });
 });
 

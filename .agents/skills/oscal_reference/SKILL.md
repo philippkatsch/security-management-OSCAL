@@ -1,18 +1,45 @@
 ---
 name: oscal_reference
-description: Look up OSCAL definitions, specifications, and component structures in the local oscal-reference repositories.
+description: >-
+  Look up OSCAL definitions, specifications, component structures, and sample data
+  in the local oscal-reference repositories. Triggers on: OSCAL schema, OSCAL model,
+  OSCAL specification, control catalog, profile structure, component definition schema,
+  SSP structure, assessment plan model, assessment results model, POA&M model,
+  mapping collection model, metaschema, OSCAL validation, Grundschutz, BSI catalog.
 ---
 # OSCAL Reference Skill
 
-Wenn du das OSCAL-Format, seine Definitionen, Komponenten, Struktur oder andere Spezifikationen nachschlagen musst, verwende diese Referenz. 
+When you need to look up the OSCAL format, its definitions, components, structure, schemas, or sample data, use this reference.
 
-1. **Ort:** Die Repositories mit der OSCAL-Dokumentation und den OSCAL-Modellen befinden sich lokal im Ordner: 
-   `c:\Users\phili\Desktop\Projects\Security-Management-OSCAL\oscal-reference`
+## 1. Repository Locations
 
-   Darin befinden sich folgende geklonte Repositories:
-   - `OSCAL` (Haupt-Repository mit Schemas und Metaschema): [OSCAL](file:///c:/Users/phili/Desktop/Projects/Security-Management-OSCAL/oscal-reference/OSCAL)
-   - `OSCAL-Pages` (Webseite und Tutorials): [OSCAL-Pages](file:///c:/Users/phili/Desktop/Projects/Security-Management-OSCAL/oscal-reference/OSCAL-Pages)
-   - `OSCAL-Reference` (Modell-Dokumentation und XML/JSON-Entwickler-Referenz): [OSCAL-Reference](file:///c:/Users/phili/Desktop/Projects/Security-Management-OSCAL/oscal-reference/OSCAL-Reference)
+All reference material is located in `oscal-reference/` at the repository root.
 
-2. **Suche:** Verwende das Tool `grep_search` oder `list_dir`, um in diesen Ordnern nach bestimmten Modellen (z.B. "catalog", "profile", "ssp", "component") zu suchen.
-3. **Zweck:** Lies die Dokumentationsseiten und Beispiele in diesen Repositories, um bei der Entwicklung von "Reposol" sicherzustellen, dass die OSCAL-Struktur (JSON/YAML/XML) strikt eingehalten wird.
+### NIST Official Repositories
+
+| Directory | Contents | Use When |
+|-----------|----------|----------|
+| `OSCAL/` | Main NIST repository: schemas (`src/`), metaschema definitions, XML/JSON/YAML models | Looking up official schema structures, field definitions, or data types |
+| `OSCAL-Pages/` | NIST OSCAL website source (Hugo), user guides, tutorials | Reading specification prose, understanding OSCAL concepts |
+| `OSCAL-Reference/` | Model documentation generator, interactive XML/JSON schema reference | Checking exact field names, cardinality, and constraints |
+
+### Grundschutz++ Tools & Sample Data
+
+| Directory | Contents | Use When |
+|-----------|----------|----------|
+| `Grundschutz-Plus-Plus-Tools/ED23-Baustein-komponenten/` | Production OSCAL component definitions (BSI IT-Grundschutz Edition 2023) | Referencing real-world component definition structures |
+| `Grundschutz-Plus-Plus-Tools/beispiel-kataloge/` | Pre-built OSCAL catalogs for testing | Loading sample catalog data for development/testing |
+| `Grundschutz-Plus-Plus-Tools/hilfsdateien/` | Control mappings, DSGVO/KRITIS/C5-2026 catalogs | Cross-referencing framework mappings |
+| `Grundschutz-Plus-Plus-Tools/zielobjektkategorien/` | OSCAL profiles and components by target object type | Studying profile/component patterns by category |
+| `Grundschutz-Plus-Plus-Tools/One-Page-Apps/` | Browser-based OSCAL workflow tools (SSP editor, Assessment Plan/Results, POA&M, Viewer) | Understanding OSCAL lifecycle workflow patterns as reference implementations |
+
+## 2. Search Strategies
+
+- **Schema field lookup:** Use `grep_search` in `oscal-reference/OSCAL/src/` for metaschema field definitions.
+- **Model structure:** Use `list_dir` on `oscal-reference/OSCAL/src/metaschema/` to discover model files.
+- **Sample data:** Use `list_dir` on `oscal-reference/Grundschutz-Plus-Plus-Tools/beispiel-kataloge/` or `ED23-Baustein-komponenten/`.
+- **Specific model lookup:** Search for model keywords: `catalog`, `profile`, `ssp`, `component-definition`, `assessment-plan`, `assessment-results`, `plan-of-action-and-milestones`, `mapping-collection`.
+
+## 3. Purpose
+
+Ensure that all OSCAL structures generated or managed by Reposol strictly conform to NIST OSCAL specifications. Always verify field names, data types, and cardinality against the official schemas before implementing new features.

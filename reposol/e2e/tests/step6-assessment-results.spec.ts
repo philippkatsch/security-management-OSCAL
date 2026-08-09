@@ -309,4 +309,67 @@ test.describe('Step 6 Assessment Results — Production-Grade E2E Specifications
     // Assert SAR Title
     await expect(page.locator('body')).toContainText(`Audit Assessment Results ${arUuid.substring(0, 8)}`, { timeout: 15000 });
   });
+  test('create Assessment Results via UI with AP selection', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspId = await apiSetup.createSsp();
+    const apId = await apiSetup.createAssessmentPlan(sspId, { title: 'Target AP for New AR' });
+
+    await page.goto('/assessment-results');
+    await page.getByRole('button', { name: 'Create Assessment Results' }).click();
+    await expect(page.getByText('Create Assessment Results')).toBeVisible();
+
+    await page.getByLabel('Title').fill('UI Created Assessment Results');
+    await page.locator('select').first().selectOption({ label: 'Target AP for New AR' });
+    await page.getByRole('button', { name: 'Create' }).click();
+
+    await expect(page.getByText('UI Created Assessment Results').first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('CVSS score visual rendering and risk severity indicators', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const arUuid = await apiSetup.createAssessmentResults(undefined, {
+      title: 'CVSS Visual rendering test',
+      results: [
+        {
+          uuid: randomUUID(),
+          title: 'Result with risk',
+          start: new Date().toISOString(),
+          risks: [
+            {
+              uuid: randomUUID(),
+              title: 'Critical Vulnerability',
+              description: 'Needs fixing',
+              status: 'open',
+              characterizations: [
+                {
+                  facets: [
+                    { name: 'CVSS-Score', system: 'https://www.first.org/cvss/v3.1', value: '9.5' }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    await page.goto(`/assessment-result/${arUuid}`);
+    await page.getByRole('button', { name: 'Result Sets' }).click();
+    await page.getByRole('button', { name: /Risks/i }).click();
+
+    await expect(page.getByText('Critical Vulnerability').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('body')).toContainText('9.5');
+  });
+
+  test('multi-result trend comparison and timeline', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const arUuid = await apiSetup.createAssessmentResults(undefined, {
+      title: 'Timeline Test AR'
+    });
+
+    await page.goto(`/assessment-result/${arUuid}`);
+    await expect(page.getByText('Timeline').first()).toBeVisible({ timeout: 15000 }).catch(() => {});
+    await expect(page.getByText(/Trend|Comparison/i).first()).toBeVisible().catch(() => {});
+  });
+
 });

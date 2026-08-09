@@ -71,7 +71,7 @@ The frontend `src/` directory uses a strict domain-driven subdivision:
 - **Legacy Pruning**: Deprecated monoliths (`DocumentEditor.jsx`, `MappingViewer.jsx`) are retired and replaced by domain-specific pages and shared components.
 
 ### 3. Shared Control Detail Components (Strategy/Adapter Pattern)
-To align the visual representation of safety controls between the Catalog and Profile editors while maintaining their distinct saving behaviors (Catalogs mutate controls directly; Profiles map changes to `modify.alters` or `set-parameters`), we unified the panel into a single component, **`ControlDetailView`**, which embeds and coordinates the core child components (see [DD-008](file:///c:/Users/phili/Desktop/Projects/Security-Management-OSCAL/documentation/design_decisions/DD-008_unified_control_detail_editor.md) for details):
+To align the visual representation of safety controls between the Catalog and Profile editors while maintaining their distinct saving behaviors (Catalogs mutate controls directly; Profiles map changes to `modify.alters` or `set-parameters`), we unified the panel into a single component, **`ControlDetailView`**, which embeds and coordinates the core child components (see [DD-008](DD-008_unified_control_detail_editor.md) for details):
 
 1. **`ControlHeader`**: Displays the control ID, title, and class badges. Incorporates inline click-to-edit inputs, taking domain-specific `onChange` handlers via props.
 2. **`ReadOnlyParts`**: Recursively renders read-only prose parts (statements, guidelines) and supports profile-specific indicators (Modified-Badge, Reset-Button) via optional props.

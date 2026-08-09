@@ -49,7 +49,7 @@ The workflow manages two document types as **equal partners**:
 | **User Stories** | `documentation/user_stories/` | Define WHAT to build and WHY (user value) |
 | **Design Decisions** | `documentation/design_decisions/` | Define HOW to build it (architectural constraints & patterns) |
 
-> **Note:** `GOAL.md` and `oscal_gap_analysis.md` are static context documents and are NOT part of this workflow.
+> **Note:** [GOAL.md](../../../documentation/GOAL.md) is a static context document and is NOT part of this workflow.
 
 ---
 
@@ -62,15 +62,15 @@ Before touching any code, you must update or create the relevant documentation:
 #### Step A: User Story
 
 1. **Identify the correct file.** Check which existing user story file in `documentation/user_stories/` the feature belongs to:
-   - `step1_catalog_builder.md` — Catalog / Regelwerk features
-   - `step2_profile_tailoring.md` — Profile / Baseline features
-   - `step3_component_inventory.md` — Component Definition features
-   - `step4_ssp_builder.md` — System Security Plan features
-   - `step5_assessment_plan.md` — Assessment Plan features
-   - `step6_assessment_results.md` — Assessment Results features
-   - `step7_poam.md` — POA&M / Maßnahmenplan features
-   - `step8_control_mapping.md` — Control Mapping / Framework-Zuordnung features
-   - `step0_global_requirements.md` — Cross-cutting / system-wide requirements (US 0.x)
+   - [`step1_catalog_builder.md`](../../../documentation/user_stories/step1_catalog_builder.md) — Catalog / Rulebook features
+   - [`step2_profile_tailoring.md`](../../../documentation/user_stories/step2_profile_tailoring.md) — Profile / Baseline features
+   - [`step3_component_inventory.md`](../../../documentation/user_stories/step3_component_inventory.md) — Component Definition features
+   - [`step4_ssp_builder.md`](../../../documentation/user_stories/step4_ssp_builder.md) — System Security Plan features
+   - [`step5_assessment_plan.md`](../../../documentation/user_stories/step5_assessment_plan.md) — Assessment Plan features
+   - [`step6_assessment_results.md`](../../../documentation/user_stories/step6_assessment_results.md) — Assessment Results features
+   - [`step7_poam.md`](../../../documentation/user_stories/step7_poam.md) — POA&M / Action Plan features
+   - [`step8_control_mapping.md`](../../../documentation/user_stories/step8_control_mapping.md) — Control Mapping / Framework Mapping features
+   - [`step0_global_requirements.md`](../../../documentation/user_stories/step0_global_requirements.md) — Cross-cutting / system-wide requirements (US 0.x)
    - If the feature does not fit any existing file, create a **new file** following the same naming convention and format.
 
 2. **Read the existing file** to understand the current user stories and numbering.
@@ -78,19 +78,19 @@ Before touching any code, you must update or create the relevant documentation:
 3. **Write, adapt, or modify** the user story using the established format:
    ```markdown
    ### US X.Y: [Short Title]
-   > **Als** [Persona, e.g. Alice (Compliance Officer) / Bob (Auditor)]  
-   > **möchte ich** [what the user wants to do],  
-   > **damit** [the business value / reason].
-   *   **Akzeptanzkriterien:**
+   > **As a** [Persona, e.g. Alice (Compliance Officer) / Bob (Auditor)]  
+   > **I want to** [what the user wants to do],  
+   > **So that** [the business value / reason].
+   *   **Acceptance Criteria:**
        *   [Criterion 1]
        *   [Criterion 2]
        *   [Criterion 3]
    ```
    - Use the next available number in the sequence (e.g., if `US 1.7` is the last, add `US 1.8`).
    - If modifying an existing user story, update it in-place and add a note about what changed.
-   - Write user stories in **German** to match the existing convention.
+   - Write all user stories exclusively in **English** to comply strictly with AGENTS.md Rule 5 (Repository Language Policy).
 
-4. **Update `step0_global_requirements.md`** (the "User Stories im Überblick" section) if you added a new user story file, so the index stays current.
+4. **Update `step0_global_requirements.md`** (the "User Stories Overview" section) if you added a new user story file, so the index stays current.
 
 #### Step B: Design Decisions
 
@@ -180,11 +180,11 @@ Only after Phases 1–3 are complete and the user has confirmed:
 
 | Purpose | Path |
 |---|---|
-| User Stories | `c:\Users\phili\Desktop\Projects\Security-Management-OSCAL\documentation\user_stories\` |
-| Design Decisions | `c:\Users\phili\Desktop\Projects\Security-Management-OSCAL\documentation\design_decisions\` |
-| Frontend Code | `c:\Users\phili\Desktop\Projects\Security-Management-OSCAL\reposol\frontend\` |
-| Backend Code | `c:\Users\phili\Desktop\Projects\Security-Management-OSCAL\reposol\backend\` |
-| OSCAL Reference | `c:\Users\phili\Desktop\Projects\Security-Management-OSCAL\oscal-reference\` |
+| User Stories | `documentation/user_stories/` |
+| Design Decisions | `documentation/design_decisions/` |
+| Frontend Code | `reposol/frontend/` |
+| Backend Code | `reposol/backend/` |
+| OSCAL Reference | `oscal-reference/` |
 
 ---
 
@@ -194,7 +194,7 @@ Before writing any code, confirm all boxes are checked:
 
 - [ ] I identified the correct user story file
 - [ ] I read the existing user stories in that file
-- [ ] I wrote/updated the user story with proper format (Als/möchte ich/damit + Akzeptanzkriterien)
+- [ ] I wrote/updated the user story with proper format (As a / I want to / So that + Acceptance Criteria)
 - [ ] I read ALL existing Design Decision files
 - [ ] I checked whether any existing DD is affected by the planned change
 - [ ] I updated affected DDs or created a new DD if needed (only for important decisions)

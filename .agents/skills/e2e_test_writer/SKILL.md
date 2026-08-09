@@ -15,7 +15,7 @@ This skill generates **deterministic, high-coverage Playwright E2E tests** for t
 It uses Chrome DevTools MCP for **UI exploration only** — the output is always a standard Playwright `.spec.ts` file that runs cleanly in CI/CD without any AI dependency.
 
 > [!IMPORTANT]
-> **Primary Objective**: Tests are not just surface-level "smoke checks". They must exhaustively verify **every field, form validation, edge case, and state persistence** defined in the [User Stories](file:///c:/Users/phili/Desktop/Projects/Security-Management-OSCAL/documentation/user_stories/) (`step0` through `step8`) to actively surface bugs and regressions.
+> **Primary Objective**: Tests are not just surface-level "smoke checks". They must exhaustively verify **every field, form validation, edge case, and state persistence** defined in the [User Stories](../../../documentation/user_stories/) (`step0` through `step8`) to actively surface bugs and regressions.
 
 ---
 
@@ -179,7 +179,7 @@ test.describe('Catalog Builder - Complete Field & Validation Verification', () =
 
 ### Phase 6: Reporting & Documentation 📄
 
-1. Link created/modified spec files: e.g. [`step1-catalog-builder.spec.ts`](file:///c:/Users/phili/Desktop/Projects/Security-Management-OSCAL/reposol/e2e/tests/step1-catalog-builder.spec.ts).
+1. Link created/modified spec files: e.g. [`step1-catalog-builder.spec.ts`](../../../reposol/e2e/tests/step1-catalog-builder.spec.ts).
 2. Detail the exact use cases, fields, and edge cases tested.
 3. Note any newly discovered application bugs or regressions found during testing.
 

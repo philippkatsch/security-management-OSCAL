@@ -708,7 +708,7 @@ export class ApiSetup {
       }
     };
 
-    await this.postWithRetry('/api/documents/control-mapping', payload);
+    await this.postWithRetry('/api/documents/control-mappings', payload);
 
     this.createdDocuments.push({ stage: 'control-mappings', id: uuid });
     return uuid;

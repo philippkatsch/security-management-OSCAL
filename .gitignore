@@ -25,7 +25,6 @@ coverage/
 Thumbs.db
 
 # OSCAL-Pages and reference repos
-/OSCAL-Pages/
 /oscal-reference/
 
 # Node.js
@@ -51,10 +50,9 @@ reposol/data/workspaces/default/**/*.json
 reposol/data/uploads/*
 !reposol/data/uploads/.gitkeep
 
-# Agents workspace (only track AGENTS.md / agent.md and skills/)
+# Agents workspace (only track AGENTS.md and skills/)
 .agents/*
 !.agents/AGENTS.md
-!.agents/agent.md
 !.agents/skills/
 !.agents/skills/**
 
