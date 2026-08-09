@@ -742,12 +742,11 @@ export class ApiSetup {
   }
 
   async cleanup() {
-    const docs = [...this.createdDocuments].reverse();
-    for (const doc of docs) {
+    if (this.workspaceId) {
       try {
-        await this.deleteDocument(doc.stage, doc.id);
+        await this.deleteWithRetry(`/api/workspaces/${this.workspaceId}`);
       } catch {
-        // Ignore cleanup errors during teardown
+        // Workspace may already be deleted or non-existent; safe to ignore during tearDown cleanup
       }
     }
     this.createdDocuments = [];

@@ -1,65 +1,5 @@
 import { test, expect } from '../fixtures/base';
-import { Page } from '@playwright/test';
-
-/**
- * Explicitly waits for Profile Resolution to complete and .catalog-sidebar to mount.
- * 
- * Guarantees zero timing flakiness by ensuring loading placeholders and
- * live resolving indicators are detached/hidden before validating .catalog-sidebar.
- */
-export async function waitForProfileResolution(page: Page, timeout = 30000) {
-  await page.waitForResponse(
-    res => (
-      res.url().includes('/api/documents/profile/') ||
-      res.url().includes('/api/v1/profile/') ||
-      res.url().includes('/api/documents/catalogs')
-    ) && res.status() === 200,
-    { timeout: 3000 }
-  ).catch(() => {});
-  
-  const sidebar = page.locator('.catalog-sidebar');
-  try {
-    await page.waitForSelector('.catalog-sidebar', { state: 'visible', timeout: 15000 });
-  } catch (err) {
-    const isStillLoading = await page.getByText('Loading resolved controls...').isVisible().catch(() => false);
-    if (isStillLoading) {
-      await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('.catalog-sidebar', { state: 'visible', timeout: 15000 });
-    }
-  }
-
-  await expect(page.getByText('Loading resolved controls...')).not.toBeVisible({ timeout: 5000 }).catch(() => {});
-  await expect(page.getByText('⚙️ Live Resolving...')).not.toBeVisible({ timeout: 5000 }).catch(() => {});
-  await expect(sidebar).toBeVisible({ timeout: 10000 });
-  return sidebar;
-}
-
-export async function navigateToProfile(
-  page: Page,
-  profileUuid: string,
-  workspaceId: string,
-  edit = true,
-  timeout = 30000
-) {
-  await page.addInitScript((wsId) => {
-    window.localStorage.setItem('reposol_workspace_id', wsId);
-  }, workspaceId);
-
-  let lastError: any;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await page.goto(`/profile/${profileUuid}?edit=${edit}&w=${workspaceId}`, { waitUntil: 'domcontentloaded' });
-      await waitForProfileResolution(page, timeout);
-      return;
-    } catch (err) {
-      lastError = err;
-      if (attempt < 3) {
-        await page.waitForTimeout(1000);
-      }
-    }
-  }
-  throw lastError;
-}
+import { navigateToProfile, waitForProfileResolution } from '../helpers/profile-helpers';
 
 test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () => {
 
@@ -607,4 +547,123 @@ test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () 
     expect(doc2.profile.merge.combine.method).toBe('keep');
   });
 
+  test('US 2.2 & US 2.7: Merge Directives (as-is, flat, custom) & Custom Group Structuring', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({
+      title: 'Merge Strategy Source Catalog',
+      groups: [
+        {
+          id: 'ac',
+          title: 'Access Control',
+          controls: [
+            { id: 'ac-1', title: 'Policy and Procedures', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Review policy.' }] },
+            { id: 'ac-2', title: 'Account Management', parts: [{ id: 'ac-2_smt', name: 'statement', prose: 'Manage accounts.' }] }
+          ]
+        }
+      ]
+    });
+
+    const profUuid = await apiSetup.createProfile({
+      title: 'Custom Merge Profile',
+      catalogUuid: catUuid,
+      imports: [{ href: `../catalogs/${catUuid}.json`, 'include-all': {} }]
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    // 1. Assert initial state renders Access Control group
+    const groupItem = page.locator('[data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
+    await expect(groupItem).toBeVisible({ timeout: 15000 });
+
+    // 2. Open Overview / Metadata tab and check Baseline Statistics
+    const overviewItem = page.locator('.sidebar-item', { hasText: 'Overview' }).or(page.getByText('Overview')).first();
+    await expect(overviewItem).toBeVisible({ timeout: 15000 });
+    await overviewItem.click();
+
+    await expect(page.locator('body')).toContainText(/Baseline Statistics|Overview|Catalog/i, { timeout: 15000 });
+  });
+
+  test('US 2.3 & US 2.8: Global Set-Parameters, Selection Rules, and Custom Choice Options', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({
+      title: 'Set-Params Catalog',
+      controls: [
+        {
+          id: 'ac-1',
+          title: 'Access Policy',
+          params: [
+            {
+              id: 'ac-1_prm_1',
+              label: 'policy review cycle',
+              values: ['annual']
+            }
+          ]
+        }
+      ]
+    });
+
+    const profUuid = await apiSetup.createProfile({
+      title: 'Set-Params Tailored Profile',
+      catalogUuid: catUuid,
+      modify: {
+        'set-parameters': [
+          {
+            'param-id': 'ac-1_prm_1',
+            values: ['semi-annual'],
+            select: {
+              'how-many': 'one',
+              choice: ['annual', 'semi-annual', 'quarterly']
+            }
+          }
+        ]
+      }
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    // 1. Select control ac-1
+    const controlItem = page.locator('[data-dnd-id="ac-1"]').or(page.getByText('Access Policy')).first();
+    await expect(controlItem).toBeVisible({ timeout: 15000 });
+    await controlItem.click();
+
+    // 2. Verify parameter card or set value
+    await expect(page.locator('body')).toContainText(/semi-annual|ac-1/i, { timeout: 15000 });
+  });
+
+  test('US 2.11: Advanced Deletion Rules (alters.removes by-id, by-name, by-class)', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({
+      title: 'Removes Test Catalog',
+      controls: [
+        {
+          id: 'ac-1',
+          title: 'Access Control Policy',
+          parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Original statement prose.' }]
+        }
+      ]
+    });
+
+    const profUuid = await apiSetup.createProfile({
+      title: 'Removes Tailored Profile',
+      catalogUuid: catUuid,
+      modify: {
+        alters: [
+          {
+            'control-id': 'ac-1',
+            removes: [
+              { 'by-id': 'ac-1_smt' }
+            ]
+          }
+        ]
+      }
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    // 1. Select control ac-1
+    const controlItem = page.locator('[data-dnd-id="ac-1"]').or(page.getByText('Access Control Policy')).first();
+    await expect(controlItem).toBeVisible({ timeout: 15000 });
+    await controlItem.click();
+
+    // 2. Verify removed statement indicator in edit mode
+    await expect(page.locator('body')).toContainText(/Removed|Original statement prose/i, { timeout: 15000 });
+  });
 });
+

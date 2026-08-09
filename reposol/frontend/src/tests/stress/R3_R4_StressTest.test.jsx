@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React, { useRef } from 'react';
 import { ParameterCard } from '../../components/shared/ParameterCard';
-import DocumentEditor from '../../components/DocumentEditor';
 import { ProseWithParams } from '../../components/shared/ProseWithParams';
 
 describe('Requirement R3 & R4 Empirical Stress Tests', () => {

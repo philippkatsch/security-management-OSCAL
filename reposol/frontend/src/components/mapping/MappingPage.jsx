@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { authFetch } from '../../lib/api';
+import { useDocument } from '../../hooks/useDocument';
+import { useUndoRedo } from '../../hooks/useUndoRedo';
+import { useVersions } from '../../hooks/useVersions';
 
 // Shared Components
 import { MetadataEditor } from '../shared/MetadataEditor';
@@ -22,12 +25,12 @@ import CompletenessReport from '../shared/dashboard/CompletenessReport';
 import './MappingPage.css';
 
 export function MappingPage({ mappingId, initialEditMode, onClose }) {
-  const [doc, setDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { doc, setDoc, loading, error, save: saveDocument } = useDocument('control-mappings', mappingId);
+  const { state: undoState, setUndoState, undo, redo, canUndo, canRedo } = useUndoRedo(doc);
+  const { versions, showVersions, setShowVersions, saveVersion, restoreVersion, isRestoring } = useVersions('control-mappings', mappingId, setDoc);
   
   const [isEditing, setIsEditing] = useState(initialEditMode);
-  const [activeTab, setActiveTab] = useState('overview'); // overview, mappings, matrix, gap, metadata, json
+  const [activeTab, setActiveTab] = useState('overview');
   
   // Master lists
   const [catalogs, setCatalogs] = useState([]);
@@ -35,77 +38,26 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
   const [sourceControls, setSourceControls] = useState([]);
   const [targetControls, setTargetControls] = useState([]);
 
-  // Versions
-  const [showVersions, setShowVersions] = useState(false);
-  const [versions, setVersions] = useState([]);
-  const [selectedVersion, setSelectedVersion] = useState(null);
-
   // Mapping selections
-  const [selectedMappingIdx, setSelectedMappingIdx] = useState(0); // For multiple mappings if supported, but typically we only use index 0
+  const [selectedMappingIdx, setSelectedMappingIdx] = useState(0);
   
   // Selection states for mappings detail
   const [selectedMapEntry, setSelectedMapEntry] = useState(null);
   const [selectedMaps, setSelectedMaps] = useState([]);
-  const [matrixFilter, setMatrixFilter] = useState('all'); // all, unmapped-only, equal-to, etc.
+  const [matrixFilter, setMatrixFilter] = useState('all');
 
-  const draftKey = `reposol_draft_control-mappings_${mappingId}`;
+  // Load referenced controls when doc changes
+  useEffect(() => {
+    if (doc) {
+      loadReferencedControls(doc['mapping-collection']);
+    }
+  }, [doc]);
 
   useEffect(() => {
-    fetchMappingDocument();
     fetchCatalogsAndProfiles();
-    fetchVersions();
   }, [mappingId]);
 
-  const fetchMappingDocument = async () => {
-    setLoading(true);
-    try {
-      const draft = localStorage.getItem(draftKey);
-      if (draft) {
-        const parsed = JSON.parse(draft);
-        if (window.confirm("An unsaved draft was found. Do you want to restore it?")) {
-          setDoc(parsed);
-          loadReferencedControls(parsed['mapping-collection']);
-          setLoading(false);
-          return;
-        } else {
-          localStorage.removeItem(draftKey);
-        }
-      }
 
-      const res = await authFetch(`/api/documents/control-mappings/${mappingId}`);
-      if (!res.ok) throw new Error("Error loading the mapping.");
-      const data = await res.json();
-      setDoc(data);
-      setSelectedVersion(data['mapping-collection']?.metadata?.version);
-      loadReferencedControls(data['mapping-collection']);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCatalogsAndProfiles = async () => {
-    try {
-      const resCat = await authFetch('/api/documents/catalogs');
-      if (resCat.ok) setCatalogs(await resCat.json());
-      const resProf = await authFetch('/api/documents/profiles');
-      if (resProf.ok) setProfiles(await resProf.json());
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const fetchVersions = async () => {
-    try {
-      const res = await authFetch(`/api/documents/control-mappings/${mappingId}/versions`);
-      if (res.ok) {
-        setVersions(await res.json());
-      }
-    } catch (e) {
-      console.warn("Could not load versions:", e);
-    }
-  };
 
   const loadReferencedControls = async (mappingCollection) => {
     if (!mappingCollection) return;
@@ -168,27 +120,11 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
     }
   };
 
-  useEffect(() => {
-    if (isEditing && doc) {
-      localStorage.setItem(draftKey, JSON.stringify(doc));
-    }
-  }, [doc, isEditing]);
-
   const handleSaveDocument = async () => {
     try {
-      const response = await authFetch(`/api/documents/control-mappings/${mappingId}/versions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(doc),
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.detail || "Saving failed.");
-      }
-      localStorage.removeItem(draftKey);
+      await saveDocument(doc);
       alert("Saved successfully!");
       setIsEditing(false);
-      fetchVersions();
     } catch (e) {
       alert("Error saving: " + e.message);
     }
@@ -196,9 +132,9 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
 
   const handleDiscardChanges = () => {
     if (window.confirm("Do you want to discard all unsaved changes?")) {
-      localStorage.removeItem(draftKey);
       setIsEditing(false);
-      fetchMappingDocument();
+      // Reload by resetting doc from server
+      window.location.reload();
     }
   };
 
@@ -367,7 +303,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
             <div style={{ display: 'flex', gap: '20px', height: '100%' }}>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <EntityTable
-                  entities={maps.map(m => ({
+                  data={maps.map(m => ({
                     id: m.uuid,
                     source: m.sources?.[0]?.['id-ref'] || 'N/A',
                     target: m.targets?.[0]?.['id-ref'] || 'N/A',

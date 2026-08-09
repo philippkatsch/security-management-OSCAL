@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import Layout from './components/Layout';
-import DocumentEditor from './components/DocumentEditor';
 import ImportWizard from './components/ImportWizard';
 import { CreateDocumentDialog } from './components/document/CreateDocumentDialog';
 import { CatalogPage } from './components/catalog/CatalogPage';
 import { ProfilePage } from './components/profile/ProfilePage';
-import MappingViewer from './components/MappingViewer';
 import { MappingPage } from './components/mapping/MappingPage';
 import { ComponentPage } from './components/component-definition/ComponentPage';
 import { SSPPage } from './components/ssp/SSPPage';
@@ -79,7 +77,6 @@ export default function App() {
     'control-mappings': 0,
   });
   const [showEditor, setShowEditor] = useState(false);
-  const [editDoc, setEditDoc] = useState(null);
   const [showImport, setShowImport] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -201,7 +198,6 @@ export default function App() {
   };
 
   const handleNewDocBlank = () => {
-    setEditDoc(null);
     setShowEditor(true);
   };
 
@@ -223,14 +219,14 @@ export default function App() {
     } else if (doc['assessment-results'] && doc['assessment-results'].uuid) {
       navigateTo(`/assessment-result/${doc['assessment-results'].uuid}?edit=true`);
     } else {
-      setEditDoc(doc);
-      setShowEditor(true);
+      // All 8 OSCAL document types are handled above.
+      // This fallback should never be reached for valid documents.
+      console.warn('handleEditDoc: Unknown document type, cannot navigate to dedicated editor', doc);
     }
   };
 
   const handleSaved = (savedDoc) => {
     setShowEditor(false);
-    setEditDoc(null);
     setRefreshTrigger(prev => prev + 1);
 
     if (savedDoc) {
@@ -277,7 +273,6 @@ export default function App() {
 
   const handleCancelEditor = () => {
     setShowEditor(false);
-    setEditDoc(null);
   };
 
   const ROOT_KEYS = {
@@ -739,24 +734,11 @@ export default function App() {
         renderStageView(activeTab)
       )}
       {showEditor && activeTab !== 'dashboard' && (
-        !editDoc ? (
-          <CreateDocumentDialog
-            stage={activeTab}
-            onSaved={handleSaved}
-            onCancel={handleCancelEditor}
-          />
-        ) : (
-          <DocumentEditor
-            stage={activeTab}
-            editDoc={editDoc}
-            onSaved={handleSaved}
-            onCancel={handleCancelEditor}
-            onTemplateLoaded={(importedDoc) => {
-              setEditDoc(importedDoc);
-              setRefreshTrigger(prev => prev + 1);
-            }}
-          />
-        )
+        <CreateDocumentDialog
+          stage={activeTab}
+          onSaved={handleSaved}
+          onCancel={handleCancelEditor}
+        />
       )}
 
       {showImport && (

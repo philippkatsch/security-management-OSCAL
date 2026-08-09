@@ -1,6 +1,6 @@
 # DD-011: Properties vs. Parameters — Conceptual Separation and Metadata Page Restructuring
 
-## Status: Proposed
+## Status: Accepted
 ## Date: 2026-07-20
 ## Decision Makers: Philip (Product Owner), Agent (Architect)
 

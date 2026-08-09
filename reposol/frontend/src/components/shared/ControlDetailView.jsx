@@ -10,6 +10,9 @@ import { ReadOnlyParts, getAutoLabel } from './ReadOnlyParts';
 import { EnhancementsAccordion } from './EnhancementsAccordion';
 import { ProseWithParams } from './ProseWithParams';
 import { formatProse } from '../../lib/oscal-utils';
+import { ControlPartsPanel } from './control-detail/ControlPartsPanel';
+import { ControlParametersPanel } from './control-detail/ControlParametersPanel';
+import { ControlEnhancementsPanel } from './control-detail/ControlEnhancementsPanel';
 
 const getAncestorsPath = (targetId, catalogData) => {
   if (!targetId || !catalogData) return [];
@@ -1712,121 +1715,40 @@ startingAdd.props = uProps;
       </div>
 
       {/* ── 2. Statements / Prose Parts Section ── */}
-      <div className="section-container" style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-          <h4 style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 'bold' }}>Statements / Prose Parts</h4>
-          <InfoTooltip mode={mode} type="parts" />
-        </div>
-        {mode === 'catalog' && isEditing ? (
-          /* Catalog edit: Full PartsEditor with structure CRUD */
-          <PartsEditor
-            parts={parts}
-            onChange={(updatedParts) => handleFieldChange('parts', updatedParts)}
-            params={combinedParams}
-            readOnly={false}
-            onDefineNewParam={handleDefineNewParam}
-          />
-        ) : mode === 'profile' && isEditing ? (
-          /* Profile edit: ProseWithParams with alter tracking */
-          <div>
-            {parts.length === 0 ? (
-              <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: '13px' }}>No prose statements.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {parts.map((p, i) => renderEditPart(p, originalControl?.parts?.[i], 0, i))}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={handleAddProfilePartAtEnd}
-              style={{
-                marginTop: '12px',
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--color-accent-hover)',
-                fontSize: '12px',
-                cursor: 'pointer',
-                padding: '4px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              ➕ Add Statement
-            </button>
-          </div>
-        ) : (
-          /* Read-only view (both modes) */
-          <div>
-            {parts.length === 0 ? (
-              <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: '13px' }}>No prose statements.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <ReadOnlyParts
-                  parts={parts}
-                  renderProse={renderProseToReact}
-                  modifiedPartIds={mode === 'profile' ? getModifiedPartIds() : undefined}
-                  onResetPart={mode === 'profile' ? handleResetProse : undefined}
-                  isEditing={isEditing}
-                />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <ControlPartsPanel
+        mode={mode}
+        isEditing={isEditing}
+        parts={parts}
+        handleFieldChange={handleFieldChange}
+        combinedParams={combinedParams}
+        handleDefineNewParam={handleDefineNewParam}
+        originalControl={originalControl}
+        renderEditPart={renderEditPart}
+        handleAddProfilePartAtEnd={handleAddProfilePartAtEnd}
+        getModifiedPartIds={getModifiedPartIds}
+        handleResetProse={handleResetProse}
+        renderProseToReact={renderProseToReact}
+        infoTooltip={<InfoTooltip mode={mode} type="parts" />}
+      />
 
       {/* ── 3. Parameters (always shown) ── */}
-      <div 
-        ref={paramSectionRef} 
-        className="section-container" 
-        style={{ 
-          background: 'var(--color-surface)', 
-          border: '1px solid var(--color-border)', 
-          borderRadius: 'var(--radius-lg)', 
-          padding: '24px', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '16px',
-          marginTop: '16px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <h4 style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 'bold' }}>
-            {mode === 'profile' && isEditing 
-              ? (isSubcontrol ? 'Sub-control Parameter Overrides' : 'Control Parameter Overrides') 
-              : (isSubcontrol ? 'Sub-control Parameters' : 'Control Parameters')}
-          </h4>
-          <InfoTooltip mode={mode} type="parameters" />
-        </div>
-        <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px', marginTop: '4px' }}>
-          {mode === 'catalog' ? (
-            <ParameterEditor
-              params={params}
-              onChange={(updatedParams) => handleFieldChange('params', updatedParams)}
-              readOnly={!isEditing || isWithdrawn}
-              fullDocument={catalog}
-            />
-          ) : (
-            <ParameterEditor
-              params={setParams}
-              catalogParams={originalControl.params || []}
-              mode="profile"
-              context="local"
-              parentId={control.id}
-              parentType="control"
-              onChange={(updatedSetParams) => {
-                const modify = profile.modify ? { ...profile.modify } : {};
-                modify['set-parameters'] = updatedSetParams;
-                onProfileChange({ ...profile, modify });
-              }}
-              onChangeAlters={(updateFn) => updateAlter(control.id, updateFn)}
-              readOnly={!isEditing || isWithdrawn}
-              fullDocument={profile}
-              catalogDocument={catalog}
-            />
-          )}
-        </div>
-      </div>
+      <ControlParametersPanel
+        mode={mode}
+        isEditing={isEditing}
+        isSubcontrol={isSubcontrol}
+        isWithdrawn={isWithdrawn}
+        params={params}
+        setParams={setParams}
+        originalControl={originalControl}
+        handleFieldChange={handleFieldChange}
+        control={control}
+        profile={profile}
+        onProfileChange={onProfileChange}
+        updateAlter={updateAlter}
+        catalog={catalog}
+        paramSectionRef={paramSectionRef}
+        infoTooltip={<InfoTooltip mode={mode} type="parameters" />}
+      />
 
       {/* ── 4. Assessment Methods (always shown, read-only) ── */}
       {extractAssessmentMethods(control).length > 0 && (
@@ -1871,17 +1793,15 @@ startingAdd.props = uProps;
       </div>
 
       {/* ── 6. Enhancements (always shown) ── */}
-      <div className="section-container" style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
-        <EnhancementsAccordion
-          enhancements={enhancements}
-          isEditing={isEditing}
-          onSelectEnhancement={onSelectControl}
-          onAddEnhancement={mode === 'catalog' && isEditing ? handleAddEnhancement : undefined}
-          onRemoveEnhancement={mode === 'catalog' && isEditing ? handleRemoveEnhancement : undefined}
-          showNavArrow={mode === 'catalog'}
-          renderEnhancementContent={mode === 'profile' ? renderEnhancementContent : undefined}
-        />
-      </div>
+      <ControlEnhancementsPanel
+        mode={mode}
+        isEditing={isEditing}
+        enhancements={enhancements}
+        onSelectControl={onSelectControl}
+        handleAddEnhancement={handleAddEnhancement}
+        handleRemoveEnhancement={handleRemoveEnhancement}
+        renderEnhancementContent={renderEnhancementContent}
+      />
     </div>
   );
 }

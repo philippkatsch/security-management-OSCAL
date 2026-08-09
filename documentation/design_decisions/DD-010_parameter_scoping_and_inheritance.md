@@ -1,6 +1,6 @@
 # DD-010: Parameter Scoping and Inheritance in Catalogs and Profiles
 
-## Status: Proposed
+## Status: Accepted
 ## Date: 2026-07-20
 ## Decision Makers: Development Team
 

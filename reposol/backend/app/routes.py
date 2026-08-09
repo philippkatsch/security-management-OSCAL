@@ -8,45 +8,16 @@ import shutil
 import uuid
 import os
 from app.validation import validate_document, STAGE_ROOT_KEYS
+from app.constants import STAGE_MAPPING, normalize_stage, validation_error_response
+from app.format_converter import serialize_dict_to_yaml, serialize_oscal_dict_to_xml
 from app.storage import (
     list_documents, get_document, save_document, delete_document, is_valid_uuid,
     DATA_DIR, is_safe_subdir, get_document_versions, get_document_version, save_document_version,
     delete_document_version, preprocess_profile_for_saving, preprocess_catalog_for_saving,
-    remove_empty_arrays
+    remove_empty_arrays, delete_workspace
 )
 
 router = APIRouter()
-
-# Stage normalization mapping
-STAGE_MAPPING = {
-    "catalog": "catalogs",
-    "catalogs": "catalogs",
-    "profile": "profiles",
-    "profiles": "profiles",
-    "ssp": "ssps",
-    "ssps": "ssps",
-    "component": "component-definitions",
-    "components": "component-definitions",
-    "component-definition": "component-definitions",
-    "component-definitions": "component-definitions",
-    "assessment-plan": "assessment-plans",
-    "assessment-plans": "assessment-plans",
-    "assessment-result": "assessment-results",
-    "assessment-results": "assessment-results",
-    "poam": "poams",
-    "poams": "poams",
-    "control-mapping": "control-mappings",
-    "control-mappings": "control-mappings",
-    "mapping": "control-mappings",
-    "mappings": "control-mappings",
-}
-
-def normalize_stage(stage: str) -> str:
-    """Normalizes the stage name based on the specification mapping."""
-    normalized = STAGE_MAPPING.get(stage.lower())
-    if not normalized:
-        raise HTTPException(status_code=400, detail=f"Invalid stage: {stage}")
-    return normalized
 
 def get_ws_id(request: Request) -> Optional[str]:
     """Extracts workspace ID from X-Workspace-ID header or w/workspace_id/workspace query parameter."""
@@ -195,14 +166,7 @@ async def save_doc_version(stage: str, doc_id: str, request: Request, remarks: O
             # Validate schema
             validate_document(normalized, validation_body)
         except ValidationError as e:
-            errors = getattr(e, "errors", [])
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "detail": f"Validation failed: {e.message}",
-                    "errors": errors
-                }
-            )
+            return validation_error_response(e)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         
@@ -249,14 +213,7 @@ async def save_doc(stage: str, request: Request, response: Response):
         # Validate schema
         validate_document(normalized, validation_body, workspace_id=ws_id)
     except ValidationError as e:
-        errors = getattr(e, "errors", [])
-        return JSONResponse(
-            status_code=400,
-            content={
-                "detail": f"Validation failed: {e.message}",
-                "errors": errors
-            }
-        )
+        return validation_error_response(e)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -356,14 +313,7 @@ async def validate_doc(stage: str, request: Request):
         validate_document(normalized, validation_body)
         return JSONResponse(status_code=200, content={"status": "valid", "stage": normalized})
     except ValidationError as e:
-        errors = getattr(e, "errors", [])
-        return JSONResponse(
-            status_code=400,
-            content={
-                "detail": f"Validation failed: {e.message}",
-                "errors": errors
-            }
-        )
+        return validation_error_response(e)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -387,12 +337,10 @@ def export_doc(stage: str, doc_id: str, request: Request, format: str = "json"):
     
     format_lower = format.lower()
     if format_lower == "yaml":
-        from app.format_converter import serialize_dict_to_yaml
         filename = f"{safe_title}_{doc_id[:8]}.yaml"
         content = serialize_dict_to_yaml(doc)
         media_type = "application/x-yaml"
     elif format_lower == "xml":
-        from app.format_converter import serialize_oscal_dict_to_xml
         filename = f"{safe_title}_{doc_id[:8]}.xml"
         try:
             content = serialize_oscal_dict_to_xml(doc)
@@ -437,4 +385,18 @@ def recent_documents(request: Request):
 
 # Versions routes moved upstream to avoid wildcard collision
 
+
+@router.delete("/api/workspaces/{workspace_id}")
+def delete_workspace_endpoint(workspace_id: str):
+    """Delete an entire test workspace and all its documents.
+
+    Protected workspace IDs (default, master, templates) cannot be deleted.
+    """
+    try:
+        delete_workspace(workspace_id)
+        return {"status": "deleted", "workspace_id": workspace_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 

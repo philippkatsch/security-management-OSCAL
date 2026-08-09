@@ -2,14 +2,18 @@
 Import routes: fetch OSCAL documents from remote URLs (GitHub, OSCAL.io, custom URLs)
 and import them directly into local storage.
 """
+import os
 import httpx
 import json
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request
 
 from pydantic import BaseModel
 from typing import Optional
 from app.validation import validate_document, STAGE_ROOT_KEYS
+from app.constants import STAGE_MAPPING
 from app.storage import save_document, is_valid_uuid, preprocess_profile_for_saving
+from app.repositories.workspace_repository import get_stage_dir
+from app.routes import get_ws_id, check_master_write_permission
 from jsonschema import ValidationError
 from app.format_converter import parse_xml_to_oscal_dict, parse_yaml_to_dict
 
@@ -86,23 +90,7 @@ KNOWN_SOURCES = [
     },
 ]
 
-# Stage aliases for routing
-STAGE_ALIASES = {
-    "catalog": "catalogs",
-    "catalogs": "catalogs",
-    "profile": "profiles",
-    "profiles": "profiles",
-    "ssp": "ssps",
-    "ssps": "ssps",
-    "system-security-plan": "ssps",
-    "component-definition": "component-definitions",
-    "component-definitions": "component-definitions",
-    "assessment-plan": "assessment-plans",
-    "assessment-plans": "assessment-plans",
-    "assessment-results": "assessment-results",
-    "poam": "poams",
-    "poams": "poams",
-}
+
 
 
 class ImportURLRequest(BaseModel):
@@ -147,7 +135,7 @@ async def fetch_remote_document(url: str) -> dict:
 def import_document(document: dict, validate: bool = True, workspace_id: Optional[str] = None) -> dict:
     """Import a document into local storage, with optional validation."""
     stage = detect_stage(document)
-    normalized_stage = STAGE_ALIASES.get(stage, stage)
+    normalized_stage = STAGE_MAPPING.get(stage, stage)
     root_key = STAGE_ROOT_KEYS.get(normalized_stage)
 
     if not root_key:
@@ -202,20 +190,15 @@ def import_document(document: dict, validate: bool = True, workspace_id: Optiona
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
-from fastapi import Request
-from app.routes import get_ws_id
-
 @import_router.get("/api/import/registry")
 def list_registry(request: Request):
     """Return the list of known importable OSCAL sources, annotated with import status."""
-    import os
-    from app.storage import get_stage_dir
     ws_id = get_ws_id(request)
     
     annotated_sources = []
     for source in KNOWN_SOURCES:
         entry = dict(source)
-        stage_alias = STAGE_ALIASES.get(entry["model"])
+        stage_alias = STAGE_MAPPING.get(entry["model"])
         is_imported = False
         if stage_alias and "uuid" in entry:
             try:
@@ -234,7 +217,6 @@ def list_registry(request: Request):
 @import_router.post("/api/import/url")
 async def import_from_url(request_data: ImportURLRequest, request: Request):
     """Fetch and import an OSCAL document from a URL."""
-    from app.routes import check_master_write_permission
     ws_id = get_ws_id(request)
     check_master_write_permission(request, ws_id)
     document = await fetch_remote_document(request_data.url)
@@ -245,7 +227,6 @@ async def import_from_url(request_data: ImportURLRequest, request: Request):
 @import_router.post("/api/import/registry/{source_id}")
 async def import_from_registry(source_id: str, request: Request):
     """Fetch and import a known OSCAL document from the built-in registry."""
-    from app.routes import check_master_write_permission
     ws_id = get_ws_id(request)
     check_master_write_permission(request, ws_id)
     entry = next((s for s in KNOWN_SOURCES if s["id"] == source_id), None)
@@ -262,7 +243,6 @@ async def import_from_registry(source_id: str, request: Request):
 @import_router.post("/api/import/file")
 async def import_uploaded_file(request: Request, file: UploadFile = File(...)):
     """Upload and import an OSCAL document (JSON, YAML, or XML)."""
-    from app.routes import check_master_write_permission
     ws_id = get_ws_id(request)
     check_master_write_permission(request, ws_id)
     MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB

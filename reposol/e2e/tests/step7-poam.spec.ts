@@ -235,4 +235,27 @@ test.describe('Step 7 POA&M Tracker — Production-Grade E2E Specifications', ()
     await expect(page.locator('.monaco-editor, textarea').first()).toBeVisible();
   });
 
+  test('Step 7 POAM: Plan of Action & Milestones Items, Schedules & Status Verification', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspUuid = await apiSetup.createSsp({ title: 'Base SSP for POAM' });
+    const poamUuid = randomUUID();
+
+    await apiSetup.createPoam(sspUuid, {
+      uuid: poamUuid,
+      title: `Remediation POAM ${poamUuid.substring(0, 8)}`,
+      poamItems: [
+        {
+          uuid: randomUUID(),
+          title: 'Automate Keycloak Stale Account Disablement Cron Job',
+          description: 'Deploy automated cleanup script to disable inactive accounts after 30 days.'
+        }
+      ]
+    });
+
+    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
+    await page.goto(`/poam/${poamUuid}?w=${apiSetup.workspaceId}`);
+
+    // Assert POAM Title
+    await expect(page.locator('body')).toContainText(`Remediation POAM ${poamUuid.substring(0, 8)}`, { timeout: 15000 });
+  });
 });

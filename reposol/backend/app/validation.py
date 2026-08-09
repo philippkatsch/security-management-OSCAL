@@ -3,6 +3,7 @@ import os
 import json
 from typing import Dict, Any, Optional
 from jsonschema import validate as jsonschema_validate, ValidationError, Draft7Validator
+from app.repositories.workspace_repository import get_stage_dir
 
 # Mapping of normalized stage name to its root OSCAL key
 STAGE_ROOT_KEYS = {
@@ -129,7 +130,6 @@ def validate_document(stage: str, document: Dict[str, Any], check_refs: bool = T
 
     # Custom cross-reference and structural validation for SSPs (only run if schema is valid)
     if stage == "ssps" and check_refs:
-        from app.storage import get_stage_dir
         ssp = document[root_key]
         
         # 1. Profile existence check

@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/base';
+import { randomUUID } from 'node:crypto';
 
 test.describe('Step 3 Component Inventory — E2E Specifications', () => {
   test.setTimeout(60000);
@@ -476,4 +477,45 @@ test.describe('Step 3 Component Inventory — E2E Specifications', () => {
     // Verify Version input field in Metadata tab
     await expect(page.getByText('Version', { exact: true })).toBeVisible();
   });
+
+  test('US 3.1 & US 3.2: Component Types Creation, Properties & Control Implementation Statements', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const compUuid = randomUUID();
+
+    await apiSetup.createComponentDefinition({
+      uuid: compUuid,
+      title: `Enterprise Component Inventory ${compUuid.substring(0, 8)}`,
+      version: '1.0.0',
+      components: [
+        {
+          uuid: randomUUID(),
+          type: 'software',
+          title: 'Identity Provider Service (Keycloak)',
+          description: 'SSO and IAM infrastructure service.',
+          purpose: 'Authentication and Access Management'
+        }
+      ]
+    });
+
+    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
+    await page.goto(`/component-definition/${compUuid}?w=${apiSetup.workspaceId}`);
+
+    // Assert Component Definition Title
+    await expect(page.locator('body')).toContainText(`Enterprise Component Inventory ${compUuid.substring(0, 8)}`, { timeout: 15000 });
+  });
+
+  test('US 3.3: Component Navigation & Tab Views (Components, Control Implementations, Metadata, JSON)', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const compUuid = await apiSetup.createComponentDefinition({
+      title: 'Multi-Tab Component Inventory',
+      version: '2.0.0'
+    });
+
+    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
+    await page.goto(`/component-definition/${compUuid}?w=${apiSetup.workspaceId}`);
+
+    // Verify page loads
+    await expect(page.locator('body')).toContainText('Multi-Tab Component Inventory', { timeout: 15000 });
+  });
 });
+

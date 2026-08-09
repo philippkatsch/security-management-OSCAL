@@ -1,7 +1,7 @@
 # DD-020: Status Badge Design System
 
 **Date:** 2026-07-27
-**Status:** Proposed
+**Status:** Accepted
 **Decision Makers:** TBD
 
 ## Context

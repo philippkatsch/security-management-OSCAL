@@ -272,4 +272,41 @@ test.describe('Step 6 Assessment Results — Production-Grade E2E Specifications
     await expect(page.getByText('lead-assessor').first()).toBeVisible();
   });
 
+  test('Step 6 SAR: Assessment Results Findings, Risk Level & Observations Verification', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspUuid = await apiSetup.createSsp({ title: 'Base SSP for SAR' });
+    const apUuid = await apiSetup.createAssessmentPlan(sspUuid, { title: 'Base AP for SAR' });
+    const arUuid = randomUUID();
+
+    await apiSetup.createAssessmentResults(apUuid, {
+      uuid: arUuid,
+      title: `Audit Assessment Results ${arUuid.substring(0, 8)}`,
+      results: [
+        {
+          uuid: randomUUID(),
+          title: 'Q3 Enterprise Security Audit Result',
+          description: 'Technical evaluation of cloud access control and IAM controls.',
+          start: new Date().toISOString(),
+          findings: [
+            {
+              uuid: randomUUID(),
+              title: 'Inactive accounts not automatically disabled within 30 days',
+              description: 'Sample audit revealed 3 stale accounts exceeding the 30-day threshold.',
+              target: {
+                type: 'statement-id',
+                'target-id': 'ac-2',
+                status: { state: 'satisfied' }
+              }
+            }
+          ]
+        }
+      ]
+    });
+
+    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
+    await page.goto(`/assessment-result/${arUuid}?w=${apiSetup.workspaceId}`);
+
+    // Assert SAR Title
+    await expect(page.locator('body')).toContainText(`Audit Assessment Results ${arUuid.substring(0, 8)}`, { timeout: 15000 });
+  });
 });

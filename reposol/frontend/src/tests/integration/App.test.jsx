@@ -20,15 +20,6 @@ vi.mock('../../components/Layout', () => ({
   ),
 }));
 
-vi.mock('../../components/DocumentEditor', () => ({
-  default: ({ onSaved, onCancel, stage }) => (
-    <div data-testid="document-editor" data-stage={stage}>
-      <button data-testid="save-btn" onClick={() => onSaved({ catalog: { uuid: 'test-uuid' } })}>Save</button>
-      <button data-testid="cancel-btn" onClick={onCancel}>Cancel</button>
-    </div>
-  ),
-}));
-
 vi.mock('../../components/ImportWizard', () => ({
   default: ({ onClose, onImported }) => (
     <div data-testid="import-wizard">

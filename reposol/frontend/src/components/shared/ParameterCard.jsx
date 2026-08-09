@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { DebouncedInput } from './DebouncedInput';
-import { DebouncedTextarea } from './DebouncedTextarea';
+import { DebouncedInput, DebouncedTextarea } from './DebouncedInput';
 import { PropsEditor } from './PropsEditor';
 import { LinksEditor } from './LinksEditor';
 import { ProseWithParams } from './ProseWithParams';

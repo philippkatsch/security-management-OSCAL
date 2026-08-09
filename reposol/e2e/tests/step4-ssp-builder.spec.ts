@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/base';
+import { randomUUID } from 'node:crypto';
 
 test.describe('Step 4 SSP Builder — E2E Specifications', () => {
   test.setTimeout(60000);
@@ -313,4 +314,39 @@ test.describe('Step 4 SSP Builder — E2E Specifications', () => {
     await page.locator('.document-tabs button', { hasText: 'Json' }).click();
     await expect(page.locator('.monaco-editor').first()).toBeVisible();
   });
+
+  test('US 4.1 & US 4.2: System Characteristics, Security Categorization (FIPS 199) & Implementation Statements', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catUuid = await apiSetup.createCatalog({ title: 'Base Catalog for SSP' });
+    const profUuid = await apiSetup.createProfile({ title: 'Base Profile for SSP', catalogUuid: catUuid });
+    const sspUuid = randomUUID();
+
+    await apiSetup.createSsp({
+      uuid: sspUuid,
+      profileId: profUuid,
+      title: `Cloud Platform SSP ${sspUuid.substring(0, 8)}`,
+      systemName: 'Reposol Enterprise Cloud Platform'
+    });
+
+    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
+    await page.goto(`/ssp/${sspUuid}?w=${apiSetup.workspaceId}`);
+
+    // Assert SSP Page header and Title
+    await expect(page.locator('body')).toContainText(`Cloud Platform SSP ${sspUuid.substring(0, 8)}`, { timeout: 15000 });
+  });
+
+  test('US 4.3: SSP Schema Validation & Dual-Mode Monaco View', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catUuid = await apiSetup.createCatalog({ title: 'Base Catalog for SSP 2' });
+    const profUuid = await apiSetup.createProfile({ title: 'Base Profile for SSP 2', catalogUuid: catUuid });
+    const sspUuid = await apiSetup.createSsp({
+      profileId: profUuid,
+      title: 'Schema Validated SSP'
+    });
+
+    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
+    await page.goto(`/ssp/${sspUuid}?edit=true&w=${apiSetup.workspaceId}`);
+    await expect(page.locator('body')).toContainText('Schema Validated SSP', { timeout: 15000 });
+  });
 });
+

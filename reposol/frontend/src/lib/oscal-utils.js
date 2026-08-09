@@ -265,6 +265,34 @@ export function reorderCatalog(catalog) {
 }
 
 // ---------------------------------------------------------------------------
+// Document cleanup utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Recursively removes empty arrays from an OSCAL document object.
+ * Many OSCAL schemas reject empty arrays (e.g. `"components": []`),
+ * so this must be applied before saving.
+ *
+ * @param {any} obj - The object to clean.
+ * @returns {any} A new object with empty arrays removed.
+ */
+export function cleanEmptyArrays(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(cleanEmptyArrays).filter(item => item !== undefined);
+  } else if (obj !== null && typeof obj === 'object') {
+    const cleaned = {};
+    for (const [key, val] of Object.entries(obj)) {
+      if (Array.isArray(val) && val.length === 0) {
+        continue;
+      }
+      cleaned[key] = cleanEmptyArrays(val);
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+// ---------------------------------------------------------------------------
 // Real-time OSCAL datatype format validators
 // ---------------------------------------------------------------------------
 

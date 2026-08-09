@@ -24,21 +24,16 @@ We need a unified component architecture and data flow strategy to avoid duplica
 
 ### 1. Shared Component Library
 
-All three entities are implemented as **shared, reusable React components** under `components/shared/assessment/`:
+All three entities are implemented as **shared, reusable React components** under `components/shared/risk-assessment/`:
 
 ```
-components/shared/assessment/
-├── ObservationCard.jsx       # Renders/edits a single observation
-├── RiskCard.jsx              # Renders/edits a single risk (with characterization, remediation, risk-log)
-├── FindingCard.jsx           # Renders/edits a single finding (with target status)
-├── ObservationList.jsx       # Manages observation[] array with CRUD
-├── RiskList.jsx              # Manages risk[] array with CRUD
-├── FindingList.jsx           # Manages finding[] array with CRUD
-├── RiskStatusBadge.jsx       # Visual badge for risk status lifecycle
+components/shared/risk-assessment/
 ├── CharacterizationEditor.jsx # CVSS/facet characterization sub-editor
-├── RemediationEditor.jsx     # Remediation response lifecycle editor
-├── RiskLogTimeline.jsx       # Chronological risk-log entry timeline
-└── EvidenceAttachment.jsx    # relevant-evidence management with DD-007 Base64
+├── OriginsEditor.jsx          # Risk origin and task tracking editor
+├── RelevantEvidenceEditor.jsx # Evidence reference attachment sub-editor
+├── RemediationsEditor.jsx     # Remediation response lifecycle editor
+├── RiskLogEditor.jsx          # Chronological risk-log entry timeline editor
+└── OscalEditors.css           # Styling for risk assessment sub-editors
 ```
 
 These components receive their data via props and emit changes via `onChange` callbacks — they are **editor-agnostic** and work in both AR and POA&M contexts.

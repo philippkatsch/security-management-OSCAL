@@ -12,6 +12,8 @@ export function DebouncedInput({
   className = '',
   type = 'text',
   disabled = false,
+  multiline = false,
+  rows = 3,
   ...props
 }) {
   const [displayValue, setDisplayValue] = useState(value || '');
@@ -63,6 +65,20 @@ export function DebouncedInput({
     };
   }, []);
 
+  if (multiline) {
+    return (
+      <textarea
+        value={displayValue}
+        onChange={(e) => setDisplayValue(e.target.value)}
+        placeholder={placeholder}
+        className={className}
+        rows={rows}
+        disabled={disabled}
+        {...props}
+      />
+    );
+  }
+
   return (
     <input
       type={type}
@@ -76,3 +92,6 @@ export function DebouncedInput({
   );
 }
 
+export function DebouncedTextarea(props) {
+  return <DebouncedInput multiline={true} {...props} />;
+}

@@ -82,28 +82,11 @@ export const ComponentPage = ({ componentDefId, initialEditMode, onClose }) => {
     });
   }, [setUndoState]);
 
-  const cleanEmptyArrays = (obj) => {
-    if (Array.isArray(obj)) {
-      return obj.map(cleanEmptyArrays).filter(item => item !== undefined);
-    } else if (obj !== null && typeof obj === 'object') {
-      const cleaned = {};
-      for (const [key, val] of Object.entries(obj)) {
-        if (Array.isArray(val) && val.length === 0) {
-          continue;
-        }
-        cleaned[key] = cleanEmptyArrays(val);
-      }
-      return cleaned;
-    }
-    return obj;
-  };
-
   const handleSave = async () => {
     console.log('[ComponentPage] handleSave triggered!');
     try {
-      const cleaned = cleanEmptyArrays(doc);
-      console.log('[ComponentPage] cleaned doc:', JSON.stringify(cleaned, null, 2));
-      const res = await saveDocument(cleaned);
+      console.log('[ComponentPage] cleaned doc:', JSON.stringify(doc, null, 2));
+      const res = await saveDocument(doc);
       console.log('[ComponentPage] saveDocument result:', res ? 'SUCCESS' : 'NULL');
     } catch (err) {
       console.error('[ComponentPage] handleSave error:', err);

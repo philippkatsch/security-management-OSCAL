@@ -281,10 +281,10 @@ function ActivityEditor({ activity, onChange, readOnly, onClose }) {
   );
 }
 
-export function APPage({ apId, initialEditMode, onClose }) {
+export function APPage({ apId, initialIsEditing, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [showVersions, setShowVersions] = useState(false);
-  const [editMode, setEditMode] = useState(initialEditMode || false);
+  const [isEditing, setIsEditing] = useState(initialIsEditing || false);
 
   const { doc, loading, error, saveDoc } = useDocument('assessment-plan', apId);
   const { current: state, pushState: set, undo, redo, canUndo, canRedo, reset } = useUndoRedo(doc);
@@ -404,7 +404,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
   const handleSave = async () => {
     if (state) {
       await saveDoc(state);
-      setEditMode(false);
+      setIsEditing(false);
     }
   };
 
@@ -418,10 +418,10 @@ export function APPage({ apId, initialEditMode, onClose }) {
         <h1>📅 {ap.metadata?.title || 'Untitled Assessment Plan'}</h1>
         <DocumentToolbar
           mode="assessment-plan"
-          isEditing={editMode}
+          isEditing={isEditing}
           onToggleEdit={() => {
-            const next = !editMode;
-            setEditMode(next);
+            const next = !isEditing;
+            setIsEditing(next);
             if (next) {
               if (!window.location.search.includes('edit=true')) window.history.replaceState(null, '', window.location.pathname + '?edit=true');
             } else {
@@ -429,7 +429,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
             }
           }}
           onSave={handleSave}
-          onCancel={() => { set(doc); setEditMode(false); }}
+          onCancel={() => { set(doc); setIsEditing(false); }}
           onUndo={undo}
           onRedo={redo}
           canUndo={canUndo}
@@ -444,7 +444,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
           <div className="ssp-reference-content">
             <strong>Referenced SSP:</strong> {ap['import-ssp'].href}
           </div>
-          {editMode && (
+          {isEditing && (
             <button className="btn-edit-ssp" onClick={() => {
               const newHref = window.prompt('Enter new SSP href:', ap['import-ssp'].href);
               if (newHref) {
@@ -658,7 +658,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
               <TermsAndConditionsEditor 
                 terms={ap['terms-and-conditions'] || { parts: [] }} 
                 onChange={(tc) => handleUpdateAP({ ...ap, 'terms-and-conditions': tc })}
-                readOnly={!editMode}
+                readOnly={!isEditing}
               />
             </div>
           )}
@@ -669,24 +669,24 @@ export function APPage({ apId, initialEditMode, onClose }) {
               <MetadataEditor
                 metadata={ap.metadata || {}}
                 onChange={(md) => handleUpdateAP({ ...ap, metadata: md })}
-                readOnly={!editMode}
+                readOnly={!isEditing}
               />
               <PropsEditor
                 propsList={ap.metadata?.props || []}
                 onChange={(p) => handleUpdateAP({ ...ap, metadata: { ...ap.metadata, props: p } })}
-                readOnly={!editMode}
+                readOnly={!isEditing}
               />
               <LinksEditor
                 links={ap.metadata?.links || []}
                 onChange={(l) => handleUpdateAP({ ...ap, metadata: { ...ap.metadata, links: l } })}
-                readOnly={!editMode}
+                readOnly={!isEditing}
               />
 
               <h2 className="ap-section-title" style={{ marginTop: '32px' }}>Back Matter</h2>
               <BackMatterEditor
                 backMatter={ap['back-matter']}
                 onChange={(bm) => handleUpdateAP({ ...ap, 'back-matter': bm })}
-                readOnly={!editMode}
+                readOnly={!isEditing}
               />
             </div>
           )}
@@ -696,7 +696,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
               <JsonEditor
                 data={state}
                 onChange={set}
-                readOnly={!editMode}
+                readOnly={!isEditing}
               />
             </div>
           )}
@@ -723,7 +723,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
             setSelectedTask(updatedTask);
           }}
           onClose={() => setSelectedTask(null)}
-          readOnly={!editMode}
+          readOnly={!isEditing}
         />
       )}
 
@@ -736,7 +736,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
             setSelectedActivity(updatedAct);
           }}
           onClose={() => setSelectedActivity(null)}
-          readOnly={!editMode}
+          readOnly={!isEditing}
         />
       )}
 
@@ -745,7 +745,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
           title="Subject Details"
           entity={selectedSubject}
           onClose={() => setSelectedSubject(null)}
-          readOnly={!editMode}
+          readOnly={!isEditing}
         />
       )}
 
@@ -754,7 +754,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
           title="Component Details"
           entity={selectedComponent}
           onClose={() => setSelectedComponent(null)}
-          readOnly={!editMode}
+          readOnly={!isEditing}
         />
       )}
 
@@ -763,7 +763,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
           title="Inventory Item Details"
           entity={selectedInventory}
           onClose={() => setSelectedInventory(null)}
-          readOnly={!editMode}
+          readOnly={!isEditing}
         />
       )}
 
@@ -772,7 +772,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
           title="User Details"
           entity={selectedUser}
           onClose={() => setSelectedUser(null)}
-          readOnly={!editMode}
+          readOnly={!isEditing}
         />
       )}
 
@@ -781,7 +781,7 @@ export function APPage({ apId, initialEditMode, onClose }) {
           title="Assessment Platform Details"
           entity={selectedPlatform}
           onClose={() => setSelectedPlatform(null)}
-          readOnly={!editMode}
+          readOnly={!isEditing}
         />
       )}
     </div>

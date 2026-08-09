@@ -1,6 +1,6 @@
 # DD-014: Live UI Form Field Validation & Real-Time Schema Guidance
 
-## Status: Proposed
+## Status: Accepted
 ## Date: 2026-07-22
 ## Decision Makers: Development Team
 

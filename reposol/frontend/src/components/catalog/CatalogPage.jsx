@@ -1085,7 +1085,7 @@ export function CatalogPage({
       <VersionDrawer
         versions={versions}
         currentVersion={catalogData.metadata?.version}
-        show={showDrawer}
+        isOpen={showDrawer}
         isEditing={isEditing}
         onClose={() => setShowDrawer(false)}
         onSwitch={async (version) => {

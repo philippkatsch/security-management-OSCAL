@@ -27,12 +27,10 @@ export function VersionDrawer({
   onSwitch,
   onDelete,
   onSave,
-  show: showProp = false,
   isOpen = false,
   onClose,
   isEditing = false
 }) {
-  const show = showProp || isOpen;
   const [versionNum, setVersionNum] = useState('');
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
@@ -40,13 +38,13 @@ export function VersionDrawer({
 
   // Auto-increment: pre-fill version number when drawer opens
   useEffect(() => {
-    if (show && currentVersion) {
+    if (isOpen && currentVersion) {
       setVersionNum(nextMinorVersion(currentVersion));
       setError('');
     }
-  }, [show, currentVersion]);
+  }, [isOpen, currentVersion]);
 
-  if (!show) return null;
+  if (!isOpen) return null;
 
   const handleSave = async (e) => {
     e.preventDefault();

@@ -7,6 +7,7 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   testDir: './tests',
+  globalTeardown: './global-teardown.ts',
   timeout: 60000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

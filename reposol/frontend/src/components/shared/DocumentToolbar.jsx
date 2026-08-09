@@ -32,45 +32,29 @@ const MODE_CONFIG = {
  */
 export function DocumentToolbar({
   title = 'Untitled Document',
-  // --- Edit state (accepts aliases) ---
-  isEditing: isEditingProp = false,
-  isEditMode: isEditModeProp,
-  // --- Toggle edit callback (accepts aliases) ---
-  onToggleEdit: onToggleEditProp,
-  onEdit: onEditProp,
-  // --- Back / Close (accepts aliases) ---
-  onBack: onBackProp,
-  onClose: onCloseProp,
-  // --- Version actions (accepts aliases — used for both History + Publish) ---
-  onSaveVersion: onSaveVersionProp,
-  onShowVersions: onShowVersionsProp,
-  onHistoryClick: onHistoryClickProp,
-  onVersionsToggle: onVersionsToggleProp,
-  // --- Version display ---
+  isEditing = false,
+  onToggleEdit,
+  onBack,
+  onSaveVersion,
+  onShowVersions,
   versions = [],
-  version: versionDirect,
-  // --- Visual/JSON edit mode ---
-  editMode: editModeProp = 'visual',
+  version: activeVersionStr,
+  editMode = 'visual',
   onToggleEditMode,
-  // --- Undo / Redo ---
   canUndo = false,
   canRedo = false,
   onUndo,
   onRedo,
-  // --- Status indicators ---
   saving = false,
   validating = false,
   isSaving = false,
   status,
   onStatusChange,
-  // --- Document type (accepts aliases) ---
-  mode: modeProp = 'catalog',
-  typeLabel: typeLabelProp,
-  documentType: documentTypeProp,
-  stage: stageProp,
-  // --- Profile-specific ---
+  mode = 'catalog',
+  typeLabel,
+  documentType,
+  stage,
   resolving = false,
-  // --- Unused props (accepted to avoid React warnings) ---
   onCopy,
   onExport,
   onSave,
@@ -83,28 +67,23 @@ export function DocumentToolbar({
   doc: _doc,
   ...rest
 }) {
-  // ── Normalize: isEditing ──
-  const isEditing = isEditingProp || isEditModeProp === true || editModeProp === true;
-
-  // ── Normalize: editMode (visual/json string) ──
-  const editMode = (typeof editModeProp === 'string') ? editModeProp : 'visual';
-
-  // ── Normalize: handlers ──
-  const handleBack = onBackProp || onCloseProp;
-  const handleToggleEdit = onToggleEditProp || onEditProp;
-  const handleVersionAction = onSaveVersionProp || onShowVersionsProp || onHistoryClickProp || onVersionsToggleProp;
+  // ── Handlers & Fallbacks ──
+  // Minimal fallback for missing handlers if someone was relying on aliases
+  const handleToggleEdit = onToggleEdit || rest.onEdit;
+  const handleBack = onBack || rest.onClose;
+  const handleVersionAction = onSaveVersion || onShowVersions || rest.onHistoryClick || rest.onVersionsToggle;
 
   // ── Normalize: saving state ──
   const isBusy = saving || validating || isSaving;
 
   // ── Normalize: document type & badge ──
-  const resolvedMode = stageProp || modeProp || 'catalog';
+  const resolvedMode = stage || mode || 'catalog';
   const modeConfig = MODE_CONFIG[resolvedMode] || MODE_CONFIG['catalog'];
-  const badgeLabel = typeLabelProp || documentTypeProp || modeConfig.label;
+  const badgeLabel = typeLabel || documentType || modeConfig.label;
   const badgeColor = { bg: modeConfig.bg, color: modeConfig.color };
 
   // ── Normalize: version display ──
-  const activeVersion = versionDirect || versions.find(v => v.is_active)?.version || '—';
+  const activeVersion = activeVersionStr || versions.find(v => v.is_active)?.version || '—';
 
   return (
     <div

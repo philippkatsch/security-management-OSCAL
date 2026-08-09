@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchDocument, saveDocument, validateDocument } from '../lib/api';
+import { cleanEmptyArrays } from '../lib/oscal-utils';
 
 /**
  * Hook for loading, saving, and validating an OSCAL document.
@@ -54,7 +55,8 @@ export function useDocument(stage, documentId) {
     setError(null);
     try {
       const targetDoc = documentToSave || doc;
-      const result = await saveDocument(stage, targetDoc);
+      const cleaned = cleanEmptyArrays(targetDoc);
+      const result = await saveDocument(stage, cleaned);
       setDoc(result);
       return result;
     } catch (err) {

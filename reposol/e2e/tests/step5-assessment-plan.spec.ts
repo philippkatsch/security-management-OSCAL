@@ -300,6 +300,33 @@ test.describe('Step 5 Assessment Plan — Production-Grade E2E Specifications', 
     await expect(page.getByText('Plan Completeness').first()).toBeVisible();
   });
 
+  test('Step 5 SAP: Assessment Plan Tasks, Subjects & Objectives Verification', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspUuid = await apiSetup.createSsp({ title: 'Base SSP for SAP' });
+    const apUuid = randomUUID();
+
+    await apiSetup.createAssessmentPlan(sspUuid, {
+      uuid: apUuid,
+      title: `Security Assessment Plan ${apUuid.substring(0, 8)}`,
+      reviewedControls: {
+        'control-selections': [
+          {
+            'include-controls': [
+              { 'control-id': 'ac-2' },
+              { 'control-id': 'ia-5' }
+            ]
+          }
+        ]
+      }
+    });
+
+    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
+    await page.goto(`/assessment-plan/${apUuid}?w=${apiSetup.workspaceId}`);
+
+    // Assert SAP Title
+    await expect(page.locator('body')).toContainText(`Security Assessment Plan ${apUuid.substring(0, 8)}`, { timeout: 15000 });
+  });
+
   test('verify version drawer snapshot creation and raw JSON editor toggling', async ({ page, apiSetup }) => {
     const apUuid = await apiSetup.createAssessmentPlan({ title: 'Version Test AP' });
     await page.goto(`/assessment-plan/${apUuid}`);

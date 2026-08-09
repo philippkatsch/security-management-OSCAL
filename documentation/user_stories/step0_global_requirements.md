@@ -352,7 +352,7 @@ Each step of the security lifecycle is described in detail in a separate file:
 > **so that** multiple online testers do not overwrite each other's documents and the system is 100% future-proofed for later user accounts (SaaS).
 > *See also: [DD-015](../design_decisions/DD-015_anonymous_workspace_isolation_and_containerized_deployment.md)*
 - [ ] **Anonymous Session Workspace ID:** Upon the first visit, the frontend automatically generates a session ID (`session-{uuid}`) in `localStorage` and sends it in the `X-Workspace-ID` HTTP header with all API requests.
-- [ ] **Frontend Workspace Integration:** Frontend components (`App.jsx`, `CatalogViewer.jsx`, `DocumentEditor.jsx`, `ImportWizard.jsx`, `MappingViewer.jsx`) use `authFetch` / `getWorkspaceId()` from `lib/api.js` for all API requests (`/api/documents/...`, `/api/import/...`, `/api/validate/...`), so that the `X-Workspace-ID` header is consistently transmitted in all requests in Master Template Mode (`?w=master`) and in anonymous session workspaces.
+- [ ] **Frontend Workspace Integration:** Frontend components (`App.jsx`, `CatalogPage.jsx`, `ProfilePage.jsx`, `SSPPage.jsx`, `MappingPage.jsx`, `ImportWizard.jsx`) use `authFetch` / `getWorkspaceId()` from `lib/api.js` for all API requests (`/api/documents/...`, `/api/import/...`, `/api/validate/...`), so that the `X-Workspace-ID` header is consistently transmitted in all requests in Master Template Mode (`?w=master`) and in anonymous session workspaces.
 - [ ] **Backend Workspace ID Extraction:** Backend `get_ws_id(request)` in `routes.py` & `import_routes.py` extracts the `?w=` query parameter in addition to `workspace_id` and `workspace` from headers/query parameters.
 - [ ] **Isolated File Storage in the Backend:** The backend saves documents under `reposol/data/workspaces/{workspace_id}/{stage}/` when a workspace ID is provided, and otherwise falls back to the default folder `reposol/data/workspaces/default/{stage}/`.
 - [ ] **Unified Multi-Stage Dockerfile & Security:** A `Dockerfile` in the root directory builds the frontend (`npm run build`) and runs the FastAPI backend. In Stage 2, a dedicated non-root system group and user `reposol` are created, file permissions under `/app` are set to `reposol:reposol`, master templates are copied from `reposol/data/workspaces/default` to `/app/templates_seed`, and the container is run under `USER reposol`.
@@ -386,4 +386,33 @@ Each step of the security lifecycle is described in detail in a separate file:
 - [ ] **Clear Warning & Guidance Message:** The banner explicitly communicates that the system is currently in active development ("In Development / Development Mode") and strongly recommends downloading and backing up files locally to prevent data loss.
 - [ ] **Modern Dark Theme Aesthetic:** The banner uses a sleek amber/yellow badge indicator (`⚠️ IN DEVELOPMENT`), high contrast readable text, glassmorphic dark amber background with subtle glowing borders, and an optional close/dismiss button or sticky display.
 
+### US 0.29: E2E Test Workspace Cleanup & Clean State Guarantee
+> **As a** developer running E2E tests  
+> **I want** each test run to leave the backend data directory in a clean state with zero leftover workspace folders or orphaned documents,  
+> **so that** tests are fully isolated, deterministic, and do not pollute the filesystem across repeated runs.
+*   **Acceptance Criteria:**
+    - [ ] **Backend Workspace Delete Endpoint:** A `DELETE /api/workspaces/{workspace_id}` endpoint exists that deletes the entire workspace directory (all stages, all documents, all versions) in a single call, protected against deleting the `default`/`master`/`templates` workspace.
+    - [ ] **Fixture-Level Workspace Cleanup:** The `ApiSetup.cleanup()` method in the E2E fixture calls the workspace delete endpoint instead of deleting documents one by one, ensuring that UI-created documents are also cleaned up.
+    - [ ] **Global Teardown Safety Net:** A Playwright `globalTeardown` script runs after all tests and removes any leftover test workspace directories (UUID-named folders) from `data/workspaces/`, skipping the `default` workspace.
+    - [ ] **Backend Unit Test Coverage:** A Pytest unit test verifies that the workspace delete endpoint correctly removes a workspace directory and returns 404 for non-existent workspaces, and returns 400 for protected workspace IDs.
+    - [ ] **No Regression:** Existing E2E tests continue to pass without modification (the base fixture transparently upgrades to workspace-level cleanup).
 
+### US 0.30: Clean Domain-Driven Component Architecture & Test Coverage
+> **As a** developer and maintainer  
+> **I want** the frontend codebase to strictly consist of modular, domain-driven page components (`CatalogPage`, `ProfilePage`, `SSPPage`, `MappingPage`, etc.) with comprehensive unit test coverage,  
+> **so that** the application is clean, maintainable, performant, and completely free of monolithic legacy code.
+*   **Akzeptanzkriterien:**
+    - [ ] **Modular Domain Architecture:** The frontend strictly uses domain-driven page and editor components under `src/components/` with no legacy monolith components present in the codebase.
+    - [ ] **Domain Test Suite:** All frontend tests in `src/tests/` target the active domain components (`CatalogPage`, `ProfilePage`, `SSPPage`, `MappingPage`, etc.).
+    - [ ] **Clean Test Execution:** All Vitest unit tests (`npm test`) pass cleanly with 100% success.
+
+### US 0.31: Atomic Storage Persistence, File Locking & Backend Layer Separation
+> **As a** backend developer and system architect  
+> **I want** document writes in `storage.py` to be atomic (`.tmp` + `os.replace`), protected by inter-process file locks, and organized with clear layer separation (`routes` -> `services` -> `repositories`) without function-level lazy imports,  
+> **so that** document persistence is crash-safe, concurrent API calls do not cause race conditions or corrupt JSON files, and backend modules are clean and decoupled.
+*   **Akzeptanzkriterien:**
+    - [ ] **Atomic File Writes:** Saving documents or version snapshots writes to a temporary file (`.tmp`) first and uses `os.replace` for atomic file replacement.
+    - [ ] **Inter-Process Locking:** Critical write and delete disk operations use `filelock` mutexes to prevent concurrent write collisions.
+    - [ ] **Clean Layer Separation:** Storage operations are encapsulated in `repositories/`, business transformations in `services/`, and API handlers in `routes.py`.
+    - [ ] **No Function-Level Lazy Imports:** Circular module imports are resolved through clean layer direction (`routes -> services -> repositories`), eliminating lazy import functions.
+    - [ ] **Pytest Verification:** All Pytest backend tests in `reposol/backend/tests/` pass 100%.

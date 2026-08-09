@@ -13,7 +13,7 @@ To solve this without creating a forced authentication barrier for public demo u
 ## Decisions
 
 ### 1. Header-Driven Anonymous Workspace Isolation & Master Template Seeding
-- The frontend (`api.js`) maintains an anonymous session UUID in browser `localStorage` (e.g. `session-8f3a9b12-...`) or URL query parameter (`?w=...`). All components (`CatalogViewer.jsx`, `DocumentEditor.jsx`, `ImportWizard.jsx`, `MappingViewer.jsx`, etc.) must use `authFetch` for all `/api/` endpoints.
+- The frontend (`api.js`) maintains an anonymous session UUID in browser `localStorage` (e.g. `session-8f3a9b12-...`) or URL query parameter (`?w=...`). All components (`CatalogPage.jsx`, `ProfilePage.jsx`, `SSPPage.jsx`, `MappingPage.jsx`, `ImportWizard.jsx`, etc.) must use `authFetch` for all `/api/` endpoints.
 - Every outgoing API request attaches the `X-Workspace-ID` HTTP header.
 - The backend (`storage.py` and `routes.py`) inspects `X-Workspace-ID`. When present, storage functions resolve the data directory to `reposol/data/workspaces/{workspace_id}/{stage}/`.
 - **Master Template Single Store (`data/workspaces/default/`)**: Master templates are stored under `reposol/data/workspaces/default/`. Legacy folders `reposol/data/templates/` and `reposol/data/catalogs/` are deprecated and removed.

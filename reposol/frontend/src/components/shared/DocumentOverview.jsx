@@ -5,6 +5,8 @@ import { PropsEditor } from './PropsEditor';
 import { ParameterEditor } from './ParameterEditor';
 import { DebouncedInput } from './DebouncedInput';
 import { importFromRegistry, importFromUrl, fetchRegistry, fetchDocument } from '../../lib/api';
+import { CatalogOverviewPanel } from './overview/CatalogOverviewPanel';
+import { ProfileOverviewPanel } from './overview/ProfileOverviewPanel';
 
 const countControls = (groups = [], controls = []) => {
   let total = 0;
@@ -42,7 +44,7 @@ const countControls = (groups = [], controls = []) => {
   return { total, active, withdrawn };
 };
 
-const countControlsInGroup = (group) => {
+export const countControlsInGroup = (group) => {
   let count = 0;
   const traverse = (item) => {
     count++;
@@ -446,107 +448,20 @@ export function DocumentOverview({
       <div style={{ flex: 1, overflow: 'hidden', height: '100%' }}>
 
         {/* Overview Tab (Dashboard) */}
-        {currentTab === 'overview' && (
-          <div style={{ padding: '24px', overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            
-            {/* Title & Metadata row */}
-            <div>
-              <h1 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--color-text)', marginBottom: '8px', lineHeight: '1.2' }}>
-                {document.metadata?.title || 'Untitled Document'}
-              </h1>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
-                {document.metadata?.version && (
-                  <span><strong>Version:</strong> {document.metadata.version}</span>
-                )}
-                <span><strong>OSCAL Version:</strong> {document.metadata?.['oscal-version'] || 'v1.2.2'}</span>
-                {document.metadata?.published && (
-                  <span><strong>Published:</strong> {new Date(document.metadata.published).toLocaleDateString()}</span>
-                )}
-                {document.metadata?.['last-modified'] && (
-                  <span><strong>Last Modified:</strong> {new Date(document.metadata['last-modified']).toLocaleDateString()}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Metrics cards row */}
-            <div className="overview-metrics-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-              <div className="metric-card" style={metricCardStyle}>
-                <span className="metric-value" style={{ fontSize: '32px', fontWeight: '800', color: 'var(--color-primary)' }}>
-                  {mode === 'catalog' ? (document.groups?.length || 0) : (resolvedCatalog?.groups?.length || 0)}
-                </span>
-                <span className="metric-label" style={metricLabelStyle}>Control Families</span>
-              </div>
-              <div className="metric-card" style={metricCardStyle}>
-                <span className="metric-value" style={{ fontSize: '32px', fontWeight: '800', color: 'var(--color-text)' }}>
-                  {stats.total}
-                </span>
-                <span className="metric-label" style={metricLabelStyle}>Total Controls</span>
-              </div>
-              <div className="metric-card" style={metricCardStyle}>
-                <span className="metric-value" style={{ fontSize: '32px', fontWeight: '800', color: 'var(--color-accent)' }}>
-                  {stats.active}
-                </span>
-                <span className="metric-label" style={metricLabelStyle}>Active Controls</span>
-              </div>
-              <div className="metric-card" style={metricCardStyle}>
-                <span className="metric-value" style={{ fontSize: '32px', fontWeight: '800', color: 'var(--color-text-muted)' }}>
-                  {stats.withdrawn}
-                </span>
-                <span className="metric-label" style={metricLabelStyle}>Withdrawn</span>
-              </div>
-              <div className="metric-card" style={metricCardStyle}>
-                <span className="metric-value" style={{ fontSize: '32px', fontWeight: '800', color: 'var(--color-text)' }}>
-                  {document['back-matter']?.resources?.length || 0}
-                </span>
-                <span className="metric-label" style={metricLabelStyle}>Back Matter Resources</span>
-              </div>
-            </div>
-
-            {/* Control families list */}
-            <div style={{ marginTop: '16px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-                Control Families
-              </h3>
-              <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-surface)', overflow: 'hidden' }}>
-                {((mode === 'catalog' ? document.groups : resolvedCatalog?.groups) || []).length === 0 ? (
-                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic', fontSize: '13px' }}>
-                    No control families defined.
-                  </div>
-                ) : (
-                  ((mode === 'catalog' ? document.groups : resolvedCatalog?.groups) || []).map((group, idx) => {
-                    const count = countControlsInGroup(group);
-                    return (
-                      <div 
-                        key={group.id} 
-                        onClick={() => onSelectGroup?.(group.id)}
-                        className="sidebar-item-like"
-                        style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          padding: '16px 20px', 
-                          cursor: onSelectGroup ? 'pointer' : 'default',
-                          borderBottom: idx < ((mode === 'catalog' ? document.groups : resolvedCatalog?.groups) || []).length - 1 ? '1px solid var(--color-border)' : 'none',
-                          transition: 'background-color 0.15s ease'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontSize: '16px' }}>📁</span>
-                          <strong style={{ fontSize: '14px', color: 'var(--color-text)' }}>
-                            {group.title || group.id}
-                          </strong>
-                        </div>
-                        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                          {count} {count === 1 ? 'control' : 'controls'}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-          </div>
+        {currentTab === 'overview' && mode === 'catalog' && (
+          <CatalogOverviewPanel
+            document={document}
+            stats={stats}
+            onSelectGroup={onSelectGroup}
+          />
+        )}
+        {currentTab === 'overview' && mode === 'profile' && (
+          <ProfileOverviewPanel
+            document={document}
+            resolvedCatalog={resolvedCatalog}
+            stats={stats}
+            onSelectGroup={onSelectGroup}
+          />
         )}
 
         {/* Profile: Import Sources Tab */}

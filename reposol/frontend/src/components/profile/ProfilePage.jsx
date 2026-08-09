@@ -69,13 +69,14 @@ export function ProfilePage({
   // 2. Versions Hook
   const {
     versions,
-    showDrawer,
-    setShowDrawer,
-    save: saveVersionTag,
+    showDrawer: showVersions,
+    setShowDrawer: setShowVersions,
+    save: saveVersion,
     saveDraft: saveDraftTag,
     remove: deleteVersionTag,
-    switchTo: loadVersion
-  } = useVersions('profiles', profileId);
+    switchTo: restoreVersion,
+    isRestoring
+  } = useVersions('profiles', profileId, setDoc);
 
   // 3. States
   const [isEditing, setIsEditing] = useState(initialEditMode);
@@ -583,7 +584,7 @@ export function ProfilePage({
         onToggleEdit={handleToggleEdit}
         onExport={handleExport}
         onBack={handleBack}
-        onSaveVersion={() => setShowDrawer(true)}
+        onSaveVersion={() => setShowVersions(true)}
         versions={versions}
         editMode={editMode}
         onToggleEditMode={handleToggleEditMode}
@@ -769,19 +770,19 @@ export function ProfilePage({
       <VersionDrawer
         versions={versions}
         currentVersion={profileData.metadata?.version}
-        show={showDrawer}
+        isOpen={showVersions}
         isEditing={isEditing}
-        onClose={() => setShowDrawer(false)}
+        onClose={() => setShowVersions(false)}
         onSwitch={async (version) => {
-          const loaded = await loadVersion(version);
+          const loaded = await restoreVersion(version);
           setDoc(loaded);
           resetUndoRedo(loaded);
           clearCache(); // Reset catalog caches for the new version
-          setShowDrawer(false);
+          setShowVersions(false);
         }}
         onDelete={deleteVersionTag}
         onSave={async (versionNum, remarks) => {
-          await saveVersionTag(versionNum, activeDoc, remarks);
+          await saveVersion(versionNum, activeDoc, remarks);
           // Update local state with new version so currentVersion is in sync
           const updatedDoc = JSON.parse(JSON.stringify(activeDoc));
           if (updatedDoc.profile?.metadata) {
@@ -796,7 +797,7 @@ export function ProfilePage({
             window.history.replaceState(null, '', window.location.pathname);
           }
           
-          setShowDrawer(false);
+          setShowVersions(false);
           await reload({ silent: true });
         }}
       />

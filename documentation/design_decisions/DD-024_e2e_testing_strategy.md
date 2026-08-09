@@ -1,7 +1,7 @@
 # DD-024: End-to-End Testing Strategy
 
 ## Status: Accepted
-## Date: 2026-08-06
+## Date: 2026-08-09
 ## Decision Makers: Development Team
 
 ## Context
@@ -103,6 +103,31 @@ The AI skill produces **deterministic Playwright test code**, not AI-driven runt
 - Backend integration tests serve as **fast API regression tests** (seconds vs. minutes for E2E)
 - Frontend component tests remain for **isolated UI logic validation**
 - The `api_workflows/` tests are frozen — new workflow tests go into Playwright E2E
+
+### 8. Workspace-Level Cleanup Architecture
+
+The original per-document cleanup strategy (tracking each created document and deleting individually) has two gaps:
+1. Documents created through UI interactions are not tracked by `ApiSetup.createdDocuments` and survive test teardown.
+2. Workspace directories (`data/workspaces/<uuid>/`) accumulate on disk even when all documents within them are deleted.
+
+The cleanup architecture is organized in **three tiers**:
+
+#### Tier 1: Backend `DELETE /api/workspaces/{workspace_id}` Endpoint
+- A dedicated endpoint that deletes the entire workspace directory tree (`data/workspaces/<workspace_id>/`) in a single `shutil.rmtree()` call.
+- Protected workspace IDs (`default`, `master`, `templates`) are rejected with `400 Bad Request`.
+- Non-existent workspaces return `404 Not Found`.
+- This endpoint follows the same pattern as DD-015 § 5 (localhost guard is not applied since test workspaces are ephemeral session data, not master templates).
+
+#### Fixture-Level Workspace Wipe (`ApiSetup.cleanup()`)
+- The `cleanup()` method in `helpers/api-setup.ts` calls `DELETE /api/workspaces/{workspaceId}` directly via `deleteWithRetry`.
+- If the backend workspace endpoint fails or returns an error, the error is **thrown directly to Playwright**, ensuring that any backend deletion bug immediately fails the test and alerts developers.
+- Disposes the Playwright `APIRequestContext` after cleanup.
+
+#### Global Teardown Safety Net (`global-teardown.ts`)
+- A Playwright `globalTeardown` script runs after all tests complete.
+- It scans the `data/workspaces/` directory for UUID-named subdirectories that are not `default`.
+- Any remaining test workspace directories are deleted via `fs.rmSync(path, { recursive: true, force: true })`.
+- This catches workspaces from crashed test runs or tests that don't use the base fixture.
 
 ---
 

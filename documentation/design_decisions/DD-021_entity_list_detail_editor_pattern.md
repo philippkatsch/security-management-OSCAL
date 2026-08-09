@@ -1,6 +1,6 @@
 # DD-021: Entity List-Detail Editor Pattern
 
-## Status: Proposed
+## Status: Accepted
 ## Date: 2026-07-27
 ## Decision Makers: Development Team
 

@@ -1,6 +1,6 @@
 # DD-012: Parameter Value Assignment, Selection UI, and Profile Override Strategy
 
-## Status: Proposed
+## Status: Accepted
 ## Date: 2026-07-21
 ## Decision Makers: Development Team
 

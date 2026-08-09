@@ -2,8 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import './EntityTable.css';
 import BatchActionToolbar from './BatchActionToolbar';
 
-export default function EntityTable({ columns, data, entities, onRowClick, onSelectionChange, actions, emptyState, addButton, onAdd, addLabel, className = '' }) {
-  const rowData = data || entities || [];
+export default function EntityTable({ columns, data, onRowClick, onSelectionChange, actions, emptyState, addButton, onAdd, addLabel, className = '' }) {
+  const rowData = data || [];
   const finalAddBtn = addButton || (onAdd ? { label: addLabel || '+ Add Item', onClick: onAdd } : null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');

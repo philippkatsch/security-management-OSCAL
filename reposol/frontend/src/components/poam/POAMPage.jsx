@@ -12,12 +12,16 @@ import MetricCardGrid from '../shared/dashboard/MetricCardGrid';
 import ProgressBar from '../shared/dashboard/ProgressBar';
 import StatusBreakdown from '../shared/dashboard/StatusBreakdown';
 import StatusBadge from '../shared/status/StatusBadge';
-import { OriginsEditor } from '../shared/oscal/OriginsEditor';
-import { CharacterizationsEditor } from '../shared/oscal/CharacterizationsEditor';
-import { RiskLogEditor } from '../shared/oscal/RiskLogEditor';
-import { RelevantEvidenceEditor } from '../shared/oscal/RelevantEvidenceEditor';
-import { RemediationsEditor } from '../shared/oscal/RemediationsEditor';
+import { OriginsEditor } from '../shared/risk-assessment/OriginsEditor';
+import { CharacterizationsEditor } from '../shared/risk-assessment/CharacterizationsEditor';
+import { RiskLogEditor } from '../shared/risk-assessment/RiskLogEditor';
+import { RelevantEvidenceEditor } from '../shared/risk-assessment/RelevantEvidenceEditor';
+import { RemediationsEditor } from '../shared/risk-assessment/RemediationsEditor';
 import './POAMPage.css';
+import { useDocument } from '../../hooks/useDocument';
+import { useUndoRedo } from '../../hooks/useUndoRedo';
+import { useVersions } from '../../hooks/useVersions';
+import EntityDetailPanel from '../shared/entity/EntityDetailPanel';
 
 const PoamItemEditor = ({ item, onSave, onClose, readOnly, doc }) => {
   const [edited, setEdited] = useState(item);
@@ -59,13 +63,13 @@ const PoamItemEditor = ({ item, onSave, onClose, readOnly, doc }) => {
   };
 
   return (
-    <div className="bespoke-editor-overlay">
-      <div className="bespoke-editor-modal">
-        <div className="bespoke-editor-header">
-          <h2>POA&M Item Editor</h2>
-          <button onClick={onClose}>Close</button>
-        </div>
-        <div className="bespoke-editor-content">
+    <EntityDetailPanel
+      isOpen={!!item}
+      onClose={onClose}
+      title="POA&M Item Editor"
+      actions={!readOnly ? [{ label: 'Save Changes', variant: 'primary', onClick: () => onSave(edited) }] : undefined}
+    >
+      <div className="form-content">
           <label>Title</label>
           <input type="text" value={edited.title || ''} onChange={e => updateField('title', e.target.value)} disabled={readOnly} />
           
@@ -116,13 +120,7 @@ const PoamItemEditor = ({ item, onSave, onClose, readOnly, doc }) => {
              />
           </div>
         </div>
-        {!readOnly && (
-          <div className="bespoke-editor-footer">
-            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
-          </div>
-        )}
-      </div>
-    </div>
+    </EntityDetailPanel>
   );
 };
 
@@ -132,13 +130,13 @@ const RiskEditor = ({ item, onSave, onClose, readOnly }) => {
   const updateField = (field, value) => setEdited(prev => ({ ...prev, [field]: value }));
 
   return (
-    <div className="bespoke-editor-overlay">
-      <div className="bespoke-editor-modal">
-        <div className="bespoke-editor-header">
-          <h2>Risk Editor</h2>
-          <button onClick={onClose}>Close</button>
-        </div>
-        <div className="bespoke-editor-content">
+    <EntityDetailPanel
+      isOpen={!!item}
+      onClose={onClose}
+      title="Risk Editor"
+      actions={!readOnly ? [{ label: 'Save Changes', variant: 'primary', onClick: () => onSave(edited) }] : undefined}
+    >
+      <div className="form-content">
           <label>Title</label>
           <input type="text" value={edited.title || ''} onChange={e => updateField('title', e.target.value)} disabled={readOnly} />
           
@@ -187,13 +185,7 @@ const RiskEditor = ({ item, onSave, onClose, readOnly }) => {
           </div>
 
         </div>
-        {!readOnly && (
-          <div className="bespoke-editor-footer">
-            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
-          </div>
-        )}
-      </div>
-    </div>
+    </EntityDetailPanel>
   );
 };
 
@@ -207,13 +199,13 @@ const ObservationEditor = ({ item, onSave, onClose, readOnly }) => {
   };
 
   return (
-    <div className="bespoke-editor-overlay">
-      <div className="bespoke-editor-modal">
-        <div className="bespoke-editor-header">
-          <h2>Observation Editor</h2>
-          <button onClick={onClose}>Close</button>
-        </div>
-        <div className="bespoke-editor-content">
+    <EntityDetailPanel
+      isOpen={!!item}
+      onClose={onClose}
+      title="Observation Editor"
+      actions={!readOnly ? [{ label: 'Save Changes', variant: 'primary', onClick: () => onSave(edited) }] : undefined}
+    >
+      <div className="form-content">
           <label>Title</label>
           <input type="text" value={edited.title || ''} onChange={e => updateField('title', e.target.value)} disabled={readOnly} />
           
@@ -251,13 +243,7 @@ const ObservationEditor = ({ item, onSave, onClose, readOnly }) => {
              />
           </div>
         </div>
-        {!readOnly && (
-          <div className="bespoke-editor-footer">
-            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
-          </div>
-        )}
-      </div>
-    </div>
+    </EntityDetailPanel>
   );
 };
 
@@ -272,13 +258,13 @@ const FindingEditor = ({ item, onSave, onClose, readOnly }) => {
   };
 
   return (
-    <div className="bespoke-editor-overlay">
-      <div className="bespoke-editor-modal">
-        <div className="bespoke-editor-header">
-          <h2>Finding Editor</h2>
-          <button onClick={onClose}>Close</button>
-        </div>
-        <div className="bespoke-editor-content">
+    <EntityDetailPanel
+      isOpen={!!item}
+      onClose={onClose}
+      title="Finding Editor"
+      actions={!readOnly ? [{ label: 'Save Changes', variant: 'primary', onClick: () => onSave(edited) }] : undefined}
+    >
+      <div className="form-content">
           <label>Title</label>
           <input type="text" value={edited.title || ''} onChange={e => updateField('title', e.target.value)} disabled={readOnly} />
           
@@ -315,13 +301,7 @@ const FindingEditor = ({ item, onSave, onClose, readOnly }) => {
              }} disabled={readOnly} rows={3}/>
           </div>
         </div>
-        {!readOnly && (
-          <div className="bespoke-editor-footer">
-            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
-          </div>
-        )}
-      </div>
-    </div>
+    </EntityDetailPanel>
   );
 };
 
@@ -330,13 +310,13 @@ const ComponentEditor = ({ item, onSave, onClose, readOnly }) => {
   const updateField = (field, value) => setEdited(prev => ({ ...prev, [field]: value }));
 
   return (
-    <div className="bespoke-editor-overlay">
-      <div className="bespoke-editor-modal">
-        <div className="bespoke-editor-header">
-          <h2>Component Editor</h2>
-          <button onClick={onClose}>Close</button>
-        </div>
-        <div className="bespoke-editor-content">
+    <EntityDetailPanel
+      isOpen={!!item}
+      onClose={onClose}
+      title="Component Editor"
+      actions={!readOnly ? [{ label: 'Save Changes', variant: 'primary', onClick: () => onSave(edited) }] : undefined}
+    >
+      <div className="form-content">
           <label>Title</label>
           <input type="text" value={edited.title || ''} onChange={e => updateField('title', e.target.value)} disabled={readOnly} />
           
@@ -361,13 +341,7 @@ const ComponentEditor = ({ item, onSave, onClose, readOnly }) => {
             <PropsEditor props={edited.props || []} onChange={p => updateField('props', p)} readOnly={readOnly} />
           </div>
         </div>
-        {!readOnly && (
-          <div className="bespoke-editor-footer">
-            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
-          </div>
-        )}
-      </div>
-    </div>
+    </EntityDetailPanel>
   );
 };
 
@@ -376,13 +350,13 @@ const InventoryItemEditor = ({ item, onSave, onClose, readOnly }) => {
   const updateField = (field, value) => setEdited(prev => ({ ...prev, [field]: value }));
 
   return (
-    <div className="bespoke-editor-overlay">
-      <div className="bespoke-editor-modal">
-        <div className="bespoke-editor-header">
-          <h2>Inventory Item Editor</h2>
-          <button onClick={onClose}>Close</button>
-        </div>
-        <div className="bespoke-editor-content">
+    <EntityDetailPanel
+      isOpen={!!item}
+      onClose={onClose}
+      title="Inventory Item Editor"
+      actions={!readOnly ? [{ label: 'Save Changes', variant: 'primary', onClick: () => onSave(edited) }] : undefined}
+    >
+      <div className="form-content">
           <label>Description</label>
           <textarea value={edited.description || ''} onChange={e => updateField('description', e.target.value)} disabled={readOnly} />
           
@@ -401,13 +375,7 @@ const InventoryItemEditor = ({ item, onSave, onClose, readOnly }) => {
              }} disabled={readOnly} rows={5}/>
           </div>
         </div>
-        {!readOnly && (
-          <div className="bespoke-editor-footer">
-            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
-          </div>
-        )}
-      </div>
-    </div>
+    </EntityDetailPanel>
   );
 };
 
@@ -416,13 +384,13 @@ const UserEditor = ({ item, onSave, onClose, readOnly }) => {
   const updateField = (field, value) => setEdited(prev => ({ ...prev, [field]: value }));
 
   return (
-    <div className="bespoke-editor-overlay">
-      <div className="bespoke-editor-modal">
-        <div className="bespoke-editor-header">
-          <h2>User Editor</h2>
-          <button onClick={onClose}>Close</button>
-        </div>
-        <div className="bespoke-editor-content">
+    <EntityDetailPanel
+      isOpen={!!item}
+      onClose={onClose}
+      title="User Editor"
+      actions={!readOnly ? [{ label: 'Save Changes', variant: 'primary', onClick: () => onSave(edited) }] : undefined}
+    >
+      <div className="form-content">
           <label>Title</label>
           <input type="text" value={edited.title || ''} onChange={e => updateField('title', e.target.value)} disabled={readOnly} />
           
@@ -436,13 +404,7 @@ const UserEditor = ({ item, onSave, onClose, readOnly }) => {
              }} disabled={readOnly} rows={5}/>
           </div>
         </div>
-        {!readOnly && (
-          <div className="bespoke-editor-footer">
-            <button className="save-btn" onClick={() => onSave(edited)}>Save Changes</button>
-          </div>
-        )}
-      </div>
-    </div>
+    </EntityDetailPanel>
   );
 };
 
@@ -598,83 +560,64 @@ const ArImportModal = ({ onClose, onImport }) => {
 };
 
 export function POAMPage({ poamId, initialEditMode, onClose }) {
-  const [doc, setDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [editMode, setEditMode] = useState(() => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isEditing, setIsEditing] = useState(() => {
     if (typeof initialEditMode === 'boolean') return initialEditMode;
     return window.location.search.includes('edit=true');
   });
 
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [entityType, setEntityType] = useState(null);
   const [showArImport, setShowArImport] = useState(false);
 
-  const draftKey = `reposol_draft_poam_${poamId}`;
+  const {
+    doc,
+    setDoc,
+    loading,
+    error,
+    save: saveDocument,
+    saving: isSaving
+  } = useDocument('poams', poamId);
+
+  const {
+    current: undoState,
+    pushState: setUndoState,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    reset: resetUndo
+  } = useUndoRedo(doc);
+
+  const {
+    versions,
+    showDrawer: showVersionHistory,
+    setShowDrawer: setShowVersionHistory,
+    reload: loadVersions,
+    switchTo: restoreVersion,
+    isRestoring
+  } = useVersions('poams', poamId);
 
   useEffect(() => {
-    fetchDoc();
-    if (window.location.search.includes('edit=true')) {
-      setEditMode(true);
+    if (doc && !undoState) {
+      resetUndo(doc);
     }
-  }, [poamId]);
+  }, [doc, undoState, resetUndo]);
 
-  const fetchDoc = async () => {
-    try {
-      setLoading(true);
-      
-      const draft = localStorage.getItem(draftKey);
-      if (draft && window.location.search.includes('edit=true')) {
-        try {
-          const parsed = JSON.parse(draft);
-          if (parsed && parsed['plan-of-action-and-milestones']) {
-            setDoc(parsed);
-            setLoading(false);
-            return;
-          }
-        } catch {
-          localStorage.removeItem(draftKey);
-        }
-      } else {
-        localStorage.removeItem(draftKey);
-      }
-
-      const res = await authFetch("/api/documents/poams/" + poamId);
-      if (!res.ok) throw new Error('Failed to fetch POA&M');
-      const data = await res.json();
-      setDoc(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleUpdate = (newDoc) => {
+    setUndoState(newDoc);
+    handleUpdate(newDoc);
   };
-
-  useEffect(() => {
-    if (editMode && doc) {
-      localStorage.setItem(draftKey, JSON.stringify(doc));
-    }
-  }, [doc, editMode]);
 
   const handleSave = async (updatedDoc = doc) => {
     try {
-      const res = await authFetch("/api/documents/poams", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedDoc)
-      });
-      if (!res.ok) throw new Error('Failed to save POA&M');
-      const saved = await res.json();
-      setDoc(saved);
-      localStorage.removeItem(draftKey);
-      setEditMode(false);
+      await saveDocument(updatedDoc);
+      setIsEditing(false);
       const params = new URLSearchParams(window.location.search);
       params.delete('edit');
       const newSearch = params.toString() ? `?${params.toString()}` : '';
       window.history.replaceState(null, '', window.location.pathname + newSearch);
-      return saved;
+      return updatedDoc;
     } catch (err) {
       alert(err.message);
       throw err;
@@ -683,9 +626,8 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
 
   const handleDiscardChanges = () => {
     if (window.confirm("Do you want to discard all unsaved changes?")) {
-      localStorage.removeItem(draftKey);
-      setEditMode(false);
-      fetchDoc();
+      setIsEditing(false);
+      window.location.reload();
     }
   };
 
@@ -693,7 +635,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
     const newDoc = { ...doc };
     if (!newDoc['plan-of-action-and-milestones']) return;
     newDoc['plan-of-action-and-milestones'][field] = value;
-    setDoc(newDoc);
+    handleUpdate(newDoc);
   };
 
   if (loading) return <div className="poam-loading">Loading POA&M...</div>;
@@ -768,7 +710,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
     }
     
     targetObj[type] = list;
-    setDoc(newDoc);
+    handleUpdate(newDoc);
     setSelectedEntity(newEntity);
   };
 
@@ -849,7 +791,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
     p.findings = pFindings;
     p.risks = pRisks;
     p.observations = pObservations;
-    setDoc(newDoc);
+    handleUpdate(newDoc);
     setShowArImport(false);
   };
 
@@ -863,7 +805,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
                 <div className="widget-card ssp-card">
                   <h3>Referenced SSP</h3>
                   <p><strong>HREF:</strong> {poam['import-ssp'].href}</p>
-                  {editMode && (
+                  {isEditing && (
                     <button className="edit-btn-small" onClick={() => {
                       const newHref = prompt("Enter new SSP href", poam['import-ssp'].href);
                       if (newHref) updateRootField('import-ssp', { href: newHref });
@@ -874,7 +816,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
                 <div className="widget-card ssp-card">
                   <h3>System ID</h3>
                   <p>{poam['system-id']?.identifier || 'None specified'}</p>
-                  {editMode && (
+                  {isEditing && (
                     <button className="edit-btn-small" onClick={() => {
                       const newId = prompt("Enter new System ID", poam['system-id']?.identifier || '');
                       if (newId) updateRootField('system-id', { identifier: newId });
@@ -904,7 +846,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
       case 'items':
         return (
           <div className="poam-entity-section">
-            {editMode && (
+            {isEditing && (
               <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
                 <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('poam-items'); }}>+ Add POA&M Item</button>
                 <button className="poam-toolbar-btn" onClick={() => setShowArImport(true)}>Import from Assessment Results</button>
@@ -957,7 +899,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
       case 'observations':
         return (
           <div className="poam-entity-section">
-            {editMode && (
+            {isEditing && (
               <div style={{ marginBottom: '16px' }}>
                 <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('observations'); }}>+ Add Observation</button>
               </div>
@@ -991,7 +933,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
       case 'risks':
         return (
           <div className="poam-entity-section">
-            {editMode && (
+            {isEditing && (
               <div style={{ marginBottom: '16px' }}>
                 <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('risks'); }}>+ Add Risk</button>
               </div>
@@ -1025,7 +967,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
       case 'findings':
         return (
           <div className="poam-entity-section">
-            {editMode && (
+            {isEditing && (
               <div style={{ marginBottom: '16px' }}>
                 <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('findings'); }}>+ Add Finding</button>
               </div>
@@ -1055,20 +997,20 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
             <MetadataEditor 
               metadata={poam.metadata || {}} 
               onChange={(newMeta) => updateRootField('metadata', newMeta)} 
-              readOnly={!editMode} 
+              readOnly={!isEditing} 
             />
             <div style={{ marginTop: '24px' }}>
               <PropsEditor 
                 props={poam.props || []} 
                 onChange={(newProps) => updateRootField('props', newProps)} 
-                readOnly={!editMode} 
+                readOnly={!isEditing} 
               />
             </div>
             <div style={{ marginTop: '24px' }}>
               <BackMatterEditor 
                 backMatter={poam['back-matter'] || {}} 
                 onChange={(newBm) => updateRootField('back-matter', newBm)} 
-                readOnly={!editMode} 
+                readOnly={!isEditing} 
               />
             </div>
           </div>
@@ -1083,7 +1025,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
         return (
           <div className="poam-entity-section">
             <h2 style={{ marginTop: 0 }}>Components</h2>
-            {editMode && (
+            {isEditing && (
               <div style={{ marginBottom: '16px' }}>
                 <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('components'); }}>+ Add Component</button>
               </div>
@@ -1107,7 +1049,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
             />
             
             <h2 style={{ marginTop: '32px' }}>Inventory Items</h2>
-            {editMode && (
+            {isEditing && (
               <div style={{ marginBottom: '16px' }}>
                 <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('inventory-items'); }}>+ Add Inventory Item</button>
               </div>
@@ -1137,7 +1079,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
             />
 
             <h2 style={{ marginTop: '32px' }}>Users</h2>
-            {editMode && (
+            {isEditing && (
               <div style={{ marginBottom: '16px' }}>
                 <button className="poam-toolbar-btn" onClick={() => { setSelectedEntity({}); setEntityType('users'); }}>+ Add User</button>
               </div>
@@ -1158,7 +1100,7 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
           <JsonEditor 
             value={doc} 
             onChange={setDoc} 
-            readOnly={!editMode} 
+            readOnly={!isEditing} 
           />
         );
 
@@ -1172,8 +1114,8 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
     const commonProps = {
       item: selectedEntity,
       onClose: () => setSelectedEntity(null),
-      onSave: editMode ? (newEntity) => handleEntityEdit(entityType, selectedEntity, newEntity) : undefined,
-      readOnly: !editMode,
+      onSave: isEditing ? (newEntity) => handleEntityEdit(entityType, selectedEntity, newEntity) : undefined,
+      readOnly: !isEditing,
       doc: poam
     };
     if (entityType === 'poam-items') return <PoamItemEditor {...commonProps} />;
@@ -1191,10 +1133,10 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
       <DocumentToolbar
         title={title}
         version={version}
-        isEditing={editMode}
+        isEditing={isEditing}
         onToggleEdit={() => {
-          const next = !editMode;
-          setEditMode(next);
+          const next = !isEditing;
+          setIsEditing(next);
           const params = new URLSearchParams(window.location.search);
           if (next) {
             params.set('edit', 'true');
@@ -1250,14 +1192,9 @@ export function POAMPage({ poamId, initialEditMode, onClose }) {
       <VersionDrawer
         isOpen={showVersionHistory}
         onClose={() => setShowVersionHistory(false)}
-        documentId={poamId}
-        stage="poams"
-        currentDoc={doc}
-        onRestore={(restored) => {
-          setDoc(restored);
-          setShowVersionHistory(false);
-          handleSave(restored);
-        }}
+        versions={versions}
+        onRestore={restoreVersion}
+        isRestoring={isRestoring}
       />
     </div>
   );

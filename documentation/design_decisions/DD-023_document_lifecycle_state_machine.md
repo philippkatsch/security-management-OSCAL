@@ -1,6 +1,6 @@
 # DD-023: Document Lifecycle State Machine
 
-## Status: Proposed
+## Status: Accepted
 ## Date: 2026-07-27
 ## Decision Makers: Development Team
 

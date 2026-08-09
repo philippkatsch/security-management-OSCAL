@@ -1,6 +1,6 @@
 # DD-013: Universal ProseWithParams Integration Pattern
 
-## Status: Proposed
+## Status: Accepted
 ## Date: 2026-07-22
 ## Decision Makers: Development Team
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './ARPage.css';
-import { authFetch } from '../../lib/api';
+import { useDocument } from '../../hooks/useDocument';
+import { useUndoRedo } from '../../hooks/useUndoRedo';
+import { useVersions } from '../../hooks/useVersions';
 
 import { MetadataEditor } from '../shared/MetadataEditor';
 import { DocumentToolbar } from '../shared/DocumentToolbar';
@@ -12,21 +14,23 @@ import { LinksEditor } from '../shared/LinksEditor';
 import StatusBadge from '../shared/status/StatusBadge';
 import EntityTable from '../shared/entity/EntityTable';
 import EntityDetailPanel from '../shared/entity/EntityDetailPanel';
+import { VersionDrawer } from '../shared/VersionDrawer';
 import MetricCard from '../shared/dashboard/MetricCard';
 import MetricCardGrid from '../shared/dashboard/MetricCardGrid';
 import StatusBreakdown from '../shared/dashboard/StatusBreakdown';
-import { OriginsEditor } from '../shared/oscal/OriginsEditor';
-import { CharacterizationsEditor } from '../shared/oscal/CharacterizationsEditor';
-import { RiskLogEditor } from '../shared/oscal/RiskLogEditor';
-import { RelevantEvidenceEditor } from '../shared/oscal/RelevantEvidenceEditor';
-import { RemediationsEditor } from '../shared/oscal/RemediationsEditor';
+import { OriginsEditor } from '../shared/risk-assessment/OriginsEditor';
+import { CharacterizationsEditor } from '../shared/risk-assessment/CharacterizationsEditor';
+import { RiskLogEditor } from '../shared/risk-assessment/RiskLogEditor';
+import { RelevantEvidenceEditor } from '../shared/risk-assessment/RelevantEvidenceEditor';
+import { RemediationsEditor } from '../shared/risk-assessment/RemediationsEditor';
 
 export function ARPage({ arId, initialEditMode, onClose }) {
-  const [doc, setDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { doc, setDoc, loading, error, save: saveDocument } = useDocument('assessment-results', arId);
+  const { state: undoState, setUndoState, undo, redo, canUndo, canRedo } = useUndoRedo(doc);
+  const { versions, showVersions, setShowVersions, saveVersion, restoreVersion, isRestoring } = useVersions('assessment-results', arId, setDoc);
+
   const [activeTab, setActiveTab] = useState('overview');
-  const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
+  const [isEditing, setIsEditing] = useState(initialEditMode || false);
   const [saveStatus, setSaveStatus] = useState('');
   
   const [activeResultSetId, setActiveResultSetId] = useState(null);
@@ -35,6 +39,13 @@ export function ARPage({ arId, initialEditMode, onClose }) {
   const [activeObservation, setActiveObservation] = useState(null);
   const [activeFinding, setActiveFinding] = useState(null);
   const [activeRisk, setActiveRisk] = useState(null);
+
+  // Set initial active result set when doc loads
+  useEffect(() => {
+    if (doc && doc['assessment-results']?.results?.length > 0 && !activeResultSetId) {
+      setActiveResultSetId(doc['assessment-results'].results[0].uuid);
+    }
+  }, [doc]);
 
   const updateObservationField = (field, value) => {
     if (!activeObservation) return;
@@ -62,38 +73,10 @@ export function ARPage({ arId, initialEditMode, onClose }) {
     setDoc(newDoc);
   };
 
-  useEffect(() => {
-    fetchDoc();
-  }, [arId]);
-
-  const fetchDoc = async () => {
-    try {
-      setLoading(true);
-      const res = await authFetch(`/api/documents/assessment-results/${arId}`);
-      if (!res.ok) throw new Error('Failed to fetch Assessment Result');
-      const data = await res.json();
-      setDoc(data);
-      if (data['assessment-results']?.results?.length > 0) {
-        setActiveResultSetId(data['assessment-results'].results[0].uuid);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSave = async (updatedDoc = doc) => {
     setSaveStatus('Saving...');
     try {
-      const res = await authFetch(`/api/documents/assessment-results/${arId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedDoc),
-      });
-      if (!res.ok) throw new Error('Failed to save');
-      const saved = await res.json();
-      setDoc(saved);
+      await saveDocument(updatedDoc);
       setSaveStatus('Saved');
       setTimeout(() => setSaveStatus(''), 2000);
     } catch (err) {
@@ -171,7 +154,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
       <div className="ar-overview">
         <div className="ar-import-ap">
           <h3>Referenced Assessment Plan</h3>
-          {isEditMode ? (
+          {isEditing ? (
             <input 
               type="text" 
               value={ar['import-ap']?.href || ''} 
@@ -212,7 +195,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
         <div className="result-sets-sidebar">
           <div className="rs-header-actions">
             <h3>Result Sets</h3>
-            {isEditMode && <button className="btn-primary" onClick={createResultSet}>+ New</button>}
+            {isEditing && <button className="btn-primary" onClick={createResultSet}>+ New</button>}
           </div>
           <ul className="result-set-list">
             {results.map(r => (
@@ -232,7 +215,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
         <div className="result-set-content">
           {activeResultSet ? (
             <>
-              {isEditMode && (
+              {isEditing && (
                 <div className="rs-editor-header">
                   <div className="form-group">
                     <label>Title</label>
@@ -394,11 +377,11 @@ export function ARPage({ arId, initialEditMode, onClose }) {
             <div className="editor-form">
               <div className="form-group">
                 <label>Title</label>
-                <input type="text" value={activeObservation.title || ''} disabled={!isEditMode} onChange={()=>{}} />
+                <input type="text" value={activeObservation.title || ''} disabled={!isEditing} onChange={()=>{}} />
               </div>
               <div className="form-group">
                 <label>Description</label>
-                <textarea value={activeObservation.description || ''} disabled={!isEditMode} onChange={()=>{}} />
+                <textarea value={activeObservation.description || ''} disabled={!isEditing} onChange={()=>{}} />
               </div>
               <div className="form-section">
                 <h4>Classification</h4>
@@ -406,13 +389,13 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                   <label>Methods</label>
                   <div className="checkbox-group">
                     {['EXAMINE', 'INTERVIEW', 'TEST'].map(m => (
-                      <label key={m}><input type="checkbox" checked={(activeObservation.methods || []).includes(m)} disabled={!isEditMode} onChange={()=>{}} /> {m}</label>
+                      <label key={m}><input type="checkbox" checked={(activeObservation.methods || []).includes(m)} disabled={!isEditing} onChange={()=>{}} /> {m}</label>
                     ))}
                   </div>
                 </div>
                 <div className="form-group">
                   <label>Types</label>
-                  <input type="text" placeholder="finding, historic, observation..." value={(activeObservation.types || []).join(', ')} disabled={!isEditMode} onChange={()=>{}} />
+                  <input type="text" placeholder="finding, historic, observation..." value={(activeObservation.types || []).join(', ')} disabled={!isEditing} onChange={()=>{}} />
                 </div>
               </div>
               <div className="form-section">
@@ -420,11 +403,11 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Collected</label>
-                    <input type="datetime-local" value={(activeObservation.collected || '').slice(0, 16)} disabled={!isEditMode} onChange={()=>{}} />
+                    <input type="datetime-local" value={(activeObservation.collected || '').slice(0, 16)} disabled={!isEditing} onChange={()=>{}} />
                   </div>
                   <div className="form-group">
                     <label>Expires (Optional)</label>
-                    <input type="datetime-local" value={(activeObservation.expires || '').slice(0, 16)} disabled={!isEditMode} onChange={()=>{}} />
+                    <input type="datetime-local" value={(activeObservation.expires || '').slice(0, 16)} disabled={!isEditing} onChange={()=>{}} />
                   </div>
                 </div>
               </div>
@@ -432,8 +415,8 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Subjects</h4>
                 {(activeObservation.subjects || []).map((sub, i) => (
                   <div key={i} className="form-row">
-                    <input type="text" value={sub['subject-uuid'] || ''} placeholder="Subject UUID" disabled={!isEditMode} />
-                    <select value={sub.type || ''} disabled={!isEditMode}>
+                    <input type="text" value={sub['subject-uuid'] || ''} placeholder="Subject UUID" disabled={!isEditing} />
+                    <select value={sub.type || ''} disabled={!isEditing}>
                       <option value="component">Component</option>
                       <option value="inventory-item">Inventory Item</option>
                       <option value="location">Location</option>
@@ -447,7 +430,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Relevant Evidence</h4>
                 <RelevantEvidenceEditor 
                   value={activeObservation['relevant-evidence'] || []} 
-                  isEditMode={isEditMode} 
+                  isEditing={isEditing} 
                   onChange={newEv => updateObservationField('relevant-evidence', newEv)} 
                 />
               </div>
@@ -455,12 +438,12 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Origins</h4>
                 <OriginsEditor 
                   value={activeObservation.origins || []} 
-                  isEditMode={isEditMode} 
+                  isEditing={isEditing} 
                   onChange={newOrigins => updateObservationField('origins', newOrigins)} 
                 />
               </div>
-              <PropsEditor properties={activeObservation.props || []} isEditMode={isEditMode} onChange={()=>{}} />
-              <LinksEditor links={activeObservation.links || []} isEditMode={isEditMode} onChange={()=>{}} />
+              <PropsEditor properties={activeObservation.props || []} isEditing={isEditing} onChange={()=>{}} />
+              <LinksEditor links={activeObservation.links || []} isEditing={isEditing} onChange={()=>{}} />
             </div>
           )}
         </EntityDetailPanel>
@@ -492,38 +475,38 @@ export function ARPage({ arId, initialEditMode, onClose }) {
             <div className="editor-form">
               <div className="form-group">
                 <label>Title</label>
-                <input type="text" value={activeFinding.title || ''} disabled={!isEditMode} onChange={()=>{}} />
+                <input type="text" value={activeFinding.title || ''} disabled={!isEditing} onChange={()=>{}} />
               </div>
               <div className="form-group">
                 <label>Description</label>
-                <textarea value={activeFinding.description || ''} disabled={!isEditMode} onChange={()=>{}} />
+                <textarea value={activeFinding.description || ''} disabled={!isEditing} onChange={()=>{}} />
               </div>
               <div className="form-section">
                 <h4>Target</h4>
                 <div className="form-row">
                   <div className="form-group">
                     <label>Target Type</label>
-                    <select value={activeFinding.target?.type || ''} disabled={!isEditMode} onChange={()=>{}}>
+                    <select value={activeFinding.target?.type || ''} disabled={!isEditing} onChange={()=>{}}>
                       <option value="objective-id">Objective ID</option>
                       <option value="statement-id">Statement ID</option>
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Target ID</label>
-                    <input type="text" value={activeFinding.target?.['target-id'] || ''} disabled={!isEditMode} onChange={()=>{}} />
+                    <input type="text" value={activeFinding.target?.['target-id'] || ''} disabled={!isEditing} onChange={()=>{}} />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label>Status State</label>
-                    <select value={activeFinding.target?.status?.state || ''} disabled={!isEditMode} onChange={()=>{}}>
+                    <select value={activeFinding.target?.status?.state || ''} disabled={!isEditing} onChange={()=>{}}>
                       <option value="satisfied">Satisfied</option>
                       <option value="not-satisfied">Not Satisfied</option>
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Implementation Status</label>
-                    <select value={activeFinding.target?.['implementation-status']?.state || ''} disabled={!isEditMode} onChange={()=>{}}>
+                    <select value={activeFinding.target?.['implementation-status']?.state || ''} disabled={!isEditing} onChange={()=>{}}>
                       <option value="implemented">Implemented</option>
                       <option value="partial">Partial</option>
                       <option value="planned">Planned</option>
@@ -534,14 +517,14 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 </div>
                 <div className="form-group">
                   <label>Status Reason (Optional)</label>
-                  <input type="text" value={activeFinding.target?.status?.reason || ''} disabled={!isEditMode} onChange={()=>{}} />
+                  <input type="text" value={activeFinding.target?.status?.reason || ''} disabled={!isEditing} onChange={()=>{}} />
                 </div>
               </div>
               <div className="form-section">
                 <h4>Relations</h4>
                 <div className="form-group">
                   <label>Related Observations</label>
-                  <select multiple value={(activeFinding['related-observations'] || []).map(r => r['observation-uuid'])} disabled={!isEditMode} onChange={()=>{}}>
+                  <select multiple value={(activeFinding['related-observations'] || []).map(r => r['observation-uuid'])} disabled={!isEditing} onChange={()=>{}}>
                     {(rs.observations || []).map(obs => (
                       <option key={obs.uuid} value={obs.uuid}>{obs.title || obs.uuid}</option>
                     ))}
@@ -549,14 +532,14 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 </div>
                 <div className="form-group">
                   <label>Related Risks</label>
-                  <select multiple value={(activeFinding['related-risks'] || []).map(r => r['risk-uuid'])} disabled={!isEditMode} onChange={()=>{}}>
+                  <select multiple value={(activeFinding['related-risks'] || []).map(r => r['risk-uuid'])} disabled={!isEditing} onChange={()=>{}}>
                     {(rs.risks || []).map(risk => (
                       <option key={risk.uuid} value={risk.uuid}>{risk.title || risk.uuid}</option>
                     ))}
                   </select>
                 </div>
               </div>
-              <PropsEditor properties={activeFinding.props || []} isEditMode={isEditMode} onChange={()=>{}} />
+              <PropsEditor properties={activeFinding.props || []} isEditing={isEditing} onChange={()=>{}} />
             </div>
           )}
         </EntityDetailPanel>
@@ -592,16 +575,16 @@ export function ARPage({ arId, initialEditMode, onClose }) {
             <div className="editor-form">
               <div className="form-group">
                 <label>Title</label>
-                <input type="text" value={activeRisk.title || ''} disabled={!isEditMode} onChange={()=>{}} />
+                <input type="text" value={activeRisk.title || ''} disabled={!isEditing} onChange={()=>{}} />
               </div>
               <div className="form-group">
                 <label>Description</label>
-                <textarea value={activeRisk.description || ''} disabled={!isEditMode} onChange={()=>{}} />
+                <textarea value={activeRisk.description || ''} disabled={!isEditing} onChange={()=>{}} />
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>Status</label>
-                  <select value={activeRisk.status || ''} disabled={!isEditMode} onChange={()=>{}}>
+                  <select value={activeRisk.status || ''} disabled={!isEditing} onChange={()=>{}}>
                     <option value="open">Open</option>
                     <option value="investigating">Investigating</option>
                     <option value="remediating">Remediating</option>
@@ -613,13 +596,13 @@ export function ARPage({ arId, initialEditMode, onClose }) {
               </div>
               <div className="form-group">
                 <label>Statement</label>
-                <textarea value={activeRisk.statement || ''} disabled={!isEditMode} onChange={()=>{}} />
+                <textarea value={activeRisk.statement || ''} disabled={!isEditing} onChange={()=>{}} />
               </div>
               <div className="form-section">
                 <h4>Characterizations</h4>
                 <CharacterizationsEditor 
                   value={activeRisk.characterizations || []} 
-                  isEditMode={isEditMode} 
+                  isEditing={isEditing} 
                   onChange={newChars => updateRiskField('characterizations', newChars)} 
                 />
               </div>
@@ -627,9 +610,9 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Mitigating Factors</h4>
                 {(activeRisk['mitigating-factors'] || []).map((mf, i) => (
                   <div key={i} className="form-group">
-                    <input type="text" value={mf.uuid || ''} placeholder="UUID" disabled={!isEditMode} />
-                    <textarea value={mf.description || ''} placeholder="Description" disabled={!isEditMode} />
-                    <input type="text" value={mf['implementation-uuid'] || ''} placeholder="Implementation UUID" disabled={!isEditMode} />
+                    <input type="text" value={mf.uuid || ''} placeholder="UUID" disabled={!isEditing} />
+                    <textarea value={mf.description || ''} placeholder="Description" disabled={!isEditing} />
+                    <input type="text" value={mf['implementation-uuid'] || ''} placeholder="Implementation UUID" disabled={!isEditing} />
                   </div>
                 ))}
               </div>
@@ -637,7 +620,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Risk Log</h4>
                 <RiskLogEditor 
                   value={activeRisk['risk-log'] || { entries: [] }} 
-                  isEditMode={isEditMode} 
+                  isEditing={isEditing} 
                   onChange={newLog => updateRiskField('risk-log', newLog)} 
                 />
               </div>
@@ -645,7 +628,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Remediations</h4>
                 <RemediationsEditor 
                   value={activeRisk.remediations || []} 
-                  isEditMode={isEditMode} 
+                  isEditing={isEditing} 
                   onChange={newRems => updateRiskField('remediations', newRems)} 
                 />
               </div>
@@ -653,13 +636,13 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Threat IDs</h4>
                 {(activeRisk['threat-ids'] || []).map((threat, i) => (
                   <div key={i} className="form-row">
-                    <input type="text" value={threat.system || ''} placeholder="System URI" disabled={!isEditMode} />
-                    <input type="text" value={threat.id || ''} placeholder="ID" disabled={!isEditMode} />
-                    <input type="text" value={threat.href || ''} placeholder="HREF" disabled={!isEditMode} />
+                    <input type="text" value={threat.system || ''} placeholder="System URI" disabled={!isEditing} />
+                    <input type="text" value={threat.id || ''} placeholder="ID" disabled={!isEditing} />
+                    <input type="text" value={threat.href || ''} placeholder="HREF" disabled={!isEditing} />
                   </div>
                 ))}
               </div>
-              <PropsEditor properties={activeRisk.props || []} isEditMode={isEditMode} onChange={()=>{}} />
+              <PropsEditor properties={activeRisk.props || []} isEditing={isEditing} onChange={()=>{}} />
             </div>
           )}
         </EntityDetailPanel>
@@ -673,10 +656,10 @@ export function ARPage({ arId, initialEditMode, onClose }) {
         title={metadata.title || 'Untitled Assessment Result'}
         version={metadata.version}
         oscalVersion={metadata['oscal-version']}
-        isEditing={isEditMode}
+        isEditing={isEditing}
         onToggleEdit={() => {
-          const next = !isEditMode;
-          setIsEditMode(next);
+          const next = !isEditing;
+          setIsEditing(next);
           if (next) {
             if (!window.location.search.includes('edit=true')) window.history.replaceState(null, '', window.location.pathname + '?edit=true');
           } else {
@@ -685,6 +668,11 @@ export function ARPage({ arId, initialEditMode, onClose }) {
         }}
         onSave={() => handleSave()}
         saveStatus={saveStatus}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onShowVersions={() => setShowVersions(true)}
         onBack={onClose}
         mode="assessment-results"
       />
@@ -699,17 +687,17 @@ export function ARPage({ arId, initialEditMode, onClose }) {
         {activeTab === 'results' && renderResultSets()}
         {activeTab === 'metadata' && (
           <div className="ar-metadata">
-            <MetadataEditor metadata={metadata} isEditMode={isEditMode} onChange={(newMeta) => {
+            <MetadataEditor metadata={metadata} isEditing={isEditing} onChange={(newMeta) => {
               const newDoc = { ...doc };
               newDoc['assessment-results'].metadata = newMeta;
               setDoc(newDoc);
             }} />
-            <PropsEditor properties={metadata.props || []} isEditMode={isEditMode} onChange={(newProps) => {
+            <PropsEditor properties={metadata.props || []} isEditing={isEditing} onChange={(newProps) => {
               const newDoc = { ...doc };
               newDoc['assessment-results'].metadata.props = newProps;
               setDoc(newDoc);
             }} />
-            <BackMatterEditor backMatter={ar['back-matter']} isEditMode={isEditMode} onChange={(newBm) => {
+            <BackMatterEditor backMatter={ar['back-matter']} isEditing={isEditing} onChange={(newBm) => {
               const newDoc = { ...doc };
               newDoc['assessment-results']['back-matter'] = newBm;
               setDoc(newDoc);
@@ -717,9 +705,16 @@ export function ARPage({ arId, initialEditMode, onClose }) {
           </div>
         )}
         {activeTab === 'json' && (
-          <JsonEditor value={doc} readOnly={!isEditMode} onChange={(newDoc) => setDoc(newDoc)} />
+          <JsonEditor value={doc} readOnly={!isEditing} onChange={(newDoc) => setDoc(newDoc)} />
         )}
       </div>
+      <VersionDrawer
+        isOpen={showVersions}
+        onClose={() => setShowVersions(false)}
+        versions={versions}
+        onRestore={restoreVersion}
+        isRestoring={isRestoring}
+      />
     </div>
   );
 }
