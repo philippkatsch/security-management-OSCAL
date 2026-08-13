@@ -23,11 +23,11 @@ reposol/
 ├── backend/                 # FastAPI backend
 │   ├── app/
 │   │   ├── main.py          # FastAPI app entry point (port 1000, SPA fallback)
-│   │   ├── routes.py        # CRUD, versioning, export, and status routes
-│   │   ├── import_routes.py # Remote URL fetch, registry, and file upload routes
+│   │   ├── api/             # Domain-specific route files replacing routes.py (document_routes.py, etc.)
+│   │   ├── dependencies.py  # FastAPI DI (get_workspace_id, require_write_permission)
 │   │   ├── validation.py    # OSCAL schema validation (jsonschema)
 │   │   ├── format_converter.py # JSON/YAML/XML conversion utilities
-│   │   ├── constants.py     # Stage mapping and shared constants
+│   │   ├── constants.py     # Stage mapping, unified magic strings, and shared constants
 │   │   ├── schemas/         # Official OSCAL v1.1.2 JSON Schemas
 │   │   ├── repositories/    # Data access layer (document_repository.py, workspace_repository.py with atomic storage & file locks)
 │   │   └── services/        # Domain services layer (document_service.py, profile_service.py)
@@ -35,10 +35,13 @@ reposol/
 │
 ├── frontend/                # React + Vite frontend
 │   ├── src/
-│   │   ├── lib/             # Pure JS helper modules (api.js, oscal-utils.js, profile-resolver.js, status-machine.js)
-│   │   ├── hooks/           # Custom React hooks (useDocument, useDraft, useVersions, useUndoRedo, useProfileResolution)
+│   │   ├── lib/             # Pure JS helper modules (api.js, oscal-utils.js)
+│   │   │   ├── profile/     # Split profile resolution modules
+│   │   │   └── types/       # TypeScript types (oscal.d.ts, api.d.ts)
+│   │   ├── hooks/           # Custom React hooks (useDocument, useDraft, useVersions, useUndoRedo)
+│   │   ├── stores/          # Jotai atoms for global state management
 │   │   ├── components/      # React components (grouped by domain)
-│   │   └── index.css        # Design system & global styles
+│   │   └── styles/          # Global CSS only
 │   └── tests/               # Frontend component tests (Vitest + RTL)
 │
 ├── data/                    # Persisted OSCAL JSON documents (auto-created)
@@ -48,22 +51,24 @@ reposol/
 ### 2. Frontend Decomposition & Domain-Driven Folders
 The frontend `src/` directory uses a strict domain-driven subdivision:
 - **`lib/`**: Contains pure, React-independent JavaScript utility logic.
-  - `oscal-utils.js` — Constants, formatting, UUID generation, array cleaning, and validation helpers.
-  - `profile-resolver.js` — Profile resolution engine.
-  - `api.js` — Centralized API client.
-  - `status-machine.js` — Document lifecycle state transitions (DD-023).
-- **`hooks/`**: Contains custom React hooks encapsulating state management for cross-cutting concerns (e.g., `useDocument.js`, `useUndoRedo.js`, `useDraft.js`, `useVersions.js`, `useProfileResolution.js`).
-- **`components/layout/`**: Holds layout shells such as sidebar navigation (`Layout.jsx`, `Navigation.jsx`).
+  - `oscal-utils.ts` — Constants, formatting, UUID generation, array cleaning, and validation helpers.
+  - `document-actions/` — Centralized action layer domain modules (catalog, profile, ssp, etc.) with immer produce, logging, and auto undo-snapshot.
+  - `api-client.ts` — Centralized API client with interceptors.
+  - `status-machine.ts` — Document lifecycle state transitions (DD-023).
+- **`hooks/`**: Contains custom React hooks encapsulating state management for cross-cutting concerns (e.g., `useDocumentData.ts`, `useDocumentHistory.ts`, `useDocumentLifecycle.ts`, `useDocumentActions.ts`).
+- **`components/layout/`**: Holds layout shells such as sidebar navigation (`Layout.tsx`, `Navigation.tsx`, `DocumentPageLayout.tsx`).
 - **`components/shared/`**: Contains reusable OSCAL editors and visual blocks shared across multiple pages (e.g. `PropsEditor`, `LinksEditor`, `ValidationFeedback`).
-- **`components/catalog/`**: Catalog-specific pages and sidebar navigation (`CatalogPage.jsx`, `CatalogSidebar.jsx`).
-- **`components/profile/`**: Profile-specific pages, tailoring panels, and config views (`ProfilePage.jsx`, `ProfileSidebar.jsx`, `ImportManager.jsx`, `ModifyPanel.jsx`).
-- **`components/document/`**: Document creation dialogs (`CreateDocumentDialog.jsx`, `ImportWizard.jsx`).
-- **`components/component-definition/`**: Component Definition inventory pages and editors (`ComponentPage.jsx`, `ComponentEditor.jsx`, `CapabilityEditor.jsx`).
-- **`components/ssp/`**: System Security Plan builder pages, system characteristics, implementation editors (`SSPPage.jsx`, `SystemCharacteristicsEditor.jsx`, `ImplementationEditor.jsx`, `DiagramUploader.jsx`).
-- **`components/assessment-plan/`**: Assessment Plan builder pages, task editors, subject scoping (`APPage.jsx`, `ActivityEditor.jsx`, `TaskEditor.jsx`).
-- **`components/assessment-results/`**: Assessment Results reporter pages, result set editors (`ARPage.jsx`, `ResultSetEditor.jsx`).
-- **`components/poam/`**: Plan of Action & Milestones tracker pages, item editors (`POAMPage.jsx`, `PoamItemEditor.jsx`).
-- **`components/mapping/`**: Control Mapping editor pages, matrix visualization (`MappingPage.jsx`).
+- **`components/catalog/`**: Catalog-specific pages and sidebar navigation (`CatalogPage.tsx`, `CatalogSidebar.tsx`).
+- **`components/profile/`**: Profile-specific pages, tailoring panels, and config views (`ProfilePage.tsx`, `ProfileSidebar.tsx`, `ImportManager.tsx`, `ModifyPanel.tsx`).
+- **`components/document/`**: Document creation dialogs (`CreateDocumentDialog.tsx`, `ImportWizard.tsx`).
+- **`components/component-definition/`**: Component Definition inventory pages and editors (`ComponentPage.tsx`, `ComponentEditor.tsx`, `CapabilityEditor.tsx`).
+- **`components/ssp/`**: System Security Plan builder pages, system characteristics, implementation editors (`SSPPage.tsx`, `SystemCharacteristicsEditor.tsx`, `ImplementationEditor.tsx`, `DiagramUploader.tsx`).
+- **`components/assessment-plan/`**: Assessment Plan builder pages, task editors, subject scoping (`APPage.tsx`, `ActivityEditor.tsx`, `TaskEditor.tsx`).
+- **`components/assessment-results/`**: Assessment Results reporter pages, result set editors (`ARPage.tsx`, `ResultSetEditor.tsx`).
+- **`components/poam/`**: Plan of Action & Milestones tracker pages, item editors (`POAMPage.tsx`, `PoamItemEditor.tsx`).
+- **`components/mapping/`**: Control Mapping editor pages, matrix visualization (`MappingPage.tsx`).
+- **`components/traceability/`**: Traceability domain components for tracing requirements across documents.
+- **`components/dashboard/`**: Dashboard pages (`DashboardPage.tsx`).
 - **`components/shared/risk-assessment/`**: Shared assessment risk components reused across Steps 5-7 (`CharacterizationEditor`, `OriginsEditor`, `RelevantEvidenceEditor`, `RemediationsEditor`, `RiskLogEditor`). See [DD-017](DD-017_shared_assessment_entities.md).
 - **`components/shared/dashboard/`**: Shared dashboard and analytics components reused across all steps (`MetricCard`, `ProgressBar`, `StatusBreakdown`, `CompletenessReport`). See [DD-022](DD-022_dashboard_analytics_component_library.md).
 - **`components/shared/status/`**: Unified StatusBadge component and status configuration. See [DD-020](DD-020_status_badge_design_system.md).
@@ -71,29 +76,34 @@ The frontend `src/` directory uses a strict domain-driven subdivision:
 - **Legacy Pruning**: Deprecated monoliths (`DocumentEditor.jsx`, `MappingViewer.jsx`) are retired and replaced by domain-specific pages and shared components.
 
 ### 3. Shared Control Detail Components (Strategy/Adapter Pattern)
-To align the visual representation of safety controls between the Catalog and Profile editors while maintaining their distinct saving behaviors (Catalogs mutate controls directly; Profiles map changes to `modify.alters` or `set-parameters`), we unified the panel into a single component, **`ControlDetailView`**, which embeds and coordinates the core child components (see [DD-008](DD-008_unified_control_detail_editor.md) for details):
+To cleanly separate direct mutation logic from adapter logic, we use a single **`UnifiedControlEditor`** paired with a shared **`ControlTree`**. We removed `CatalogControlEditor`, `ProfileControlOverlay`, and inline SSP editors.
 
-1. **`ControlHeader`**: Displays the control ID, title, and class badges. Incorporates inline click-to-edit inputs, taking domain-specific `onChange` handlers via props.
-2. **`ReadOnlyParts`**: Recursively renders read-only prose parts (statements, guidelines) and supports profile-specific indicators (Modified-Badge, Reset-Button) via optional props.
-3. **`EnhancementsAccordion`**: Wraps control enhancements with count badges. In Catalog view, this acts as navigation; in Profile view, it renders inline, expandable content.
+1. **`UnifiedControlEditor`**: Driven by stage adapters (`CatalogAdapter`, `ProfileAdapter`, `SSPAdapter`).
+2. **`ControlEditorContext`**: Provides stage-aware context to child components.
+3. **`ControlTree`**: Shared tree navigation component with a `useControlTree` hook, replacing `CatalogSidebar` and `ProfileSidebar`.
 
 ```text
-ControlDetailView (Polymorphic Component)
-├── Catalog Mode: Direct inline mutations
-└── Profile Mode: Adapter callbacks routing to modify.alters
+Domain-Specific Adapters (Polymorphic UI Primitives)
+└── UnifiedControlEditor
+    ├── CatalogAdapter: Direct inline mutations
+    ├── ProfileAdapter: Adapter callbacks routing to modify.alters
+    └── SSPAdapter: Adapter for implementation details
 ```
 
 ### 4. Naming Conventions
-- **React Components**: PascalCase (e.g., `CatalogPage.jsx`, `ControlDetailView.jsx`).
-- **Custom Hooks**: camelCase starting with `use` (e.g., `useDocument.js`).
-- **Pure Libraries**: kebab-case (e.g., `profile-resolver.js`).
-- **CSS Modules**: kebab-case matching the domain/component name (e.g., `tokens.css`).
+- **React Components**: PascalCase (e.g., `CatalogPage.tsx`, `CatalogControlEditor.tsx`).
+- **TypeScript**: All new frontend files must be TypeScript (`.tsx`/`.ts`).
+- **CSS Modules**: CSS Modules (`*.module.css`) for component styling.
+- **Custom Hooks**: camelCase starting with `use` (e.g., `useDocument.ts`).
+- **Pure Libraries**: kebab-case (e.g., `profile-resolver.ts`).
+- **Barrel Exports**: Use `index.ts` convention for cleaner module exports.
 - **Design Decisions**: `DD-NNN_short_description.md`.
 
 ### 5. Cross-References to Related DDs
 - DD-004 (Editor UX)
-- DD-008 (ControlDetailView for Steps 1-2)
 - DD-020 (Status Badges)
+- DD-029 (Document Actions Pattern)
+- DD-030 (Unified Control Editor - supersedes DD-008)
 - DD-021 (Entity List-Detail for Steps 3-8)
 - DD-022 (Dashboard Components)
 - DD-023 (Document Lifecycle)

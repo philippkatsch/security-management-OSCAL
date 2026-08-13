@@ -25,7 +25,8 @@ from app.storage import (
 )
 
 class TestDocumentVersioning:
-    def test_save_and_list_document_versions(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_save_and_list_document_versions(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc_v1 = {
             "catalog": {
@@ -39,16 +40,17 @@ class TestDocumentVersioning:
             }
         }
         
-        save_document_version("catalogs", doc_id, "1.0.0", doc_v1)
+        await save_document_version("catalogs", doc_id, "1.0.0", doc_v1, skip_validation=True)
         
-        active = get_document("catalogs", doc_id)
+        active, _ = await get_document("catalogs", doc_id)
         assert active["catalog"]["metadata"]["version"] == "1.0.0"
         
-        versions = get_document_versions("catalogs", doc_id)
+        versions = await get_document_versions("catalogs", doc_id)
         assert len(versions) == 1
         assert versions[0]["version"] == "1.0.0"
 
-    def test_save_and_load_draft_version(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_save_and_load_draft_version(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc_active = {
             "catalog": {
@@ -62,7 +64,7 @@ class TestDocumentVersioning:
             }
         }
         
-        save_document_version("catalogs", doc_id, "1.0.0", doc_active)
+        await save_document_version("catalogs", doc_id, "1.0.0", doc_active, skip_validation=True)
         
         doc_draft = {
             "catalog": {
@@ -75,21 +77,22 @@ class TestDocumentVersioning:
                 }
             }
         }
-        save_document_version("catalogs", doc_id, "1.0.0-draft", doc_draft, is_draft=True)
+        await save_document_version("catalogs", doc_id, "1.0.0-draft", doc_draft, is_draft=True, skip_validation=True)
         
-        current = get_document("catalogs", doc_id)
+        current, _ = await get_document("catalogs", doc_id)
         assert current["catalog"]["metadata"]["title"] == "Test Catalog Modified"
         assert current["catalog"]["metadata"]["version"] == "1.0.0-draft"
         
-        versions = get_document_versions("catalogs", doc_id)
+        versions = await get_document_versions("catalogs", doc_id)
         assert len(versions) == 2
         draft_entry = next(v for v in versions if v.get("is_draft"))
         assert draft_entry["version"] == "1.0.0-draft"
         
-        loaded_draft = get_document_version("catalogs", doc_id, "1.0.0-draft")
+        loaded_draft = await get_document_version("catalogs", doc_id, "1.0.0-draft")
         assert loaded_draft["catalog"]["metadata"]["title"] == "Test Catalog Modified"
 
-    def test_save_release_cleans_up_draft(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_save_release_cleans_up_draft(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc_draft = {
             "catalog": {
@@ -103,7 +106,7 @@ class TestDocumentVersioning:
             }
         }
         
-        save_document_version("catalogs", doc_id, "1.0.0-draft", doc_draft, is_draft=True)
+        await save_document_version("catalogs", doc_id, "1.0.0-draft", doc_draft, is_draft=True, skip_validation=True)
         
         doc_release = {
             "catalog": {
@@ -116,17 +119,18 @@ class TestDocumentVersioning:
                 }
             }
         }
-        save_document_version("catalogs", doc_id, "1.0.0", doc_release)
+        await save_document_version("catalogs", doc_id, "1.0.0", doc_release, skip_validation=True)
         
-        current = get_document("catalogs", doc_id)
+        current, _ = await get_document("catalogs", doc_id)
         assert current["catalog"]["metadata"]["title"] == "Release"
         assert current["catalog"]["metadata"]["version"] == "1.0.0"
         
-        versions = get_document_versions("catalogs", doc_id)
+        versions = await get_document_versions("catalogs", doc_id)
         assert len(versions) == 1
         assert not any(v.get("is_draft") for v in versions)
 
-    def test_delete_draft_version(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_delete_draft_version(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc_draft = {
             "catalog": {
@@ -139,36 +143,38 @@ class TestDocumentVersioning:
                 }
             }
         }
-        save_document_version("catalogs", doc_id, "1.0.0-draft", doc_draft, is_draft=True)
+        await save_document_version("catalogs", doc_id, "1.0.0-draft", doc_draft, is_draft=True, skip_validation=True)
         
-        delete_document_version("catalogs", doc_id, "1.0.0-draft")
+        await delete_document_version("catalogs", doc_id, "1.0.0-draft")
         
-        versions = get_document_versions("catalogs", doc_id)
+        versions = await get_document_versions("catalogs", doc_id)
         assert not any(v.get("is_draft") for v in versions)
 
-    def test_delete_document_cleans_up_all_versions_on_disk(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_delete_document_cleans_up_all_versions_on_disk(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc_v1 = {"catalog": {"uuid": doc_id, "metadata": {"title": "V1", "version": "1.0.0", "last-modified": "2026-07-18T10:00:00Z"}}}
         doc_v2 = {"catalog": {"uuid": doc_id, "metadata": {"title": "V2", "version": "2.0.0", "last-modified": "2026-07-18T11:00:00Z"}}}
         
-        save_document_version("catalogs", doc_id, "1.0.0", doc_v1)
-        save_document_version("catalogs", doc_id, "2.0.0", doc_v2)
+        await save_document_version("catalogs", doc_id, "1.0.0", doc_v1, skip_validation=True)
+        await save_document_version("catalogs", doc_id, "2.0.0", doc_v2, skip_validation=True)
         
-        stage_dir = get_stage_dir("catalogs")
+        stage_dir = await get_stage_dir("catalogs")
         assert os.path.exists(os.path.join(stage_dir, f"{doc_id}_v1.0.0.json"))
         assert os.path.exists(os.path.join(stage_dir, f"{doc_id}_v2.0.0.json"))
         
-        delete_document("catalogs", doc_id)
+        await delete_document("catalogs", doc_id)
         
         assert not os.path.exists(os.path.join(stage_dir, f"{doc_id}_v1.0.0.json"))
         assert not os.path.exists(os.path.join(stage_dir, f"{doc_id}_v2.0.0.json"))
         assert not os.path.exists(os.path.join(stage_dir, f"{doc_id}.json"))
 
-    def test_version_traversal_blocked(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_version_traversal_blocked(self, isolated_data_dir):
         traversal_id = "../../../etc/passwd"
         with patch("app.storage.is_valid_uuid", return_value=True):
             with pytest.raises(ValueError, match="Directory traversal"):
-                get_document_version("catalogs", traversal_id, "1.0.0")
+                await get_document_version("catalogs", traversal_id, "1.0.0")
 
             with pytest.raises(ValueError, match="Directory traversal"):
-                delete_document_version("catalogs", traversal_id, "1.0.0")
+                await delete_document_version("catalogs", traversal_id, "1.0.0")

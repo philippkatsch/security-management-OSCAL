@@ -2,6 +2,7 @@ import { test, expect } from '../fixtures/base';
 
 test.describe('Beyond Use Cases — Full Multi-Stage Compliance Lifecycle Integration', () => {
   test('full end-to-end integration across all 8 OSCAL stages', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     // 1. Create Source Catalog
     const catUuid = await apiSetup.createCatalog({
       title: 'Lifecycle Base Catalog',
@@ -55,28 +56,28 @@ test.describe('Beyond Use Cases — Full Multi-Stage Compliance Lifecycle Integr
     });
 
     // Verify all 8 documents exist and are accessible in the UI
-    await page.goto('/catalogs');
+    await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
     await expect(page.getByText('Lifecycle Base Catalog').first()).toBeVisible();
 
-    await page.goto('/profiles');
+    await page.goto(`/profiles?w=${apiSetup.workspaceId}`);
     await expect(page.getByText('Lifecycle Baseline Profile').first()).toBeVisible();
 
-    await page.goto('/component-definitions');
+    await page.goto(`/component-definitions?w=${apiSetup.workspaceId}`);
     await expect(page.getByText(/Lifecycle Asset Component|Component Definitions/i).first()).toBeVisible();
 
-    await page.goto('/ssps');
+    await page.goto(`/ssps?w=${apiSetup.workspaceId}`);
     await expect(page.getByText(/Lifecycle Target System|System Security Plans/i).first()).toBeVisible();
 
-    await page.goto('/assessment-plans');
+    await page.goto(`/assessment-plans?w=${apiSetup.workspaceId}`);
     await expect(page.getByText(/Lifecycle Audit Assessment Plan|Assessment Plans/i).first()).toBeVisible();
 
-    await page.goto('/assessment-results');
+    await page.goto(`/assessment-results?w=${apiSetup.workspaceId}`);
     await expect(page.getByText(/Lifecycle Audit Results|Assessment Results/i).first()).toBeVisible();
 
-    await page.goto('/poams');
+    await page.goto(`/poams?w=${apiSetup.workspaceId}`);
     await expect(page.getByText(/Lifecycle Risk POA&M|Plans of Action/i).first()).toBeVisible();
 
-    await page.goto('/control-mappings');
+    await page.goto(`/control-mappings?w=${apiSetup.workspaceId}`);
     await expect(page.getByText(/Lifecycle Framework Mapping|Control Mappings/i).first()).toBeVisible();
   });
   test('cross-stage reference integrity — deleting catalog shows broken reference in profile', async ({ page, apiSetup }) => {
@@ -86,7 +87,7 @@ test.describe('Beyond Use Cases — Full Multi-Stage Compliance Lifecycle Integr
 
     await apiSetup.deleteDocument('catalog', catUuid);
 
-    await page.goto(`/profile/${profUuid}`);
+    await page.goto(`/profiles/${profUuid}?w=${apiSetup.workspaceId}`);
     await expect(page.getByText('Dependent Profile').first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/Broken|Not Found|Missing/i).first()).toBeVisible().catch(() => {});
   });
@@ -97,7 +98,7 @@ test.describe('Beyond Use Cases — Full Multi-Stage Compliance Lifecycle Integr
     const profUuid = await apiSetup.createProfile({ title: 'Linked Profile', catalogUuid: catUuid });
     const sspUuid = await apiSetup.createSsp(profUuid, { title: 'Linked SSP' });
 
-    await page.goto(`/ssp/${sspUuid}`);
+    await page.goto(`/ssps/${sspUuid}?w=${apiSetup.workspaceId}`);
     await expect(page.getByText('Linked SSP').first()).toBeVisible({ timeout: 15000 });
 
     const profileLink = page.getByText('Linked Profile').first();

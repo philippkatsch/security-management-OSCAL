@@ -19,7 +19,8 @@ from app.storage import (
     cleanup_local_catalogs
 )
 
-def test_local_catalog_lifecycle(isolated_data_dir):
+@pytest.mark.asyncio
+async def test_local_catalog_lifecycle(isolated_data_dir):
     profile_id = str(uuid.uuid4())
     profile_doc = {
         "profile": {
@@ -41,10 +42,10 @@ def test_local_catalog_lifecycle(isolated_data_dir):
     }
 
     # 1. Save profile
-    save_document("profiles", profile_id, profile_doc)
+    await save_document("profiles", profile_id, profile_doc, skip_validation=True)
 
     # Verify profile file does NOT contain "local-controls" directly
-    profiles_dir = get_stage_dir("profiles")
+    profiles_dir = await get_stage_dir("profiles")
     with open(os.path.join(profiles_dir, f"{profile_id}.json"), encoding="utf-8") as f:
         stored_profile = json.load(f)
     assert "local-controls" not in stored_profile["profile"]
@@ -55,7 +56,7 @@ def test_local_catalog_lifecycle(isolated_data_dir):
         uuid.NAMESPACE_URL,
         f"reposol-local-controls:{profile_id}:1.0.0"
     ))
-    catalogs_dir = get_stage_dir("catalogs")
+    catalogs_dir = await get_stage_dir("catalogs")
     catalog_path = os.path.join(catalogs_dir, f"{expected_catalog_id}.json")
     assert os.path.exists(catalog_path)
 
@@ -69,7 +70,7 @@ def test_local_catalog_lifecycle(isolated_data_dir):
     )
 
     # 2. Get profile (loads it and reconstructs local-controls)
-    loaded_profile = get_document("profiles", profile_id)
+    loaded_profile, _ = await get_document("profiles", profile_id)
     assert "local-controls" in loaded_profile["profile"]
     assert loaded_profile["profile"]["local-controls"][0]["id"] == "corp-1"
 
@@ -85,13 +86,14 @@ def test_local_catalog_lifecycle(isolated_data_dir):
             }
         }
     }
-    save_document("profiles", profile_id, profile_no_local)
+    await save_document("profiles", profile_id, profile_no_local, skip_validation=True)
 
     # Verify cleanup deleted the orphaned local catalog
     assert not os.path.exists(catalog_path)
 
 
-def test_cleanup_local_catalogs_ignores_other_catalogs(isolated_data_dir):
+@pytest.mark.asyncio
+async def test_cleanup_local_catalogs_ignores_other_catalogs(isolated_data_dir):
     # Save a standard catalog
     standard_id = str(uuid.uuid4())
     standard_doc = {
@@ -105,7 +107,7 @@ def test_cleanup_local_catalogs_ignores_other_catalogs(isolated_data_dir):
             }
         }
     }
-    save_document("catalogs", standard_id, standard_doc)
+    await save_document("catalogs", standard_id, standard_doc, skip_validation=True)
     
     # Save a profile with local controls (which extracts a local catalog)
     profile_id = str(uuid.uuid4())
@@ -127,10 +129,10 @@ def test_cleanup_local_catalogs_ignores_other_catalogs(isolated_data_dir):
             ],
         }
     }
-    save_document("profiles", profile_id, profile_doc)
+    await save_document("profiles", profile_id, profile_doc, skip_validation=True)
     
     # Verify both catalogs exist
-    catalogs_dir = get_stage_dir("catalogs")
+    catalogs_dir = await get_stage_dir("catalogs")
     standard_path = os.path.join(catalogs_dir, f"{standard_id}.json")
     expected_local_id = str(uuid.uuid5(
         uuid.NAMESPACE_URL,
@@ -142,7 +144,7 @@ def test_cleanup_local_catalogs_ignores_other_catalogs(isolated_data_dir):
     assert os.path.exists(local_path)
     
     # Delete the profile (orphans the local catalog)
-    delete_document("profiles", profile_id)
+    await delete_document("profiles", profile_id)
     
     # Verify local catalog is deleted but standard catalog is NOT touched
     assert not os.path.exists(local_path)

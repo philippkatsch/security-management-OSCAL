@@ -323,9 +323,11 @@ class TestTier2BoundaryCornerCases:
         )
         # Preprocess / validate catches invalid empty param-id
         from app.storage import preprocess_profile_for_saving
-        val_doc = preprocess_profile_for_saving(prof_doc, persist_local_catalog=False)
+        import asyncio
+        val_doc = asyncio.run(preprocess_profile_for_saving(prof_doc, persist_local_catalog=False))
         with pytest.raises(ValidationError):
-            validate_document("profiles", val_doc)
+            import asyncio
+            asyncio.run(validate_document("profiles", val_doc))
 
     def test_t2_f3_04_override_empty_values_array_revert(self, client):
         """T2-F3-04: Profile override setting empty values array (reverting value only)."""

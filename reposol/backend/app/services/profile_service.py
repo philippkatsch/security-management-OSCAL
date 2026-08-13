@@ -4,25 +4,26 @@ import copy
 import uuid
 import datetime
 import logging
+import asyncio
 from typing import List, Dict, Any, Optional
 
-from app.repositories.workspace_repository import get_stage_dir
 from app.repositories.document_repository import is_valid_uuid, _catalog_uuid_from_href
 from app.validation import validate_document
+from app.utils.oscal_transform_utils import _normalize_replacement_part_ids, remove_empty_arrays
+from app.repositories import document_repository
 
 REPOSOL_NAMESPACE = "https://reposol.org/ns"
 logger = logging.getLogger(__name__)
 
-def _is_managed_local_catalog_import(imp: Dict[str, Any], workspace_id: Optional[str] = None) -> bool:
+async def _is_managed_local_catalog_import(imp: Dict[str, Any], workspace_id: Optional[str] = None) -> bool:
     catalog_uuid = _catalog_uuid_from_href(imp.get("href", ""))
     if not catalog_uuid:
         return False
 
-    catalog_path = os.path.join(get_stage_dir("catalogs", workspace_id), f"{catalog_uuid}.json")
     try:
-        with open(catalog_path, "r", encoding="utf-8") as f:
-            catalog = json.load(f).get("catalog", {})
-    except (OSError, json.JSONDecodeError):
+        catalog_doc, _ = await document_repository.get_document("catalogs", catalog_uuid, workspace_id=workspace_id)
+        catalog = catalog_doc.get("catalog", {})
+    except (FileNotFoundError, ValueError):
         return False
 
     return any(
@@ -33,66 +34,7 @@ def _is_managed_local_catalog_import(imp: Dict[str, Any], workspace_id: Optional
     )
 
 
-def _normalize_replacement_part_ids(profile: Dict[str, Any]) -> None:
-    """Give replacement parts a distinct ID so `remove` cannot remove the new part."""
-    for alter in profile.get("modify", {}).get("alters", []):
-        removed_ids = {
-            remove.get("by-id")
-            for remove in alter.get("removes", [])
-            if remove.get("by-id")
-        }
-        used_ids = {
-            part.get("id")
-            for add in alter.get("adds", [])
-            for part in add.get("parts", [])
-            if part.get("id")
-        }
-        for add in alter.get("adds", []):
-            for part in add.get("parts", []):
-                original_id = part.get("id")
-                if not original_id or original_id not in removed_ids:
-                    continue
-                candidate = f"{original_id}_modified"
-                suffix = 2
-                while candidate in used_ids:
-                    candidate = f"{original_id}_modified_{suffix}"
-                    suffix += 1
-                used_ids.discard(original_id)
-                used_ids.add(candidate)
-                part["id"] = candidate
-
-
-def remove_empty_arrays(obj: Any) -> Any:
-    """Recursively traverses a JSON-like object and removes any keys that map to empty lists/arrays [] or empty strings."""
-    if isinstance(obj, dict):
-        new_dict = {}
-        for k, v in obj.items():
-            if isinstance(v, list) and not v:
-                # Omit empty list
-                continue
-            elif isinstance(v, str) and not v.strip() and k not in {"title", "uuid", "id"}:
-                # Omit empty or whitespace-only strings (OSCAL regex validation fails on these, but preserve required fields like title)
-                continue
-            else:
-                cleaned = remove_empty_arrays(v)
-                if isinstance(cleaned, list) and not cleaned:
-                    continue
-                new_dict[k] = cleaned
-        return new_dict
-    elif isinstance(obj, list):
-        cleaned_list = []
-        for x in obj:
-            if isinstance(x, str) and not x.strip():
-                continue
-            cleaned_x = remove_empty_arrays(x)
-            if isinstance(cleaned_x, (dict, list)) and not cleaned_x:
-                continue
-            cleaned_list.append(cleaned_x)
-        return cleaned_list
-    return obj
-
-
-def preprocess_profile_for_saving(
+async def preprocess_profile_for_saving(
     document: Dict[str, Any], *, persist_local_catalog: bool = True, workspace_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """Converts the UI profile format into standard strict OSCAL profile format before saving."""
@@ -107,17 +49,17 @@ def preprocess_profile_for_saving(
     # 1. Handle local-controls (extract and save as a separate OSCAL Catalog document)
     local_controls = profile.pop("local-controls", None)
     if local_controls:
-        # Keep each profile version bound to its own generated source catalog. This
-        # preserves historic profile versions while avoiding duplicate imports.
         version = profile.get("metadata", {}).get("version", "1.0.0")
         local_catalog_uuid = str(uuid.uuid5(
             uuid.NAMESPACE_URL,
             f"reposol-local-controls:{profile_uuid}:{version}",
         ))
-        new_imports = [
-            imp for imp in profile.get("imports", [])
-            if not _is_managed_local_catalog_import(imp, workspace_id)
-        ]
+        
+        new_imports = []
+        for imp in profile.get("imports", []):
+            if not await _is_managed_local_catalog_import(imp, workspace_id):
+                new_imports.append(imp)
+                
         new_imports.append({
             "href": f"../catalogs/{local_catalog_uuid}.json",
             "include-all": {}
@@ -146,18 +88,15 @@ def preprocess_profile_for_saving(
             }
         }
 
-        validate_document("catalogs", catalog_doc, check_refs=False)
+        await validate_document("catalogs", catalog_doc, check_refs=False, workspace_id=workspace_id)
 
         if persist_local_catalog:
-            local_catalog_path = os.path.join(get_stage_dir("catalogs", workspace_id), f"{local_catalog_uuid}.json")
-            with open(local_catalog_path, "w", encoding="utf-8") as f:
-                json.dump(catalog_doc, f, indent=2, ensure_ascii=False)
+            await document_repository.save_document("catalogs", local_catalog_uuid, catalog_doc, workspace_id=workspace_id)
     else:
-        # A UI document without local controls removes only managed local imports.
-        new_imports = [
-            imp for imp in profile.get("imports", [])
-            if not _is_managed_local_catalog_import(imp, workspace_id)
-        ]
+        new_imports = []
+        for imp in profile.get("imports", []):
+            if not await _is_managed_local_catalog_import(imp, workspace_id):
+                new_imports.append(imp)
         profile["imports"] = new_imports
         if not profile["imports"]:
             profile.pop("imports", None)
@@ -205,12 +144,12 @@ def preprocess_profile_for_saving(
             merge.pop("flat", None)
             merge.pop("custom", None)
             
-    prune_orphaned_alters(profile, workspace_id)
+    await prune_orphaned_alters(profile, workspace_id)
     document = remove_empty_arrays(document)
     return document
 
 
-def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] = None) -> None:
+async def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] = None) -> None:
     """Removes alters from profile.modify.alters if their control-id is not present in any imported catalog."""
     modify = profile.get("modify")
     if not modify or "alters" not in modify or not isinstance(modify.get("alters"), list):
@@ -224,8 +163,6 @@ def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] =
         return
 
     valid_control_ids = set()
-    catalogs_dir = get_stage_dir("catalogs", workspace_id)
-
     # 1. Include local-controls if present
     for ctrl in profile.get("local-controls", []):
         if isinstance(ctrl, dict) and "id" in ctrl:
@@ -240,36 +177,34 @@ def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] =
         cat_uuid = _catalog_uuid_from_href(href)
         if not cat_uuid:
             continue
-        cat_path = os.path.join(catalogs_dir, f"{cat_uuid}.json")
-        if os.path.exists(cat_path):
+        if await document_repository.document_exists("catalogs", cat_uuid, workspace_id=workspace_id):
             found_any_catalog = True
             try:
-                with open(cat_path, "r", encoding="utf-8") as f:
-                    cat_doc = json.load(f)
-                    cat_obj = cat_doc.get("catalog", {})
+                cat_doc, _ = await document_repository.get_document("catalogs", cat_uuid, workspace_id=workspace_id)
+                cat_obj = cat_doc.get("catalog", {})
 
-                    def collect_ctrls(ctrl_list):
-                        for c in ctrl_list:
-                            if isinstance(c, dict) and "id" in c:
-                                valid_control_ids.add(c["id"].lower())
-                                if "controls" in c and isinstance(c["controls"], list):
-                                    collect_ctrls(c["controls"])
+                def collect_ctrls(ctrl_list):
+                    for c in ctrl_list:
+                        if isinstance(c, dict) and "id" in c:
+                            valid_control_ids.add(c["id"].lower())
+                            if "controls" in c and isinstance(c["controls"], list):
+                                collect_ctrls(c["controls"])
 
-                    if "controls" in cat_obj and isinstance(cat_obj["controls"], list):
-                        collect_ctrls(cat_obj["controls"])
+                if "controls" in cat_obj and isinstance(cat_obj["controls"], list):
+                    collect_ctrls(cat_obj["controls"])
 
-                    def collect_groups(grp_list):
-                        for g in grp_list:
-                            if isinstance(g, dict):
-                                if "controls" in g and isinstance(g["controls"], list):
-                                    collect_ctrls(g["controls"])
-                                if "groups" in g and isinstance(g["groups"], list):
-                                    collect_groups(g["groups"])
+                def collect_groups(grp_list):
+                    for g in grp_list:
+                        if isinstance(g, dict):
+                            if "controls" in g and isinstance(g["controls"], list):
+                                collect_ctrls(g["controls"])
+                            if "groups" in g and isinstance(g["groups"], list):
+                                collect_groups(g["groups"])
 
-                    if "groups" in cat_obj and isinstance(cat_obj["groups"], list):
-                        collect_groups(cat_obj["groups"])
+                if "groups" in cat_obj and isinstance(cat_obj["groups"], list):
+                    collect_groups(cat_obj["groups"])
             except Exception as e:
-                logger.warning("Failed to read catalog %s for alter pruning: %s", cat_path, str(e))
+                logger.warning("Failed to read catalog %s for alter pruning: %s", cat_uuid, str(e))
 
     if not found_any_catalog and not profile.get("local-controls"):
         # If no imported catalog file exists locally yet, avoid wiping alters prematurely
@@ -296,7 +231,7 @@ def preprocess_catalog_for_saving(document: Dict[str, Any]) -> Dict[str, Any]:
     return document
 
 
-def postprocess_profile_for_loading(document: Dict[str, Any], workspace_id: Optional[str] = None) -> Dict[str, Any]:
+async def postprocess_profile_for_loading(document: Dict[str, Any], workspace_id: Optional[str] = None) -> Dict[str, Any]:
     """Reconstructs the UI profile format by injecting local controls and defaultStructure properties."""
     document = copy.deepcopy(document)
     if "profile" not in document:
@@ -304,7 +239,7 @@ def postprocess_profile_for_loading(document: Dict[str, Any], workspace_id: Opti
         
     profile = document["profile"]
     _normalize_replacement_part_ids(profile)
-    prune_orphaned_alters(profile, workspace_id)
+    await prune_orphaned_alters(profile, workspace_id)
 
     # 1. Reconstruct local-controls
     imports = profile.get("imports", [])
@@ -314,15 +249,13 @@ def postprocess_profile_for_loading(document: Dict[str, Any], workspace_id: Opti
         ref_uuid = _catalog_uuid_from_href(imp.get("href", ""))
         if not ref_uuid:
             continue
-        catalog_path = os.path.join(get_stage_dir("catalogs", workspace_id), f"{ref_uuid}.json")
-        if os.path.exists(catalog_path):
+        if await document_repository.document_exists("catalogs", ref_uuid, workspace_id=workspace_id):
             try:
-                with open(catalog_path, "r", encoding="utf-8") as f:
-                    cat_doc = json.load(f)
-                    if _is_managed_local_catalog_import(imp, workspace_id):
-                        local_controls = cat_doc["catalog"].get("controls", [])
-                        break
-            except (OSError, json.JSONDecodeError, KeyError):
+                cat_doc, _ = await document_repository.get_document("catalogs", ref_uuid, workspace_id=workspace_id)
+                if await _is_managed_local_catalog_import(imp, workspace_id):
+                    local_controls = cat_doc.get("catalog", {}).get("controls", [])
+                    break
+            except Exception:
                 pass
                     
     if local_controls:
@@ -346,54 +279,32 @@ def postprocess_profile_for_loading(document: Dict[str, Any], workspace_id: Opti
     return document
 
 
-def cleanup_local_catalogs(workspace_id: Optional[str] = None) -> None:
+async def cleanup_local_catalogs(workspace_id: Optional[str] = None) -> None:
     """Deletes local-controls catalogs that are no longer referenced by any profile or profile version."""
-    catalogs_dir = get_stage_dir("catalogs", workspace_id)
-    profiles_dir = get_stage_dir("profiles", workspace_id)
-    
-    if not os.path.exists(catalogs_dir) or not os.path.exists(profiles_dir):
-        return
-        
     referenced_uuids = set()
     
-    # Collect referenced UUIDs from active profiles and version profiles
-    for filename in os.listdir(profiles_dir):
-        if filename.endswith(".json"):
-            file_path = os.path.join(profiles_dir, filename)
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    doc = json.load(f)
-                    if "profile" in doc:
-                        for imp in doc["profile"].get("imports", []):
-                            catalog_uuid = _catalog_uuid_from_href(imp.get("href", ""))
-                            if catalog_uuid:
-                                referenced_uuids.add(catalog_uuid)
-            except Exception:
-                logger.warning("Failed to read profile %s during local catalog cleanup", file_path, exc_info=True)
-                continue
-                
-    # Scan and delete unreferenced local-controls catalogs
-    for filename in os.listdir(catalogs_dir):
-        if filename.endswith(".json"):
-            doc_id = filename[:-5]
-            if not is_valid_uuid(doc_id):
-                continue
-            if doc_id.lower() in referenced_uuids:
-                continue
-                
-            file_path = os.path.join(catalogs_dir, filename)
-            try:
-                is_local = False
-                with open(file_path, "r", encoding="utf-8") as f:
-                    cat_doc = json.load(f)
-                    if "catalog" in cat_doc:
-                        cat_meta = cat_doc["catalog"].get("metadata", {})
-                        for prop in cat_meta.get("props", []):
-                            if prop.get("name") == "type" and prop.get("value") == "local-controls":
-                                is_local = True
-                                break
-                if is_local:
-                    os.remove(file_path)
-            except Exception:
-                logger.warning("Failed to clean up local catalog %s", file_path, exc_info=True)
-                continue
+    profiles = await document_repository.list_documents_by_stage("profiles", workspace_id=workspace_id)
+    for doc in profiles:
+        if "profile" in doc:
+            for imp in doc["profile"].get("imports", []):
+                catalog_uuid = _catalog_uuid_from_href(imp.get("href", ""))
+                if catalog_uuid:
+                    referenced_uuids.add(catalog_uuid)
+                    
+    catalogs = await document_repository.list_documents_by_stage("catalogs", workspace_id=workspace_id)
+    for cat_doc in catalogs:
+        if "catalog" in cat_doc:
+            cat_meta = cat_doc["catalog"].get("metadata", {})
+            is_local = False
+            for prop in cat_meta.get("props", []):
+                if prop.get("name") == "type" and prop.get("value") == "local-controls":
+                    is_local = True
+                    break
+            
+            if is_local:
+                doc_uuid = cat_doc["catalog"].get("uuid")
+                if doc_uuid and doc_uuid.lower() not in referenced_uuids:
+                    try:
+                        await document_repository.delete_document("catalogs", doc_uuid, workspace_id=workspace_id)
+                    except Exception:
+                        logger.warning("Failed to clean up local catalog %s", doc_uuid, exc_info=True)

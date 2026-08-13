@@ -190,7 +190,8 @@ class TestTier4RealWorldScenarios:
         rendered = render_control_prose(prose, resolved)
         assert rendered == "Das Passwort muss mindestens 14 Zeichen (Mindestlänge) entsprechen."
 
-    def test_t4_04_large_scale_baseline_tailoring(self, client):
+    @pytest.mark.asyncio
+    async def test_t4_04_large_scale_baseline_tailoring(self, client):
         """T4-04: Large-Scale Baseline Tailoring (50+ Control Parameters Overridden)."""
         controls = []
         param_ids = []
@@ -234,8 +235,8 @@ class TestTier4RealWorldScenarios:
         assert len(set_p) == 50
 
         # 3. Exported Profile JSON passes NIST OSCAL schema validation
-        val_doc = preprocess_profile_for_saving(saved_prof, persist_local_catalog=False)
-        validate_document("profiles", val_doc)
+        val_doc = await preprocess_profile_for_saving(saved_prof, persist_local_catalog=False)
+        await validate_document("profiles", val_doc)
 
     def test_t4_05_dynamic_bulk_revert_workflow(self, client):
         """T4-05: Dynamic Baseline Modification & Revert-to-Default Bulk Workflow."""

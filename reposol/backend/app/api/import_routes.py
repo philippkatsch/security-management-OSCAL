@@ -1,0 +1,184 @@
+import os
+import json
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Depends
+from pydantic import BaseModel
+from typing import Optional
+
+from app.dependencies import get_workspace_id, require_write_permission
+from app.constants import STAGE_MAPPING
+from app.format_converter import parse_xml_to_oscal_dict, parse_yaml_to_dict
+from app.services.import_service import fetch_remote_document, import_document, ImportServiceError, ImportValidationError
+from app.repositories.workspace_repository import get_stage_dir
+from app.repositories.document_repository import is_valid_uuid
+
+import_router = APIRouter()
+
+# ─── Known OSCAL Content Registry ────────────────────────────────────────────
+# All entries from usnistgov/oscal-content on GitHub (raw URLs, JSON format)
+KNOWN_SOURCES = [
+    # ── NIST SP 800-53 ──────────────────────────────────────────────────────
+    {
+        "id": "nist-800-53-rev5-catalog",
+        "title": "NIST SP 800-53 Rev 5.2.0 — Full Catalog",
+        "description": "Electronic OSCAL version of NIST SP 800-53 Rev 5.2.0 Controls and SP 800-53A Rev 5.2.0 Assessment Procedures.",
+        "model": "catalog",
+        "source": "nist",
+        "url": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+        "uuid": "ea7c7688-79c5-463b-a91b-0650f2d98623",
+    },
+    {
+        "id": "nist-800-53-rev5-low-baseline",
+        "title": "NIST SP 800-53 Rev 5 — LOW Baseline Profile",
+        "description": "NIST SP 800-53 Rev 5 LOW impact baseline profile.",
+        "model": "profile",
+        "source": "nist",
+        "url": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_LOW-baseline_profile.json",
+        "uuid": "201765f8-6d45-4941-8789-9eef2effd7d0",
+    },
+    {
+        "id": "nist-800-53-rev5-moderate-baseline",
+        "title": "NIST SP 800-53 Rev 5 — MODERATE Baseline Profile",
+        "description": "NIST SP 800-53 Rev 5 MODERATE impact baseline profile.",
+        "model": "profile",
+        "source": "nist",
+        "url": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_MODERATE-baseline_profile.json",
+        "uuid": "b07979a6-1b98-42dc-a776-60ee575b061e",
+    },
+    {
+        "id": "nist-800-53-rev5-high-baseline",
+        "title": "NIST SP 800-53 Rev 5 — HIGH Baseline Profile",
+        "description": "NIST SP 800-53 Rev 5 HIGH impact baseline profile.",
+        "model": "profile",
+        "source": "nist",
+        "url": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_HIGH-baseline_profile.json",
+        "uuid": "b5c9c74d-b24d-4e80-815a-80936528fb6d",
+    },
+    {
+        "id": "nist-800-53-rev4-catalog",
+        "title": "NIST SP 800-53 Rev 4 — Full Catalog",
+        "description": "Electronic OSCAL version of NIST SP 800-53 Rev 4 Security Controls.",
+        "model": "catalog",
+        "source": "nist",
+        "url": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_catalog.json",
+        "uuid": "f6b3db48-0676-47b2-b13c-04c3e76a6669",
+    },
+    # ── NIST CSF ────────────────────────────────────────────────────────────
+    {
+        "id": "nist-csf-2-catalog",
+        "title": "NIST Cybersecurity Framework 2.0 — Catalog",
+        "description": "Electronic OSCAL version of the NIST Cybersecurity Framework (CSF) 2.0.",
+        "model": "catalog",
+        "source": "nist",
+        "url": "https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json",
+        "uuid": "720a010b-253c-4a94-bb65-cb58400966f5",
+    },
+    # ── BSI IT-Grundschutz ──────────────────────────────────────────────────
+    {
+        "id": "bsi-it-grundschutz-catalog",
+        "title": "BSI IT-Grundschutz — Kompendium Catalog",
+        "description": "Deutsches Bundesamt für Sicherheit in der Informationstechnik (BSI) IT-Grundschutz Kompendium (Grundschutz++) OSCAL Catalog.",
+        "model": "catalog",
+        "source": "bsi",
+        "url": "https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/Anwenderkataloge/Grundschutz%2B%2B/Grundschutz%2B%2B-catalog.json",
+        "uuid": "7a35649f-1d8d-4a12-8869-709b4db74c77",
+    },
+]
+
+class ImportURLRequest(BaseModel):
+    url: str
+    validate_schema: Optional[bool] = True
+
+@import_router.get("/api/import/registry")
+async def list_registry(ws_id: str = Depends(get_workspace_id)):
+    """Return the list of known importable OSCAL sources, annotated with import status."""
+    annotated_sources = []
+    for source in KNOWN_SOURCES:
+        entry = dict(source)
+        stage_alias = STAGE_MAPPING.get(entry["model"])
+        is_imported = False
+        if stage_alias and "uuid" in entry:
+            try:
+                stage_dir = await get_stage_dir(stage_alias, workspace_id=ws_id)
+                file_path = os.path.join(stage_dir, f"{entry['uuid']}.json")
+                if os.path.isfile(file_path):
+                    is_imported = True
+            except ValueError:
+                pass # stage dir not valid
+        entry["is_imported"] = is_imported
+        annotated_sources.append(entry)
+        
+    return annotated_sources
+
+@import_router.post("/api/import/url")
+async def import_from_url(request_data: ImportURLRequest, ws_id: str = Depends(require_write_permission)):
+    """Fetch and import an OSCAL document from a URL."""
+    try:
+        document = await fetch_remote_document(request_data.url)
+        result = await import_document(document, validate=request_data.validate_schema, workspace_id=ws_id)
+        return result
+    except ImportValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ImportServiceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@import_router.post("/api/import/registry/{source_id}")
+async def import_from_registry(source_id: str, ws_id: str = Depends(require_write_permission)):
+    """Fetch and import a known OSCAL document from the built-in registry."""
+    entry = next((s for s in KNOWN_SOURCES if s["id"] == source_id), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"Registry entry '{source_id}' not found")
+
+    try:
+        document = await fetch_remote_document(entry["url"])
+        result = await import_document(document, validate=True, workspace_id=ws_id)
+        result["registry_id"] = source_id
+        result["source"] = entry.get("source")
+        return result
+    except ImportValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ImportServiceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@import_router.post("/api/import/file")
+async def import_uploaded_file(file: UploadFile = File(...), ws_id: str = Depends(require_write_permission)):
+    """Upload and import an OSCAL document (JSON, YAML, or XML)."""
+    MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum upload size is 50 MB.")
+    text = content.decode("utf-8", errors="ignore")
+    filename_lower = file.filename.lower()
+    
+    document = None
+    
+    # Determine format and parse
+    if filename_lower.endswith((".yaml", ".yml")):
+        try:
+            document = parse_yaml_to_dict(text)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse YAML: {str(e)}")
+    elif filename_lower.endswith(".xml") or text.strip().startswith("<"):
+        try:
+            document = parse_xml_to_oscal_dict(text)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse XML: {str(e)}")
+    else:
+        # Try JSON, fallback to YAML if JSON fails
+        try:
+            document = json.loads(text)
+        except json.JSONDecodeError:
+            try:
+                document = parse_yaml_to_dict(text)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Failed to parse file as JSON or YAML.")
+                
+    if not isinstance(document, dict):
+        raise HTTPException(status_code=400, detail="Invalid OSCAL document structure (must be a JSON object/dictionary).")
+        
+    try:
+        result = await import_document(document, validate=True, workspace_id=ws_id)
+        return result
+    except ImportValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ImportServiceError as e:
+        raise HTTPException(status_code=400, detail=str(e))

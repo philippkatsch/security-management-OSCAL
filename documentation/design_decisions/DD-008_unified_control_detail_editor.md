@@ -1,6 +1,8 @@
 # DD-008: Unified Control Detail Editor Component (`ControlDetailView`)
 
-## Status: Accepted
+**Superseded by DD-030**: The `ControlDetailView` (and its subsequent split into `CatalogControlEditor` / `ProfileControlOverlay`) has been completely replaced by the `UnifiedControlEditor` architecture documented in [DD-030](DD-030_unified_control_editor.md).
+
+## Status: Superseded
 ## Date: 2026-07-19
 ## Decision Makers: Development Team
 

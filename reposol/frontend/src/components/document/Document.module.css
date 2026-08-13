@@ -1,0 +1,436 @@
+/* ─── Import Wizard ──────────────────────────────────────────── */
+  .import-panel {
+    max-width: 800px;
+    height: 80vh;
+  }
+  
+  .import-tabs {
+    display: flex;
+    background: var(--color-surface-2);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 24px;
+  }
+  
+  .import-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--color-text-muted);
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  
+  .import-tab:hover {
+    color: var(--color-text);
+  }
+  
+  .import-tab.active {
+    color: var(--color-accent-hover);
+    border-bottom-color: var(--color-accent);
+  }
+  
+  .import-registry {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+  
+  .import-filters {
+    padding: 20px 24px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-bottom: 1px solid var(--color-border-subtle);
+    background: var(--color-surface);
+  }
+  
+  .filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .chip {
+    padding: 5px 12px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .chip:hover {
+    border-color: var(--color-text-muted);
+    color: var(--color-text);
+  }
+  
+  .chip.active {
+    background: var(--color-accent-bg);
+    border-color: var(--color-accent);
+    color: var(--color-accent-hover);
+  }
+  
+  .registry-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .registry-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-base);
+  }
+  
+  .registry-entry:hover {
+    border-color: var(--color-border);
+    background: var(--color-surface-3);
+    transform: translateY(-1px);
+  }
+  
+  .registry-entry-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  
+  .registry-entry-body {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .registry-entry-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  
+  .source-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    letter-spacing: 0.3px;
+  }
+  
+  .registry-entry-desc {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+  }
+  
+  .registry-result {
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  
+  .registry-result.ok {
+    color: var(--color-success);
+  }
+  
+  .registry-result.err {
+    color: var(--color-danger);
+  }
+  
+  .btn-import {
+    align-self: center;
+    padding: 6px 14px;
+    background: var(--color-accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-width: 80px;
+  }
+  
+  .btn-import:hover:not(:disabled) {
+    background: var(--color-accent-hover);
+  }
+  
+  .btn-import.imported {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    cursor: default;
+  }
+  
+  .btn-import:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  .spinner-sm {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+  
+  .import-url-tab {
+    gap: 16px;
+  }
+  
+  .field-hint {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+  }
+  
+  .example-urls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  
+  .example-url-btn {
+    text-align: left;
+    font-size: 12px;
+    padding: 8px 12px;
+    background: var(--color-surface-2);
+    border-color: var(--color-border-subtle);
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .example-url-btn:hover {
+    background: var(--color-surface-3);
+    border-color: var(--color-border);
+  }
+  
+  .btn-import-hero {
+    margin-left: auto;
+    align-self: center;
+  }
+  
+  /* ─── Raw JSON Editor Workspace ───────────────────────────────── */
+  .json-editor-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    background: var(--color-bg);
+    gap: 16px;
+    overflow: hidden;
+    height: 100%;
+  }
+  
+  .json-editor-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  
+  .workspace-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    letter-spacing: 0.5px;
+  }
+  
+  .json-editor-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 450px;
+    padding: 18px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  .json-editor-textarea:focus {
+    border-color: var(--color-accent);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3), var(--shadow-glow);
+  }
+  
+  .json-error-banner,
+  .schema-error-banner,
+  .validation-success-banner {
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    line-height: 1.4;
+    flex-shrink: 0;
+  }
+  
+  .json-error-banner {
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger);
+  }
+  
+  .schema-error-banner {
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning);
+    color: var(--color-warning);
+  }
+  
+  .schema-error-banner pre {
+    margin-top: 6px;
+    white-space: pre-wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--color-text);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-subtle);
+  }
+  
+  .validation-success-banner {
+    background: var(--color-success-bg);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+  }
+  
+  /* ─── Workflow Pipeline ──────────────────────────────────────── */
+  .workflow-pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    padding: 20px 4px;
+    overflow-x: auto;
+    margin-bottom: 24px;
+  }
+  
+  .workflow-step-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .workflow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 12px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    flex: 1;
+    min-width: 80px;
+    text-align: center;
+    position: relative;
+  }
+  
+  .workflow-step:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-accent);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .workflow-step.has-docs {
+    border-color: var(--color-accent);
+    background: var(--color-accent-bg);
+  }
+  
+  .workflow-step.has-docs::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--color-accent);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+  
+  .workflow-icon {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+  }
+  
+  .workflow-label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--color-text);
+  }
+  
+  .workflow-count {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin: 2px 0;
+  }
+  
+  .workflow-desc {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    line-height: 1.3;
+  }
+  
+  .workflow-arrow {
+    font-size: 1.2rem;
+    color: var(--color-text-subtle);
+    padding: 0 6px;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  
+  /* ─── Validation Result ──────────────────────────────────────── */
+  .validation-result {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+  
+  .validation-result.valid {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    border-color: rgba(63, 185, 80, 0.3);
+  }
+  
+  .validation-result.invalid {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+    border-color: rgba(248, 81, 73, 0.3);
+  }

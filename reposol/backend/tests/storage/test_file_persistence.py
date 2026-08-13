@@ -67,17 +67,20 @@ class TestIsSafeSubdir:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestGetStageDir:
-    def test_valid_stage_creates_dir(self, isolated_data_dir):
-        stage_dir = get_stage_dir("catalogs")
+    @pytest.mark.asyncio
+    async def test_valid_stage_creates_dir(self, isolated_data_dir):
+        stage_dir = await get_stage_dir("catalogs")
         assert os.path.isdir(stage_dir)
 
-    def test_traversal_attempt_parent_dir(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_traversal_attempt_parent_dir(self, isolated_data_dir):
         with pytest.raises(ValueError, match="Directory traversal"):
-            get_stage_dir("../outside")
+            await get_stage_dir("../outside")
 
-    def test_traversal_attempt_to_root(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_traversal_attempt_to_root(self, isolated_data_dir):
         with pytest.raises(ValueError, match="Directory traversal"):
-            get_stage_dir("catalogs/..")
+            await get_stage_dir("catalogs/..")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -85,31 +88,35 @@ class TestGetStageDir:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestListDocuments:
-    def test_empty_stage_returns_empty_list(self, isolated_data_dir):
-        result = list_documents("catalogs")
+    @pytest.mark.asyncio
+    async def test_empty_stage_returns_empty_list(self, isolated_data_dir):
+        result = await list_documents("catalogs")
         assert result == []
 
-    def test_lists_saved_documents(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_lists_saved_documents(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc = {"catalog": {"uuid": doc_id, "title": "Test"}}
-        save_document("catalogs", doc_id, doc)
-        result = list_documents("catalogs")
+        await save_document("catalogs", doc_id, doc, skip_validation=True)
+        result = await list_documents("catalogs")
         assert len(result) == 1
         assert result[0]["catalog"]["uuid"] == doc_id
 
-    def test_skips_non_uuid_filenames(self, isolated_data_dir):
-        stage_dir = get_stage_dir("catalogs")
+    @pytest.mark.asyncio
+    async def test_skips_non_uuid_filenames(self, isolated_data_dir):
+        stage_dir = await get_stage_dir("catalogs")
         with open(os.path.join(stage_dir, "README.json"), "w") as f:
             json.dump({"note": "not a document"}, f)
-        result = list_documents("catalogs")
+        result = await list_documents("catalogs")
         assert result == []
 
-    def test_skips_corrupted_json_files(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_skips_corrupted_json_files(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
-        stage_dir = get_stage_dir("catalogs")
+        stage_dir = await get_stage_dir("catalogs")
         with open(os.path.join(stage_dir, f"{doc_id}.json"), "w") as f:
             f.write("{ not valid json }")
-        result = list_documents("catalogs")
+        result = await list_documents("catalogs")
         assert result == []
 
 
@@ -118,27 +125,31 @@ class TestListDocuments:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestGetDocument:
-    def test_get_existing_document(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_get_existing_document(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc = {"catalog": {"uuid": doc_id, "title": "Existing Doc"}}
-        save_document("catalogs", doc_id, doc)
-        result = get_document("catalogs", doc_id)
+        await save_document("catalogs", doc_id, doc, skip_validation=True)
+        result, _ = await get_document("catalogs", doc_id)
         assert result["catalog"]["title"] == "Existing Doc"
 
-    def test_get_nonexistent_document_raises_file_not_found(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_get_nonexistent_document_raises_file_not_found(self, isolated_data_dir):
         missing_id = str(uuid.uuid4())
         with pytest.raises(FileNotFoundError):
-            get_document("catalogs", missing_id)
+            await get_document("catalogs", missing_id)
 
-    def test_get_invalid_uuid_raises_value_error(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_get_invalid_uuid_raises_value_error(self, isolated_data_dir):
         with pytest.raises(ValueError, match="Invalid document UUID format"):
-            get_document("catalogs", "not-a-uuid")
+            await get_document("catalogs", "not-a-uuid")
 
-    def test_get_traversal_blocked_with_patched_uuid(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_get_traversal_blocked_with_patched_uuid(self, isolated_data_dir):
         traversal_id = "../../../etc/passwd"
         with patch("app.storage.is_valid_uuid", return_value=True):
             with pytest.raises(ValueError, match="Directory traversal"):
-                get_document("catalogs", traversal_id)
+                await get_document("catalogs", traversal_id)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -146,22 +157,25 @@ class TestGetDocument:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestSaveDocument:
-    def test_save_new_document_returns_false(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_save_new_document_returns_false(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc = {"catalog": {"uuid": doc_id}}
-        existed = save_document("catalogs", doc_id, doc)
+        _, _, existed = await save_document("catalogs", doc_id, doc, skip_validation=True)
         assert existed is False
 
-    def test_save_existing_document_returns_true(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_save_existing_document_returns_true(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
         doc = {"catalog": {"uuid": doc_id}}
-        save_document("catalogs", doc_id, doc)
-        existed = save_document("catalogs", doc_id, doc)
+        await save_document("catalogs", doc_id, doc, skip_validation=True)
+        _, _, existed = await save_document("catalogs", doc_id, doc, skip_validation=True)
         assert existed is True
 
-    def test_save_invalid_uuid_raises_value_error(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_save_invalid_uuid_raises_value_error(self, isolated_data_dir):
         with pytest.raises(ValueError, match="Invalid document UUID format"):
-            save_document("catalogs", "bad-uuid", {"catalog": {}})
+            await save_document("catalogs", "bad-uuid", {"catalog": {}}, skip_validation=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -169,24 +183,27 @@ class TestSaveDocument:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestDeleteDocument:
-    def test_delete_existing_document(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_delete_existing_document(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
-        save_document("catalogs", doc_id, {"catalog": {"uuid": doc_id}})
-        delete_document("catalogs", doc_id)
+        await save_document("catalogs", doc_id, {"catalog": {"uuid": doc_id}}, skip_validation=True)
+        await delete_document("catalogs", doc_id)
         with pytest.raises(FileNotFoundError):
-            get_document("catalogs", doc_id)
+            _, _ = await get_document("catalogs", doc_id)
 
-    def test_delete_nonexistent_raises_file_not_found(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_raises_file_not_found(self, isolated_data_dir):
         with pytest.raises(FileNotFoundError):
-            delete_document("catalogs", str(uuid.uuid4()))
+            await delete_document("catalogs", str(uuid.uuid4()))
 
-    def test_delete_removes_file_from_disk(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_delete_removes_file_from_disk(self, isolated_data_dir):
         doc_id = str(uuid.uuid4())
-        save_document("catalogs", doc_id, {"catalog": {"uuid": doc_id}})
-        stage_dir = get_stage_dir("catalogs")
+        await save_document("catalogs", doc_id, {"catalog": {"uuid": doc_id}}, skip_validation=True)
+        stage_dir = await get_stage_dir("catalogs")
         file_path = os.path.join(stage_dir, f"{doc_id}.json")
         assert os.path.exists(file_path)
-        delete_document("catalogs", doc_id)
+        await delete_document("catalogs", doc_id)
         assert not os.path.exists(file_path)
 
 
@@ -195,7 +212,8 @@ class TestDeleteDocument:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestSyncMasterTemplates:
-    def test_sync_copies_files_from_seed_to_templates(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_sync_copies_files_from_seed_to_templates(self, tmp_path):
         seed_dir = tmp_path / "seed"
         data_dir = tmp_path / "data"
         templates_dir = data_dir / "workspaces" / "default"
@@ -213,7 +231,7 @@ class TestSyncMasterTemplates:
             with patch.dict(os.environ, {"PYTEST_CURRENT_TEST": ""}):
                 with patch("app.storage.TEMPLATES_DIR", str(templates_dir)):
                     with patch("app.storage.DATA_DIR", str(data_dir)):
-                        sync_master_templates()
+                        await sync_master_templates()
 
         target_file = templates_dir / "catalogs" / "sample.json"
         assert target_file.exists()

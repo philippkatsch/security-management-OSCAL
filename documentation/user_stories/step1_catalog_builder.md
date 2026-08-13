@@ -124,7 +124,7 @@
     *   **Unified Icon Taxonomy (Option A):** 
         *   `🏷️` reserved strictly for **Properties** (sidebar tab, Property Hub cards, property pills, Add Property buttons).
         *   `⚙️` reserved strictly for **Parameters** (sidebar tab, Add Parameter button).
-        *   `🔧` reserved for **Property Advanced Settings** (`PropsEditor.jsx` wrench popup).
+        *   `🔧` reserved for **Property Advanced Settings** (`PropsEditor.tsx` wrench popup).
 > **Note (2026-07-22):** Standardized button label to `➕ Add Header Property` and added hover tooltips explaining Header Property vs. Element Property behavior.
 
 ### US 1.11: Detailed Editability of Controls & Exit Button in the Catalog

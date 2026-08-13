@@ -98,6 +98,7 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     const sspProfileHref = sspDoc['system-security-plan']['import-profile']?.href;
     console.log('Explicit Profile ID passed:', externalProfileId);
     console.log('Actual SSP import-profile href:', sspProfileHref);
+    expect(sspProfileHref).toBe(`../profiles/${externalProfileId}.json`);
 
     // Test passing explicit sspId to createAssessmentPlan
     const apId = await apiSetup.createAssessmentPlan(externalSspId);
@@ -105,6 +106,7 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     const apSspHref = apDoc['assessment-plan']['import-ssp']?.href;
     console.log('Explicit SSP ID passed:', externalSspId);
     console.log('Actual AP import-ssp href:', apSspHref);
+    expect(apSspHref).toBe(`../ssps/${externalSspId}.json`);
 
     // Test passing explicit apId to createAssessmentResults
     const arId = await apiSetup.createAssessmentResults(externalApId);
@@ -112,6 +114,7 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     const arApHref = arDoc['assessment-results']['import-ap']?.href;
     console.log('Explicit AP ID passed:', externalApId);
     console.log('Actual AR import-ap href:', arApHref);
+    expect(arApHref).toBe(`../assessment-plans/${externalApId}.json`);
 
     // Test passing explicit sspId & arId to createPoam
     const poamId = await apiSetup.createPoam(externalSspId, externalArId);
@@ -119,6 +122,7 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     const poamSspHref = poamDoc['plan-of-action-and-milestones']['import-ssp']?.href;
     console.log('Explicit SSP ID passed to POA&M:', externalSspId);
     console.log('Actual POA&M import-ssp href:', poamSspHref);
+    expect(poamSspHref).toBe(`../ssps/${externalSspId}.json`);
 
     await apiSetup.cleanup();
   });
@@ -160,7 +164,7 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
 
     // Get baseline document counts per stage BEFORE creating test documents
     const reqBaseline = await request.newContext({
-      baseURL: 'http://127.0.0.1:1001',
+      baseURL: 'http://127.0.0.1:1000',
       extraHTTPHeaders: { 'X-Workspace-ID': setup.workspaceId }
     });
 
@@ -198,7 +202,7 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
 
     // Query backend for document count after cleanup
     const checkReq = await request.newContext({
-      baseURL: 'http://127.0.0.1:1001',
+      baseURL: 'http://127.0.0.1:1000',
       extraHTTPHeaders: { 'X-Workspace-ID': setup.workspaceId }
     });
 

@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 import os
 import uuid
@@ -112,7 +113,7 @@ def test_api_setup_stress_across_all_8_stages():
         assert res.status_code in (200, 201), f"Failed POST for {route_stage}: {res.text}"
 
         # Verify disk file exists
-        stage_dir = get_stage_dir(norm_stage, workspace_id=ws_id)
+        stage_dir = asyncio.run(get_stage_dir(norm_stage, workspace_id=ws_id))
         doc_file = os.path.join(stage_dir, f"{doc_uuid}.json")
         assert os.path.exists(doc_file), f"File {doc_file} does not exist on backend disk"
 

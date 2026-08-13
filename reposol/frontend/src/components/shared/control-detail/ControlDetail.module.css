@@ -1,0 +1,31 @@
+.control-detail-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.control-detail-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.profile-control-overlay {
+  position: relative;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.control-param-insert {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.profile-part-editor {
+  margin-top: 12px;
+}
+
+.section-container {
+  margin-bottom: 20px;
+}

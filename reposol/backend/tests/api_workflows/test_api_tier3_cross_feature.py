@@ -54,7 +54,8 @@ class TestTier3CrossFeatureCombinations:
         exported = res_export.json()
         assert exported["profile"]["modify"]["set-parameters"][0]["values"] == ["14"]
 
-    def test_t3_02_multi_param_control_resolution_and_schema_val(self, client):
+    @pytest.mark.asyncio
+    async def test_t3_02_multi_param_control_resolution_and_schema_val(self, client):
         """T3-02: Multi-Parameter Control Resolution & Schema Validation Post-Override."""
         cat_doc = CatalogFactory.build(
             controls=[
@@ -108,8 +109,8 @@ class TestTier3CrossFeatureCombinations:
         assert rendered == "Review accounts every 60 days. Inactive action: disable. MFA: token, biometric."
 
         # Exported profile passes NIST schema check
-        val_doc = preprocess_profile_for_saving(saved_prof, persist_local_catalog=False)
-        validate_document("profiles", val_doc)
+        val_doc = await preprocess_profile_for_saving(saved_prof, persist_local_catalog=False)
+        await validate_document("profiles", val_doc)
 
     def test_t3_03_revert_profile_override_prose_fallback(self, client):
         """T3-03: Revert Profile Override and Verify Prose Fallback."""

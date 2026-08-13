@@ -37,7 +37,8 @@ def test_normalize_replacement_part_ids():
     assert profile["modify"]["alters"][0]["adds"][0]["parts"][0]["id"] == "ac-1_smt_modified"
 
 
-def test_default_structure_lifecycle():
+@pytest.mark.asyncio
+async def test_default_structure_lifecycle():
     profile_doc = {
         "profile": {
             "uuid": str(uuid.uuid4()),
@@ -54,7 +55,7 @@ def test_default_structure_lifecycle():
         }
     }
     # Preprocess
-    saved = preprocess_profile_for_saving(profile_doc, persist_local_catalog=False)
+    saved = await preprocess_profile_for_saving(profile_doc, persist_local_catalog=False)
     props = saved["profile"]["metadata"]["props"]
     assert any(p["name"] == "default-structure" and p["value"] == "flat" for p in props)
     # Since merge.custom is empty after popping defaultStructure and has no groups,
@@ -62,11 +63,12 @@ def test_default_structure_lifecycle():
     assert "custom" not in saved["profile"]["merge"]
     
     # Postprocess
-    loaded = postprocess_profile_for_loading(saved)
+    loaded = await postprocess_profile_for_loading(saved)
     assert loaded["profile"]["merge"]["custom"]["defaultStructure"] == "flat"
 
 
-def test_mutually_exclusive_merge_keys():
+@pytest.mark.asyncio
+async def test_mutually_exclusive_merge_keys():
     # If "flat" is in merge, it should pop "as-is" and "custom"
     profile_doc_flat = {
         "profile": {
@@ -78,7 +80,7 @@ def test_mutually_exclusive_merge_keys():
             }
         }
     }
-    saved_flat = preprocess_profile_for_saving(profile_doc_flat, persist_local_catalog=False)
+    saved_flat = await preprocess_profile_for_saving(profile_doc_flat, persist_local_catalog=False)
     assert "flat" in saved_flat["profile"]["merge"]
     assert "as-is" not in saved_flat["profile"]["merge"]
     assert "custom" not in saved_flat["profile"]["merge"]
@@ -93,7 +95,7 @@ def test_mutually_exclusive_merge_keys():
             }
         }
     }
-    saved_custom = preprocess_profile_for_saving(profile_doc_custom, persist_local_catalog=False)
+    saved_custom = await preprocess_profile_for_saving(profile_doc_custom, persist_local_catalog=False)
     assert "custom" in saved_custom["profile"]["merge"]
     assert "as-is" not in saved_custom["profile"]["merge"]
     assert "flat" not in saved_custom["profile"]["merge"]
@@ -108,13 +110,14 @@ def test_mutually_exclusive_merge_keys():
             }
         }
     }
-    saved_custom_empty = preprocess_profile_for_saving(profile_doc_custom_empty, persist_local_catalog=False)
+    saved_custom_empty = await preprocess_profile_for_saving(profile_doc_custom_empty, persist_local_catalog=False)
     assert "as-is" in saved_custom_empty["profile"]["merge"]
     assert "custom" not in saved_custom_empty["profile"]["merge"]
     assert "flat" not in saved_custom_empty["profile"]["merge"]
 
 
-def test_strip_with_child_controls():
+@pytest.mark.asyncio
+async def test_strip_with_child_controls():
     profile_doc = {
         "profile": {
             "uuid": str(uuid.uuid4()),
@@ -126,5 +129,5 @@ def test_strip_with_child_controls():
             ]
         }
     }
-    saved = preprocess_profile_for_saving(profile_doc, persist_local_catalog=False)
+    saved = await preprocess_profile_for_saving(profile_doc, persist_local_catalog=False)
     assert "with-child-controls" not in saved["profile"]["imports"][0]

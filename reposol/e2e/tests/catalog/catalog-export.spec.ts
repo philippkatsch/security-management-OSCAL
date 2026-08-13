@@ -2,9 +2,10 @@ import { test, expect } from '../../fixtures/base';
 
 test.describe('Catalog Export', () => {
   test('export catalog as JSON', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const uuid = await apiSetup.createCatalog({ title: 'Export JSON Catalog' });
     
-    await page.goto(`/catalog/${uuid}`);
+    await page.goto(`/catalogs/${uuid}?w=${apiSetup.workspaceId}`);
     
     const exportBtn = page.getByRole('button', { name: /export/i });
     if (await exportBtn.isVisible()) {
@@ -19,9 +20,10 @@ test.describe('Catalog Export', () => {
   });
 
   test('export catalog as YAML', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const uuid = await apiSetup.createCatalog({ title: 'Export YAML Catalog' });
     
-    await page.goto(`/catalog/${uuid}`);
+    await page.goto(`/catalogs/${uuid}?w=${apiSetup.workspaceId}`);
     
     const exportBtn = page.getByRole('button', { name: /export/i });
     if (await exportBtn.isVisible()) {
@@ -36,9 +38,10 @@ test.describe('Catalog Export', () => {
   });
 
   test('export catalog as XML', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const uuid = await apiSetup.createCatalog({ title: 'Export XML Catalog' });
     
-    await page.goto(`/catalog/${uuid}`);
+    await page.goto(`/catalogs/${uuid}?w=${apiSetup.workspaceId}`);
     
     const exportBtn = page.getByRole('button', { name: /export/i });
     if (await exportBtn.isVisible()) {

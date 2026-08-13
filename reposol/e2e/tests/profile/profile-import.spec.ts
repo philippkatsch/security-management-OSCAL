@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/base';
 
 test.describe('Profile Import', () => {
   test('import catalog into profile shows controls', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const groups = [
       {
         id: 'ac',
@@ -22,9 +23,15 @@ test.describe('Profile Import', () => {
       catalogUuid: catUuid
     });
     
-    await page.goto(`/profile/${profUuid}`);
+    await page.goto(`/profiles/${profUuid}?w=${apiSetup.workspaceId}`);
     
-    await page.getByText('Access Control').first().click();
-    await expect(page.getByText('Policy and Procedures').first()).toBeVisible();
+    const groupNode = page.locator('[data-testid="tree-node-ac"], [data-testid^="tree-node-"]').first();
+    await expect(groupNode).toBeVisible({ timeout: 15000 });
+    await groupNode.click();
+    const controlItem = page.getByText('Policy and Procedures').first();
+    if (!await controlItem.isVisible()) {
+      await groupNode.locator('span').first().click();
+    }
+    await expect(controlItem).toBeVisible({ timeout: 15000 });
   });
 });

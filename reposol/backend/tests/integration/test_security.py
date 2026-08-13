@@ -2,7 +2,7 @@
 Integration tests for application security, directory traversal prevention, and UUID injection (US Stage/Security).
 """
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 class TestSecurityIntegration:
 
@@ -52,7 +52,7 @@ class TestSecurityIntegration:
         traversal_doc_id = "a123bcde-1234-5678-abcd-000000000001\\..\\..\\etc\\passwd"
         
         # Patch is_valid_uuid in routes and storage to return True
-        with patch("app.routes.is_valid_uuid", return_value=True), \
+        with patch("app.api.document_routes.is_valid_uuid", return_value=True), \
              patch("app.storage.is_valid_uuid", return_value=True):
             
             res = client.get(f"/api/documents/catalogs/{traversal_doc_id}")
@@ -74,9 +74,9 @@ class TestSecurityIntegration:
             }
         }
         
-        with patch("app.routes.is_valid_uuid", return_value=True), \
+        with patch("app.api.document_routes.is_valid_uuid", return_value=True), \
              patch("app.storage.is_valid_uuid", return_value=True), \
-             patch("app.routes.validate_document", return_value=None):
+             patch("app.services.document_service.validate_document", new_callable=AsyncMock):
             
             res = client.post(f"/api/documents/catalogs", json=doc)
             assert res.status_code == 400
@@ -86,7 +86,7 @@ class TestSecurityIntegration:
         """Verify that even if UUID validation is mocked/bypassed, delete_document blocks traversal."""
         traversal_doc_id = "a123bcde-1234-5678-abcd-000000000001\\..\\..\\etc\\passwd"
         
-        with patch("app.routes.is_valid_uuid", return_value=True), \
+        with patch("app.api.document_routes.is_valid_uuid", return_value=True), \
              patch("app.storage.is_valid_uuid", return_value=True):
             
             res = client.delete(f"/api/documents/catalogs/{traversal_doc_id}")

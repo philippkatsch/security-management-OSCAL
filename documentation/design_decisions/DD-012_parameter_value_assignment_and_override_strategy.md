@@ -18,7 +18,7 @@ Previously, parameter editing lacked explicit architectural rules for:
 1. **Catalog vs. Profile UX Parity:** How parameter value fields, choice selection dropdowns, and validation constraint displays function across `mode="catalog"` and `mode="profile"`.
 2. **Dual-Mode Choice Dropdown & `values[]` Synchronization:** How selecting an item from `select.choice` maps to the OSCAL `values[]` array vs custom value entry.
 3. **OSCAL Schema Serialization & Purging Strategy:** OSCAL JSON schema requires `minItems: 1` for arrays (`values`, `select.choice`, `set-parameters`). Empty arrays (`values: []`, `set-parameters: []`) cause schema validation failures.
-4. **Resolution Engine Merging Rules:** How `profile-resolver.js` merges `modify.set-parameters` override objects with source catalog parameters during `resolveProfileSync()`.
+4. **Resolution Engine Merging Rules:** How `resolution_service.py` merges `modify.set-parameters` override objects with source catalog parameters during `resolve_profile()`.
 
 ## Decisions
 
@@ -28,7 +28,7 @@ Previously, parameter editing lacked explicit architectural rules for:
 > - **Assessment Plans (Step 5):** AP local parameters in `local-definitions` use a standalone parameter editor without catalog/profile inheritance context.
 
 ### 1. Parameter Card & Editor UX in Catalog vs. Profile Modes
-We extend `ParameterEditor.jsx` and `ControlDetailView.jsx` to use a polymorphic data binding adapter:
+We extend `ParameterEditor.tsx` and `UnifiedControlEditor` to use a polymorphic data binding adapter:
 
 - **Catalog Mode (`mode="catalog"`):**
   - Parameter changes directly mutate the source parameter object (`catalog.params`, `group.params`, or `control.params`).
@@ -73,8 +73,8 @@ To guarantee 100% NIST OSCAL schema compliance (`minItems: 1` constraint):
   - If all override fields for a `param-id` are reverted to default, the entire entry is removed from `modify.set-parameters[]`.
   - Prior to profile JSON serialization, a global purge helper (`remove_empty_arrays`) cleans empty `set-parameters` arrays (`"set-parameters": []`) and empty nested arrays.
 
-### 4. Profile Resolution Engine (`profile-resolver.js`) Override Merging Rules
-During `resolveProfileSync()`, when compiling the resolved catalog:
+### 4. Profile Resolution Engine (`resolution_service.py`) Override Merging Rules
+During backend resolution (`resolve_profile()`), when compiling the resolved catalog:
 
 1. **Parameter Lookup & Indexing:**
    - The engine builds an override map from `profile.modify.set-parameters[]` indexed by `param-id`.
@@ -133,6 +133,6 @@ To prevent orphan parameter references and broken prose placeholders:
 
 - **Architectural & Visual Clarity:** Establishes explicit visual separation in `ParameterCard` between assigning parameter values vs. adapting parameter definitions/metadata.
 - **Zero Schema Failures:** Eliminates `minItems: 1` validation errors across Catalog and Profile documents by enforcing automatic purging of empty arrays.
-- **UI Parity:** Provides unified rendering components in `ControlDetailView.jsx` and `ParameterEditor.jsx` for both catalog creation and profile baseline tailoring.
-- **Predictable Resolution:** Standardized merging logic in `profile-resolver.js` ensures resolved catalogs accurately reflect baseline overrides.
+- **UI Parity:** Provides unified rendering components in `UnifiedControlEditor` and `ParameterEditor.tsx` for both catalog creation and profile baseline tailoring.
+- **Predictable Resolution:** Standardized merging logic in `resolution_service.py` ensures resolved catalogs accurately reflect baseline overrides.
 - **OSCAL Compliant Removal & Deletion Safety:** Fully supports catalog parameter removal via `alter.removes` while guaranteeing deletion safety against referenced parameters.

@@ -184,7 +184,7 @@ Each step of the security lifecycle is described in detail in a separate file:
 > **I want to** see a visual indicator (construction site symbol 🚧 / "Under Development" badge) on the OSCAL lifecycle elements whose specialized editors/viewers are still in development (Component Definitions, SSP, Assessment Plans, Assessment Results, POA&M, Control Mappings),  
 > **so that** it is immediately transparent which OSCAL stages are already fully implemented (Catalogs, Profiles) and which are still under active development.
 - [ ] **Dashboard Pipeline Cards:** The pipeline steps in the OSCAL Lifecycle Pipeline Dashboard for `Component Definitions`, `SSP`, `Assessment Plans`, `Assessment Results`, `POA&M`, and `Control Mappings` show a clear 🚧 construction site symbol as well as a yellow/discrete `In Dev` badge on the card.
-- [ ] **Sidebar Navigation:** In the navigation (`Navigation.jsx`), a subtle 🚧 construction site symbol is displayed next to the incomplete work stages in the label or as a badge, including an understandable tooltip ("Under Active Development").
+- [ ] **Sidebar Navigation:** In the navigation (`Navigation.tsx`), a subtle 🚧 construction site symbol is displayed next to the incomplete work stages in the label or as a badge, including an understandable tooltip ("Under Active Development").
 - [ ] **Stage Header Warning Banner:** When opening a work stage whose specialized editor is not yet finished (Components, SSPs, Assessment Plans, Assessment Results, POA&Ms, Control Mappings), an informative warning banner is displayed at the top of the screen ("🚧 This OSCAL editor is currently under development. Basic JSON editing is available.").
 
 ### US 0.13: Master Templates Admin Mode & Automatic User Workspace Seeding
@@ -275,7 +275,7 @@ Each step of the security lifecycle is described in detail in a separate file:
 > **As a** compliance officer (Alice)  
 > **I want to** manage postal addresses (including street, city, postal code, country), external identifiers, and location associations for parties and locations in the metadata editor,  
 > **so that** the organizational master data of the compliance document is fully and schema-compliantly captured.
-- [ ] The metadata editor (`MetadataEditor.jsx`) allows the input of addresses (`addresses`) for parties and locations (fields: `addr-lines`, `city`, `postal-code`, `country`).
+- [ ] The metadata editor (`MetadataEditor.tsx`) allows the input of addresses (`addresses`) for parties and locations (fields: `addr-lines`, `city`, `postal-code`, `country`).
 - [ ] Parties can be assigned external identifiers (`external-ids` with system and identifier) and location associations (`location-uuids`) via a UI input/selection field.
 - [ ] All captured address data is correctly saved in the OSCAL document.
 
@@ -283,7 +283,7 @@ Each step of the security lifecycle is described in detail in a separate file:
 > **As a** compliance officer (Alice)  
 > **I want to** define dependencies between parameters,  
 > **so that** logical relationships and preconditions between control specifications are declared in a machine-readable manner.
-- [ ] The parameter editor (`ParameterEditor.jsx`) offers an input option for dependencies (`depends-on` with referenced parameter ID) in editing mode.
+- [ ] The parameter editor (`ParameterEditor.tsx`) offers an input option for dependencies (`depends-on` with referenced parameter ID) in editing mode.
 - [ ] The dependencies are stored in the OSCAL document under the parameter object.
 
 ### US 0.22: Sidebar-Centric Navigation and Dashboard Overview for Catalog and Profile Editors
@@ -315,7 +315,7 @@ Each step of the security lifecycle is described in detail in a separate file:
     - [ ] Four metric cards: `Family ID`, `Controls` (direct count), `Sub-groups` (number of direct subfolders), `Total (incl. enhancements)` (recursive total count of all controls in this group).
     - [ ] A `SUB-GROUPS` section with a list of all direct subgroups (including folder icon, title, and control count) and interactive click navigation.
     - [ ] A `CONTROLS` section with a list of all direct controls and interactive click navigation.
-- [ ] **Control Detail View (ControlDetailView):** When a control is selected, the right area shows:
+- [ ] **Control Detail View (UnifiedControlEditor):** When a control is selected, the right area shows:
     - [ ] Breadcrumbs: `Overview / [Path of Parent Groups...] / [Control Title]`.
     - [ ] Control title with hexagon icon: `⬡ [Control Title]`.
     - [ ] Subline with Control ID and Class badge (if defined).
@@ -340,13 +340,13 @@ Each step of the security lifecycle is described in detail in a separate file:
 - [ ] **Real-Time Form Field Validation:** Fields in the `MetadataEditor` (and other UI forms) validate their values against OSCAL format requirements (e.g., ISO 8601 Date `YYYY-MM-DDTHH:MM:SSZ` for `published` and `last-modified`, email syntax for `email-addresses`, UUIDv4 for UUID fields).
 - [ ] **Visual Feedback:** Invalid entries are visually highlighted (red border around the input field, red helper text below the field with the expected format).
 - [ ] **Automatic Purging of Empty Values:** If optional date fields (such as `published`) are cleared/emptied in the UI form, the property is removed from the document object instead of submitting an empty string `""`, which would violate schema validation.
-- [ ] **Responsible Parties in MetadataEditor:** The `MetadataEditor.jsx` provides a dedicated `Responsible Parties` section where one or more persons/organizations (`party.uuid`) can be assigned to a role (`role.id`) via interactive selectors.
-- [ ] **Global Metadata Properties & Links:** The `MetadataEditor.jsx` embeds the `PropsEditor` and `LinksEditor` so that document-wide metadata properties (`metadata.props`) and reference links (`metadata.links`) can be visually managed.
-- [ ] **Nested Metadata Entities:** Support for nested `props`, `links`, and `remarks` at the level of roles, parties, and locations in `MetadataEditor.jsx`.
-- [ ] **Revision History (`metadata.revisions`):** The `MetadataEditor.jsx` includes a section for capturing and displaying the formal OSCAL revision history (`revisions` with title, date, version, OSCAL version, and remarks).
-- [ ] **Parameter Remarks (`param.remarks`):** The `ParameterCard.jsx` component includes an input field for remarks (`remarks`) at the parameter level in the *Advanced & Optional Metadata* section.
-- [ ] **Resource Links, Remarks & Document-IDs (`back-matter.resources`):** The `BackMatterEditor.jsx` component includes the `LinksEditor` for resource links (`resource.links`), a remarks field (`resource.remarks`), and support for `document-ids` and citation properties for each resource.
-- [ ] **Profile Alter Removal Remarks (`alter.remove.remarks`):** The `ModifyPanel.jsx` component supports remarks for removed statement/property objects in profiles.
+- [ ] **Responsible Parties in MetadataEditor:** The `MetadataEditor.tsx` provides a dedicated `Responsible Parties` section where one or more persons/organizations (`party.uuid`) can be assigned to a role (`role.id`) via interactive selectors.
+- [ ] **Global Metadata Properties & Links:** The `MetadataEditor.tsx` embeds the `PropsEditor` and `LinksEditor` so that document-wide metadata properties (`metadata.props`) and reference links (`metadata.links`) can be visually managed.
+- [ ] **Nested Metadata Entities:** Support for nested `props`, `links`, and `remarks` at the level of roles, parties, and locations in `MetadataEditor.tsx`.
+- [ ] **Revision History (`metadata.revisions`):** The `MetadataEditor.tsx` includes a section for capturing and displaying the formal OSCAL revision history (`revisions` with title, date, version, OSCAL version, and remarks).
+- [ ] **Parameter Remarks (`param.remarks`):** The `ParameterCard.tsx` component includes an input field for remarks (`remarks`) at the parameter level in the *Advanced & Optional Metadata* section.
+- [ ] **Resource Links, Remarks & Document-IDs (`back-matter.resources`):** The `BackMatterEditor.tsx` component includes the `LinksEditor` for resource links (`resource.links`), a remarks field (`resource.remarks`), and support for `document-ids` and citation properties for each resource.
+- [ ] **Profile Alter Removal Remarks (`alter.remove.remarks`):** The `ModifyPanel.tsx` component supports remarks for removed statement/property objects in profiles.
 - [ ] **Schema Conformity:** All added/edited fields remain 100% valid against the official NIST OSCAL JSON schemas in the backend.
 
 ### US 0.25: Session-Isolated Anonymous Workspaces & Docker Containerized Deployment
@@ -355,7 +355,7 @@ Each step of the security lifecycle is described in detail in a separate file:
 > **so that** multiple online testers do not overwrite each other's documents and the system is 100% future-proofed for later user accounts (SaaS).
 > *See also: [DD-015](../design_decisions/DD-015_anonymous_workspace_isolation_and_containerized_deployment.md)*
 - [ ] **Anonymous Session Workspace ID:** Upon the first visit, the frontend automatically generates a session ID (`session-{uuid}`) in `localStorage` and sends it in the `X-Workspace-ID` HTTP header with all API requests.
-- [ ] **Frontend Workspace Integration:** Frontend components (`App.jsx`, `CatalogPage.jsx`, `ProfilePage.jsx`, `SSPPage.jsx`, `MappingPage.jsx`, `ImportWizard.jsx`) use `authFetch` / `getWorkspaceId()` from `lib/api.js` for all API requests (`/api/documents/...`, `/api/import/...`, `/api/validate/...`), so that the `X-Workspace-ID` header is consistently transmitted in all requests in Master Template Mode (`?w=master`) and in anonymous session workspaces.
+- [ ] **Frontend Workspace Integration:** Frontend components (`App.tsx`, `CatalogPage.tsx`, `ProfilePage.tsx`, `SSPPage.tsx`, `MappingPage.tsx`, `ImportWizard.tsx`) use `authFetch` / `getWorkspaceId()` from `lib/api.ts` for all API requests (`/api/documents/...`, `/api/import/...`, `/api/validate/...`), so that the `X-Workspace-ID` header is consistently transmitted in all requests in Master Template Mode (`?w=master`) and in anonymous session workspaces.
 - [ ] **Backend Workspace ID Extraction:** Backend `get_ws_id(request)` in `routes.py` & `import_routes.py` extracts the `?w=` query parameter in addition to `workspace_id` and `workspace` from headers/query parameters.
 - [ ] **Isolated File Storage in the Backend:** The backend saves documents under `reposol/data/workspaces/{workspace_id}/{stage}/` when a workspace ID is provided, and otherwise falls back to the default folder `reposol/data/workspaces/default/{stage}/`.
 - [ ] **Unified Multi-Stage Dockerfile & Security:** A `Dockerfile` in the root directory builds the frontend (`npm run build`) and runs the FastAPI backend. In Stage 2, a dedicated non-root system group and user `reposol` are created, file permissions under `/app` are set to `reposol:reposol`, master templates are copied from `reposol/data/workspaces/default` to `/app/templates_seed`, and the container is run under `USER reposol`.

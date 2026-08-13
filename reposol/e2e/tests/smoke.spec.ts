@@ -50,7 +50,7 @@ test.describe('Smoke Tests', () => {
       '/traceability'
     ];
     for (const route of routes) {
-      await page.goto(route);
+      await page.goto(`${route}?w=${apiSetup.workspaceId}`);
       // Wait for page to load by checking for generic content container or title
       await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       // Verify no generic error text is displayed

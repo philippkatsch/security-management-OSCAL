@@ -104,7 +104,8 @@ class TestM3ChallengerEmpiricalStress:
     # 1. 3-LEVEL PARAMETER CASCADE STRESS TESTS
     # =========================================================================
 
-    def test_parameter_cascade_3_level_precedence(self, client, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_parameter_cascade_3_level_precedence(self, client, isolated_data_dir):
         """
         Empirically verifies the 3-level parameter cascade:
         Catalog default -> Profile override -> SSP Component-level override.
@@ -224,7 +225,7 @@ class TestM3ChallengerEmpiricalStress:
         ssp_doc = build_valid_ssp_dict(ssp_uuid, "Cascade SSP Document", "Cascade Test System", prof_uuid, [comp_item], impl_reqs)
         ssp_doc = remove_empty_arrays(ssp_doc)
 
-        validate_document("ssps", ssp_doc, check_refs=False)
+        await validate_document("ssps", ssp_doc, check_refs=False)
 
         res_ssp = client.post("/api/documents/ssps", json=ssp_doc)
         assert res_ssp.status_code == 201, f"SSP creation failed: {res_ssp.text}"
@@ -238,7 +239,8 @@ class TestM3ChallengerEmpiricalStress:
         assert by_comp["set-parameters"][0]["param-id"] == "ac-1_prm_1"
         assert by_comp["set-parameters"][0]["values"] == ["ssp-component-level-quarterly"]
 
-    def test_parameter_cascade_multiple_component_overrides(self, client, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_parameter_cascade_multiple_component_overrides(self, client, isolated_data_dir):
         """
         Empirically verifies multiple components overriding the same parameter with different values in an SSP.
         """
@@ -293,7 +295,7 @@ class TestM3ChallengerEmpiricalStress:
         ssp_doc = build_valid_ssp_dict(ssp_uuid, "Multi-Comp Cascade SSP", "Multi-Comp System", prof_uuid, components, impl_reqs)
         ssp_doc = remove_empty_arrays(ssp_doc)
 
-        validate_document("ssps", ssp_doc, check_refs=False)
+        await validate_document("ssps", ssp_doc, check_refs=False)
         res_ssp = client.post("/api/documents/ssps", json=ssp_doc)
         assert res_ssp.status_code == 201
 
@@ -308,8 +310,9 @@ class TestM3ChallengerEmpiricalStress:
     # 2. BOUNDARY DIAGRAM BASE64 PAYLOAD STRESS TESTS
     # =========================================================================
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("payload_size_kb", [1, 50, 500])
-    def test_boundary_diagram_base64_payload_handling(self, client, isolated_data_dir, payload_size_kb):
+    async def test_boundary_diagram_base64_payload_handling(self, client, isolated_data_dir, payload_size_kb):
         """
         Empirically verifies boundary diagram Base64 payload uploading (1KB, 50KB, 500KB).
         Checks schema validation, serialization, persistence, and REST API roundtripping.
@@ -362,7 +365,7 @@ class TestM3ChallengerEmpiricalStress:
         ssp_doc = remove_empty_arrays(ssp_doc)
 
         # 1. Direct NIST OSCAL Schema Validation Check
-        validate_document("ssps", ssp_doc, check_refs=False)
+        await validate_document("ssps", ssp_doc, check_refs=False)
 
         # 2. REST API POST Save
         res_post = client.post("/api/documents/ssps", json=ssp_doc)
@@ -381,7 +384,8 @@ class TestM3ChallengerEmpiricalStress:
     # 3. COMPONENT INVENTORY ITEMS STRESS TESTS
     # =========================================================================
 
-    def test_component_inventory_11_oscal_types_and_inventory_binding(self, client, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_component_inventory_11_oscal_types_and_inventory_binding(self, client, isolated_data_dir):
         """
         Empirically verifies component creation across all 11 official OSCAL component types,
         plus binding component inventory items to system components in SSP.
@@ -431,7 +435,7 @@ class TestM3ChallengerEmpiricalStress:
 
         # Validate Schema & Save
         cdef_doc = remove_empty_arrays(cdef_doc)
-        validate_document("component-definitions", cdef_doc)
+        await validate_document("component-definitions", cdef_doc)
         res_cdef = client.post("/api/documents/component-definitions", json=cdef_doc)
         assert res_cdef.status_code == 201
 
@@ -470,7 +474,7 @@ class TestM3ChallengerEmpiricalStress:
         ]
         ssp_doc = remove_empty_arrays(ssp_doc)
 
-        validate_document("ssps", ssp_doc, check_refs=False)
+        await validate_document("ssps", ssp_doc, check_refs=False)
         res_ssp = client.post("/api/documents/ssps", json=ssp_doc)
         assert res_ssp.status_code == 201
 
@@ -485,7 +489,8 @@ class TestM3ChallengerEmpiricalStress:
     # 4. SECURITY INHERITANCE & LEVERAGED AUTHORIZATIONS STRESS TESTS
     # =========================================================================
 
-    def test_security_inheritance_and_leveraged_authorizations(self, client, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_security_inheritance_and_leveraged_authorizations(self, client, isolated_data_dir):
         """
         Empirically verifies security inheritance declarations in SSP:
         `leveraged-authorizations[]`, `by-components[].inherited[]`, `by-components[].satisfied-by[]`.
@@ -540,7 +545,7 @@ class TestM3ChallengerEmpiricalStress:
         ssp_doc = remove_empty_arrays(ssp_doc)
 
         # 1. NIST Schema Validation
-        validate_document("ssps", ssp_doc, check_refs=False)
+        await validate_document("ssps", ssp_doc, check_refs=False)
 
         # 2. REST API Save
         res_post = client.post("/api/documents/ssps", json=ssp_doc)

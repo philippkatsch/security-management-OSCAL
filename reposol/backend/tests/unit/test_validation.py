@@ -210,23 +210,28 @@ class TestValidateDocumentBasic:
         for stage in STAGE_ROOT_KEYS:
             assert stage in SCHEMAS, f"Stage '{stage}' missing from SCHEMAS"
 
-    def test_unknown_stage_raises_value_error(self):
+    @pytest.mark.asyncio
+    async def test_unknown_stage_raises_value_error(self):
         with pytest.raises(ValueError, match="Unknown stage"):
-            validate_document("unknown_stage", {})
+            await validate_document("unknown_stage", {})
 
-    def test_missing_root_key_raises_validation_error(self):
+    @pytest.mark.asyncio
+    async def test_missing_root_key_raises_validation_error(self):
         with pytest.raises(ValidationError, match="Missing required root key"):
-            validate_document("catalogs", {"wrong_key": {}})
+            await validate_document("catalogs", {"wrong_key": {}})
 
-    def test_valid_catalog_passes(self):
+    @pytest.mark.asyncio
+    async def test_valid_catalog_passes(self):
         doc, _ = make_valid_doc("catalog")
-        validate_document("catalogs", doc)
+        await validate_document("catalogs", doc)
 
-    def test_valid_profile_passes(self):
+    @pytest.mark.asyncio
+    async def test_valid_profile_passes(self):
         doc, _ = make_valid_doc("profile", extra={"imports": [{"href": "#test"}]})
-        validate_document("profiles", doc)
+        await validate_document("profiles", doc)
 
-    def test_valid_ssp_passes(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_valid_ssp_passes(self, isolated_data_dir):
         profile_uuid = str(uuid.uuid4())
         write_profile_fixture(isolated_data_dir, profile_uuid)
         comp_uuid = str(uuid.uuid4())
@@ -244,25 +249,30 @@ class TestValidateDocumentBasic:
                 ]
             }
         })
-        validate_document("ssps", doc)
+        await validate_document("ssps", doc)
 
-    def test_valid_component_def_passes(self):
+    @pytest.mark.asyncio
+    async def test_valid_component_def_passes(self):
         doc, _ = make_valid_doc("component-definition")
-        validate_document("component-definitions", doc)
+        await validate_document("component-definitions", doc)
 
-    def test_valid_assessment_plan_passes(self):
+    @pytest.mark.asyncio
+    async def test_valid_assessment_plan_passes(self):
         doc, _ = make_valid_doc("assessment-plan")
-        validate_document("assessment-plans", doc)
+        await validate_document("assessment-plans", doc)
 
-    def test_valid_assessment_results_passes(self):
+    @pytest.mark.asyncio
+    async def test_valid_assessment_results_passes(self):
         doc, _ = make_valid_doc("assessment-results")
-        validate_document("assessment-results", doc)
+        await validate_document("assessment-results", doc)
 
-    def test_valid_poam_passes(self):
+    @pytest.mark.asyncio
+    async def test_valid_poam_passes(self):
         doc, _ = make_valid_doc("plan-of-action-and-milestones")
-        validate_document("poams", doc)
+        await validate_document("poams", doc)
 
-    def test_valid_control_mapping_passes(self):
+    @pytest.mark.asyncio
+    async def test_valid_control_mapping_passes(self):
         doc, _ = make_valid_doc("mapping-collection", extra={
             "provenance": {
                 "method": "human",
@@ -287,11 +297,12 @@ class TestValidateDocumentBasic:
                 }
             ]
         })
-        validate_document("control-mappings", doc)
+        await validate_document("control-mappings", doc)
 
 
 class TestValidateDocumentSchemaFailures:
-    def test_invalid_uuid_format_fails(self):
+    @pytest.mark.asyncio
+    async def test_invalid_uuid_format_fails(self):
         doc = {
             "catalog": {
                 "uuid": "not-a-uuid",
@@ -299,9 +310,10 @@ class TestValidateDocumentSchemaFailures:
             }
         }
         with pytest.raises(ValidationError):
-            validate_document("catalogs", doc)
+            await validate_document("catalogs", doc)
 
-    def test_missing_title_fails(self):
+    @pytest.mark.asyncio
+    async def test_missing_title_fails(self):
         doc = {
             "catalog": {
                 "uuid": str(uuid.uuid4()),
@@ -313,9 +325,10 @@ class TestValidateDocumentSchemaFailures:
             }
         }
         with pytest.raises(ValidationError):
-            validate_document("catalogs", doc)
+            await validate_document("catalogs", doc)
 
-    def test_missing_last_modified_fails(self):
+    @pytest.mark.asyncio
+    async def test_missing_last_modified_fails(self):
         doc = {
             "catalog": {
                 "uuid": str(uuid.uuid4()),
@@ -327,7 +340,7 @@ class TestValidateDocumentSchemaFailures:
             }
         }
         with pytest.raises(ValidationError):
-            validate_document("catalogs", doc)
+            await validate_document("catalogs", doc)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -388,19 +401,22 @@ class TestSSPCrossRefValidation:
         }
         return {"system-security-plan": ssp}
 
-    def test_referenced_profile_not_found(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_referenced_profile_not_found(self, isolated_data_dir):
         missing_uuid = str(uuid.uuid4())
         doc = self._make_ssp_doc(profile_uuid=missing_uuid)
         with pytest.raises(ValidationError, match="does not exist"):
-            validate_document("ssps", doc)
+            await validate_document("ssps", doc)
 
-    def test_referenced_profile_exists_passes(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_referenced_profile_exists_passes(self, isolated_data_dir):
         profile_uuid = str(uuid.uuid4())
         write_profile_fixture(isolated_data_dir, profile_uuid)
         doc = self._make_ssp_doc(profile_uuid=profile_uuid)
-        validate_document("ssps", doc)
+        await validate_document("ssps", doc)
 
-    def test_duplicate_control_id_fails(self, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_duplicate_control_id_fails(self, isolated_data_dir):
         profile_uuid = str(uuid.uuid4())
         write_profile_fixture(isolated_data_dir, profile_uuid)
         req1_uuid = str(uuid.uuid4())
@@ -413,11 +429,12 @@ class TestSSPCrossRefValidation:
             ]
         )
         with pytest.raises(ValidationError, match="Duplicate control-id"):
-            validate_document("ssps", doc)
+            await validate_document("ssps", doc)
 
 
 class TestProfileAdvancedTailoringValidation:
-    def test_profile_with_multiple_merge_directives_fails(self):
+    @pytest.mark.asyncio
+    async def test_profile_with_multiple_merge_directives_fails(self):
         profile_doc = {
             "profile": {
                 "uuid": str(uuid.uuid4()),
@@ -431,4 +448,5 @@ class TestProfileAdvancedTailoringValidation:
             }
         }
         with pytest.raises(ValidationError, match="is valid under each of"):
-            validate_document("profiles", profile_doc)
+            await validate_document("profiles", profile_doc)
+

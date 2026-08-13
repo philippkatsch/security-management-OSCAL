@@ -1,0 +1,43 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+}
+
+.icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  color: var(--color-text-muted);
+}
+
+.title {
+  font-size: 1.25rem;
+  margin: 0 0 8px 0;
+  color: var(--color-text);
+}
+
+.description {
+  color: var(--color-text-muted);
+  margin-bottom: 24px;
+  max-width: 400px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn:hover {
+  background: var(--color-primary-hover);
+}

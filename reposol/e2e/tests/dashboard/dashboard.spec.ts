@@ -7,7 +7,7 @@ test.describe('Dashboard Tests', () => {
     await expect(dashboardTitle).toBeVisible();
     
     // Look for some count card elements
-    const statCards = page.locator('.stat-card, [data-testid="stat-card"]');
+    const statCards = page.locator('[data-testid="stat-card"]');
     if (await statCards.count() > 0) {
       await expect(statCards.first()).toBeVisible();
     }

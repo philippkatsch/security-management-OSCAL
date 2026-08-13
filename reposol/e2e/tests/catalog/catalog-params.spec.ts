@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/base';
 
 test.describe('Catalog Parameters', () => {
   test('parameters are visible in control view', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const groups = [
       {
         id: 'ac',
@@ -29,14 +30,15 @@ test.describe('Catalog Parameters', () => {
     ];
     const uuid = await apiSetup.createCatalog({ title: 'Params Catalog', groups });
     
-    await page.goto(`/catalog/${uuid}`);
-    await page.locator('.sidebar-item-group').filter({ hasText: 'Access Control' }).first().click();
+    await page.goto(`/catalogs/${uuid}?w=${apiSetup.workspaceId}`);
+    await page.locator('[data-testid^="tree-node-"]').filter({ hasText: 'Access Control' }).first().click();
     await page.getByText('Policy and Procedures').first().click();
     
     await expect(page.getByText('organization-defined frequency').first()).toBeVisible();
   });
 
   test('parameter card shows label', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const groups = [
       {
         id: 'ac',
@@ -60,14 +62,15 @@ test.describe('Catalog Parameters', () => {
     ];
     const uuid = await apiSetup.createCatalog({ title: 'Param Card Catalog', groups });
     
-    await page.goto(`/catalog/${uuid}`);
-    await page.locator('.sidebar-item-group').filter({ hasText: 'Access Control' }).first().click();
+    await page.goto(`/catalogs/${uuid}?w=${apiSetup.workspaceId}`);
+    await page.locator('[data-testid^="tree-node-"]').filter({ hasText: 'Access Control' }).first().click();
     await page.getByText('Policy and Procedures').first().click();
     
     await expect(page.getByText('org-defined freq')).toBeVisible();
   });
 
   test('edit parameter value', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const groups = [
       {
         id: 'ac',
@@ -85,8 +88,8 @@ test.describe('Catalog Parameters', () => {
     ];
     const uuid = await apiSetup.createCatalog({ title: 'Edit Param Catalog', groups });
     
-    await page.goto(`/catalog/${uuid}`);
-    await page.locator('.sidebar-item-group').filter({ hasText: 'Access Control' }).first().click();
+    await page.goto(`/catalogs/${uuid}?w=${apiSetup.workspaceId}`);
+    await page.locator('[data-testid^="tree-node-"]').filter({ hasText: 'Access Control' }).first().click();
     await page.getByText('Policy and Procedures').first().click();
     
     const paramInput = page.getByLabel(/frequency/i).first();

@@ -1,424 +1,205 @@
 import { test, expect } from '../fixtures/base';
 import { randomUUID } from 'node:crypto';
 
-test.describe('Step 8 Control Mapping — E2E Specifications', () => {
+test.describe('Step 8 Control Mapping — Extended Coverage', () => {
   test.setTimeout(90000);
 
-  test('navigate to Control Mappings list view and view items', async ({ page, apiSetup }) => {
+  test('UC-8.3: Source & Target Resource Declaration', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'E2E NIST SP 800-53 to ISO 27001 Mapping'
-    });
+    const mappingId = await apiSetup.createControlMapping();
+    
+    await page.goto(`/control-mappings/${mappingId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('tab', { name: /Metadata/i }).click();
 
-    await page.goto(`/control-mappings?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText('E2E NIST SP 800-53 to ISO 27001 Mapping').first()).toBeVisible({ timeout: 15000 });
-    await page.goto(`/control-mapping/${mapUuid}?w=${apiSetup.workspaceId}`, { waitUntil: 'networkidle' });
-    await expect(page.locator('.mapping-page')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('E2E NIST SP 800-53 to ISO 27001 Mapping').first()).toBeVisible();
+    // Source Resource
+    await page.getByLabel('Source Resource Type').selectOption('catalog');
+    await page.getByLabel('Source Resource Title').fill('NIST SP 800-53 Rev 5');
+    await page.getByLabel('Source Resource HREF').fill('http://nist.gov/catalog.json');
+
+    // Target Resource
+    await page.getByLabel('Target Resource Type').selectOption('profile');
+    await page.getByLabel('Target Resource Title').fill('FedRAMP High');
+    await page.getByLabel('Target Resource HREF').fill('http://fedramp.gov/profile.json');
+
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
+    await page.reload();
+
+    await page.getByRole('tab', { name: /Metadata/i }).click();
+    await expect(page.getByLabel('Source Resource Title')).toHaveValue('NIST SP 800-53 Rev 5');
+    await expect(page.getByLabel('Target Resource Title')).toHaveValue('FedRAMP High');
   });
 
-  test('create new Control Mapping via UI', async ({ page, apiSetup }) => {
+  test('UC-8.5 & UC-8.4 DEEP: Source/Target Item References and Relationship Type Enforcement', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    await page.goto(`/control-mappings?w=${apiSetup.workspaceId}`);
+    const mappingId = await apiSetup.createControlMapping();
     
-    const newBtn = page.getByRole('button', { name: /new/i }).first();
-    await newBtn.click();
+    await page.goto(`/control-mappings/${mappingId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('tab', { name: /Mappings/i }).click();
+
+    // Add new mapping
+    await page.getByRole('button', { name: /Add Mapping/i }).click();
+
+    // The detail panel should slide out
+    await expect(page.getByRole('heading', { name: /Mapping Details/i })).toBeVisible();
+
+    // Add Source Item
+    await page.getByRole('button', { name: /Add Source/i }).click();
+    await page.getByLabel('Source Type').last().selectOption('control');
+    await page.getByLabel('Source ID Reference').last().fill('ac-1');
+
+    // Add Target Item
+    await page.getByRole('button', { name: /Add Target/i }).click();
+    await page.getByLabel('Target Type').last().selectOption('control');
+    await page.getByLabel('Target ID Reference').last().fill('ac-1.1');
+
+    // Relationship Type enforcement
+    const relationshipSelect = page.getByLabel('Relationship');
+    await relationshipSelect.selectOption('equal-to');
+    await relationshipSelect.selectOption('equivalent-to');
+    await relationshipSelect.selectOption('subset-of');
+    await relationshipSelect.selectOption('superset-of');
+    await relationshipSelect.selectOption('intersects-with');
     
-    const input = page.locator('.modal-overlay input').first();
-    await input.fill('E2E BSI IT-Grundschutz Mapping');
-    await page.getByRole('button', { name: /create/i }).click();
-    await expect(page.getByText(/E2E BSI IT-Grundschutz Mapping/i).or(page.locator('input[value*="E2E BSI IT-Grundschutz Mapping"]')).first()).toBeVisible();
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
   });
 
-  test('inspect and switch tabs (Overview, Mappings, Matrix View, Gap Analysis, Metadata, JSON)', async ({ page, apiSetup }) => {
+  test('UC-8.2 DEEP & UC-8.7: Provenance validation and Confidence Scoring', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    const catUuid1 = await apiSetup.createCatalog({ title: 'Source Framework NIST 800-53' });
-    const catUuid2 = await apiSetup.createCatalog({ title: 'Target Framework ISO 27001' });
+    const mappingId = await apiSetup.createControlMapping();
+    
+    await page.goto(`/control-mappings/${mappingId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('tab', { name: /Mappings/i }).click();
 
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Comprehensive Framework Crosswalk',
-      provenance: {
-        method: 'hybrid',
-        status: 'draft',
-        'matching-rationale': 'semantic',
-        'mapping-description': 'Crosswalk between NIST 800-53 and ISO 27001 controls'
-      },
-      mappings: [
+    await page.getByRole('button', { name: /Add Mapping/i }).click();
+
+    // Fill minimum requirements
+    await page.getByRole('button', { name: /Add Source/i }).click();
+    await page.getByLabel('Source ID Reference').last().fill('ac-2');
+    
+    await page.getByRole('button', { name: /Add Target/i }).click();
+    await page.getByLabel('Target ID Reference').last().fill('ac-2.2');
+
+    // Provenance fields
+    await page.getByLabel('Method').selectOption('Automated');
+    await page.getByLabel('Rationale').fill('Automatically mapped via script');
+    await page.getByLabel('Remarks').fill('Needs manual review');
+    
+    // Confidence score
+    const confidenceInput = page.getByLabel('Confidence');
+    await confidenceInput.fill('105');
+    await expect(page.getByText(/Must be between 0 and 100/i)).toBeVisible();
+    await confidenceInput.fill('85');
+    await expect(page.getByText(/Must be between 0 and 100/i)).not.toBeVisible();
+
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: /Mappings/i }).click();
+    await page.getByText('ac-2').click(); // Open detail panel
+
+    await expect(page.getByLabel('Method')).toHaveValue('Automated');
+    await expect(page.getByLabel('Confidence')).toHaveValue('85');
+    await expect(page.getByLabel('Rationale')).toHaveValue('Automatically mapped via script');
+  });
+
+  test('UC-8.6: Relationship Qualifiers', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const mappingId = await apiSetup.createControlMapping();
+    
+    await page.goto(`/control-mappings/${mappingId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('tab', { name: /Mappings/i }).click();
+
+    await page.getByRole('button', { name: /Add Mapping/i }).click();
+    
+    // Minimum setup
+    await page.getByRole('button', { name: /Add Source/i }).click();
+    await page.getByLabel('Source ID Reference').last().fill('ac-3');
+    await page.getByRole('button', { name: /Add Target/i }).click();
+    await page.getByLabel('Target ID Reference').last().fill('ac-3.1');
+
+    // Qualifiers
+    await page.getByRole('button', { name: /Add Qualifier/i }).click();
+    await page.getByLabel('Qualifier Subject').fill('Parameter 1');
+    await page.getByLabel('Qualifier Predicate').fill('Requires');
+    await page.getByLabel('Qualifier Category').fill('Technical');
+    await page.getByLabel('Qualifier Description').fill('Condition for technical mapping');
+
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
+  });
+
+  test('UC-8.9 & Matrix view filtering: Gap Summary & Unmapped Controls', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    // Pre-seed mapping with specific relationships
+    const mappingId = await apiSetup.createControlMapping({
+      mapping: [
         {
-          uuid: '11111111-1111-4111-8111-111111111111',
-          'source-resource': { type: 'catalog', href: `#/catalogs/${catUuid1}` },
-          'target-resource': { type: 'catalog', href: `#/catalogs/${catUuid2}` },
-          maps: [
+          subject: { references: [{ type: 'control', 'id-ref': 'au-1' }] },
+          relationships: [
             {
-              uuid: '22222222-2222-4222-8222-222222222222',
-              relationship: 'equivalent-to',
-              sources: [{ type: 'control', 'id-ref': 'ac-1' }],
-              targets: [{ type: 'control', 'id-ref': 'A.5.1' }]
+              'relationship-type': 'equal-to',
+              references: [{ type: 'control', 'id-ref': 'au-1.1' }]
+            }
+          ]
+        },
+        {
+          subject: { references: [{ type: 'control', 'id-ref': 'au-2' }] },
+          relationships: [
+            {
+              'relationship-type': 'subset-of',
+              references: [{ type: 'control', 'id-ref': 'au-2.2' }]
             }
           ]
         }
       ]
     });
+    
+    await page.goto(`/control-mappings/${mappingId}?w=${apiSetup.workspaceId}`);
+    
+    // Matrix View
+    await page.getByRole('tab', { name: /Matrix View/i }).click();
+    await expect(page.getByRole('cell', { name: 'au-1' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'au-2' })).toBeVisible();
 
-    await page.goto(`/control-mapping/${mapUuid}?w=${apiSetup.workspaceId}`);
-
-    // Verify Overview Tab content
-    await expect(page.locator('.tab-nav button', { hasText: 'Overview' })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Total Mappings|Overview/i).first()).toBeVisible();
-
-    // Switch to Mappings tab
-    await page.locator('.tab-nav button', { hasText: 'Mappings' }).click();
-    await expect(page.locator('body')).toContainText('ac-1');
-    await expect(page.locator('body')).toContainText('A.5.1');
-
-    // Switch to Matrix View tab
-    await page.locator('.tab-nav button', { hasText: 'Matrix View' }).click();
-    await expect(page.locator('.matrix-container').first()).toBeVisible();
-
-    // Switch to Gap Analysis tab
-    await page.locator('.tab-nav button', { hasText: 'Gap Analysis' }).click();
-    await expect(page.getByText('Unmapped Source Controls').first()).toBeVisible();
+    // Filter
+    const filterSelect = page.getByLabel('Filter');
+    await filterSelect.selectOption('Subset Of');
+    await expect(page.getByRole('cell', { name: 'au-1' })).not.toBeVisible();
+    await expect(page.getByRole('cell', { name: 'au-2' })).toBeVisible();
+    
+    // Gap Analysis
+    await page.getByRole('tab', { name: /Gap Analysis/i }).click();
+    await expect(page.getByText(/Unmapped/i).first()).toBeVisible();
   });
 
-  test('edit mapping provenance and relationship details', async ({ page, apiSetup }) => {
+  test('Batch Actions and Dialogs', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Editable Control Mapping'
-    });
-
-    await page.goto(`/control-mapping/${mapUuid}?edit=true&w=${apiSetup.workspaceId}`, { waitUntil: 'networkidle' });
-    await expect(page.locator('.tab-nav button', { hasText: 'JSON' })).toBeVisible({ timeout: 15000 });
-    await page.locator('.tab-nav button', { hasText: 'JSON' }).click();
-    await expect(page.locator('.json-editor-container').or(page.locator('.monaco-editor')).first()).toBeVisible({ timeout: 15000 });
-  });
-
-  test('overview dashboard metrics, relationship stats, and coverage report', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Dashboard Metrics Test Mapping',
-      mappings: [{
-        uuid: randomUUID(),
-        'source-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        'target-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        maps: [
-          { uuid: randomUUID(), relationship: 'equivalent-to', sources: [{ type: 'control', 'id-ref': 'c1' }], targets: [{ type: 'control', 'id-ref': 'c2' }] },
-          { uuid: randomUUID(), relationship: 'subset-of', sources: [{ type: 'control', 'id-ref': 'c3' }], targets: [{ type: 'control', 'id-ref': 'c4' }] }
-        ]
-      }]
-    });
-
-    await page.goto(`/control-mapping/${mapUuid}?w=${apiSetup.workspaceId}`);
-    
-    // Overview is default tab
-    await expect(page.getByText('Total Mappings').first()).toBeVisible();
-    await expect(page.getByText('Total Map Entries').first()).toBeVisible();
-    await expect(page.getByText('Source Coverage').first()).toBeVisible();
-    await expect(page.getByText('Avg Confidence').first()).toBeVisible();
-    
-    await expect(page.getByText('equivalent-to').first()).toBeVisible();
-    await expect(page.getByText('subset-of').first()).toBeVisible();
-  });
-
-  test('mapping entry detail panel — relationship editing, confidence scoring, and method selection', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Mapping Entry Details Editing',
-      mappings: [{
-        uuid: randomUUID(),
-        'source-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        'target-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        maps: [
-          { uuid: randomUUID(), relationship: 'equal-to', sources: [{ type: 'control', 'id-ref': 's1' }], targets: [{ type: 'control', 'id-ref': 't1' }] }
-        ]
-      }]
-    });
-
-    await page.goto(`/control-mapping/${mapUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await page.locator('.tab-nav button', { hasText: 'Mappings' }).click();
-    
-    // Click a row to open EntityDetailPanel
-    await page.locator('td', { hasText: 's1' }).first().click();
-    
-    // Wait for the detail panel to open
-    await expect(page.getByText('Target Control').first()).toBeVisible();
-    // Change relationship dropdown to 'subset-of' in detail panel
-    const panel = page.locator('.entity-panel-slide-out');
-    await expect(panel).toBeVisible();
-    
-    const relSelect = panel.locator('select').nth(0);
-    if (await relSelect.isVisible()) {
-      await relSelect.selectOption('subset-of');
-    }
-    
-    // Change method to 'automated'
-    const methodDropdown = panel.locator('select').nth(1);
-    if (await methodDropdown.isVisible()) {
-      await methodDropdown.selectOption('automated');
-    }
-    
-    // Set confidence to 85
-    const confidenceInput = panel.locator('input[type="number"]');
-    if (await confidenceInput.isVisible()) {
-      await confidenceInput.fill('85');
-    }
-     // Fill rationale
-    const rationaleInput = panel.locator('textarea').first();
-    if (await rationaleInput.isVisible()) {
-      await rationaleInput.fill('Updated rationale string');
-    }
-
-    // Close detail panel before saving
-    const closeBtn = panel.locator('.btn-close');
-    if (await closeBtn.isVisible()) {
-      await closeBtn.click();
-    }
-    
-    await page.waitForTimeout(300);
-    
-    // Save and reload, verify persistence
-    await page.getByRole('button', { name: /save/i }).click();
-    await page.waitForTimeout(1000);
-    
-    await page.reload();
-    await page.locator('.tab-nav button', { hasText: 'Mappings' }).click();
-    await expect(page.locator('.status-badge', { hasText: /subset/i }).first()).toBeVisible();
-  });
-
-  test('all five relationship types render with correct status badges', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Relationship Types Badges Test',
-      mappings: [{
-        uuid: randomUUID(),
-        'source-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        'target-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        maps: [
-          { uuid: randomUUID(), relationship: 'equal-to', sources: [{ type: 'control', 'id-ref': 's1' }], targets: [{ type: 'control', 'id-ref': 't1' }] },
-          { uuid: randomUUID(), relationship: 'equivalent-to', sources: [{ type: 'control', 'id-ref': 's2' }], targets: [{ type: 'control', 'id-ref': 't2' }] },
-          { uuid: randomUUID(), relationship: 'subset-of', sources: [{ type: 'control', 'id-ref': 's3' }], targets: [{ type: 'control', 'id-ref': 't3' }] },
-          { uuid: randomUUID(), relationship: 'superset-of', sources: [{ type: 'control', 'id-ref': 's4' }], targets: [{ type: 'control', 'id-ref': 't4' }] },
-          { uuid: randomUUID(), relationship: 'intersects-with', sources: [{ type: 'control', 'id-ref': 's5' }], targets: [{ type: 'control', 'id-ref': 't5' }] }
-        ]
-      }]
-    });
-
-    await page.goto(`/control-mapping/${mapUuid}?w=${apiSetup.workspaceId}`);
-    await page.locator('.tab-nav button', { hasText: 'Mappings' }).click();
-    
-    await expect(page.locator('.status-badge', { hasText: /equal/i }).first()).toBeVisible();
-    await expect(page.locator('.status-badge', { hasText: /equivalent/i }).first()).toBeVisible();
-    await expect(page.locator('.status-badge', { hasText: /subset/i }).first()).toBeVisible();
-    await expect(page.locator('.status-badge', { hasText: /superset/i }).first()).toBeVisible();
-    await expect(page.locator('.status-badge', { hasText: /intersects/i }).first()).toBeVisible();
-  });
-
-  test('matrix view renders source-target grid with relationship colors and filtering', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const catUuid1 = await apiSetup.createCatalog({
-      title: 'Source Framework Matrix',
-      groups: [{ id: 'g1', title: 'Group 1', controls: [{ id: 's1', title: 'Control S1' }, { id: 's2', title: 'Control S2' }] }]
-    });
-    const catUuid2 = await apiSetup.createCatalog({
-      title: 'Target Framework Matrix',
-      groups: [{ id: 'g2', title: 'Group 2', controls: [{ id: 't1', title: 'Control T1' }, { id: 't2', title: 'Control T2' }] }]
-    });
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Matrix View Grid Test',
-      mappings: [{
-        uuid: randomUUID(),
-        'source-resource': { type: 'catalog', href: `#/catalogs/${catUuid1}` },
-        'target-resource': { type: 'catalog', href: `#/catalogs/${catUuid2}` },
-        maps: [
-          { uuid: randomUUID(), relationship: 'equal-to', sources: [{ type: 'control', 'id-ref': 's1' }], targets: [{ type: 'control', 'id-ref': 't1' }] },
-          { uuid: randomUUID(), relationship: 'equivalent-to', sources: [{ type: 'control', 'id-ref': 's2' }], targets: [{ type: 'control', 'id-ref': 't2' }] }
-        ]
-      }]
-    });
-
-    await page.goto(`/control-mapping/${mapUuid}?w=${apiSetup.workspaceId}`);
-    await page.locator('.tab-nav button', { hasText: 'Matrix View' }).click();
-    
-    await expect(page.locator('.matrix-container')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('.matrix-grid')).toBeVisible();
-    
-    await expect(page.getByText('Source \\ Target').first()).toBeVisible();
-    await expect(page.locator('.matrix-cell').first()).toBeVisible();
-    
-    const filterSelect = page.locator('select').first();
-    if (await filterSelect.isVisible()) {
-      await filterSelect.selectOption('equivalent-to');
-    }
-  });
-
-  test('gap analysis shows unmapped source and target controls with counts', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    
-    const catUuid1 = await apiSetup.createCatalog({ 
-      title: 'Source Framework',
-      groups: [{
-        id: 'g1',
-        title: 'Group 1',
-        controls: [
-          { id: 's1', title: 'Control S1' },
-          { id: 's2', title: 'Control S2' }
-        ]
-      }]
+    const mappingId = await apiSetup.createControlMapping({
+      mapping: [
+        {
+          subject: { references: [{ type: 'control', 'id-ref': 'cm-1' }] },
+          relationships: [{ 'relationship-type': 'equal-to', references: [{ type: 'control', 'id-ref': 'cm-1.1' }] }]
+        }
+      ]
     });
     
-    const catUuid2 = await apiSetup.createCatalog({ 
-      title: 'Target Framework',
-      groups: [{
-        id: 'g1',
-        title: 'Group 1',
-        controls: [
-          { id: 't1', title: 'Control T1' },
-          { id: 't2', title: 'Control T2' }
-        ]
-      }]
-    });
-    
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Gap Analysis Test',
-      mappings: [{
-        uuid: randomUUID(),
-        'source-resource': { type: 'catalog', href: `#/catalogs/${catUuid1}` },
-        'target-resource': { type: 'catalog', href: `#/catalogs/${catUuid2}` },
-        maps: [
-          { uuid: randomUUID(), relationship: 'equivalent-to', sources: [{ type: 'control', 'id-ref': 's1' }], targets: [{ type: 'control', 'id-ref': 't1' }] }
-        ]
-      }]
-    });
+    await page.goto(`/control-mappings/${mappingId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('tab', { name: /Mappings/i }).click();
 
-    await page.goto(`/control-mapping/${mapUuid}?w=${apiSetup.workspaceId}`);
-    await page.locator('.tab-nav button', { hasText: 'Gap Analysis' }).click();
+    // Select row
+    await page.getByRole('checkbox', { name: /Select row/i }).check();
     
-    await expect(page.getByText('Unmapped Source Controls').first()).toBeVisible();
-    await expect(page.getByText('Unmapped Target Controls').first()).toBeVisible();
-    
-    await expect(page.getByText('s2').first()).toBeVisible();
-    await expect(page.getByText('t2').first()).toBeVisible();
-  });
-
-  test('metadata tab — source/target resource editing with type, title, and href', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Metadata Edit Test',
-      mappings: [{
-        uuid: randomUUID(),
-        'source-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        'target-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        maps: []
-      }]
-    });
-
-    await page.goto(`/control-mapping/${mapUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await page.locator('.tab-nav button', { hasText: 'Metadata' }).click();
-    
-    const srcCard = page.locator('div.dashboard-card', { hasText: 'Source Resource' });
-    const tgtCard = page.locator('div.dashboard-card', { hasText: 'Target Resource' });
-
-    // Change Source Type to 'profile' via dropdown
-    await srcCard.locator('select').selectOption('profile');
-    await srcCard.locator('input').nth(0).fill('Source Test Title');
-    await srcCard.locator('input').nth(1).fill('#/profiles/test-src-uuid');
-    
-    // Target Resource section
-    await tgtCard.locator('select').selectOption('catalog');
-    await tgtCard.locator('input').nth(0).fill('Target Test Title');
-    await tgtCard.locator('input').nth(1).fill('#/catalogs/test-tgt-uuid');
-    
-    await page.waitForTimeout(300);
-    
-    // Save
-    await page.getByRole('button', { name: /save/i }).click();
-    await page.waitForTimeout(1000);
-    
-    // Reload and verify
-    await page.goto(`/control-mapping/${mapUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await page.locator('.tab-nav button', { hasText: 'Metadata' }).click();
-    await expect(srcCard.locator('input').nth(0)).toHaveValue('Source Test Title');
-    await expect(tgtCard.locator('input').nth(0)).toHaveValue('Target Test Title');
-  });
-
-  test('add new mapping entry via table action and delete mapping entries', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Mapping Entry Table Actions',
-      mappings: [{
-        uuid: randomUUID(),
-        'source-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        'target-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        maps: [
-          { uuid: randomUUID(), relationship: 'equal-to', sources: [{ type: 'control', 'id-ref': 's1' }], targets: [{ type: 'control', 'id-ref': 't1' }] },
-          { uuid: randomUUID(), relationship: 'subset-of', sources: [{ type: 'control', 'id-ref': 's2' }], targets: [{ type: 'control', 'id-ref': 't2' }] }
-        ]
-      }]
-    });
-
-    await page.goto(`/control-mapping/${mapUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await page.locator('.tab-nav button', { hasText: 'Mappings' }).click();
-    
-    // Use Set Relationship
-    await page.getByRole('checkbox').nth(1).check();
-    
+    // Set Relationship via prompt
     page.once('dialog', dialog => dialog.accept('equivalent-to'));
-    const setRelBtn = page.getByRole('button', { name: 'Set Relationship' });
-    if (await setRelBtn.isVisible()) {
-        await setRelBtn.click();
-    }
-    
-    // Now use Delete Selected
-    await page.getByRole('checkbox').nth(2).check();
+    await page.getByRole('button', { name: /Set Relationship/i }).click();
+    await expect(page.getByRole('cell', { name: 'equivalent-to' })).toBeVisible();
+
+    // Delete Selected via confirm
     page.once('dialog', dialog => dialog.accept());
-    const deleteBtn = page.getByRole('button', { name: 'Delete Selected' });
-    if (await deleteBtn.isVisible()) {
-        await deleteBtn.click();
-    }
-    
-    // Verify entry is removed from table cells
-    await expect(page.locator('td', { hasText: 's2' })).not.toBeVisible();
-  });
-
-  test('save and reload full mapping document persists all changes', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const mapUuid = await apiSetup.createControlMapping({
-      title: 'Persistence Test Mapping',
-      mappings: [{
-        uuid: randomUUID(),
-        'source-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        'target-resource': { type: 'catalog', href: `#/catalogs/${randomUUID()}` },
-        maps: [
-          { uuid: randomUUID(), relationship: 'equal-to', sources: [{ type: 'control', 'id-ref': 's1' }], targets: [{ type: 'control', 'id-ref': 't1' }] }
-        ]
-      }]
-    });
-
-    await page.goto(`/control-mapping/${mapUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    
-    await page.locator('.tab-nav button', { hasText: 'Mappings' }).click();
-    await page.locator('td', { hasText: 's1' }).first().click();
-    
-    const panel = page.locator('.entity-panel-slide-out');
-    await expect(panel).toBeVisible();
-    
-    const relSelect = panel.locator('select').nth(0);
-    if (await relSelect.isVisible()) {
-      await relSelect.selectOption('intersects-with');
-    }
-    
-    // Close detail panel before saving
-    const closeBtn = panel.locator('.btn-close');
-    if (await closeBtn.isVisible()) {
-      await closeBtn.click();
-    }
-    
-    await page.waitForTimeout(300);
-    
-    await page.getByRole('button', { name: /save/i }).click();
-    await page.waitForTimeout(1000);
-    
-    await page.reload();
-    await page.locator('.tab-nav button', { hasText: 'Mappings' }).click();
-    await expect(page.locator('.status-badge', { hasText: /intersects/i }).first()).toBeVisible();
+    await page.getByRole('button', { name: /Delete Selected/i }).click();
+    await expect(page.getByRole('cell', { name: 'cm-1' })).not.toBeVisible();
   });
 });

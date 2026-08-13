@@ -1,375 +1,241 @@
 import { test, expect } from '../fixtures/base';
 import { randomUUID } from 'node:crypto';
 
-test.describe('Step 6 Assessment Results — Production-Grade E2E Specifications', () => {
+test.describe('Step 6 Assessment Results — Extended Coverage', () => {
+  test.setTimeout(90000);
 
-  test('Assessment Plan Import, Result Set Lifecycle & Local Definitions', async ({ page, apiSetup }) => {
-    const catId = await apiSetup.createCatalog({ title: 'AR Catalog' });
-    const profId = await apiSetup.createProfile({ title: 'AR Profile', catalogUuid: catId });
-    const sspId = await apiSetup.createSsp(profId, { title: 'AR SSP' });
-    const apId = await apiSetup.createAssessmentPlan(sspId, { title: 'Target AP' });
+  test('UC-6.3: Result Set Declaration - Create new result set', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const arId = await apiSetup.createAssessmentResults();
 
-    const arUuid = await apiSetup.createAssessmentResults(apId, {
-      title: 'Comprehensive AR Document',
-      version: '1.0.0',
-      results: [
-        {
-          uuid: randomUUID(),
-          title: 'Q1 Automated Scan Results',
-          description: 'First quarter testing run',
-          start: new Date().toISOString(),
-          'local-definitions': {
-            components: [
-              { uuid: randomUUID(), title: 'Target Nginx Server', type: 'software', description: 'Web server component', status: { state: 'operational' } }
-            ],
-            users: [
-              { uuid: randomUUID(), title: 'Bob Assessor', 'role-ids': ['lead-assessor'] }
-            ],
-            tasks: [
-              { uuid: randomUUID(), title: 'Vulnerability Scan', type: 'action', description: 'Port scanning task' }
-            ]
-          },
+    await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
+    
+    // Go to Result Sets tab
+    await page.getByRole('button', { name: /Result Sets/i }).click();
+
+    // Create new result set
+    await page.getByRole('button', { name: '+ New' }).click();
+    
+    // Fill result set details
+    await page.getByLabel('Title').fill('New Test Result Set');
+    await page.getByLabel('Start').fill('2026-08-13T10:00');
+    
+    // Save
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
+
+    // Verify sidebar selection
+    await expect(page.getByRole('button', { name: /New Test Result Set/i })).toBeVisible();
+  });
+
+  test('UC-6.5: Assessment Log - Add log entry', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const resultSetId = randomUUID();
+    const arId = await apiSetup.createDocument('assessment-results', {
+      'assessment-results': {
+        uuid: randomUUID(),
+        metadata: { title: 'Test AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
+        'import-ap': { href: `ap-1` },
+        results: [{
+          uuid: resultSetId,
+          title: 'Result Set 1',
+          description: 'Desc',
+          start: '2026-08-13T10:00:00Z',
           'assessment-log': {
-            entries: [
-              { uuid: randomUUID(), title: 'Scan Initiated', start: new Date().toISOString(), 'logged-by': [{ 'party-uuid': randomUUID(), 'role-id': 'lead-assessor' }] }
-            ]
+            entries: []
           }
-        }
-      ]
+        }]
+      }
     });
 
-    await page.goto(`/assessment-result/${arUuid}`);
-
-    // Overview Tab - check AP reference
-    await expect(page.getByText('Total Findings').first()).toBeVisible({ timeout: 15000 });
-
-    // Switch to Result Sets tab
-    await page.getByRole('button', { name: 'Result Sets' }).click();
-    await expect(page.getByText('Q1 Automated Scan Results').first()).toBeVisible();
-
-    // Check Local Definitions sub-tab
-    await page.getByRole('button', { name: /Local Definitions/i }).click();
-    await expect(page.getByText('Target Nginx Server').first()).toBeVisible();
-    await expect(page.getByText('Bob Assessor').first()).toBeVisible();
-    await expect(page.getByText('Vulnerability Scan').first()).toBeVisible();
-
-    // Check Assessment Log sub-tab
+    await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('button', { name: /Result Sets/i }).click();
+    await page.getByRole('button', { name: /Result Set 1/i }).click();
     await page.getByRole('button', { name: /Assessment Log/i }).click();
-    await expect(page.getByText('Scan Initiated').first()).toBeVisible();
+
+    await page.getByRole('button', { name: '+ Add Entry' }).click();
+    await page.getByLabel('Timestamp').fill('2026-08-13T12:00');
+    await page.getByLabel('Title').fill('New Log Entry');
+    await page.getByLabel('Description').fill('Test log entry description');
+    
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
+    await expect(page.getByText('New Log Entry')).toBeVisible();
   });
 
-  test('Observations Recording, Evidence & Origins', async ({ page, apiSetup }) => {
-    const obsUuid = randomUUID();
-    const arUuid = await apiSetup.createAssessmentResults({
-      title: 'Observations Test AR',
-      results: [
-        {
+  test('UC-6.8: Risk Remediation Planning - Create remediation', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const arId = await apiSetup.createDocument('assessment-results', {
+      'assessment-results': {
+        uuid: randomUUID(),
+        metadata: { title: 'Test AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
+        'import-ap': { href: `ap-1` },
+        results: [{
           uuid: randomUUID(),
-          title: 'Result Set with Observations',
-          description: 'Observation testing',
-          start: new Date().toISOString(),
-          observations: [
-            {
-              uuid: obsUuid,
-              title: 'Unencrypted HTTP Endpoint',
-              description: 'Port 80 left accessible without TLS redirect',
-              methods: ['TEST', 'EXAMINE'],
-              types: ['ssp-statement-issue'],
-              collected: new Date().toISOString(),
-              'relevant-evidence': [
-                { description: 'Nmap scan output showing open port 80', href: 'http://evidence.local/scan.txt' }
-              ]
-            }
-          ]
-        }
-      ]
+          title: 'Result Set 1',
+          description: 'Desc',
+          start: '2026-08-13T10:00:00Z',
+          risks: [{
+            uuid: randomUUID(),
+            title: 'Test Risk',
+            description: 'Risk description',
+            status: 'open'
+          }]
+        }]
+      }
     });
 
-    await page.goto(`/assessment-result/${arUuid}`);
-    await page.getByRole('button', { name: 'Result Sets' }).click();
-
-    // Observations sub-tab is active by default
-    await expect(page.getByText('Unencrypted HTTP Endpoint').first()).toBeVisible({ timeout: 15000 });
-
-    // Click row to open detail drawer
-    await page.getByText('Unencrypted HTTP Endpoint').first().click();
-    await expect(page.getByText('Observation Details').first()).toBeVisible();
-    await expect(page.locator('.editor-form textarea').first()).toHaveValue('Port 80 left accessible without TLS redirect');
-  });
-
-  test('Risk CVSS Characterization & Mitigating Factors', async ({ page, apiSetup }) => {
-    const riskUuid = randomUUID();
-    const arUuid = await apiSetup.createAssessmentResults({
-      title: 'Risk Characterization Test AR',
-      results: [
-        {
-          uuid: randomUUID(),
-          title: 'Result Set with Risks',
-          description: 'Risk testing',
-          start: new Date().toISOString(),
-          risks: [
-            {
-              uuid: riskUuid,
-              title: 'Session Hijacking Vulnerability',
-              description: 'Lack of secure flag on cookies',
-              status: 'open',
-              statement: 'Session tokens transmitted in cleartext',
-              characterizations: [
-                {
-                  origin: { actors: [{ type: 'tool', 'actor-uuid': randomUUID() }] },
-                  facets: [
-                    { name: 'AV', system: 'https://www.first.org/cvss/v3.1', value: 'N' },
-                    { name: 'AC', system: 'https://www.first.org/cvss/v3.1', value: 'L' }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    });
-
-    await page.goto(`/assessment-result/${arUuid}`);
-    await page.getByRole('button', { name: 'Result Sets' }).click();
+    await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('button', { name: /Result Sets/i }).click();
+    await page.getByRole('button', { name: /Result Set 1/i }).click();
     await page.getByRole('button', { name: /Risks/i }).click();
 
-    await expect(page.getByText('Session Hijacking Vulnerability').first()).toBeVisible({ timeout: 15000 });
-
-    // Click risk row to open detail panel
-    await page.getByText('Session Hijacking Vulnerability').first().click();
-    await expect(page.getByText('Risk Details').first()).toBeVisible();
-    await expect(page.locator('.editor-form textarea').first()).toHaveValue('Lack of secure flag on cookies');
+    await page.getByText('Test Risk').click();
+    
+    await page.getByRole('button', { name: '+ Add Remediation' }).click();
+    await page.getByLabel('Title').last().fill('Remediate this risk');
+    await page.getByLabel('Lifecycle').selectOption('planned');
+    await page.getByLabel('Description').last().fill('Remediation steps');
+    
+    await page.getByRole('button', { name: '+ Add Asset' }).click();
+    await page.getByLabel('Required Assets').last().fill('Asset 1');
+    
+    await page.getByRole('button', { name: '+ Add Task' }).click();
+    await page.getByLabel('Title').last().fill('Task 1');
+    await page.getByLabel('Description').last().fill('Task description');
+    
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
   });
 
-  test('Remediation Planning, Risk Log & Tasks', async ({ page, apiSetup }) => {
-    const riskUuid = randomUUID();
-    const arUuid = await apiSetup.createAssessmentResults({
-      title: 'Remediations Test AR',
-      results: [
-        {
+  test('UC-6.9: Risk Log & Status Tracking - Add log entries', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const arId = await apiSetup.createDocument('assessment-results', {
+      'assessment-results': {
+        uuid: randomUUID(),
+        metadata: { title: 'Test AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
+        'import-ap': { href: `ap-1` },
+        results: [{
           uuid: randomUUID(),
-          title: 'Result Set with Remediations',
-          description: 'Remediation testing',
-          start: new Date().toISOString(),
-          risks: [
-            {
-              uuid: riskUuid,
-              title: 'Outdated SSL Library',
-              description: 'OpenSSL version vulnerable to Heartbleed',
-              status: 'investigating',
-              statement: 'Upgrade OpenSSL package immediately',
-              remediations: [
-                {
-                  uuid: randomUUID(),
-                  title: 'Patch OpenSSL to 3.0.x',
-                  lifecycle: 'planned',
-                  description: 'Apply security patches across cluster'
-                }
-              ]
-            }
-          ]
-        }
-      ]
+          title: 'Result Set 1',
+          description: 'Desc',
+          start: '2026-08-13T10:00:00Z',
+          risks: [{
+            uuid: randomUUID(),
+            title: 'Test Risk',
+            description: 'Risk description',
+            status: 'open'
+          }]
+        }]
+      }
     });
 
-    await page.goto(`/assessment-result/${arUuid}`);
-    await page.getByRole('button', { name: 'Result Sets' }).click();
+    await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('button', { name: /Result Sets/i }).click();
+    await page.getByRole('button', { name: /Result Set 1/i }).click();
     await page.getByRole('button', { name: /Risks/i }).click();
 
-    await page.getByText('Outdated SSL Library').click();
-    await expect(page.getByText('Patch OpenSSL to 3.0.x').first()).toBeVisible();
+    await page.getByText('Test Risk').click();
+    
+    await page.getByRole('button', { name: '+ Add Log Entry' }).click();
+    await page.getByLabel('Title').last().fill('Status update log');
+    await page.getByLabel('Status Change').selectOption('investigating');
+    await page.getByLabel('Start').last().fill('2026-08-13T12:00');
+    await page.getByLabel('Description').last().fill('Changing status to investigating');
+    
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
   });
 
-  test('Findings Target Status, Implementation Status & Cross-References', async ({ page, apiSetup }) => {
-    const findingUuid = randomUUID();
-    const arUuid = await apiSetup.createAssessmentResults({
-      title: 'Findings Test AR',
-      results: [
-        {
+  test('UC-6.10: Findings & Objective Status - Create finding', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const obsId = randomUUID();
+    const riskId = randomUUID();
+    const arId = await apiSetup.createDocument('assessment-results', {
+      'assessment-results': {
+        uuid: randomUUID(),
+        metadata: { title: 'Test AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
+        'import-ap': { href: `ap-1` },
+        results: [{
           uuid: randomUUID(),
-          title: 'Result Set with Findings',
-          description: 'Findings testing',
-          start: new Date().toISOString(),
-          findings: [
-            {
-              uuid: findingUuid,
-              title: 'AC-2 Account Management Non-Compliance',
-              description: 'Inactive accounts not disabled after 90 days',
-              target: {
-                type: 'statement-id',
-                'target-id': 'ac-2_smt.a',
-                status: { state: 'not-satisfied', reason: 'fail' },
-                'implementation-status': { state: 'partial' }
-              }
-            }
-          ]
-        }
-      ]
+          title: 'Result Set 1',
+          description: 'Desc',
+          start: '2026-08-13T10:00:00Z',
+          observations: [{ uuid: obsId, title: 'Obs 1', description: 'desc', methods: ['EXAMINE'] }],
+          risks: [{ uuid: riskId, title: 'Risk 1', description: 'desc', status: 'open' }],
+          findings: []
+        }]
+      }
     });
 
-    await page.goto(`/assessment-result/${arUuid}`);
-    await page.getByRole('button', { name: 'Result Sets' }).click();
+    await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByRole('button', { name: /Result Sets/i }).click();
+    await page.getByRole('button', { name: /Result Set 1/i }).click();
     await page.getByRole('button', { name: /Findings/i }).click();
 
-    await expect(page.getByText('AC-2 Account Management Non-Compliance').first()).toBeVisible({ timeout: 15000 });
+    await page.getByRole('button', { name: '+ Add Finding' }).click();
+    
+    await page.getByLabel('Title').fill('New Finding');
+    await page.getByLabel('Description').fill('Finding description');
+    
+    await page.getByLabel('Target Type').selectOption('objective-id');
+    await page.getByLabel('Target ID').fill('obj-1');
+    
+    await page.getByLabel('Status State').selectOption('not-satisfied');
+    await page.getByLabel('Status Reason').fill('Missing controls');
+    
+    await page.getByLabel('Related Observations').selectOption(obsId);
+    await page.getByLabel('Related Risks').selectOption(riskId);
 
-    await page.getByText('AC-2 Account Management Non-Compliance').first().click();
-    await expect(page.getByText('Finding Details').first()).toBeVisible();
-    await expect(page.locator('.editor-form input[value="ac-2_smt.a"]').first()).toBeVisible();
+    await page.getByTestId('save-btn').click();
+    await expect(page.getByText('Saved successfully')).toBeVisible();
   });
 
-  test('Attestations, Overview Metrics Grid & Multi-Result Trend Comparison', async ({ page, apiSetup }) => {
-    const partyUuid = randomUUID();
-    const arUuid = await apiSetup.createAssessmentResults({
-      title: 'Multi-Result Trend AR Report',
-      results: [
-        {
-          uuid: randomUUID(),
-          title: 'Result Set Alpha (Q1)',
-          description: 'Q1 testing',
-          start: new Date().toISOString(),
-          findings: [
-            {
-              uuid: randomUUID(),
-              title: 'Finding Alpha 1',
-              description: 'Finding description 1',
-              target: { type: 'statement-id', 'target-id': 'ac-1', status: { state: 'satisfied' } }
-            }
-          ],
-          attestations: [
-            {
-              'responsible-parties': [{ 'role-id': 'lead-assessor', 'party-uuids': [partyUuid] }],
-              parts: [{ name: 'attestation-part-1' }]
-            }
-          ]
-        },
-        {
-          uuid: randomUUID(),
-          title: 'Result Set Beta (Q2)',
-          description: 'Q2 testing',
-          start: new Date().toISOString(),
-          findings: [
-            {
-              uuid: randomUUID(),
-              title: 'Finding Beta 1',
-              description: 'Finding description 2',
-              target: { type: 'statement-id', 'target-id': 'ac-2', status: { state: 'not-satisfied' } }
-            }
-          ]
-        }
-      ]
+  test('UC-6.13: AR Table & Navigation - List view, search filter', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    await apiSetup.createDocument('assessment-results', {
+      'assessment-results': {
+        uuid: randomUUID(),
+        metadata: { title: 'Alpha AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
+        'import-ap': { href: `ap-1` },
+        results: []
+      }
+    });
+    await apiSetup.createDocument('assessment-results', {
+      'assessment-results': {
+        uuid: randomUUID(),
+        metadata: { title: 'Beta AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
+        'import-ap': { href: `ap-2` },
+        results: []
+      }
     });
 
-    await page.goto(`/assessment-result/${arUuid}`);
+    await page.goto(`/assessment-results?w=${apiSetup.workspaceId}`);
+    
+    await expect(page.getByText('Alpha AR')).toBeVisible();
+    await expect(page.getByText('Beta AR')).toBeVisible();
 
-    // Overview metrics
-    await expect(page.getByText('Total Findings').first()).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('Result Sets').first()).toBeVisible();
-
-    // Check Attestations sub-tab under Result Sets
-    await page.getByRole('button', { name: 'Result Sets' }).click();
-    await page.getByRole('button', { name: /Attestations/i }).click();
-    await expect(page.getByText('lead-assessor').first()).toBeVisible();
+    await page.getByPlaceholder('Search...').fill('Alpha');
+    await expect(page.getByText('Alpha AR')).toBeVisible();
+    await expect(page.getByText('Beta AR')).not.toBeVisible();
   });
 
-  test('Step 6 SAR: Assessment Results Findings, Risk Level & Observations Verification', async ({ page, apiSetup }) => {
+  test('UC-6.2 DEEP: AP Import - Verify AP context injection', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    const sspUuid = await apiSetup.createSsp({ title: 'Base SSP for SAR' });
-    const apUuid = await apiSetup.createAssessmentPlan(sspUuid, { title: 'Base AP for SAR' });
-    const arUuid = randomUUID();
-
-    await apiSetup.createAssessmentResults(apUuid, {
-      uuid: arUuid,
-      title: `Audit Assessment Results ${arUuid.substring(0, 8)}`,
-      results: [
-        {
-          uuid: randomUUID(),
-          title: 'Q3 Enterprise Security Audit Result',
-          description: 'Technical evaluation of cloud access control and IAM controls.',
-          start: new Date().toISOString(),
-          findings: [
-            {
-              uuid: randomUUID(),
-              title: 'Inactive accounts not automatically disabled within 30 days',
-              description: 'Sample audit revealed 3 stale accounts exceeding the 30-day threshold.',
-              target: {
-                type: 'statement-id',
-                'target-id': 'ac-2',
-                status: { state: 'satisfied' }
-              }
-            }
-          ]
-        }
-      ]
+    const apId = await apiSetup.createAssessmentPlan();
+    
+    const arId = await apiSetup.createDocument('assessment-results', {
+      'assessment-results': {
+        uuid: randomUUID(),
+        metadata: { title: 'Test AR for AP Context', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
+        'import-ap': { href: `#${apId}` },
+        results: []
+      }
     });
 
-    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
-    await page.goto(`/assessment-result/${arUuid}?w=${apiSetup.workspaceId}`);
-
-    // Assert SAR Title
-    await expect(page.locator('body')).toContainText(`Audit Assessment Results ${arUuid.substring(0, 8)}`, { timeout: 15000 });
+    await page.goto(`/assessment-results/${arId}?w=${apiSetup.workspaceId}`);
+    
+    await page.getByRole('button', { name: /Overview/i }).click();
+    await expect(page.locator('text=' + apId)).toBeVisible();
   });
-  test('create Assessment Results via UI with AP selection', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const sspId = await apiSetup.createSsp();
-    const apId = await apiSetup.createAssessmentPlan(sspId, { title: 'Target AP for New AR' });
-
-    await page.goto('/assessment-results');
-    await page.getByRole('button', { name: 'Create Assessment Results' }).click();
-    await expect(page.getByText('Create Assessment Results')).toBeVisible();
-
-    await page.getByLabel('Title').fill('UI Created Assessment Results');
-    await page.locator('select').first().selectOption({ label: 'Target AP for New AR' });
-    await page.getByRole('button', { name: 'Create' }).click();
-
-    await expect(page.getByText('UI Created Assessment Results').first()).toBeVisible({ timeout: 15000 });
-  });
-
-  test('CVSS score visual rendering and risk severity indicators', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const arUuid = await apiSetup.createAssessmentResults(undefined, {
-      title: 'CVSS Visual rendering test',
-      results: [
-        {
-          uuid: randomUUID(),
-          title: 'Result with risk',
-          start: new Date().toISOString(),
-          risks: [
-            {
-              uuid: randomUUID(),
-              title: 'Critical Vulnerability',
-              description: 'Needs fixing',
-              status: 'open',
-              characterizations: [
-                {
-                  facets: [
-                    { name: 'CVSS-Score', system: 'https://www.first.org/cvss/v3.1', value: '9.5' }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    });
-
-    await page.goto(`/assessment-result/${arUuid}`);
-    await page.getByRole('button', { name: 'Result Sets' }).click();
-    await page.getByRole('button', { name: /Risks/i }).click();
-
-    await expect(page.getByText('Critical Vulnerability').first()).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('body')).toContainText('9.5');
-  });
-
-  test('multi-result trend comparison and timeline', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const arUuid = await apiSetup.createAssessmentResults(undefined, {
-      title: 'Timeline Test AR'
-    });
-
-    await page.goto(`/assessment-result/${arUuid}`);
-    await expect(page.getByText('Timeline').first()).toBeVisible({ timeout: 15000 }).catch(() => {});
-    await expect(page.getByText(/Trend|Comparison/i).first()).toBeVisible().catch(() => {});
-  });
-
 });

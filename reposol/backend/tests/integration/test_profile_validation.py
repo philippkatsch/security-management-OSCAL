@@ -38,15 +38,16 @@ class TestProfileValidation:
         assert res.status_code == 400
         assert "Missing required root key" in res.json()["detail"]
 
-    def test_direct_validate_document_semantic_merge_constraint(self):
+    @pytest.mark.asyncio
+    async def test_direct_validate_document_semantic_merge_constraint(self):
         # A profile with multiple merge keys (flat, as-is) directly validated
         # without preprocessing should raise ValidationError.
         profile_doc = {
             "profile": {
                 "uuid": str(uuid.uuid4()),
                 "metadata": {
-                    "title": "Conflicting Merge Profile",
-                    "last-modified": "2026-07-19T10:00:00Z",
+                    "title": "Invalid Profile Merge Directives",
+                    "last-modified": "2026-06-25T12:00:00Z",
                     "version": "1.0.0",
                     "oscal-version": "1.1.2"
                 },
@@ -60,6 +61,6 @@ class TestProfileValidation:
         
         # Direct validation without preprocessing should raise ValidationError
         with pytest.raises(ValidationError) as excinfo:
-            validate_document("profiles", profile_doc)
+            await validate_document("profiles", profile_doc)
         
         assert "Profile merge must specify only one of flat, as-is, or custom" in str(excinfo.value)

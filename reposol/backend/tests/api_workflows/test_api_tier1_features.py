@@ -542,7 +542,8 @@ class TestTier1FeatureCoverage:
         assert res_export.status_code == 200
         exported_json = res_export.json()
         # Schema validation clean pass
-        validate_document("catalogs", exported_json)
+        import asyncio
+        asyncio.run(validate_document("catalogs", exported_json))
 
     def test_t1_f5_02_export_profile_with_set_parameters(self, client):
         """T1-F5-02: Export Profile with set-parameters overrides to OSCAL JSON."""
@@ -569,8 +570,10 @@ class TestTier1FeatureCoverage:
         assert len(exported_json["profile"]["modify"]["set-parameters"]) == 3
         # Preprocess and validate against schema
         from app.storage import preprocess_profile_for_saving
-        val_doc = preprocess_profile_for_saving(exported_json, persist_local_catalog=False)
-        validate_document("profiles", val_doc)
+        import asyncio
+        val_doc = asyncio.run(preprocess_profile_for_saving(exported_json, persist_local_catalog=False))
+        import asyncio
+        asyncio.run(validate_document("profiles", val_doc))
 
     def test_t1_f5_03_purge_empty_values_array_on_serialization(self, client):
         """T1-F5-03: Purge empty values array during serialization."""

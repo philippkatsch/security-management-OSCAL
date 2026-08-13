@@ -17,8 +17,8 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     });
   });
 
-  test('1. Edit Mode locks VersionDropdown to Draft (editing)', async ({ page }) => {
-    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+  test('1. Edit Mode locks VersionDropdown to Draft (editing)', async ({ page, apiSetup }) => {
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
     const toggle = page.getByTestId('version-dropdown-toggle');
@@ -27,12 +27,12 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
 
     // Attempt to click locked dropdown — menu should remain hidden
     await toggle.click({ force: true });
-    await expect(page.locator('.version-dropdown-menu')).toBeHidden();
+    await expect(page.locator('[class*="version-dropdown-menu"]')).toBeHidden();
   });
 
-  test('2. Back button in Edit Mode prompts confirmation and handles draft save vs discard', async ({ page }) => {
+  test('2. Back button in Edit Mode prompts confirmation and handles draft save vs discard', async ({ page, apiSetup }) => {
     // A. Test OK choice (Save draft & exit)
-    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
     // Set dialog handler to accept (click OK = save draft)
@@ -44,16 +44,16 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
 
     await page.getByTestId('back-btn').click();
     // Navigates away to catalog list view
-    await expect(page.locator('.stage-header')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible({ timeout: 20000 });
 
     // Re-open catalog in View mode: draft exists on server
-    await page.goto(`/catalog/${catalogUuid}`);
+    await page.goto(`/catalogs/${catalogUuid}?w=${apiSetup.workspaceId}`);
     const toggle = page.getByTestId('version-dropdown-toggle');
     await expect(toggle).toBeVisible({ timeout: 15000 });
     await expect(toggle).toContainText('Draft');
 
     // B. Test Cancel choice (Discard draft & exit)
-    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
     // Set dialog handler to dismiss (click Cancel = discard draft)
@@ -64,17 +64,26 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     page.once('dialog', discardDialogHandler);
 
     await page.getByTestId('back-btn').click();
-    await expect(page.locator('.stage-header')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible({ timeout: 20000 });
 
     // Re-open catalog in View mode: draft was discarded, shows v1.0.0
-    await page.goto(`/catalog/${catalogUuid}`);
+    await page.goto(`/catalogs/${catalogUuid}?w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('version-dropdown-toggle')).toContainText('v1.0.0');
   });
 
-  test('3. Delete Draft removes draft file and hides Publish button', async ({ page }) => {
-    // Enter edit mode to create a draft, then switch to view mode
-    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+  test('3. Delete Draft removes draft file and hides Publish button', async ({ page, apiSetup }) => {
+    // Enter edit mode to create a draft by making a change in Metadata
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
+
+    await page.getByText('Metadata', { exact: true }).first().click();
+    const titleInput = page.locator('input[value*="E2E Draft"], input').first();
+    await titleInput.fill(`E2E Draft Test Catalog Modified ${catalogUuid.substring(0, 4)}`);
+
+    const saveBtn = page.getByTestId('save-btn');
+    if (await saveBtn.isVisible()) {
+      await saveBtn.click();
+    }
 
     await page.getByTestId('mode-view-btn').click();
     await expect(page.getByTestId('version-dropdown-toggle')).toContainText('Draft');
@@ -82,11 +91,11 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     // Open VersionDropdown in View mode
     const toggle = page.getByTestId('version-dropdown-toggle');
     await toggle.click();
-    const dropdownMenu = page.locator('.version-dropdown-menu');
+    const dropdownMenu = page.locator('[class*="version-dropdown-menu"]');
     await expect(dropdownMenu).toBeVisible();
 
     // Verify Draft item & Publish New Version button are visible
-    await expect(dropdownMenu.locator('.version-dropdown-item--draft')).toBeVisible();
+    await expect(dropdownMenu.locator('[class*="version-dropdown-item"]').first()).toBeVisible();
     const publishBtn = page.getByRole('button', { name: /Publish New Version/i });
     await expect(publishBtn).toBeVisible();
 
@@ -109,11 +118,22 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await expect(page.getByRole('button', { name: /Publish New Version/i })).toHaveCount(0);
   });
 
-  test('4. Publishing a new version transforms draft into permanent release v1.1.0', async ({ page }) => {
-    // Create draft
-    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+  test('4. Publishing a new version transforms draft into permanent release v1.1.0', async ({ page, apiSetup }) => {
+    // Create draft via edit mode by making a change in Metadata
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
+
+    await page.getByText('Metadata', { exact: true }).first().click();
+    const titleInput = page.locator('input[value*="E2E Draft"], input').first();
+    await titleInput.fill(`E2E Draft Test Catalog Modified ${catalogUuid.substring(0, 4)}`);
+
+    const saveBtn = page.getByTestId('save-btn');
+    if (await saveBtn.isVisible()) {
+      await saveBtn.click();
+    }
+
     await page.getByTestId('mode-view-btn').click();
+    await expect(page.getByTestId('version-dropdown-toggle')).toContainText('Draft');
 
     // Open dropdown and click Publish New Version
     await page.getByTestId('version-dropdown-toggle').click();
@@ -127,7 +147,7 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     const remarksInput = page.getByPlaceholder('e.g. Initial release');
     await remarksInput.fill('E2E Published Version 1.1.0');
 
-    await page.locator('.version-drawer-panel').getByRole('button', { name: /Publish Version/i }).click();
+    await page.locator('[class*="version-drawer"]').getByRole('button', { name: /Publish Version/i }).click();
 
     // Verify active version is now v1.1.0
     await expect(page.getByTestId('version-dropdown-toggle')).toContainText('v1.1.0');

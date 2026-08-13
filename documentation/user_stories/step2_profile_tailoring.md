@@ -200,7 +200,7 @@
     *   **Round-tripping & Resolution:** All changes are serialized in compliance with OSCAL in the profile under `modify.alters` (or directly in the local controls area).
     *   **Consistent Button Design & Exit Behavior:**
         *   The "Publish New Version" button is represented uniformly in the same format as "Save Draft" and other action buttons of the app (matching the standard theme instead of ad-hoc green).
-        *   **Polymorphic ControlDetailView & Icon Taxonomy Consistency:** In both Catalog Mode and Profile Mode, `ControlDetailView` provides identical inline editing capabilities for control parts, sub-parts/items, and links, including the `🔧` Advanced Settings toggle button for optional attributes (`ns`, `class`, `title`, `props`, `links`).
+        *   **Polymorphic UnifiedControlEditor & Icon Taxonomy Consistency:** In both Catalog Mode and Profile Mode, `UnifiedControlEditor` provides identical inline editing capabilities for control parts, sub-parts/items, and links, including the `🔧` Advanced Settings toggle button for optional attributes (`ns`, `class`, `title`, `props`, `links`).
 
 ### US 2.16: Extended Management of Tags and Existing Properties in the Document Overview
 > *Implements [US 0.16](step0_global_requirements.md) with profile-specific additions.*
@@ -229,7 +229,7 @@
     *   **Dropdown Selection for Predefined Choices:** If the source parameter defines `select.choice` with `how-many: "one"`, a dropdown selection field (`<select>`) is rendered populated with `select.choice[]` options plus a "Custom Value..." option.
     *   **Multi-Choice Support:** If `select.how-many` is `"one-or-more"`, a multi-select checkbox group or multi-select dropdown is rendered. Selecting multiple options serializes as a multi-element string array in `set-parameters[].values`.
     *   **Dual-Mode Choice & Value Synchronization:** Selecting an option from the choice dropdown directly synchronizes with `set-parameters[].values = [selectedValue]`.
-    *   **Catalog Fallback:** When a parameter has no override entry in `modify.set-parameters[]`, the Profile Resolution Engine (`profile-resolver.js` / `resolveProfileSync`) transparently falls back to the source catalog parameter's default `values[]` (or `select.choice` default).
+    *   **Catalog Fallback:** When a parameter has no override entry in `modify.set-parameters[]`, the Profile Resolution Engine (`resolution_service.py` / `resolveProfileSync`) transparently falls back to the source catalog parameter's default `values[]` (or `select.choice` default).
     *   **Revert & Override Removal:** A "Revert to Default" action or clearing an override input removes the parameter's `param-id` entry from `modify.set-parameters[]` (or strips the `values` property if other modified attributes like `label` remain).
     *   **Catalog Parameter Removal in Profiles (`alters.removes`):** Inherited catalog default parameters can be removed in profile mode by clicking `🗑`. This generates a `{ "by-id": "param_id" }` removal entry under `profile.modify.alters` for the control.
     *   **Transparent Removed Visual State:** Removed catalog parameters remain visible in edit mode with a grayed-out card, strikethrough ID, red `Removed` badge, and a `↩ Restore` button to remove the `alter.removes` entry.
@@ -290,13 +290,13 @@
 > **so that** I can instantly see which ID a paragraph has in the source catalog and trace modifications specifically.
 
 *   **Acceptance Criteria:**
-    *   **AC 1**: In profile detail view mode (read-only and edit in `ProfileDetailPanel.jsx`), each prose part is rendered in two lines.
+    *   **AC 1**: In profile detail view mode (read-only and edit in `UnifiedControlEditor` / `ProfileAdapter.tsx`), each prose part is rendered in two lines.
     *   **AC 2**: The first line (header) displays the category badge (e.g., `[STATEMENT]`) left-aligned in `var(--color-success)` (green) and directly next to it the ID of the part (e.g., `ac-2_smt.a`), if present, in a small monospace font with a subtle background.
     *   **AC 3**: If the part was modified (`isModified`), the `Modified` badge is also displayed in this header (as before).
     *   **AC 4**: The second line displays the formatted prose text (in view mode) or the `DebouncedTextarea` (in edit mode).
 
 ### US 2.23: Visual Consistency of the Profile Control Detail View with the Catalog Editor through Shared Components
-> *References DD-008*
+> *References [DD-030](../design_decisions/DD-030_unified_control_editor.md)*
 
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** have the detail view of a control in Profile Editor look and behave visually identical to Catalog view,  
@@ -308,7 +308,7 @@
     *   **AC 3 — Shared Read-Only Parts (`ReadOnlyParts`):** The prose parts display in view mode uses a single shared component for both Catalog and Profile. Profile-specific features (Modified badge, Reset button) are controlled via optional props.
     *   **AC 4 — Shared Enhancements Accordion (`EnhancementsAccordion`):** Control enhancements in the profile are displayed as a compact accordion (collapsed by default) with a count badge — identical to the Catalog view. The enhancement details are expandable.
     *   **AC 5 — Uniform Section Styling:** All sections (Header, Props, Parts, Parameters, Links, Enhancements) use the same CSS class `section-container` with `border-top` separators and consistent spacing in both Catalog and Profile.
-    *   **AC 6 — Shared Prose Formatting:** The `formatProse()` function from `oscal-utils.js` is used in both contexts. The duplicated inline implementation in `ProfileDetailPanel` is removed.
+    *   **AC 6 — Shared Prose Formatting:** The `formatProse()` function from `@lib/oscal-formatting` is used in both contexts.
     *   **AC 7 — Functional Links Editing:** The `LinksEditor` in the profile detail area has a functional `onChange` handler (instead of the current empty handler).
     *   **AC 8 — Profile-specific Logic Preserved:** The OSCAL modification logic (modify.alters, set-parameters, Reset, Modified badge) remains unchanged and is injected into the shared components via context-specific callbacks.
     *   **AC 9 — No Regression:** All existing Catalog and Profile functions (Undo/Redo, draft saving, versioning, Profile resolution, import sources, sidebar checkboxes) function unchanged after the transition.

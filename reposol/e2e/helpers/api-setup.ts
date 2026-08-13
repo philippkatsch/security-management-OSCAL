@@ -166,8 +166,15 @@ export class ApiSetup {
           return { ok: () => true, status: () => response.status(), text: async () => text, json: async () => JSON.parse(text) };
         }
         lastErr = new Error(`GET ${url} failed with status ${response.status()}`);
+        if (response.status() < 500) {
+          await ctx.dispose();
+          throw lastErr;
+        }
       } catch (err: any) {
         lastErr = err;
+        if (err.message && err.message.includes('failed with status')) {
+          throw err;
+        }
       } finally {
         if (ctx) await ctx.dispose().catch(() => {});
       }
@@ -364,7 +371,10 @@ export class ApiSetup {
     await this.syncWorkspace();
     let profileHref = opts.profileHref;
     if (!profileHref) {
-      if (profileId && this.hasDocument('profile', profileId)) {
+      if (profileId) {
+        if (!this.hasDocument('profile', profileId)) {
+          await this.createProfile({ uuid: profileId });
+        }
         profileHref = `../profiles/${profileId}.json`;
       } else {
         const defaultProfileId = await this.createProfile();
@@ -421,9 +431,11 @@ export class ApiSetup {
       ]
     };
 
-    const validCompDefId = (componentDefId && this.hasDocument('component-definitions', componentDefId))
-      ? componentDefId
-      : (opts.componentDefId && this.hasDocument('component-definitions', opts.componentDefId) ? opts.componentDefId : undefined);
+    const compId = componentDefId || opts.componentDefId;
+    if (compId && !this.hasDocument('component-definitions', compId)) {
+      await this.createComponentDefinition({ uuid: compId });
+    }
+    const validCompDefId = compId && this.hasDocument('component-definitions', compId) ? compId : undefined;
 
     const implementedReqByComponents = validCompDefId
       ? [
@@ -491,7 +503,10 @@ export class ApiSetup {
     await this.syncWorkspace();
     let sspHref = opts.sspHref;
     if (!sspHref) {
-      if (sspId && this.hasDocument('ssps', sspId)) {
+      if (sspId) {
+        if (!this.hasDocument('ssps', sspId)) {
+          await this.createSsp({ uuid: sspId });
+        }
         sspHref = `../ssps/${sspId}.json`;
       } else {
         const defaultSspId = await this.createSsp();
@@ -550,7 +565,10 @@ export class ApiSetup {
     await this.syncWorkspace();
     let apHref = opts.apHref;
     if (!apHref) {
-      if (apId && this.hasDocument('assessment-plan', apId)) {
+      if (apId) {
+        if (!this.hasDocument('assessment-plan', apId)) {
+          await this.createAssessmentPlan({ uuid: apId });
+        }
         apHref = `../assessment-plans/${apId}.json`;
       } else {
         const defaultApId = await this.createAssessmentPlan();
@@ -640,9 +658,15 @@ export class ApiSetup {
     }
 
     await this.syncWorkspace();
+    if (sspId && !this.hasDocument('ssps', sspId)) {
+      await this.createSsp({ uuid: sspId });
+    }
+    if (arId && !this.hasDocument('assessment-results', arId)) {
+      await this.createAssessmentResults({ uuid: arId });
+    }
     const req = await this.getRequest();
     const uuid = opts.uuid || randomUUID();
-    const sspHref = opts.sspHref || (sspId && this.hasDocument('ssps', sspId) ? `../ssps/${sspId}.json` : undefined);
+    const sspHref = opts.sspHref || (sspId ? `../ssps/${sspId}.json` : undefined);
     const validArId = arId && this.hasDocument('assessment-results', arId) ? arId : undefined;
 
     const rawPoamItems = opts.poamItems || [

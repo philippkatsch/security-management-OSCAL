@@ -70,8 +70,8 @@ Easily upload and validate OSCAL documents in JSON, YAML, or XML formats.
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 18 + Vite (Dark Theme)
-- **Backend**: Python 3.10+ / FastAPI
+- **Frontend**: React 18 + Vite (TypeScript, React Query, Jotai, Immer)
+- **Backend**: Python 3.10+ / FastAPI (OSCAL Resolution Engine)
 - **Storage**: Local JSON files (Zero configuration database!)
 
 ---

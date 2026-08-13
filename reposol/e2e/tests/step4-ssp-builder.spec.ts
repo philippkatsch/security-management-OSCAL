@@ -1,353 +1,206 @@
 import { test, expect } from '../fixtures/base';
 import { randomUUID } from 'node:crypto';
 
-test.describe('Step 4 SSP Builder — E2E Specifications', () => {
-  test.setTimeout(60000);
+test.describe('Step 4 System Security Plan — Extended Coverage', () => {
+  test.setTimeout(90000);
 
-  test.beforeEach(({ page }) => {
-    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
-    page.on('pageerror', err => console.error('PAGE ERROR:', err.message));
-  });
+  test('UC-4.6: System Operational Status', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspId = await apiSetup.createSsp();
+    await page.goto(`/ssps/${sspId}?edit=true&w=${apiSetup.workspaceId}`);
 
-  test('Feature 22: Baseline Profile Import & System Identity Editing', async ({ page, apiSetup }) => {
-    const catId = await apiSetup.createCatalog({ title: 'SSP Source Catalog' });
-    const profId = await apiSetup.createProfile({ title: 'SSP Source Baseline Profile', catalogUuid: catId });
-    const compId = await apiSetup.createComponentDefinition({ title: 'SSP Source Component' });
+    // Navigate to System Characteristics tab
+    await page.getByRole('tab', { name: /System Characteristics/i }).click();
 
-    const sspUuid = await apiSetup.createSsp(profId, compId, {
-      title: 'E2E Financial System SSP',
-      systemName: 'Core Financial System'
-    });
-
-    await page.goto(`http://127.0.0.1:1001/ssp/${sspUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.document-toolbar')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(300);
-
-    // Switch to System Characteristics tab
-    await page.locator('.document-tabs button', { hasText: 'Characteristics' }).click();
-    await expect(page.locator('.sys-char-tab')).toBeVisible();
-
-    // Edit System Identity fields
-    const sysNameInput = page.locator('.sys-char-tab input').first();
-    await sysNameInput.fill('Updated Core Financial Platform');
-    await expect(sysNameInput).toHaveValue('Updated Core Financial Platform');
-    await sysNameInput.blur();
-
-    const shortNameInput = page.locator('.sys-char-tab input').nth(1);
-    await shortNameInput.fill('CFP-PLATFORM');
-    await expect(shortNameInput).toHaveValue('CFP-PLATFORM');
-    await shortNameInput.blur();
-
-    const descTextarea = page.locator('.sys-char-tab textarea').first();
-    await descTextarea.fill('Primary transaction processing engine for financial settlement');
-    await expect(descTextarea).toHaveValue('Primary transaction processing engine for financial settlement');
-    await descTextarea.blur();
-
-    // Select Sensitivity Level
-    const sensitivitySelect = page.locator('.sys-char-tab select').first();
-    await sensitivitySelect.selectOption('high');
-
-    // Save document
-    await page.getByTestId('save-btn').click();
-    await page.waitForTimeout(500);
-
-    // Verify backend persistence
-    const savedDoc = await apiSetup.getDocument('ssps', sspUuid);
-    const sysChar = savedDoc['system-security-plan']['system-characteristics'];
-    expect(sysChar['system-name']).toBe('Updated Core Financial Platform');
-    expect(sysChar['system-name-short']).toBe('CFP-PLATFORM');
-    expect(sysChar.description).toContain('Primary transaction processing engine');
-  });
-
-  test('Feature 22: NIST SP 800-60 Information Types & FIPS 199 Security Impact Categorization', async ({ page, apiSetup }) => {
-    const sspUuid = await apiSetup.createSsp({
-      title: 'E2E Categorization System SSP',
-      systemName: 'Payment Clearing Gateway'
-    });
-
-    await page.goto(`http://127.0.0.1:1001/ssp/${sspUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.document-toolbar')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(300);
-
-    await page.locator('.document-tabs button', { hasText: 'Characteristics' }).click();
-    await expect(page.locator('.sys-char-tab')).toBeVisible();
-
-    // Configure system FIPS 199 objectives
-    const selects = page.locator('.sys-char-tab select');
-    await selects.nth(2).selectOption('fips-199-moderate');
-    await selects.nth(3).selectOption('fips-199-moderate');
-    await selects.nth(4).selectOption('fips-199-moderate');
-
-    // Add Information Type
-    const addInfoBtn = page.getByRole('button', { name: /Add Information Type/i });
-    await addInfoBtn.click();
-    const infoTableRows = page.locator('.sys-char-tab table tbody tr');
-    await infoTableRows.last().click();
-
-    const sidePanelInput = page.locator('.entity-panel-slide-out input, .entity-detail-panel input').first();
-    await sidePanelInput.fill('Financial Audit Log Data');
-    await expect(sidePanelInput).toHaveValue('Financial Audit Log Data');
-    await sidePanelInput.blur();
+    // Verify and fill Operational Status
+    const statusSelect = page.getByLabel(/Operational State/i);
+    await expect(statusSelect).toBeVisible();
+    await statusSelect.selectOption('operational');
     
-    // Close detail panel cleanly
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(200);
+    await page.getByLabel(/Status Remarks/i).fill('System is fully operational in production');
 
-    // Save document
-    await page.getByTestId('save-btn').click();
-    await page.waitForTimeout(500);
+    // Date Authorized
+    await page.getByLabel(/Date Authorized/i).fill('2023-10-01');
 
-    // Verify backend model and newly added information type
-    const savedDoc = await apiSetup.getDocument('ssps', sspUuid);
-    const sysChar = savedDoc['system-security-plan']['system-characteristics'];
-    expect(sysChar['system-information']).toBeDefined();
-    const infoTypes = sysChar['system-information']['information-types'];
-    expect(infoTypes).toBeDefined();
-    expect(infoTypes.some((t: any) => t.title === 'Financial Audit Log Data')).toBe(true);
+    // Privacy Sensitive Checkbox
+    const privacySensitive = page.getByLabel(/Privacy Sensitive System/i);
+    if (await privacySensitive.isVisible()) {
+      await privacySensitive.check();
+    }
+
+    // Cloud deployment & service models
+    const deploymentModel = page.getByLabel(/Cloud Deployment Model/i);
+    if (await deploymentModel.isVisible()) {
+      await deploymentModel.selectOption('public');
+    }
+
+    const serviceModel = page.getByLabel(/Cloud Service Model/i);
+    if (await serviceModel.isVisible()) {
+      await serviceModel.selectOption('saas');
+    }
+
+    await page.getByRole('button', { name: /Save/i }).click();
+    await expect(page.getByText(/Saved successfully/i)).toBeVisible();
   });
 
-  test('Feature 23: Boundary & Architecture Diagrams Base64 Upload & Back-Matter Resource Binding', async ({ page, apiSetup }) => {
-    const sspUuid = await apiSetup.createSsp({
-      title: 'E2E Diagram System SSP',
-      systemName: 'Cloud VPC Environment'
-    });
-
-    await page.goto(`http://127.0.0.1:1001/ssp/${sspUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.document-toolbar')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(300);
-
-    await page.locator('.document-tabs button', { hasText: 'Characteristics' }).click();
-    await expect(page.locator('.sys-char-tab')).toBeVisible();
-
-    // Boundary description fill (2nd textarea under .sys-char-tab)
-    const boundaryTextarea = page.locator('.sys-char-tab textarea').nth(1);
-    await boundaryTextarea.fill('AWS Cloud EU-Central VPC Security Boundary with isolation subnets');
-    await expect(boundaryTextarea).toHaveValue('AWS Cloud EU-Central VPC Security Boundary with isolation subnets');
-    await boundaryTextarea.blur();
-
-    // Diagram file upload via setInputFiles
-    const fileInput = page.locator('.sys-char-tab input[type="file"]').first();
-    const sampleImageBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
-    await fileInput.setInputFiles({
-      name: 'architecture-boundary.png',
-      mimeType: 'image/png',
-      buffer: sampleImageBuffer
-    });
-
-    // Save document
-    await page.getByTestId('save-btn').click();
-    await page.waitForTimeout(500);
-
-    // Verify backend model
-    const savedDoc = await apiSetup.getDocument('ssps', sspUuid);
-    const boundary = savedDoc['system-security-plan']['system-characteristics']['authorization-boundary'];
-    expect(boundary.description).toContain('AWS Cloud EU-Central VPC');
-  });
-
-  test('Feature 23: Component Inventory Items, System Components & Leveraged Authorizations', async ({ page, apiSetup }) => {
-    const sspUuid = await apiSetup.createSsp({
-      title: 'E2E Inventory & Components SSP',
-      systemName: 'Distributed Storage Platform'
-    });
-
-    await page.goto(`http://127.0.0.1:1001/ssp/${sspUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.document-toolbar')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(300);
-
-    await page.locator('.document-tabs button', { hasText: 'Implementation' }).click();
-    await expect(page.locator('.sys-imp-tab')).toBeVisible();
-
-    // Inventory Items sub-tab
-    const invSubTabBtn = page.locator('.sys-imp-tab button', { hasText: 'Inventory Items' });
-    await invSubTabBtn.click();
-    const addInvBtn = page.getByRole('button', { name: '+ Add Inventory Item' });
-    await addInvBtn.click();
-
-    // Leveraged Authorizations sub-tab
-    const authTabBtn = page.locator('.sys-imp-tab button', { hasText: 'Leveraged Authorizations' });
-    await authTabBtn.click();
-    const addAuthBtn = page.getByRole('button', { name: '+ Add Auth' });
-    await addAuthBtn.click();
-
-    // Components sub-tab
-    const compTabBtn = page.locator('.sys-imp-tab button', { hasText: 'Components' });
-    await compTabBtn.click();
-    const addCompBtn = page.getByRole('button', { name: '+ Add Component' });
-    await addCompBtn.click();
-
-    // Verify component row created in table
-    await expect(page.locator('.sys-imp-tab table tbody tr').last()).toBeVisible();
-
-    // Save document
-    await page.getByTestId('save-btn').click();
-    await page.waitForTimeout(500);
-
-    // Verify backend document persistence for UI-created components
-    const savedDoc = await apiSetup.getDocument('ssps', sspUuid);
-    const sysImp = savedDoc['system-security-plan']['system-implementation'];
-    expect(sysImp.components).toBeDefined();
-    expect(sysImp.components.length).toBeGreaterThan(0);
-  });
-
-  test('Feature 24 & Feature 23: 3-Level Parameter Cascade & Security Inheritance', async ({ page, apiSetup }) => {
-    const catUuid = await apiSetup.createCatalog({
-      title: 'Cascade Source Catalog',
-      controls: [
-        {
-          id: 'ac-1',
-          title: 'Access Control Policy',
-          params: [
-            {
-              id: 'ac-1_prm_1',
-              label: 'Access Control Policy Review Frequency',
-              values: ['cat-default-annual']
-            }
-          ]
-        }
-      ]
-    });
-
-    const profUuid = await apiSetup.createProfile({
-      title: 'Cascade Tailored Profile',
-      catalogUuid: catUuid,
-      modify: {
-        'set-parameters': [
-          {
-            'param-id': 'ac-1_prm_1',
-            values: ['prof-override-semi-annual']
-          }
-        ]
-      }
-    });
-
-    const compUuid = await apiSetup.createComponentDefinition({ title: 'Cascade Component' });
-
-    const sspUuid = await apiSetup.createSsp(profUuid, compUuid, {
-      title: 'E2E Parameter Cascade SSP',
-      systemName: 'Cascade Test System',
-      controlImplementation: {
-        description: 'SSP Control Implementation with 3-level parameter overrides',
-        'implemented-requirements': [
-          {
-            uuid: '90000000-0000-4000-8000-000000000001',
-            'control-id': 'ac-1',
-            'by-components': [
-              {
-                uuid: '90000000-0000-4000-8000-000000000002',
-                'component-uuid': compUuid,
-                description: 'Component-level access control implementation narrative',
-                'implementation-status': { state: 'implemented' },
-                'set-parameters': [
-                  {
-                    'param-id': 'ac-1_prm_1',
-                    values: ['ssp-component-override-quarterly']
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    });
-
-    await page.goto(`http://127.0.0.1:1001/ssp/${sspUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.document-toolbar')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(300);
-
-    await page.locator('.document-tabs button', { hasText: 'Controls' }).click();
-    await expect(page.locator('.ctrl-imp-tab')).toBeVisible();
-
-    // Click requirement row in Controls tab
-    const reqRow = page.locator('.ctrl-imp-tab table tbody tr').first();
-    await expect(reqRow).toBeVisible();
-    await reqRow.click();
-
-    // Verify detail panel opens
-    await expect(page.locator('.entity-panel-slide-out').or(page.locator('.entity-detail-panel'))).toBeVisible();
-
-    // Close detail panel so top toolbar is clickable
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(200);
-
-    // Save document
-    await page.getByTestId('save-btn').click();
-    await page.waitForTimeout(500);
-
-    // Verify 3-level parameter override structure in backend JSON
-    const savedDoc = await apiSetup.getDocument('ssps', sspUuid);
-    const ctrlImp = savedDoc['system-security-plan']['control-implementation'];
-    const req = ctrlImp['implemented-requirements'].find((r: any) => r['control-id'] === 'ac-1');
-    expect(req).toBeDefined();
-    expect(req['by-components']).toBeDefined();
-    const byComp = req['by-components'][0];
-    expect(byComp['set-parameters']).toBeDefined();
-    expect(byComp['set-parameters'][0]['param-id']).toBe('ac-1_prm_1');
-    expect(byComp['set-parameters'][0].values[0]).toBe('ssp-component-override-quarterly');
-  });
-
-  test('Feature 24 & Step 4: Completeness Check & Warning Banners', async ({ page, apiSetup }) => {
-    const sspUuid = await apiSetup.createSsp({
-      title: 'E2E Validation Report SSP',
-      systemName: 'Incomplete Validation System'
-    });
-
-    await page.goto(`http://127.0.0.1:1001/ssp/${sspUuid}?w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.document-toolbar')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(300);
-
-    // Check Version Dropdown
-    const versionBtn = page.getByTestId('version-dropdown-toggle').first();
-    await expect(versionBtn).toBeVisible({ timeout: 15000 });
-    await versionBtn.click();
-    await expect(page.locator('.version-dropdown-menu')).toBeVisible();
-
-    // Close Version Dropdown by clicking toggle again
-    await versionBtn.click();
-    await expect(page.locator('.version-dropdown-menu')).toBeHidden();
-
-    // Switch to Validation tab
-    await page.locator('.document-tabs button', { hasText: 'Validation' }).click();
-
-    // Verify Completeness Report heading
-    await expect(page.getByRole('heading', { name: /Completeness Report/i })).toBeVisible();
-
-    // Switch to Json tab to verify Monaco / raw JSON
-    await page.locator('.document-tabs button', { hasText: 'Json' }).click();
-    await expect(page.locator('.monaco-editor').first()).toBeVisible();
-  });
-
-  test('US 4.1 & US 4.2: System Characteristics, Security Categorization (FIPS 199) & Implementation Statements', async ({ page, apiSetup }) => {
+  test('UC-4.9: System Properties & Responsible Parties', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    const catUuid = await apiSetup.createCatalog({ title: 'Base Catalog for SSP' });
-    const profUuid = await apiSetup.createProfile({ title: 'Base Profile for SSP', catalogUuid: catUuid });
-    const sspUuid = randomUUID();
+    const sspId = await apiSetup.createSsp();
+    await page.goto(`/ssps/${sspId}?edit=true&w=${apiSetup.workspaceId}`);
 
-    await apiSetup.createSsp({
-      uuid: sspUuid,
-      profileId: profUuid,
-      title: `Cloud Platform SSP ${sspUuid.substring(0, 8)}`,
-      systemName: 'Reposol Enterprise Cloud Platform'
-    });
+    // Navigate to Metadata tab
+    await page.getByRole('tab', { name: /Metadata/i }).click();
 
-    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
-    await page.goto(`/ssp/${sspUuid}?w=${apiSetup.workspaceId}`);
+    // Add responsible party
+    await page.getByRole('button', { name: /Add Responsible Party/i }).click();
+    await page.getByLabel(/Role ID/i).fill('system-owner');
+    await page.getByLabel(/Party UUID/i).fill(randomUUID());
+    await page.getByRole('button', { name: /Save Party/i }).click();
 
-    // Assert SSP Page header and Title
-    await expect(page.locator('body')).toContainText(`Cloud Platform SSP ${sspUuid.substring(0, 8)}`, { timeout: 15000 });
+    // Verify it was added
+    await expect(page.getByText('system-owner')).toBeVisible();
+
+    // Edit System Properties
+    await page.getByRole('button', { name: /Add Property/i }).click();
+    await page.getByLabel(/Property Name/i).fill('deployment-region');
+    await page.getByLabel(/Property Value/i).fill('us-east-1');
+    await page.getByRole('button', { name: /Save Property/i }).click();
+
+    await expect(page.getByText('deployment-region')).toBeVisible();
+    await expect(page.getByText('us-east-1')).toBeVisible();
+
+    await page.getByRole('button', { name: /Save/i }).click();
+    await expect(page.getByText(/Saved successfully/i)).toBeVisible();
   });
 
-  test('US 4.3: SSP Schema Validation & Dual-Mode Monaco View', async ({ page, apiSetup }) => {
+  test('UC-4.11: System Users & Authorized Privileges', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    const catUuid = await apiSetup.createCatalog({ title: 'Base Catalog for SSP 2' });
-    const profUuid = await apiSetup.createProfile({ title: 'Base Profile for SSP 2', catalogUuid: catUuid });
-    const sspUuid = await apiSetup.createSsp({
-      profileId: profUuid,
-      title: 'Schema Validated SSP'
-    });
+    const sspId = await apiSetup.createSsp();
+    await page.goto(`/ssps/${sspId}?edit=true&w=${apiSetup.workspaceId}`);
 
-    await page.addInitScript((wsId) => localStorage.setItem('reposol_workspace_id', wsId), apiSetup.workspaceId);
-    await page.goto(`/ssp/${sspUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    await expect(page.locator('body')).toContainText('Schema Validated SSP', { timeout: 15000 });
+    // Navigate to System Implementation tab
+    await page.getByRole('tab', { name: /System Implementation/i }).click();
+    
+    // Sub-tab Users
+    await page.getByRole('tab', { name: /Users/i }).click();
+
+    await page.getByRole('button', { name: /Add User/i }).click();
+    
+    // Fill user details
+    await page.getByLabel(/Title/i).fill('Database Administrator');
+    await page.getByLabel(/Short Name/i).fill('DBA');
+    
+    // Functions & Privileges (this might be a specific text area or array of inputs)
+    const roleIdInput = page.getByLabel(/Role ID/i);
+    await roleIdInput.fill('dba-role');
+
+    // Functions
+    const functionInput = page.getByLabel(/Functions/i);
+    if (await functionInput.isVisible()) {
+        await functionInput.fill('Manage database schemas and backups');
+    }
+
+    await page.getByRole('button', { name: /Save User/i }).click();
+
+    // Verify user added
+    await expect(page.getByText('Database Administrator')).toBeVisible();
+    await expect(page.getByText('dba-role')).toBeVisible();
+    
+    await page.getByRole('button', { name: /Save/i }).click();
+    await expect(page.getByText(/Saved successfully/i)).toBeVisible();
+  });
+
+  test('UC-4.13: Inventory Items & Asset Tracking', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspId = await apiSetup.createSsp();
+    await page.goto(`/ssps/${sspId}?edit=true&w=${apiSetup.workspaceId}`);
+
+    // Navigate to System Implementation tab -> Inventory Items
+    await page.getByRole('tab', { name: /System Implementation/i }).click();
+    await page.getByRole('tab', { name: /Inventory Items/i }).click();
+
+    await page.getByRole('button', { name: /Add Inventory Item/i }).click();
+
+    await page.getByLabel(/Description/i).fill('Primary Database Server');
+    
+    // Asset Specifications
+    const assetIdInput = page.getByLabel(/Asset ID/i);
+    if (await assetIdInput.isVisible()) {
+      await assetIdInput.fill('asset-db-01');
+    }
+    
+    const typeSelect = page.getByLabel(/Asset Type/i);
+    if (await typeSelect.isVisible()) {
+      await typeSelect.selectOption('software');
+    }
+
+    await page.getByRole('button', { name: /Save Item/i }).click();
+
+    await expect(page.getByText('Primary Database Server')).toBeVisible();
+    
+    await page.getByRole('button', { name: /Save/i }).click();
+    await expect(page.getByText(/Saved successfully/i)).toBeVisible();
+  });
+
+  test('UC-4.14: Leveraged Authorizations', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspId = await apiSetup.createSsp();
+    await page.goto(`/ssps/${sspId}?edit=true&w=${apiSetup.workspaceId}`);
+
+    // Navigate to System Implementation tab -> Leveraged Authorizations
+    await page.getByRole('tab', { name: /System Implementation/i }).click();
+    await page.getByRole('tab', { name: /Leveraged Authorizations/i }).click();
+
+    await page.getByRole('button', { name: /Add Leveraged Authorization/i }).click();
+
+    await page.getByLabel(/Authorization Title/i).fill('AWS FedRAMP High Authorization');
+    await page.getByLabel(/Date Authorized/i).fill('2022-05-10');
+    
+    const authBody = page.getByLabel(/Authorization Body/i);
+    if (await authBody.isVisible()) {
+      await authBody.fill('FedRAMP PMO');
+    }
+
+    await page.getByRole('button', { name: /Save Authorization/i }).click();
+
+    await expect(page.getByText('AWS FedRAMP High Authorization')).toBeVisible();
+
+    await page.getByRole('button', { name: /Save/i }).click();
+    await expect(page.getByText(/Saved successfully/i)).toBeVisible();
+  });
+
+  test('UC-4.5: System Information Types & FIPS-199 Categorization', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const sspId = await apiSetup.createSsp();
+    await page.goto(`/ssps/${sspId}?edit=true&w=${apiSetup.workspaceId}`);
+
+    // Navigate to System Characteristics tab
+    await page.getByRole('tab', { name: /System Characteristics/i }).click();
+
+    // Security Impact Levels (CIA)
+    const confSelect = page.getByLabel(/Confidentiality Impact/i);
+    await expect(confSelect).toBeVisible();
+    await confSelect.selectOption('moderate');
+
+    const intSelect = page.getByLabel(/Integrity Impact/i);
+    await expect(intSelect).toBeVisible();
+    await intSelect.selectOption('moderate');
+
+    const availSelect = page.getByLabel(/Availability Impact/i);
+    await expect(availSelect).toBeVisible();
+    await availSelect.selectOption('low');
+
+    // Information Types
+    const addInfoTypeBtn = page.getByRole('button', { name: /Add Information Type/i });
+    if (await addInfoTypeBtn.isVisible()) {
+      await addInfoTypeBtn.click();
+      await page.getByLabel(/Information Type Title/i).fill('Financial Data');
+      await page.getByLabel(/Description/i).fill('Customer billing information');
+      await page.getByRole('button', { name: /Save Information Type/i }).click();
+      await expect(page.getByText('Financial Data')).toBeVisible();
+    }
+
+    await page.getByRole('button', { name: /Save/i }).click();
+    await expect(page.getByText(/Saved successfully/i)).toBeVisible();
   });
 });
-

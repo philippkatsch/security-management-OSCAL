@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/base';
 
 test.describe('Profile Export', () => {
   test('export profile as JSON includes set-parameters', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const groups = [
       {
         id: 'ac',
@@ -29,7 +30,7 @@ test.describe('Profile Export', () => {
       modify
     });
     
-    await page.goto(`/profile/${profUuid}`);
+    await page.goto(`/profiles/${profUuid}?w=${apiSetup.workspaceId}`);
     
     const exportBtn = page.getByRole('button', { name: /export/i });
     if (await exportBtn.isVisible()) {

@@ -13,7 +13,7 @@
 
 ## Context
 Parameter insertion in OSCAL requirement text (`{{ insert: param, param_id }}` / `<insert type="param" id-ref="..."/>`) was initially implemented specifically for control statement textareas. However, OSCAL requirements and assessment specifications require parameter references across multiple editor contexts:
-1. Control Statements & Sub-Control Enhancements (`ControlDetailView`, `EnhancementsAccordion`)
+1. Control Statements & Sub-Control Enhancements (`UnifiedControlEditor`, `EnhancementsAccordion`)
 2. Group Description Parts (`GroupEditor`, `PartsEditor`)
 3. Parameter Card Metadata (`ParameterCard` usage & guidelines fields)
 4. Assessment Objectives & Assessment Methods (`DocumentEditor`, `AssessmentPlanEditor`)
@@ -43,7 +43,7 @@ Standard Props Interface:
 
 | Editor Domain | Component | Scope of Available Params | `onNewParam` Callback Behavior |
 |---|---|---|---|
-| Control Statements | `ControlDetailView` / `PartsEditor` | Catalog + Group + Control + Profile (`set-parameters`) | Instantly create control/profile param (`set-parameters`) & scroll to `#param-card-section` |
+| Control Statements | `UnifiedControlEditor` / `PartsEditor` | Catalog + Group + Control + Profile (`set-parameters`) | Instantly create control/profile param (`set-parameters`) & scroll to `#param-card-section` |
 | Sub-Controls | `EnhancementsAccordion` | Catalog + Group + Sub-Control + Profile | Instantly create sub-control param override & scroll to sub-control param card |
 | Group Descriptions | `GroupEditor` / `PartsEditor` | Catalog + Group + Profile (`set-parameters`) | Instantly create group/profile param & scroll to `#group-parameters-card` |
 | Parameter Metadata | `ParameterCard` | Catalog + Group + Control (excluding self) | Scroll to `+ Add Parameter` button at container level |

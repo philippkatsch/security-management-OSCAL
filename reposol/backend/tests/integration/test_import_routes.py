@@ -10,7 +10,7 @@ from tests.factories import CatalogFactory, ProfileFactory
 
 class TestImportRoutesIntegration:
 
-    @patch("app.import_routes.httpx.AsyncClient")
+    @patch("app.services.import_service.httpx.AsyncClient")
     def test_us0_3_import_registry_success(self, mock_client_class, client, isolated_data_dir):
         """Verify that importing a valid catalog from the registry successfully saves it."""
         from unittest.mock import AsyncMock
@@ -42,7 +42,7 @@ class TestImportRoutesIntegration:
         assert fetch_res.status_code == 200
         assert fetch_res.json()["catalog"]["metadata"]["title"] == "Imported Registry Catalog"
 
-    @patch("app.import_routes.httpx.AsyncClient")
+    @patch("app.services.import_service.httpx.AsyncClient")
     def test_us0_3_import_url_success_and_validate_schema(self, mock_client_class, client, isolated_data_dir):
         """Verify importing from a custom URL with schema validation flag."""
         from unittest.mock import AsyncMock

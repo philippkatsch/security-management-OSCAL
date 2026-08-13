@@ -47,14 +47,18 @@ def normalize_stage(stage: str) -> str:
         raise HTTPException(status_code=400, detail=f"Invalid stage: {stage}")
     return normalized
 
+class OSCALValidationException(HTTPException):
+    def __init__(self, message: str, errors: list):
+        super().__init__(status_code=400, detail=message)
+        self.errors = errors
+
 def validation_error_response(e):
     """Creates a standardized JSON response for validation errors."""
     errors = getattr(e, "errors", [])
-    return JSONResponse(
-        status_code=400,
-        content={
-            "detail": f"Validation failed: {e.message}",
-            "errors": errors
-        }
-    )
+    raise OSCALValidationException(f"Validation failed: {e.message}", errors)
 
+
+DRAFT_SUFFIX = '-draft'
+VERSION_SEPARATOR = '_v'
+TEMP_EXTENSION = '.tmp'
+LOCK_TIMEOUT = 10

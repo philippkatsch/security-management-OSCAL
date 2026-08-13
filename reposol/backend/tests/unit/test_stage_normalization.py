@@ -6,7 +6,7 @@ Unit tests for stage normalization covering:
 """
 import pytest
 from fastapi import HTTPException
-from app.routes import normalize_stage, STAGE_MAPPING
+from app.constants import normalize_stage, STAGE_MAPPING
 
 def test_normalize_stage_valid():
     # Test plural forms

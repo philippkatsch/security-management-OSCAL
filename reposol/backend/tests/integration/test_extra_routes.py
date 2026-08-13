@@ -64,7 +64,9 @@ class TestExtraRoutesAndErrors:
     def test_save_document_missing_uuid(self, client, monkeypatch):
         """POST /api/documents/{stage} with missing UUID in document root returns 400."""
         # Patch schema validation so it passes, enabling us to hit the route's custom UUID checks
-        monkeypatch.setattr("app.routes.validate_document", lambda *args, **kwargs: None)
+        async def mock_validate(*args, **kwargs):
+            pass
+        monkeypatch.setattr("app.api.document_routes.validate_document", mock_validate)
         
         invalid_doc = {
             "catalog": {
@@ -84,7 +86,9 @@ class TestExtraRoutesAndErrors:
     def test_save_document_invalid_uuid_format(self, client, monkeypatch):
         """POST /api/documents/{stage} with invalid UUID format inside payload returns 400."""
         # Patch schema validation so it passes, enabling us to hit the route's custom UUID format checks
-        monkeypatch.setattr("app.routes.validate_document", lambda *args, **kwargs: None)
+        async def mock_validate(*args, **kwargs):
+            pass
+        monkeypatch.setattr("app.api.document_routes.validate_document", mock_validate)
         
         invalid_doc = {
             "catalog": {

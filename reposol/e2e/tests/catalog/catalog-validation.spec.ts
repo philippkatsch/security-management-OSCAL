@@ -2,9 +2,10 @@ import { test, expect } from '../../fixtures/base';
 
 test.describe('Catalog Validation', () => {
   test('validate a valid catalog shows success', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const uuid = await apiSetup.createCatalog({ title: 'Valid Catalog' });
     
-    await page.goto(`/catalog/${uuid}`);
+    await page.goto(`/catalogs/${uuid}?w=${apiSetup.workspaceId}`);
     
     const validateBtn = page.getByRole('button', { name: /validate/i });
     if (await validateBtn.isVisible()) {

@@ -7,15 +7,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import router
-from app.import_routes import import_router
+from app.api import routers
 from app.storage import sync_master_templates
+from app.auth.database import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    sync_master_templates()
+    await init_db()
+    await sync_master_templates()
     yield
-
 
 app = FastAPI(
     title="Reposol OSCAL Management Backend",
@@ -23,8 +23,6 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
-
-
 
 # Explicitly allow React frontend origins or read from env
 allowed_origins_env = os.getenv("REPOSOL_ALLOWED_ORIGINS", os.getenv("ALLOWED_ORIGINS", ""))
@@ -45,9 +43,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routes router (handles health and API endpoints)
-app.include_router(router)
-app.include_router(import_router)
+from app.constants import OSCALValidationException
+from fastapi import Request
+
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Invalid JSON body"}
+    )
+
+@app.exception_handler(OSCALValidationException)
+async def oscal_validation_exception_handler(request: Request, exc: OSCALValidationException):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "errors": exc.errors}
+    )
+
+for router in routers:
+    app.include_router(router)
 
 # Mount static assets and handle SPA routing fallback when built frontend is present
 from fastapi.staticfiles import StaticFiles
@@ -87,4 +105,3 @@ if __name__ == "__main__":
     reload = os.getenv("REPOSOL_API_RELOAD", "True").lower() == "true"
     app_import = "app.main:app" if os.path.basename(os.getcwd()) != "app" else "main:app"
     uvicorn.run(app_import, host=host, port=port, reload=reload)
-

@@ -1,8 +1,9 @@
 # DD-003: Profile Resolution Engine
 
-## Status: Accepted
+**Superseded by DD-028**: Profile resolution has been moved completely to the backend. See [DD-028](DD-028_backend_resolution_engine.md).
+
+## Status: Superseded
 ## Date: 2026-07-17
-## Decision Makers: Development Team
 
 ## Context
 The OSCAL Profile Resolution engine currently runs entirely client-side in the browser:

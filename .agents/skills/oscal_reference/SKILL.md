@@ -1,6 +1,6 @@
 ---
 name: oscal_reference
-description: >-
+description: >
   Look up OSCAL definitions, specifications, component structures, and sample data
   in the local oscal-reference repositories. Triggers on: OSCAL schema, OSCAL model,
   OSCAL specification, control catalog, profile structure, component definition schema,

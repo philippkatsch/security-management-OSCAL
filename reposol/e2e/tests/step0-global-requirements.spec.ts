@@ -22,10 +22,10 @@ test.describe('Step 0 - Global System Requirements', () => {
       status: 'active'
     });
 
-    await page.goto(`/catalog/${draftUuid}`);
+    await page.goto(`/catalogs/${draftUuid}?w=${apiSetup.workspaceId}`);
     await expect(page.locator('.status-badge', { hasText: 'Draft' })).toBeVisible({ timeout: 20000 });
 
-    await page.goto(`/catalog/${activeUuid}`);
+    await page.goto(`/catalogs/${activeUuid}?w=${apiSetup.workspaceId}`);
     await expect(page.locator('.status-badge', { hasText: 'Active' })).toBeVisible({ timeout: 20000 });
   });
 
@@ -54,13 +54,13 @@ test.describe('Step 0 - Global System Requirements', () => {
       status: 'deprecated'
     });
 
-    await page.goto(`/catalog/${archivedUuid}`);
+    await page.goto(`/catalogs/${archivedUuid}?w=${apiSetup.workspaceId}`);
     await expect(page.locator('.status-badge', { hasText: 'Archived' })).toBeVisible({ timeout: 20000 });
 
-    await page.goto(`/catalog/${supersededUuid}`);
+    await page.goto(`/catalogs/${supersededUuid}?w=${apiSetup.workspaceId}`);
     await expect(page.locator('.status-badge', { hasText: 'Superseded' })).toBeVisible({ timeout: 20000 });
 
-    await page.goto(`/catalog/${deprecatedUuid}`);
+    await page.goto(`/catalogs/${deprecatedUuid}?w=${apiSetup.workspaceId}`);
     await expect(page.locator('.status-badge', { hasText: 'Deprecated' })).toBeVisible({ timeout: 20000 });
   });
 
@@ -82,15 +82,15 @@ test.describe('Step 0 - Global System Requirements', () => {
       status: 'archived'
     });
 
-    await page.goto('/catalogs');
+    await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
     await expect(page.getByText(`Active Test Catalog ${activeUuid.substring(0, 8)}`)).toBeVisible({ timeout: 20000 });
 
-    await page.goto(`/catalog/${archivedUuid}`);
+    await page.goto(`/catalogs/${archivedUuid}?w=${apiSetup.workspaceId}`);
     const banner = page.locator('.lifecycle-banner.archived');
     await expect(banner).toBeVisible({ timeout: 20000 });
     await expect(banner).toContainText('This document is archived and read-only');
     
-    const reactivateBtn = banner.locator('.btn-reactivate');
+    const reactivateBtn = banner.locator('.btn-reactivate, button:has-text("Reactivate")');
     await expect(reactivateBtn).toBeVisible({ timeout: 20000 });
 
     await reactivateBtn.click();
@@ -108,7 +108,7 @@ test.describe('Step 0 - Global System Requirements', () => {
       title: catalogTitle,
     });
 
-    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
     // Switch to View mode so VersionDropdown is unlocked
@@ -149,22 +149,19 @@ test.describe('Step 0 - Global System Requirements', () => {
 
     // Open version dropdown and click Publish to view VersionDrawer for version management
     await versionBtn.click();
-    // In view mode, since draft was published, we can click draft or versions in dropdown
     const draftItem = page.locator('.version-dropdown-item--draft');
     if (await draftItem.isVisible()) {
       await page.getByRole('button', { name: /Publish New Version/i }).click();
       await expect(drawerPanel).toBeVisible({ timeout: 20000 });
 
-      // 3. Register dialog listener for confirming deletion
-      const dialogHandler = async (dialog) => {
+      const dialogHandler = async (dialog: any) => {
         await dialog.accept();
       };
       page.on('dialog', dialogHandler);
 
-      // 4. Delete auto-archived historical version v1.0.0 if present
       const card100 = drawerPanel.locator('.version-item-card', { hasText: 'v1.0.0' });
       if (await card100.isVisible()) {
-        const deleteBtn = card100.locator('.btn-delete');
+        const deleteBtn = card100.locator('button[title="Delete document"], .btn-delete, button:has-text("🗑")');
         await deleteBtn.click();
         await expect(card100).toHaveCount(0, { timeout: 20000 });
       }
@@ -207,7 +204,7 @@ test.describe('Step 0 - Global System Requirements', () => {
       profileId: profileUuid
     });
 
-    await page.goto('/traceability');
+    await page.goto(`/traceability?w=${apiSetup.workspaceId}`);
     await expect(page.getByRole('heading', { name: /control traceability/i })).toBeVisible({ timeout: 20000 });
 
     const searchInput = page.getByPlaceholder('Enter Control ID (e.g., ac-1)');
@@ -235,7 +232,7 @@ test.describe('Step 0 - Global System Requirements', () => {
       imports: [{ href: '../catalogs/00000000-0000-4000-8000-000000009999.json', 'include-all': {} }]
     });
 
-    await page.goto(`/profile/${profUuid}`);
+    await page.goto(`/profiles/${profUuid}?w=${apiSetup.workspaceId}`);
     const warningElement = page.getByText(/Resolution Engine Error|Failed to fetch|404/i).first();
     await expect(warningElement).toBeVisible({ timeout: 30000 });
 
@@ -254,7 +251,7 @@ test.describe('Step 0 - Global System Requirements', () => {
       catalogUuid: supersededCatUuid
     });
 
-    await page.goto(`/profile/${supersededProfUuid}`);
+    await page.goto(`/profiles/${supersededProfUuid}?w=${apiSetup.workspaceId}`);
     const supersededBanner = page.locator('.lifecycle-banner.superseded');
     if (await supersededBanner.isVisible({ timeout: 5000 }).catch(() => false)) {
       await expect(supersededBanner).toContainText(/superseded/i);
@@ -278,8 +275,8 @@ test.describe('Step 0 - Global System Requirements', () => {
       catalogUuid: catUuid
     });
 
-    await page.goto('/catalogs');
-    await expect(page.locator('.documents-table')).toBeVisible({ timeout: 20000 });
+    await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
+    await expect(page.locator('table')).toBeVisible({ timeout: 20000 });
     await expect(page.getByText(catTitle)).toBeVisible({ timeout: 20000 });
 
     let dialogCount = 0;
@@ -292,14 +289,14 @@ test.describe('Step 0 - Global System Requirements', () => {
     };
     page.on('dialog', dialogHandler);
 
-    const catRow = page.locator('.documents-table tr', { hasText: catTitle });
-    const deleteBtn = catRow.locator('.btn-delete');
+    const catRow = page.locator('table tr', { hasText: catTitle });
+    const deleteBtn = catRow.locator('button[title="Delete document"]');
     await expect(deleteBtn).toBeVisible({ timeout: 20000 });
     await deleteBtn.click();
 
     await expect.poll(() => dialogCount, { timeout: 20000 }).toBe(2);
     expect(dialogMessages[0]).toContain('Delete this document?');
-    expect(dialogMessages[1]).toContain('force delete');
+    expect(dialogMessages[1]).toContain("Use 'force=true' to delete.");
 
     await expect.poll(async () => {
       try {
@@ -330,8 +327,8 @@ test.describe('Step 0 - Global System Requirements', () => {
       catalogUuid: catUuid
     });
 
-    await page.goto('/catalogs');
-    await expect(page.locator('.documents-table')).toBeVisible({ timeout: 20000 });
+    await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
+    await expect(page.locator('table')).toBeVisible({ timeout: 20000 });
     await expect(page.getByText(catTitle)).toBeVisible({ timeout: 20000 });
 
     let dialogCount = 0;
@@ -345,8 +342,8 @@ test.describe('Step 0 - Global System Requirements', () => {
     };
     page.on('dialog', dialogHandler);
 
-    const catRow = page.locator('.documents-table tr', { hasText: catTitle });
-    const deleteBtn = catRow.locator('.btn-delete');
+    const catRow = page.locator('table tr', { hasText: catTitle });
+    const deleteBtn = catRow.locator('button[title="Delete document"]');
     await expect(deleteBtn).toBeVisible({ timeout: 20000 });
     await deleteBtn.click();
 
@@ -363,16 +360,11 @@ test.describe('Step 0 - Global System Requirements', () => {
     await apiSetup.syncWorkspace();
     await page.goto('/');
     
-    // Verify dashboard heading is visible
     await expect(page.getByRole('heading', { name: /dashboard|overview|welcome/i }).first()).toBeVisible({ timeout: 20000 });
     
-    // Verify lifecycle metric cards or stage icons are present
-    await expect(page.locator('.lifecycle-metrics, .dashboard-cards, .metric-card, .dashboard-grid, .card').first()).toBeVisible({ timeout: 20000 }).catch(() => null);
+    await expect(page.locator('.dashboard-cards, .metric-card, .card').first()).toBeVisible({ timeout: 20000 }).catch(() => null);
     
-    // Click through to at least one document type list (e.g., catalogs)
     await page.getByText('Catalogs').first().click();
-    
-    // Verify navigation works
     await expect(page).toHaveURL(/.*\/catalogs.*/);
   });
 
@@ -385,24 +377,18 @@ test.describe('Step 0 - Global System Requirements', () => {
       title: `Cat-Toggle-${catalogUuid.substring(0, 8)}`
     });
     
-    await page.goto(`/catalog/${catalogUuid}`);
+    await page.goto(`/catalogs/${catalogUuid}?w=${apiSetup.workspaceId}`);
     
-    // Verify View mode is active by default (view btn has active state)
     const viewBtn = page.getByTestId('mode-view-btn');
     await expect(viewBtn).toBeVisible({ timeout: 20000 });
     
-    // Click Edit toggle
     const editBtn = page.getByTestId('mode-edit-btn');
     await expect(editBtn).toBeVisible({ timeout: 20000 });
     await editBtn.click();
     
-    // Verify Edit mode is active
     await expect(page).toHaveURL(/edit=true/);
     
-    // Click View toggle
     await viewBtn.click();
-    
-    // Verify back to View mode
     await expect(page).not.toHaveURL(/edit=true/);
   });
 
@@ -415,18 +401,15 @@ test.describe('Step 0 - Global System Requirements', () => {
       title: `Cat-JSON-${catalogUuid.substring(0, 8)}`
     });
     
-    await page.goto(`/catalog/${catalogUuid}?edit=true`);
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     
-    // Look for a JSON/Raw JSON tab button and click it
     const jsonTabBtn = page.getByRole('button', { name: /JSON|Raw/i });
     await expect(jsonTabBtn).toBeVisible({ timeout: 20000 });
     await jsonTabBtn.click();
     
-    // Verify Monaco editor (.monaco-editor) or textarea is visible
     const editor = page.locator('.monaco-editor, textarea').first();
     await expect(editor).toBeVisible({ timeout: 20000 });
     
-    // Switch back to visual mode if possible
     const visualTabBtn = page.getByRole('button', { name: /Visual|Form|Builder|Tree|Document/i }).first();
     if (await visualTabBtn.isVisible().catch(() => false)) {
       await visualTabBtn.click();
@@ -442,19 +425,14 @@ test.describe('Step 0 - Global System Requirements', () => {
       title: `Cat-Export-${catalogUuid.substring(0, 8)}`
     });
     
-    await page.goto(`/catalog/${catalogUuid}`);
+    await page.goto(`/catalogs/${catalogUuid}?w=${apiSetup.workspaceId}`);
     
-    // Look for export button
     const exportBtn = page.getByRole('button', { name: /Export|Download/i }).first();
     await expect(exportBtn).toBeVisible({ timeout: 20000 });
     
-    // Set up download listener
     const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
-    
-    // Click export button
     await exportBtn.click();
     
-    // Verify download was triggered
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toContain('.json');
   });

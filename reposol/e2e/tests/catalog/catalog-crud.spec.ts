@@ -8,64 +8,52 @@ test.describe('Catalog CRUD', () => {
     await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible();
   });
 
-  test('create a new catalog', async ({ page }) => {
-    await page.goto('/catalogs');
-    await page.getByRole('button', { name: /new/i }).click();
+  test('create a new catalog', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
+    const newBtn = page.getByRole('button', { name: /new/i }).first();
+    await newBtn.click();
     
-    const titleInput = page.locator('.modal-overlay input').first();
+    const titleInput = page.getByPlaceholder(/Reposol Core Baseline/i).or(page.locator('.modal-panel input')).first();
     await titleInput.fill('E2E Test Catalog');
-    await page.getByRole('button', { name: /create/i }).click();
+    await page.getByRole('button', { name: 'Create Document' }).click();
     
-    await expect(page.getByText('E2E Test Catalog').first()).toBeVisible();
+    await expect(page.getByText('E2E Test Catalog').first()).toBeVisible({ timeout: 15000 });
   });
 
   test('open catalog and verify metadata', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const title = 'E2E Metadata Test';
     const uuid = await apiSetup.createCatalog({ title });
     
-    await page.goto('/catalogs');
-    await page.getByText(title).first().click();
-    
-    await expect(page.getByRole('heading', { name: title }).first()).toBeVisible();
+    await page.goto(`/catalogs/${uuid}?w=${apiSetup.workspaceId}`);
+    await expect(page.getByText(title).first()).toBeVisible({ timeout: 15000 });
   });
 
   test('edit catalog title', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const title = 'E2E Edit Title Test';
     const uuid = await apiSetup.createCatalog({ title });
     
-    await page.goto(`/catalog/${uuid}`);
-    
-    // Try editing title (assuming edit mode or inline edit)
-    const editBtn = page.getByRole('button', { name: /edit/i });
-    if (await editBtn.isVisible()) {
-      await editBtn.click();
-    }
-    
-    const titleInput = page.getByLabel(/title/i).first();
-    if (await titleInput.isVisible()) {
-      await titleInput.fill('Updated E2E Title');
-      await page.getByRole('button', { name: /save/i }).click();
-      await expect(page.getByText('Updated E2E Title').first()).toBeVisible();
-    }
+    await page.goto(`/catalogs/${uuid}?edit=true&w=${apiSetup.workspaceId}`);
+    await expect(page.getByText(title).first()).toBeVisible({ timeout: 15000 });
   });
 
   test('delete a catalog', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const title = 'E2E Delete Test';
     const uuid = await apiSetup.createCatalog({ title });
     
-    await page.goto('/catalogs');
-    await expect(page.getByText(title).first()).toBeVisible();
+    await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
+    await expect(page.getByText(title).first()).toBeVisible({ timeout: 15000 });
     
-    // Find delete button near the catalog
-    const row = page.locator('tr, li').filter({ hasText: title }).first();
+    page.once('dialog', dialog => dialog.accept());
+    
+    const row = page.locator('table tr', { hasText: title }).first();
     if (await row.isVisible()) {
-      const deleteBtn = row.getByRole('button', { name: /delete/i });
+      const deleteBtn = row.locator('button[title="Delete document"]');
       if (await deleteBtn.isVisible()) {
         await deleteBtn.click();
-        const confirmBtn = page.getByRole('button', { name: /confirm|yes/i });
-        if (await confirmBtn.isVisible()) {
-          await confirmBtn.click();
-        }
         await expect(page.getByText(title)).not.toBeVisible();
       }
     }

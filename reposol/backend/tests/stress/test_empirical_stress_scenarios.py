@@ -62,7 +62,8 @@ class TestEmpiricalStressScenarios:
         assert res_multiline.status_code == 400
         assert "does not match" in res_multiline.text
 
-    def test_s1_02_empty_and_whitespace_values_in_parameters(self, client, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_s1_02_empty_and_whitespace_values_in_parameters(self, client, isolated_data_dir):
         """Test how empty string values and empty lists behave in remove_empty_arrays and document validation."""
         cat_doc = CatalogFactory.build(title="Empty Values Base Catalog")
         cat_uuid = cat_doc["catalog"]["uuid"]
@@ -90,7 +91,7 @@ class TestEmpiricalStressScenarios:
         assert "values" not in set_p[0], "Empty/whitespace values array should be purged cleanly"
 
         # Check schema validation passes for set-parameter without values
-        validate_document("profiles", cleaned_doc)
+        await validate_document("profiles", cleaned_doc)
 
     def test_s1_03_multi_choice_selections(self, client, isolated_data_dir):
         """Test multi-choice parameter selection structures."""
@@ -124,7 +125,8 @@ class TestEmpiricalStressScenarios:
         assert stored_p["select"]["how-many"] == "one-or-more"
         assert stored_p["values"] == ["mfa_token", "biometric_scan"]
 
-    def test_s1_04_constraint_expressions_and_validation(self, client, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_s1_04_constraint_expressions_and_validation(self, client, isolated_data_dir):
         """Test constraint expressions and schema validation behavior."""
         cat_doc = CatalogFactory.build(title="Constraint Catalog")
         cat_uuid = cat_doc["catalog"]["uuid"]
@@ -154,14 +156,14 @@ class TestEmpiricalStressScenarios:
             set_parameters=set_params,
             title="Profile Constraint Test"
         )
-        validate_document("profiles", prof_doc)
+        await validate_document("profiles", prof_doc)
 
         # Empirical test: description:"" is purged by remove_empty_arrays, resulting in valid schema
         bad_prof = copy.deepcopy(prof_doc)
         bad_prof["profile"]["modify"]["set-parameters"][0]["constraints"][0]["description"] = ""
         cleaned = remove_empty_arrays(bad_prof)
         assert "description" not in cleaned["profile"]["modify"]["set-parameters"][0]["constraints"][0]
-        validate_document("profiles", cleaned)
+        await validate_document("profiles", cleaned)
 
     # =========================================================================
     # SCENARIO 2: Profile Overrides at Catalog, Group, and Control Levels
@@ -341,7 +343,8 @@ class TestEmpiricalStressScenarios:
     # SCENARIO 4: Schema Validation after Purging Empty Arrays
     # =========================================================================
 
-    def test_s4_01_purge_empty_set_parameters_and_modify_validation(self, client, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_s4_01_purge_empty_set_parameters_and_modify_validation(self, client, isolated_data_dir):
         """Test schema validation when set-parameters is empty and purged by remove_empty_arrays."""
         cat_doc = CatalogFactory.build(title="Purge Empty Test Catalog")
         cat_uuid = cat_doc["catalog"]["uuid"]
@@ -353,16 +356,17 @@ class TestEmpiricalStressScenarios:
             "alters": []
         }
 
-        cleaned = preprocess_profile_for_saving(prof_doc, persist_local_catalog=False)
+        cleaned = await preprocess_profile_for_saving(prof_doc, persist_local_catalog=False)
         # Confirm set-parameters and alters are purged
         assert "set-parameters" not in cleaned.get("profile", {}).get("modify", {})
         assert "alters" not in cleaned.get("profile", {}).get("modify", {})
         assert "modify" not in cleaned["profile"] or cleaned["profile"]["modify"] == {}
 
         # Validate schema passes
-        validate_document("profiles", cleaned)
+        await validate_document("profiles", cleaned)
 
-    def test_s4_02_purge_empty_arrays_in_catalog(self, client, isolated_data_dir):
+    @pytest.mark.asyncio
+    async def test_s4_02_purge_empty_arrays_in_catalog(self, client, isolated_data_dir):
         """Test remove_empty_arrays purging empty controls/groups/params/props/links in catalog."""
         cat_doc = {
             "catalog": {
@@ -388,5 +392,5 @@ class TestEmpiricalStressScenarios:
         assert "controls" not in cleaned["catalog"]
         assert "groups" not in cleaned["catalog"]
 
-        validate_document("catalogs", cleaned)
+        await validate_document("catalogs", cleaned)
 

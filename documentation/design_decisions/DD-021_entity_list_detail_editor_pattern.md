@@ -5,7 +5,7 @@
 ## Decision Makers: Development Team
 
 ## Context
-DD-004 and DD-008 define editor UX patterns for the tree-based Catalog (Step 1) and Profile (Step 2) editors. Steps 3-8 introduce a fundamentally different UI paradigm: entity-based list-detail editing. Components, SSP sections, assessment tasks, observations, risks, findings, POA&M items, and mapping entries all follow a pattern of: browse a filterable table → open a detail panel → edit fields inline → save. This pattern is undocumented, leading to inconsistent implementations across stages.
+DD-004 and DD-030 define editor UX patterns for the tree-based Catalog (Step 1) and Profile (Step 2) editors. Steps 3-8 introduce a fundamentally different UI paradigm: entity-based list-detail editing. Components, SSP sections, assessment tasks, observations, risks, findings, POA&M items, and mapping entries all follow a pattern of: browse a filterable table → open a detail panel → edit fields inline → save. This pattern is undocumented, leading to inconsistent implementations across stages.
 
 ---
 
@@ -21,9 +21,11 @@ EntityTable (filterable, sortable, multi-select)
 ```
 
 Each tier is a reusable React component in `components/shared/entity/`:
-- `EntityTable.jsx` — generic data table with standard behaviors
-- `EntityDetailPanel.jsx` — configurable detail panel shell
-- `EntityFieldGroup.jsx` — grouped inline editors with section headers
+- `EntityTable.tsx` — generic data table with standard behaviors
+- `EntityDetailPanel.tsx` — configurable detail panel shell
+- `EntityEditor.tsx` — the new standard declarative schema-driven editor for entity fields (see DD-031)
+
+**Rule**: Inline entity editors (e.g., RiskEditor, ObservationEditor, FindingEditor) that are used across multiple stages (e.g., both Assessment Results and POA&M) MUST be extracted into `shared/assessment/` or `shared/entity/` for DRY reuse.
 
 ### 2. EntityTable Standard Behaviors
 - **Column sorting**: Click column header to toggle asc/desc. Active sort indicated by arrow icon.
@@ -103,7 +105,8 @@ Document which entity types use which modes:
 
 ### 6. Relationship to Existing DDs
 - **DD-004** (Dual-mode editing, undo/redo, draft auto-save): Applies WITHIN the EntityDetailPanel. The detail panel inherits all DD-004 patterns.
-- **DD-008** (ControlDetailView): Used when an entity REFERENCES controls. E.g., SSP `implemented-requirements` uses ControlDetailView in read-only mode to display the control, with `by-component` narrative editors below.
+- **DD-030** (Unified Control Editor): Used when an entity REFERENCES controls. E.g., SSP `implemented-requirements` uses `UnifiedControlEditor` in read-only mode to display the control, with `by-component` narrative editors below.
+- **DD-031** (Schema Form & Entity Editor): The underlying form engine powering EntityDetailPanel.
 - **DD-017** (Shared Assessment Entities): Provides the specific card components (ObservationCard, RiskCard, FindingCard) that are embedded INSIDE the EntityDetailPanel for assessment entities.
 - **DD-020** (Status Badges): All status columns and filter chips use the unified StatusBadge component.
 
@@ -114,4 +117,4 @@ Document which entity types use which modes:
 - EntityTable is the single source of truth for list behavior, eliminating per-stage reimplementation
 - Batch operations are standardized and predictable
 - Adding a new entity type only requires defining a column configuration and selecting a detail mode
-- The pattern is complementary to DD-004/DD-008, not a replacement
+- The pattern is complementary to DD-004/DD-030, not a replacement

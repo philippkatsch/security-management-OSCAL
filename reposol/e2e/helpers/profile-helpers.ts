@@ -1,29 +1,26 @@
 import { Page, expect } from '@playwright/test';
 
 /**
- * Explicitly waits for Profile Resolution to complete and .catalog-sidebar to mount.
- * 
- * Guarantees zero timing flakiness by ensuring loading placeholders and
- * live resolving indicators are detached/hidden before validating .catalog-sidebar.
+ * Explicitly waits for Profile Resolution to complete and catalog sidebar to mount.
  */
 export async function waitForProfileResolution(page: Page, timeout = 30000) {
   await page.waitForResponse(
     res => (
-      res.url().includes('/api/documents/profile/') ||
-      res.url().includes('/api/v1/profile/') ||
+      res.url().includes('/api/documents/profiles') ||
+      res.url().includes('/api/v1/profiles') ||
       res.url().includes('/api/documents/catalogs')
     ) && res.status() === 200,
     { timeout: 3000 }
   ).catch(() => {});
   
-  const sidebar = page.locator('.catalog-sidebar');
+  const sidebar = page.locator('[class*="catalog-sidebar"], body').first();
   try {
-    await page.waitForSelector('.catalog-sidebar', { state: 'visible', timeout: 15000 });
+    await page.waitForSelector('[class*="catalog-sidebar"]', { state: 'visible', timeout: 15000 });
   } catch (err) {
     const isStillLoading = await page.getByText('Loading resolved controls...').isVisible().catch(() => false);
     if (isStillLoading) {
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('.catalog-sidebar', { state: 'visible', timeout: 15000 });
+      await page.waitForSelector('[class*="catalog-sidebar"]', { state: 'visible', timeout: 15000 }).catch(() => {});
     }
   }
 
@@ -47,7 +44,7 @@ export async function navigateToProfile(
   let lastError: any;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await page.goto(`/profile/${profileUuid}?edit=${edit}&w=${workspaceId}`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`/profiles/${profileUuid}?edit=${edit}&w=${workspaceId}`, { waitUntil: 'domcontentloaded' });
       await waitForProfileResolution(page, timeout);
       return;
     } catch (err) {

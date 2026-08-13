@@ -118,6 +118,11 @@ Cascading checks are performed:
 - `GET /api/{stage}/?status=active,draft` — filter document list by lifecycle state
 
 ## Cross-References
+
+### 9. React Hooks Integration
+React Hooks Integration: `useDocumentLifecycle` is now a thin composition of `useDocumentData`, `useDocumentHistory`, and `useUnsavedChangesWarning`. The explicit hook split IS the architecture now, and manual hook composition is permitted when granular control over server vs UI state is needed (see DD-026).
+
+## Cross-References
 - DD-004 §5 (Version Management): State transitions trigger revision entries
 - DD-015 (Workspace Isolation): Lifecycle state persists per-document in workspace
 - DD-016 (Cross-Document Import): Parent lifecycle state detected during lazy resolution

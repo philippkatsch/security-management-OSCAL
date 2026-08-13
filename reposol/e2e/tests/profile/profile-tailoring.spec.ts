@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/base';
 
 test.describe('Profile Tailoring', () => {
   test('override parameter value', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
     const groups = [
       {
         id: 'ac',
@@ -24,9 +25,15 @@ test.describe('Profile Tailoring', () => {
       catalogUuid: catUuid
     });
     
-    await page.goto(`/profile/${profUuid}`);
-    await page.getByText('Access Control').first().click();
-    await page.getByText('Policy and Procedures').first().click();
+    await page.goto(`/profiles/${profUuid}?w=${apiSetup.workspaceId}`);
+    const groupNode = page.locator('[data-testid="tree-node-ac"], [data-testid^="tree-node-"]').first();
+    await expect(groupNode).toBeVisible({ timeout: 15000 });
+    await groupNode.click();
+    const controlItem = page.getByText('Policy and Procedures').first();
+    if (!await controlItem.isVisible()) {
+      await groupNode.locator('span').first().click();
+    }
+    await controlItem.click();
     
     const paramInput = page.getByLabel(/frequency/i).first();
     if (await paramInput.isVisible()) {

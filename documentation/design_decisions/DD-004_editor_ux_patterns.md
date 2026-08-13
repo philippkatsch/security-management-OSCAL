@@ -20,7 +20,7 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - Properties/tags use a combined card layout with autocomplete
 - Prose parts (statements, guidance) use debounced textareas (300ms)
 - Parameter inserts in prose use `ProseWithParams` and are triggered by a dedicated 'Add Parameter' button next to prose edit actions. This applies universally across 4 editor domains:
-  1. Control Statements & Sub-Control Enhancements (`ControlDetailView` & `EnhancementsAccordion`)
+  1. Control Statements & Sub-Control Enhancements (`UnifiedControlEditor` & `EnhancementsAccordion`)
   2. Group Description Parts (`GroupEditor` & `PartsEditor`)
   3. Parameter Metadata (`ParameterCard` usage & guidelines fields)
   4. Assessment Objectives & Methods (`DocumentEditor` / `AssessmentPlanEditor`).
@@ -58,7 +58,7 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - `metadata.version` auto-synchronized with the active version number; `metadata.revisions[]` auto-updated on each version save.
 
 ### 6. Cross-Domain Visual Consistency (see DD-001)
-- Control detail views in Catalog and Profile editors are unified into a single polymorphic component, `ControlDetailView` (see [DD-008](DD-008_unified_control_detail_editor.md))
+- Control detail views in Catalog, Profile, and SSP editors use a shared `UnifiedControlEditor` component driven by stage adapters (`CatalogAdapter`, `ProfileAdapter`, `SSPAdapter`) that share UI primitives but cleanly separate mutation logic (see DD-030).
 - Data mutation logic remains domain-specific (direct mutation for Catalog, modify.alters for Profile, resolved using adapters/callbacks)
 - Prose formatting uses a single shared `formatProse()` utility from `oscal-utils.js`
 - Section layout pattern: `section-container` class with `border-top` separators, consistent spacing
@@ -79,11 +79,21 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - Selecting `custom` enables custom group management under `profile.merge.custom`. In `custom` mode, each catalog import card renders a single clean button **`📥 Import Full Structure`** to copy a catalog's hierarchy into custom profile groups. Structure copying is **additive** (appends new catalog groups to existing custom groups without overwriting) and executes instantly without disruptive `window.confirm()` popups.
 - **Import Baseline Cleanup**: When removing an import source via `Remove`, if 0 imports remain, `profile.merge` automatically resets to `{ "as-is": true }` and custom groups are cleared so no orphan groups linger in the left sidebar.
 
-### 9. Editor Paradigm Classification
+### 9. New Standard UI Patterns
+- **EmptyState**: Reusable component for empty lists/tables with consistent illustrations, text, and primary call-to-action buttons.
+- **EditableCard**: Standard container for inline-editable blocks (e.g., system characteristics, implementation details). Features a clean read-only view and an integrated form mode.
+- **StandardMetadataTab**: A shared metadata configuration tab used across all 8 document types, standardizing title, version, last modified, roles, and parties editing.
+- **EntityEditor**: A generic editor component replacing manual form construction (see DD-031).
+
+### 10. Toast & Modal Infrastructure
+- **Toast Notifications**: Replaces all `window.alert()` calls. Implemented using `react-hot-toast` wrapped in a centralized `ToastProvider`. Used for save success/failure, validation errors, and background task completion.
+- **ConfirmModal**: Replaces all `window.confirm()` calls. A standardized accessible dialog used for destructive actions (deletions, unlinking), powered by a `useConfirm` hook for easy integration.
+
+### 11. Editor Paradigm Classification
 
 | Paradigm | Description | Steps |
 |---|---|---|
-| Tree + Detail | Sidebar tree navigation → control detail panel (DD-008) | 1, 2 |
+| Tree + Detail | Sidebar tree navigation → control detail panel (DD-030) | 1, 2, 4 |
 | Multi-Card Sections | Tabbed/stacked card sections within a document | 4 (System Characteristics, Implementation) |
 | Entity List-Detail | Table → slide-out/expand detail panel (DD-021) | 3, 5, 6, 7 |
 | Matrix Editor | 2D grid with cell-level editing (DD-019) | 8 |
@@ -100,7 +110,9 @@ Note: Dual-mode visual/JSON editing (§1), undo/redo (§3), draft auto-save (§4
 - Auto-save debounce interval increases from 30s to 120s for documents > 5MB
 
 ## Cross-References
-- DD-008 (ControlDetailView, Steps 1-2)
+- DD-030 (Unified Control Editor)
+- DD-031 (Schema Form & Entity Editor)
+- DD-032 (UI Infrastructure)
 - DD-020 (Status Badges)
 - DD-021 (Entity List-Detail, Steps 3-8)
 - DD-022 (Dashboard Components)
