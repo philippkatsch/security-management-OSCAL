@@ -396,4 +396,61 @@ test.describe('Step 1 Catalog Builder — Deterministic E2E Verification', () =>
     await expect(page.getByText('90 days').first()).toBeVisible({ timeout: 15000 });
   });
 
+  test('US 1.20: Real-Time Sidebar Search & Quick Filtering', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    const catalogUuid = randomUUID();
+
+    await apiSetup.createCatalog({
+      uuid: catalogUuid,
+      title: `Search Catalog ${catalogUuid.substring(0, 8)}`,
+      groups: [
+        {
+          id: 'ac',
+          title: 'Access Control',
+          controls: [
+            {
+              id: 'ac-1',
+              title: 'Access Control Policy',
+              parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Policy prose' }]
+            },
+            {
+              id: 'ac-2',
+              title: 'Account Management',
+              parts: [{ id: 'ac-2_smt', name: 'statement', prose: 'Account prose' }]
+            }
+          ]
+        },
+        {
+          id: 'ia',
+          title: 'Identification and Authentication',
+          controls: [
+            {
+              id: 'ia-1',
+              title: 'Identification Policy',
+              parts: [{ id: 'ia-1_smt', name: 'statement', prose: 'IA policy prose' }]
+            }
+          ]
+        }
+      ]
+    });
+
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
+
+    // Filter controls by typing "Account"
+    const searchInput = page.getByPlaceholder('Filter controls...');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
+    await searchInput.fill('Account');
+
+    // Access Control should remain visible with ac-2
+    await expect(page.getByText('Account Management').first()).toBeVisible({ timeout: 15000 });
+
+    // Identification group should not match
+    await expect(page.getByText('Identification Policy')).not.toBeVisible();
+
+    // Clear filter and verify full tree restores
+    await searchInput.fill('');
+    const iaGroup = page.locator('[data-testid="tree-node-ia"], [data-dnd-id="ia"]').or(page.getByText('Identification and Authentication')).first();
+    await expect(iaGroup).toBeVisible({ timeout: 15000 });
+  });
+
 });

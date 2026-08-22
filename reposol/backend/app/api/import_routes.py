@@ -79,8 +79,8 @@ KNOWN_SOURCES = [
         "description": "Deutsches Bundesamt für Sicherheit in der Informationstechnik (BSI) IT-Grundschutz Kompendium (Grundschutz++) OSCAL Catalog.",
         "model": "catalog",
         "source": "bsi",
-        "url": "https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/Anwenderkataloge/Grundschutz%2B%2B/Grundschutz%2B%2B-catalog.json",
-        "uuid": "7a35649f-1d8d-4a12-8869-709b4db74c77",
+        "url": "https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/control_layer/Grundschutz%2B%2B/Grundschutz%2B%2B-resolved_catalog.json",
+        "uuid": "9e2fc241-16e5-4a2d-bda7-f9e0556a1639",
     },
 ]
 

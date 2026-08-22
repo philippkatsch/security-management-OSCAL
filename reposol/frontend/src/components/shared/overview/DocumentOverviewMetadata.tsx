@@ -7,9 +7,10 @@ export interface DocumentOverviewMetadataProps {
   isEditingState?: boolean;
   baselineStats?: any;
   onChange?: (updated: any) => void;
+  onNavigateToProperties?: () => void;
 }
 
-export function DocumentOverviewMetadata({ mode, document: rawDocument, isEditingState, baselineStats, onChange = () => {} }: DocumentOverviewMetadataProps) {
+export function DocumentOverviewMetadata({ mode, document: rawDocument, isEditingState, baselineStats, onChange = () => {}, onNavigateToProperties }: DocumentOverviewMetadataProps) {
   const document = rawDocument || {};
   const badgeStyle: React.CSSProperties = {
     background: 'var(--color-surface-2)',
@@ -75,6 +76,7 @@ export function DocumentOverviewMetadata({ mode, document: rawDocument, isEditin
         metadata={document.metadata || {}}
         onChange={handleMetadataChange}
         readOnly={!isEditingState}
+        onNavigateToProperties={onNavigateToProperties}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import { PropsEditor } from '../PropsEditor';
 import { LinksEditor } from '../LinksEditor';
 import { isValidIsoDateTime } from '@lib/oscal-utils';
 
-export function MetadataGeneralPanel({ metadata, readOnly, expandedSections, toggleSection, handleFieldChange }) {
+export function MetadataGeneralPanel({ metadata, readOnly, expandedSections, toggleSection, handleFieldChange, onNavigateToProperties }: any) {
   // --- Document IDs CRUD ---
   const handleAddDocId = () => {
     const docIds = metadata['document-ids'] ? [...metadata['document-ids']] : [];
@@ -182,11 +182,65 @@ export function MetadataGeneralPanel({ metadata, readOnly, expandedSections, tog
         </div>
         {expandedSections.props && (
           <div style={{ padding: '20px' }}>
-            <PropsEditor
-              props={metadata.props || []}
-              onChange={(props) => handleFieldChange('props', props.length > 0 ? props : undefined)}
-              readOnly={readOnly}
-            />
+            {onNavigateToProperties ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.5' }}>
+                  Global document properties are defined at the document header level and are centrally managed in the <strong>Properties</strong> tab.
+                </p>
+                {metadata.props && metadata.props.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {metadata.props.map((p: any, idx: number) => (
+                      <div
+                        key={idx}
+                        style={{
+                          background: 'var(--color-surface-2)',
+                          border: '1px solid var(--color-border-subtle)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '6px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <strong style={{ color: 'var(--color-text)' }}>{p.name || '(unnamed)'}</strong>
+                        {p.value !== undefined && (
+                          <span className="badge" style={{ background: 'var(--color-primary-subtle)', color: 'var(--color-primary)', fontSize: '11px', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                            {p.value}
+                          </span>
+                        )}
+                        {p.class && (
+                          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>class: {p.class}</span>
+                        )}
+                        {p.ns && (
+                          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>ns: {p.ns}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                    No global document properties defined.
+                  </div>
+                )}
+                <div>
+                  <button
+                    type="button"
+                    className={styles['btn-secondary']}
+                    onClick={onNavigateToProperties}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', fontSize: '12px' }}
+                  >
+                    🏷️ Manage in Properties Tab
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <PropsEditor
+                props={metadata.props || []}
+                onChange={(props) => handleFieldChange('props', props.length > 0 ? props : undefined)}
+                readOnly={readOnly}
+              />
+            )}
           </div>
         )}
       </div>

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import styles from './Document.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
-import { authFetch } from '@lib/api';
+import { authFetch, fetchDocument } from '@lib/api';
+import { toast } from 'react-hot-toast';
 
-const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
-  nist: { label: 'NIST', color: '#1a7fd4' },
-  fedramp: { label: 'FedRAMP', color: '#1a7fd4' },
-  bsi: { label: 'BSI', color: '#1a7fd4' },
-  sample: { label: 'Sample', color: '#1a7fd4' },
+const SOURCE_LABELS: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  nist: { label: 'NIST', color: '#58a6ff', bg: 'rgba(56, 139, 253, 0.15)', border: 'rgba(56, 139, 253, 0.3)' },
+  fedramp: { label: 'FedRAMP', color: '#3fb950', bg: 'rgba(46, 160, 67, 0.15)', border: 'rgba(46, 160, 67, 0.3)' },
+  bsi: { label: 'BSI', color: '#e3b341', bg: 'rgba(210, 153, 34, 0.15)', border: 'rgba(210, 153, 34, 0.3)' },
+  sample: { label: 'Sample', color: '#bc8cff', bg: 'rgba(188, 140, 255, 0.15)', border: 'rgba(188, 140, 255, 0.3)' },
 };
 
 const MODEL_ICONS: Record<string, string> = {
@@ -31,19 +32,52 @@ const STAGE_TO_MODEL: Record<string, string> = {
   poams: 'poam'
 };
 
+const CATALOG_EXAMPLE_URLS = [
+  {
+    label: 'NIST SP 800-53 Rev 5.2.0 Catalog',
+    desc: 'Full catalog with Rev 5.2.0 controls & SP 800-53A assessment objectives',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json',
+  },
+  {
+    label: 'NIST Cybersecurity Framework 2.0',
+    desc: 'Official NIST CSF 2.0 core catalog functions and categories',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json',
+  },
+  {
+    label: 'BSI IT-Grundschutz Kompendium',
+    desc: 'Official German Federal Office (BSI) IT-Grundschutz++ catalog',
+    url: 'https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/control_layer/Grundschutz%2B%2B/Grundschutz%2B%2B-resolved_catalog.json',
+  },
+];
+
 export interface ImportWizardProps {
   stage?: string;
-  onImported?: (stage: string) => void;
-  onClose: () => void;
+  onImported?: (stage: string, docData?: any) => void;
+  onClose?: () => void;
+  embedded?: boolean;
+  onApplyContent?: (document: any) => void;
+  currentDocument?: any;
+  title?: string;
+  subtitle?: string;
 }
 
-export default function ImportWizard({ stage, onImported, onClose }: ImportWizardProps) {
+export default function ImportWizard({
+  stage,
+  onImported,
+  onClose,
+  embedded = false,
+  onApplyContent,
+  currentDocument,
+  title,
+  subtitle,
+}: ImportWizardProps) {
   const [tab, setTab] = useState<'registry' | 'url' | 'upload'>('registry');
   const [registry, setRegistry] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState(() => {
     return (stage ? STAGE_TO_MODEL[stage] : '') || 'all';
   });
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, { ok: boolean; message: string } | null>>({});
@@ -55,25 +89,30 @@ export default function ImportWizard({ stage, onImported, onClose }: ImportWizar
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLoading(true);
     authFetch('/api/import/registry')
       .then((r) => r.json())
-      .then((data) => setRegistry(data))
+      .then((data) => setRegistry(Array.isArray(data) ? data : []))
       .catch(() => setRegistry([]))
       .finally(() => setLoading(false));
   }, []);
 
   const modelTypes = ['all', ...Array.from(new Set(registry.map((e) => e.model)))];
+  const sourceTypes = ['all', ...Array.from(new Set(registry.map((e) => e.source)))];
 
   const filtered = registry.filter((entry) => {
     const matchModel = filter === 'all' || entry.model === filter;
+    const matchSource = sourceFilter === 'all' || entry.source === sourceFilter;
     const matchSearch =
       !search ||
       entry.title.toLowerCase().includes(search.toLowerCase()) ||
       entry.description.toLowerCase().includes(search.toLowerCase());
-    return matchModel && matchSearch;
+    return matchModel && matchSource && matchSearch;
   });
 
   const handleImport = async (entry: any) => {
@@ -85,11 +124,26 @@ export default function ImportWizard({ stage, onImported, onClose }: ImportWizar
       });
       const data = await response.json();
       if (response.ok) {
+        let appliedTitle = data.title || entry.title;
+        if (embedded && onApplyContent) {
+          try {
+            const targetStage = (data.stage || stage || 'catalogs') as any;
+            const fullDoc = await fetchDocument(targetStage, data.uuid);
+            const contentDoc = fullDoc.catalog || fullDoc.profile || fullDoc['component-definition'] || fullDoc['system-security-plan'] || fullDoc;
+            onApplyContent(contentDoc);
+            toast.success(`Content from "${appliedTitle}" applied to current document`);
+          } catch (fetchErr: any) {
+            console.error('Error fetching full imported doc:', fetchErr);
+          }
+        }
+
         setResults((prev) => ({
           ...prev,
           [entry.id]: {
             ok: true,
-            message: `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}"`,
+            message: embedded
+              ? `✅ Content Applied: "${appliedTitle}"`
+              : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${appliedTitle}"`,
           },
         }));
         if (onImported) onImported(data.stage);
@@ -121,9 +175,23 @@ export default function ImportWizard({ stage, onImported, onClose }: ImportWizar
       });
       const data = await response.json();
       if (response.ok) {
+        if (embedded && onApplyContent) {
+          try {
+            const targetStage = (data.stage || stage || 'catalogs') as any;
+            const fullDoc = await fetchDocument(targetStage, data.uuid);
+            const contentDoc = fullDoc.catalog || fullDoc.profile || fullDoc['component-definition'] || fullDoc['system-security-plan'] || fullDoc;
+            onApplyContent(contentDoc);
+            toast.success(`Content from URL applied to current document`);
+          } catch (fetchErr: any) {
+            console.error('Error fetching full imported doc from URL:', fetchErr);
+          }
+        }
+
         setUrlResult({
           ok: true,
-          message: `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
+          message: embedded
+            ? `✅ Content Applied: "${data.title}"`
+            : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
         });
         if (onImported) onImported(data.stage);
       } else {
@@ -143,6 +211,25 @@ export default function ImportWizard({ stage, onImported, onClose }: ImportWizar
     setUploadResult(null);
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setSelectedFile(e.dataTransfer.files[0]);
+      setUploadResult(null);
+    }
+  };
+
   const handleFileUpload = async () => {
     if (!selectedFile) return;
     setUploading(true);
@@ -156,9 +243,23 @@ export default function ImportWizard({ stage, onImported, onClose }: ImportWizar
       });
       const data = await response.json();
       if (response.ok) {
+        if (embedded && onApplyContent) {
+          try {
+            const targetStage = (data.stage || stage || 'catalogs') as any;
+            const fullDoc = await fetchDocument(targetStage, data.uuid);
+            const contentDoc = fullDoc.catalog || fullDoc.profile || fullDoc['component-definition'] || fullDoc['system-security-plan'] || fullDoc;
+            onApplyContent(contentDoc);
+            toast.success(`Content from file applied to current document`);
+          } catch (fetchErr: any) {
+            console.error('Error fetching full imported doc from file:', fetchErr);
+          }
+        }
+
         setUploadResult({
           ok: true,
-          message: `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
+          message: embedded
+            ? `✅ Content Applied: "${data.title}"`
+            : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
         });
         if (onImported) onImported(data.stage);
       } else {
@@ -171,198 +272,351 @@ export default function ImportWizard({ stage, onImported, onClose }: ImportWizar
     }
   };
 
-  return (
-    <div className="editor-overlay">
-      <div className={['editor-panel', styles['import-panel']].filter(Boolean).join(' ')}>
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const modalTitle = title || (stage === 'catalogs' || stage === 'catalog' ? '📥 Import Catalog' : '📥 Import OSCAL Document');
+  const embeddedTitle = title || '📥 Import Catalog';
+  const embeddedSubtitle = subtitle || 'An OSCAL Catalog represents a single control source. Applying a template, URL, or file will replace the current catalog content with that single control baseline while preserving its UUID.';
+
+  const content = (
+    <div className={embedded ? styles['import-panel-embedded'] : ['editor-panel', styles['import-panel']].filter(Boolean).join(' ')}>
+      {embedded ? (
+        <div className={styles['import-header-embedded']}>
+          <h3>{embeddedTitle}</h3>
+          <p>{embeddedSubtitle}</p>
+        </div>
+      ) : (
         <div className="editor-header">
-          <h3>📥 Import OSCAL Document</h3>
-          <button className={sharedStyles['btn-icon']} onClick={onClose}>✕</button>
+          <h3>{modalTitle}</h3>
+          {onClose && <button type="button" className={sharedStyles['btn-icon']} onClick={onClose} title="Close">✕</button>}
         </div>
+      )}
 
-        <div className={styles['import-tabs']}>
-          <button
-            className={`import-tab ${tab === 'registry' ? styles['active'] : ''}`}
-            onClick={() => setTab('registry')}
-          >
-            📚 Registry
-          </button>
-          <button
-            className={`import-tab ${tab === 'url' ? styles['active'] : ''}`}
-            onClick={() => setTab('url')}
-          >
-            🔗 Import from URL
-          </button>
-          <button
-            className={`import-tab ${tab === 'upload' ? styles['active'] : ''}`}
-            onClick={() => setTab('upload')}
-          >
-            📤 Upload File
-          </button>
-        </div>
+      <div className={styles['import-tabs']}>
+        <button
+          type="button"
+          className={`${styles['import-tab']} ${tab === 'registry' ? styles['active'] : ''}`}
+          onClick={() => setTab('registry')}
+        >
+          📚 Registry
+        </button>
+        <button
+          type="button"
+          className={`${styles['import-tab']} ${tab === 'url' ? styles['active'] : ''}`}
+          onClick={() => setTab('url')}
+        >
+          🔗 Import from URL
+        </button>
+        <button
+          type="button"
+          className={`${styles['import-tab']} ${tab === 'upload' ? styles['active'] : ''}`}
+          onClick={() => setTab('upload')}
+        >
+          📤 Upload File
+        </button>
+      </div>
 
-        {tab === 'registry' && (
-          <div className={styles['import-registry']}>
-            <div className={styles['import-filters']}>
+      {tab === 'registry' && (
+        <div className={styles['import-registry']}>
+          <div className={styles['import-filters']}>
+            <div className={styles['search-wrapper']}>
+              <span className={styles['search-icon']}>🔍</span>
               <input
                 type="text"
-                className="form-input"
+                className={`form-input ${styles['search-input-with-icon']}`}
                 placeholder="Search by title or description…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              {(!stage || stage === 'dashboard') && (
-                <div className={styles['filter-chips']}>
-                  {modelTypes.map((m) => (
-                    <button
-                      key={m}
-                      className={`chip ${filter === m ? styles['active'] : ''}`}
-                      onClick={() => setFilter(m)}
-                    >
-                      {m === 'all' ? 'All' : `${MODEL_ICONS[m] || ''} ${m}`}
-                    </button>
-                  ))}
-                </div>
+              {search && (
+                <button
+                  type="button"
+                  className={styles['search-clear-btn']}
+                  onClick={() => setSearch('')}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
               )}
             </div>
 
-            <div className={styles['registry-list']}>
-              {loading ? (
-                <div className={sharedStyles['loading-indicator']}>
-                  <span className={sharedStyles['spinner']} /> Loading registry…
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className={sharedStyles['empty-state']}>
-                  <p>No documents match your filter.</p>
-                </div>
-              ) : (
-                filtered.map((entry) => {
-                  const result = results[entry.id];
-                  const isImporting = importing === entry.id;
-                  const src = SOURCE_LABELS[entry.source] || { label: entry.source, color: '#1a7fd4' };
-
-                  return (
-                    <div key={entry.id} className={styles['registry-entry']}>
-                      <div className={styles['registry-entry-icon']}>
-                        {MODEL_ICONS[entry.model] || '📄'}
-                      </div>
-                      <div className={styles['registry-entry-body']}>
-                        <div className={styles['registry-entry-title']}>
-                          {entry.title}
-                          <span
-                            className={styles['source-badge']}
-                            style={{ backgroundColor: src.color + '22', color: src.color, borderColor: src.color + '55' }}
-                          >
-                            {src.label}
-                          </span>
-                          {entry.is_imported && (
-                            <span
-                              className={styles['source-badge']}
-                              style={{ backgroundColor: '#2e7d3222', color: '#2e7d32', borderColor: '#2e7d3255', marginLeft: '6px' }}
-                            >
-                              ✓ Imported
-                            </span>
-                          )}
-                        </div>
-                        <div className={styles['registry-entry-desc']}>{entry.description}</div>
-                        {result && (
-                          <div className={`registry-result ${result.ok ? styles['ok'] : styles['err']}`}>
-                            {result.message}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        className={`btn-import ${result?.ok ? styles['imported'] : ''}`}
-                        onClick={() => handleImport(entry)}
-                        disabled={isImporting}
-                        title={entry.url}
-                      >
-                        {isImporting ? <span className={styles['spinner-sm']} /> : result?.ok ? '✓' : entry.is_imported ? '🔄 Update' : 'Import'}
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
-
-        {tab === 'url' && (
-          <div className={[styles['import-url-tab'], 'editor-body'].filter(Boolean).join(' ')}>
-            <div className="form-group">
-              <label>Document URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://raw.githubusercontent.com/…/catalog.json"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleUrlImport()}
-              />
-              <p className={styles['field-hint']}>
-                Paste any raw URL to a valid OSCAL JSON document. The stage will be auto-detected from the root key.
-              </p>
-            </div>
-
-            <div className="form-group">
-              <label>Example URLs</label>
-              <div className={styles['example-urls']}>
-                {[
-                  {
-                    label: 'NIST SP 800-53 Rev5 Catalog',
-                    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json',
-                  },
-                  {
-                    label: 'NIST CSF 2.0 Catalog',
-                    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json',
-                  },
-                ].map((ex) => (
+            {(!stage || stage === 'dashboard') && modelTypes.length > 2 && (
+              <div className={styles['filter-chips']}>
+                {modelTypes.map((m) => (
                   <button
-                    key={ex.url}
-                    className={[sharedStyles['btn-secondary'], sharedStyles['btn-sm'], styles['example-url-btn']].filter(Boolean).join(' ')}
-                    onClick={() => setUrlInput(ex.url)}
+                    key={m}
+                    type="button"
+                    className={`${styles['chip']} ${filter === m ? styles['active'] : ''}`}
+                    onClick={() => setFilter(m)}
                   >
-                    {ex.label}
+                    {m === 'all' ? 'All Models' : `${MODEL_ICONS[m] || ''} ${m}`}
                   </button>
                 ))}
               </div>
-            </div>
+            )}
 
-            {urlResult && (
-              <div className={`validation-result ${urlResult.ok ? styles['valid'] : styles['invalid']}`}>
-                {urlResult.message}
+            {sourceTypes.length > 2 && (
+              <div className={styles['filter-chips']}>
+                {sourceTypes.map((s) => {
+                  const srcMeta = SOURCE_LABELS[s];
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`${styles['chip']} ${sourceFilter === s ? styles['active'] : ''}`}
+                      onClick={() => setSourceFilter(s)}
+                    >
+                      {s === 'all' ? 'All Sources' : (srcMeta?.label || s.toUpperCase())}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
-        )}
 
-        {tab === 'upload' && (
-          <div className={[styles['import-url-tab'], 'editor-body'].filter(Boolean).join(' ')}>
-            <div className="form-group">
-              <label>Select file (JSON, YAML, XML)</label>
-              <input
-                type="file"
-                className="form-input"
-                accept=".json,.yaml,.yml,.xml"
-                onChange={handleFileChange}
-              />
-              <p className={styles['field-hint']}>
-                Select a local OSCAL file. The format is automatically recognized and validated.
-              </p>
-            </div>
-            {uploadResult && (
-              <div className={`validation-result ${uploadResult.ok ? styles['valid'] : styles['invalid']}`}>
-                {uploadResult.message}
+          <div className={styles['registry-list']}>
+            {loading ? (
+              <div className={sharedStyles['loading-indicator']}>
+                <span className={sharedStyles['spinner']} /> Loading registry…
               </div>
+            ) : filtered.length === 0 ? (
+              <div className={sharedStyles['empty-state']}>
+                <p>No documents match your filter.</p>
+              </div>
+            ) : (
+              filtered.map((entry) => {
+                const result = results[entry.id];
+                const isImporting = importing === entry.id;
+                const src = SOURCE_LABELS[entry.source] || {
+                  label: entry.source,
+                  color: '#58a6ff',
+                  bg: 'rgba(56, 139, 253, 0.15)',
+                  border: 'rgba(56, 139, 253, 0.3)'
+                };
+
+                const isCurrentSource = embedded && currentDocument && (
+                  (currentDocument.metadata?.title && entry.title && currentDocument.metadata.title.toLowerCase().includes(entry.title.toLowerCase())) ||
+                  (entry.title && currentDocument.metadata?.title && entry.title.toLowerCase().includes(currentDocument.metadata.title.toLowerCase()))
+                );
+
+                return (
+                  <div key={entry.id} className={styles['registry-entry']}>
+                    <div className={styles['registry-entry-icon']}>
+                      {MODEL_ICONS[entry.model] || '📄'}
+                    </div>
+                    <div className={styles['registry-entry-body']}>
+                      <div className={styles['registry-entry-title']}>
+                        {entry.title}
+                        <span
+                          className={styles['source-badge']}
+                          style={{ backgroundColor: src.bg, color: src.color, borderColor: src.border }}
+                        >
+                          {src.label}
+                        </span>
+                        {!embedded && entry.is_imported && (
+                          <span
+                            className={styles['source-badge']}
+                            style={{ backgroundColor: 'rgba(46, 160, 67, 0.15)', color: '#3fb950', borderColor: 'rgba(46, 160, 67, 0.3)', marginLeft: '6px' }}
+                          >
+                            ✓ In Workspace
+                          </span>
+                        )}
+                        {isCurrentSource && (
+                          <span
+                            className={styles['source-badge']}
+                            style={{ backgroundColor: 'rgba(56, 139, 253, 0.15)', color: '#58a6ff', borderColor: 'rgba(56, 139, 253, 0.3)', marginLeft: '6px' }}
+                          >
+                            ✓ Current Baseline
+                          </span>
+                        )}
+                      </div>
+                      <div className={styles['registry-entry-desc']}>{entry.description}</div>
+                      {result && (
+                        <div className={`${styles['registry-result']} ${result.ok ? styles['ok'] : styles['err']}`}>
+                          {result.message}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={`${styles['btn-import']} ${result?.ok ? styles['imported'] : ''}`}
+                      onClick={() => handleImport(entry)}
+                      disabled={isImporting}
+                      title={entry.url}
+                    >
+                      {isImporting ? (
+                        <span className={styles['spinner-sm']} />
+                      ) : result?.ok ? (
+                        '✓'
+                      ) : embedded ? (
+                        isCurrentSource ? '🔄 Re-Apply' : '📥 Apply Content'
+                      ) : entry.is_imported ? (
+                        '🔄 Update'
+                      ) : (
+                        'Import'
+                      )}
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
-        )}
+        </div>
+      )}
 
+      {tab === 'url' && (
+        <div className={styles['import-tab-body']}>
+          <div className="form-group">
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>Document URL</label>
+            <input
+              type="url"
+              className="form-input"
+              placeholder="https://raw.githubusercontent.com/…/catalog.json"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleUrlImport()}
+            />
+            <p className={styles['field-hint']}>
+              Paste any raw URL to a valid OSCAL JSON or YAML document. The stage will be auto-detected from the root key.
+            </p>
+          </div>
+
+          <div className="form-group" style={{ marginTop: '4px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>Standard Catalog Presets (Click to load)</label>
+            <div className={styles['preset-grid']}>
+              {(stage === 'catalogs' || stage === 'catalog' ? CATALOG_EXAMPLE_URLS : [
+                {
+                  label: 'NIST SP 800-53 Rev5 Catalog',
+                  desc: 'NIST SP 800-53 Rev 5 Catalog',
+                  url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json',
+                },
+                {
+                  label: 'NIST CSF 2.0 Catalog',
+                  desc: 'NIST Cybersecurity Framework 2.0',
+                  url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json',
+                },
+              ]).map((ex: any) => (
+                <button
+                  key={ex.url}
+                  className={styles['preset-card']}
+                  onClick={() => setUrlInput(ex.url)}
+                  type="button"
+                >
+                  <div className={styles['preset-card-title']}>
+                    <span>📖</span> {ex.label}
+                  </div>
+                  {ex.desc && <div className={styles['preset-card-desc']}>{ex.desc}</div>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {urlResult && (
+            <div className={`${styles['validation-result']} ${urlResult.ok ? styles['valid'] : styles['invalid']}`} style={{ marginTop: '4px' }}>
+              {urlResult.message}
+            </div>
+          )}
+
+          {embedded && (
+            <div style={{ marginTop: 'auto', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className={sharedStyles['btn-primary']}
+                onClick={handleUrlImport}
+                disabled={urlImporting || !urlInput.trim()}
+              >
+                {urlImporting ? 'Importing…' : '📥 Load & Apply Content'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'upload' && (
+        <div className={styles['import-tab-body']}>
+          <div className="form-group">
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>Select or Drop OSCAL File</label>
+            <div
+              className={`${styles['upload-dropzone']} ${isDragActive ? styles['drag-active'] : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className={styles['upload-dropzone-icon']}>📤</div>
+              <div className={styles['upload-dropzone-title']}>Click to browse or drop file here</div>
+              <div className={styles['upload-dropzone-desc']}>Supports JSON, YAML, and XML official NIST OSCAL formats</div>
+              <div className={styles['upload-format-chips']}>
+                <span className={styles['format-chip']}>.json</span>
+                <span className={styles['format-chip']}>.yaml</span>
+                <span className={styles['format-chip']}>.yml</span>
+                <span className={styles['format-chip']}>.xml</span>
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              style={{ display: 'none' }}
+              accept=".json,.yaml,.yml,.xml"
+              onChange={handleFileChange}
+            />
+          </div>
+
+          {selectedFile && (
+            <div className={styles['selected-file-card']}>
+              <div className={styles['selected-file-info']}>
+                <span className={styles['selected-file-icon']}>📄</span>
+                <div>
+                  <div className={styles['selected-file-name']}>{selectedFile.name}</div>
+                  <div className={styles['selected-file-size']}>{formatFileSize(selectedFile.size)}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={sharedStyles['btn-soft-delete']}
+                onClick={() => setSelectedFile(null)}
+                title="Remove file"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {uploadResult && (
+            <div className={`${styles['validation-result']} ${uploadResult.ok ? styles['valid'] : styles['invalid']}`} style={{ marginTop: '4px' }}>
+              {uploadResult.message}
+            </div>
+          )}
+
+          {embedded && (
+            <div style={{ marginTop: 'auto', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className={sharedStyles['btn-primary']}
+                onClick={handleFileUpload}
+                disabled={uploading || !selectedFile}
+              >
+                {uploading ? 'Uploading…' : '📤 Upload & Apply Content'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!embedded && (
         <div className="editor-footer">
-          <button className={sharedStyles['btn-secondary']} onClick={onClose}>
-            Close
-          </button>
+          {onClose && (
+            <button type="button" className={sharedStyles['btn-secondary']} onClick={onClose}>
+              Close
+            </button>
+          )}
           {tab === 'url' && (
             <button
+              type="button"
               className={sharedStyles['btn-primary']}
               onClick={handleUrlImport}
               disabled={urlImporting || !urlInput.trim()}
@@ -372,6 +626,7 @@ export default function ImportWizard({ stage, onImported, onClose }: ImportWizar
           )}
           {tab === 'upload' && (
             <button
+              type="button"
               className={sharedStyles['btn-primary']}
               onClick={handleFileUpload}
               disabled={uploading || !selectedFile}
@@ -380,7 +635,18 @@ export default function ImportWizard({ stage, onImported, onClose }: ImportWizar
             </button>
           )}
         </div>
-      </div>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="editor-overlay">
+      {content}
     </div>
   );
 }
+

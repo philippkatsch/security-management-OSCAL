@@ -11,7 +11,14 @@ import { MetadataRevisionsPanel } from './metadata/MetadataRevisionsPanel';
 export function MetadataEditor({
   metadata = {},
   onChange,
-  readOnly
+  readOnly,
+  onNavigateToProperties
+}: {
+  metadata?: any;
+  onChange?: (updated: any) => void;
+  readOnly?: boolean;
+  onNavigateToProperties?: () => void;
+  isEditing?: boolean;
 }) {
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditing = readOnly !== undefined ? !readOnly : globalEditMode;
@@ -44,7 +51,7 @@ export function MetadataEditor({
     } else {
       updated[field] = val;
     }
-    onChange(updated);
+    onChange?.(updated);
   };
 
   return (
@@ -55,6 +62,7 @@ export function MetadataEditor({
         expandedSections={expandedSections} 
         toggleSection={toggleSection} 
         handleFieldChange={handleFieldChange} 
+        onNavigateToProperties={onNavigateToProperties}
       />
       <MetadataRolesPartiesPanel 
         metadata={metadata} 

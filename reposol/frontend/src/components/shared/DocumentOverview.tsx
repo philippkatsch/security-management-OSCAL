@@ -9,6 +9,7 @@ import { DocumentOverviewMetadata } from './overview/DocumentOverviewMetadata';
 import { DocumentOverviewProperties } from './overview/DocumentOverviewProperties';
 import { DocumentOverviewParameters } from './overview/DocumentOverviewParameters';
 import { SourcesPanel as DefaultSourcesPanel } from '../profile/SourcesPanel';
+import ImportWizard from '../document/ImportWizard';
 import styles from './SharedComponents.module.css';
 
 export const countControlsInGroup = (group: any) => {
@@ -67,7 +68,8 @@ export function DocumentOverview({
   availableCatalogs = [],
   availableProfiles = [],
   catalogCache = null,
-  SourcesPanel = null
+  SourcesPanel = null,
+  onNavigateToProperties
 }: any) {
   const document = rawDocument?.catalog || rawDocument?.profile || rawDocument?.['component-definition'] || rawDocument?.['system-security-plan'] || rawDocument?.['assessment-plan'] || rawDocument?.['assessment-results'] || rawDocument?.['plan-of-action-and-milestones'] || rawDocument || {};
   const globalEditMode = useAtomValue(editModeAtom);
@@ -254,7 +256,7 @@ export function DocumentOverview({
         {currentTab === 'imports' && mode === 'profile' && (
           <ActiveSourcesPanel profile={document} onChange={onChange} isEditing={isEditingState} isEditingState={isEditingState} availableCatalogs={availableCatalogs} availableProfiles={availableProfiles} catalogCache={catalogCache} resolvedCatalog={resolvedCatalog} />
         )}
-        {currentTab === 'metadata' && <DocumentOverviewMetadata mode={mode} document={document} isEditingState={isEditingState} baselineStats={baselineStats} onChange={onChange} />}
+        {currentTab === 'metadata' && <DocumentOverviewMetadata mode={mode} document={document} isEditingState={isEditingState} baselineStats={baselineStats} onChange={onChange} onNavigateToProperties={onNavigateToProperties || (() => setActiveTab('properties'))} />}
         {currentTab === 'properties' && (
           <DocumentOverviewProperties properties={getUnifiedProperties()} globalProps={globalProps} isEditingState={isEditingState} onGlobalPropertyRename={onGlobalPropertyRename} onGlobalPropertyDelete={onGlobalPropertyDelete} onAddProperty={handleAddNewPropKey} onUpdateMetaProp={handleUpdateMetaProp} />
         )}
@@ -267,41 +269,26 @@ export function DocumentOverview({
           <DocumentOverviewParameters mode={mode} document={document} paramStats={paramStats} allResolvedCatalogParams={allResolvedCatalogParams} isEditingState={isEditingState} resolvedCatalog={resolvedCatalog} onChange={onChange} />
         )}
         {currentTab === 'import' && mode === 'catalog' && isEditingState && (
-          <div style={{ padding: '20px', overflowY: 'auto', height: '100%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '15px' }}>Import Catalog Content</h3>
-              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
-                You can load the catalog content from a template or a JSON URL. This overrides the current content, but keeps the UUID.
-              </p>
-              {importError && (
-                <div style={{ color: 'var(--color-danger)', background: 'rgba(248,81,73,0.1)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(248,81,73,0.3)', fontSize: '12px' }}>⚠️ {importError}</div>
-              )}
-              <div style={{ border: '1px solid var(--color-border-subtle)', padding: '14px', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <strong style={{ fontSize: '13px' }}>Import from URL</strong>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input type="text" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="https://example.com/catalog.json" className="form-input" style={{ flex: 1, height: '32px', fontSize: '12px' }} disabled={importing} />
-                  <button type="button" className={styles['btn-primary']} onClick={handleImportUrl} disabled={importing || !importUrl.trim()} style={{ padding: '0 12px', fontSize: '12px' }}>{importing ? 'Importing...' : 'Load'}</button>
-                </div>
-              </div>
-              <div style={{ border: '1px solid var(--color-border-subtle)', padding: '14px', borderRadius: 'var(--radius-md)' }}>
-                <strong style={{ fontSize: '13px', display: 'block', marginBottom: '10px' }}>Import from Template Library</strong>
-                {loadingRegistry ? (
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Loading templates...</span>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    {registryTemplates.map((t: any) => (
-                      <div key={t.id} style={{ padding: '10px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '8px' }}>
-                        <div>
-                          <strong style={{ fontSize: '12px', display: 'block' }}>{t.title}</strong>
-                          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>Source: {t.source}</span>
-                        </div>
-                        <button type="button" className={styles['btn-secondary']} onClick={() => handleImportRegistry(t.id)} disabled={importing} style={{ padding: '4px 8px', fontSize: '11px', width: '100%' }}>Apply content</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+          <div style={{ padding: '24px', overflowY: 'auto', height: '100%' }}>
+            <ImportWizard
+              stage="catalogs"
+              embedded={true}
+              currentDocument={document}
+              title="📥 Import Catalog Content"
+              subtitle="Load and apply catalog content from standard templates, remote URLs, or local files (JSON, YAML, XML). Your catalog UUID and document settings will be preserved."
+              onApplyContent={(importedCatalog) => {
+                onChange({
+                  ...importedCatalog,
+                  uuid: document.uuid,
+                  metadata: {
+                    ...importedCatalog.metadata,
+                    title: document.metadata?.title || importedCatalog.metadata?.title,
+                    version: document.metadata?.version || importedCatalog.metadata?.version || '1.0.0',
+                  }
+                });
+                setActiveTab('overview');
+              }}
+            />
           </div>
         )}
       </div>

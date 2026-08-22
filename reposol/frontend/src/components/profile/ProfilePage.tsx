@@ -682,6 +682,7 @@ export function ProfilePage({
               onSelectControl={handleSelectControl}
               onGlobalPropertyRename={handleGlobalPropertyRename}
               onGlobalPropertyDelete={handleGlobalPropertyDelete}
+              onNavigateToProperties={() => setActiveSidebarView('properties')}
             />
           )}
         </div>

@@ -61,6 +61,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+button {
+  font-family: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+}
+
 /* ─── Health Badge ───────────────────────────────────────────── */
 .health-status-container {
   display: flex;

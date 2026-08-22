@@ -121,6 +121,18 @@
     *   **Unified Property Cards:** Property cards display Header Property or regular Property depending on storage scope.
     *   **Add Header Property Button:** In edit mode, the action button allows creating document-level properties.
 
+### US 1.11: Combined Card Layout, Autocomplete & View/Edit Mode Workflow
+> *Implements [US 0.17](step0_global_requirements.md) with catalog-specific additions.*
+> **As a** Compliance Officer and Framework Developer (Alice)  
+> **I want to** edit controls within a cohesive card layout with key autocomplete, toggle smoothly between View and Edit modes, and have drafts saved automatically in the backend,  
+> **so that** the authoring experience is responsive, fluid, and protected against data loss.
+*   **Acceptance Criteria:**
+    *   **Combined Card Layout:** Control header (ID, title, class) and properties are edited within a unified, structured editor card.
+    *   **Property Key Autocomplete:** Form input fields for property keys suggest existing document-wide and standard property keys via `datalist`.
+    *   **Segmented Mode Toggle (`[ 👁️ View | ✏️ Edit ]`):** Allows instant in-memory switching between preview and edit modes, maintaining URL synchronization (`?edit=true`).
+    *   **Local & Backend Draft Protection:** Changes are auto-saved to backend drafts (`useDraft`), and unsaved changes trigger safety dialogs on navigation or window close.
+    *   **Full Parity with Profile Editor:** All control fields editable in the Profile Editor are fully editable in the Catalog Editor.
+
 ### US 1.12: Full Editability of All OSCAL Control Elements
 > **As a** Compliance Officer and Framework Developer (Alice)  
 > **I want to** create, edit, and delete **all** OSCAL-compliant components of a control (links, back-matter, properties) in the catalog editor,  
@@ -203,6 +215,16 @@
     *   **Restore Action:** In Edit Mode, withdrawn controls can be restored to active status via a "Restore Control" button. In View Mode, this restoration button is hidden.
     *   **Dashboard Metric:** The Withdrawn count on the overview page (US 0.13) correctly reflects all `status: withdrawn` controls.
 
+### US 1.20: Real-Time Sidebar Search, Quick Filtering & Tree Navigation
+> **As a** Compliance Officer and Framework Developer (Alice)  
+> **I want to** filter and search controls and groups in real-time within the sidebar navigation tree,  
+> **so that** I can rapidly locate and inspect specific security controls within large multi-thousand control catalogs (such as NIST SP 800-53).
+*   **Acceptance Criteria:**
+    *   **Instant Search Input:** The sidebar provides a real-time `Filter controls...` search box that filters both controls and group titles/IDs.
+    *   **Auto-Expansion of Matching Groups:** Groups containing matching controls automatically expand so that all search results are immediately visible.
+    *   **Highlighting & Empty State:** Matching text or nodes are clearly indicated; when no controls match the query, a clear "No matches found" message is displayed.
+    *   **Keyboard Navigation & Focus:** Users can navigate the search input and tree using keyboard interactions.
+
 ### US 1.21: Part-Level Metadata — Properties, Links, and Title at the Paragraph Level
 > **As a** Compliance Officer (Alice)  
 > **I want to** be able to optionally maintain a title, properties, and links on individual prose paragraphs (parts),  
@@ -274,6 +296,8 @@
 - [x] Multi-format catalog import (JSON, XML, YAML) with automatic backend conversion (US 1.16).
 - [x] Interactive parameter constraint builder and live regex test validation (US 1.17).
 - [x] Standalone catalog export with complete metadata attribution (US 1.18).
-- [ ] Control withdrawal workflow with `status: withdrawn` property, `incorporated-into` replacement links, visual graying, and parameter freeze (US 1.19).
-- [ ] Part-level metadata (title, props, links) editable via Advanced Settings panel on individual prose parts (US 1.21).
+- [x] Control withdrawal workflow with `status: withdrawn` property, `incorporated-into` replacement links, visual graying, and parameter freeze (US 1.19).
+- [x] Real-time sidebar search, quick filtering, auto-expansion, and empty state handling (US 1.20).
+- [x] Part-level metadata (title, props, links) editable via Advanced Settings panel on individual prose parts (US 1.21).
+
 

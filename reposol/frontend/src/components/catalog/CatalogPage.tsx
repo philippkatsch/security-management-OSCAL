@@ -364,7 +364,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '18px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>📥</span>
-            <span>Import Source</span>
+            <span>Import Catalog</span>
           </div>
         </div>
       )}
@@ -437,6 +437,10 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                       });
                     }}
                     readOnly={!isEditing}
+                    onNavigateToProperties={() => {
+                      tree.select(null);
+                      setActiveSidebarView('properties');
+                    }}
                   />
                 </div>
               ) : (
@@ -451,6 +455,10 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                   onSelectControl={(id: string) => tree.select(id)}
                   onGlobalPropertyRename={handleGlobalPropertyRename}
                   onGlobalPropertyDelete={handleGlobalPropertyDelete}
+                  onNavigateToProperties={() => {
+                    tree.select(null);
+                    setActiveSidebarView('properties');
+                  }}
                   onChange={(updatedDoc: any) => {
                     handleUpdate((draft: any) => {
                       draft.catalog = { ...draft.catalog, ...updatedDoc };
