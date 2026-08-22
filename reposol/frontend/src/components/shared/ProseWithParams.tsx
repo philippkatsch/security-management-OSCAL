@@ -4,7 +4,7 @@ import styles from './SharedComponents.module.css';
 /**
  * Calculates the caret coordinates (left, top) relative to the parent relative container.
  */
-function getCaretCoordinates(textarea, position) {
+function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number) {
   const style = window.getComputedStyle(textarea);
   const mirror = document.createElement('div');
   
@@ -26,12 +26,12 @@ function getCaretCoordinates(textarea, position) {
   span.textContent = textarea.value.substring(position) || '.';
   mirror.appendChild(span);
   
-  textarea.parentElement.appendChild(mirror);
+  textarea.parentElement?.appendChild(mirror);
   
   const spanRect = span.getBoundingClientRect();
-  const parentRect = textarea.parentElement.getBoundingClientRect();
+  const parentRect = textarea.parentElement?.getBoundingClientRect() || { left: 0, top: 0 };
   
-  textarea.parentElement.removeChild(mirror);
+  textarea.parentElement?.removeChild(mirror);
   
   let lineHeight = parseInt(style.lineHeight);
   if (isNaN(lineHeight)) {
@@ -40,8 +40,22 @@ function getCaretCoordinates(textarea, position) {
   
   return {
     left: spanRect.left - parentRect.left,
-    top: spanRect.top - parentRect.top + textarea.scrollTop + lineHeight
+    top: spanRect.top - parentRect.top + lineHeight
   };
+}
+
+interface ProseWithParamsProps {
+  value?: string;
+  onChange: (val: string) => void;
+  params?: any[];
+  placeholder?: string;
+  rows?: number;
+  disabled?: boolean;
+  className?: string;
+  style?: React.CSSProperties & { minHeight?: string };
+  autoFocus?: boolean;
+  onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onDefineNewParam?: () => void;
 }
 
 /**
@@ -57,14 +71,14 @@ export const ProseWithParams = forwardRef(({
   className = '',
   style = {},
   autoFocus = false,
-  onBlur = null,
-  onDefineNewParam = null
-}: any, ref) => {
-  const textareaRef = useRef(null);
+  onBlur = undefined,
+  onDefineNewParam = undefined
+}: ProseWithParamsProps, ref) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [caretCoords, setCaretCoords] = useState({ left: 0, top: 0 });
-  const [triggerIndex, setTriggerIndex] = useState(null);
-  const [matchLength, setMatchLength] = useState(null);
+  const [triggerIndex, setTriggerIndex] = useState<number | null>(null);
+  const [matchLength, setMatchLength] = useState<number | null>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -73,8 +87,8 @@ export const ProseWithParams = forwardRef(({
     }
   }, [value]);
 
-  const handleSelectionChangeOrClick = (e) => {
-    const textarea = e.target;
+  const handleSelectionChangeOrClick = (e: React.SyntheticEvent) => {
+    const textarea = e.target as HTMLTextAreaElement;
     const cursorPos = textarea.selectionStart;
     const text = textarea.value;
     
@@ -89,39 +103,39 @@ export const ProseWithParams = forwardRef(({
       
       if (cursorPos >= startIdx && cursorPos <= endIdx) {
         found = true;
-        const coords = getCaretCoordinates(textarea, startIdx);
-        setCaretCoords(coords);
         setTriggerIndex(startIdx);
         setMatchLength(match[0].length);
+        
+        // Calculate coords
+        const coords = getCaretCoordinates(textarea, startIdx);
+        setCaretCoords(coords);
         setShowDropdown(true);
         break;
       }
     }
     
-    if (!found) {
+    if (!found && showDropdown) {
       setShowDropdown(false);
     }
   };
 
-  const handleSelectParam = (paramId) => {
-    const textarea = textareaRef.current;
-    if (!textarea || triggerIndex === null || matchLength === null) return;
-
-    const insertText = `{{ insert: param, ${paramId} }}`;
-    const newValue = 
-      value.substring(0, triggerIndex) + 
-      insertText + 
-      value.substring(triggerIndex + matchLength);
-
-    onChange(newValue);
-    setShowDropdown(false);
-
-    // Refocus and place cursor at the end of the inserted parameter
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = triggerIndex + insertText.length;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 50);
+  const handleSelectParam = (paramId: string) => {
+    if (triggerIndex !== null && matchLength !== null) {
+      const before = value.substring(0, triggerIndex);
+      const after = value.substring(triggerIndex + matchLength);
+      const newValue = `${before}{{ insert: param, ${paramId} }}${after}`;
+      onChange(newValue);
+      setShowDropdown(false);
+      
+      // Return focus to textarea
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const newPos = triggerIndex + `{{ insert: param, ${paramId} }}`.length;
+          textareaRef.current.setSelectionRange(newPos, newPos);
+        }
+      }, 0);
+    }
   };
 
   useImperativeHandle(ref, () => ({
@@ -160,7 +174,7 @@ export const ProseWithParams = forwardRef(({
     }
   }));
 
-  const wrapperStyle = {
+  const wrapperStyle: React.CSSProperties = {
     position: 'relative',
     flex: style.flex !== undefined ? style.flex : '1 1 auto',
     width: style.width || '100%',
@@ -169,7 +183,7 @@ export const ProseWithParams = forwardRef(({
 
   const { flex, width, maxWidth, minHeight, ...restStyle } = style;
 
-  const textareaStyle = {
+  const textareaStyle: React.CSSProperties = {
     width: '100%',
     minHeight: minHeight || '80px',
     overflow: 'hidden',
@@ -178,11 +192,11 @@ export const ProseWithParams = forwardRef(({
 
   // Close dropdown if user clicks outside
   useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (showDropdown && textareaRef.current && !textareaRef.current.contains(e.target)) {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (showDropdown && textareaRef.current && !textareaRef.current.contains(e.target as Node)) {
         // Check if click was inside dropdown
         const dropdown = document.querySelector('.caret-param-dropdown');
-        if (dropdown && !dropdown.contains(e.target)) {
+        if (dropdown && !dropdown.contains(e.target as Node)) {
           setShowDropdown(false);
         }
       }
@@ -282,8 +296,8 @@ export const ProseWithParams = forwardRef(({
                         textAlign: 'left',
                         cursor: 'pointer'
                       }}
-                      onMouseOver={(e) => e.target.style.background = 'var(--color-surface-3)'}
-                      onMouseOut={(e) => e.target.style.background = 'none'}
+                      onMouseOver={(e) => (e.currentTarget.style.background = 'var(--color-surface-3)')}
+                      onMouseOut={(e) => (e.currentTarget.style.background = 'none')}
                     >
                       <strong>{p.id}</strong> {p.label ? `— ${p.label}` : ''}
                     </button>
@@ -319,8 +333,8 @@ export const ProseWithParams = forwardRef(({
                   textAlign: 'left',
                   cursor: 'pointer'
                 }}
-                onMouseOver={(e) => e.target.style.background = 'var(--color-surface-3)'}
-                onMouseOut={(e) => e.target.style.background = 'none'}
+                onMouseOver={(e) => (e.currentTarget.style.background = 'var(--color-surface-3)')}
+                onMouseOut={(e) => (e.currentTarget.style.background = 'none')}
               >
                 ➕ Define New Parameter...
               </button>

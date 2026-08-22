@@ -3,6 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { EnhancementsAccordion } from '@components/shared/EnhancementsAccordion';
 import { UnifiedControlEditor } from '@components/shared/control-editor/UnifiedControlEditor';
+import { ConfirmProvider } from '@components/shared/ui/ConfirmProvider';
 
 describe('Requirement R1 — Enhancements Accordion Integration', () => {
   const sampleEnhancements = [
@@ -12,10 +13,12 @@ describe('Requirement R1 — Enhancements Accordion Integration', () => {
 
   it('renders accordion header and collapses/expands main accordion', () => {
     render(
-      <EnhancementsAccordion
-        enhancements={sampleEnhancements}
-        showNavArrow={true}
-      />
+      <ConfirmProvider>
+        <EnhancementsAccordion
+          enhancements={sampleEnhancements}
+          showNavArrow={true}
+        />
+      </ConfirmProvider>
     );
 
     expect(screen.getByText('Control Enhancements (Sub-controls)')).toBeInTheDocument();
@@ -33,11 +36,13 @@ describe('Requirement R1 — Enhancements Accordion Integration', () => {
   it('invokes onSelectEnhancement in Catalog mode (showNavArrow=true)', () => {
     const onSelect = vi.fn();
     render(
-      <EnhancementsAccordion
-        enhancements={sampleEnhancements}
-        showNavArrow={true}
-        onSelectEnhancement={onSelect}
-      />
+      <ConfirmProvider>
+        <EnhancementsAccordion
+          enhancements={sampleEnhancements}
+          showNavArrow={true}
+          onSelectEnhancement={onSelect}
+        />
+      </ConfirmProvider>
     );
 
     // Expand body
@@ -54,11 +59,13 @@ describe('Requirement R1 — Enhancements Accordion Integration', () => {
     ));
 
     render(
-      <EnhancementsAccordion
-        enhancements={sampleEnhancements}
-        showNavArrow={false}
-        renderEnhancementContent={renderContent}
-      />
+      <ConfirmProvider>
+        <EnhancementsAccordion
+          enhancements={sampleEnhancements}
+          showNavArrow={false}
+          renderEnhancementContent={renderContent}
+        />
+      </ConfirmProvider>
     );
 
     // Expand body
@@ -99,15 +106,17 @@ describe('Requirement R1 — Enhancements Accordion Integration', () => {
     };
 
     render(
-      <UnifiedControlEditor
-        control={parentControl}
-        stage="profile"
-        originalControl={originalControl}
-        catalog={{ id: 'cat-1' } as any}
-        isEditing={true}
-        profile={mockProfile}
-        onProfileChange={onProfileChange}
-      />
+      <ConfirmProvider>
+        <UnifiedControlEditor
+          control={parentControl}
+          stage="profile"
+          originalControl={originalControl}
+          catalog={{ id: 'cat-1' } as any}
+          isEditing={true}
+          profile={mockProfile}
+          onProfileChange={onProfileChange}
+        />
+      </ConfirmProvider>
     );
 
     // Expand Enhancements accordion header

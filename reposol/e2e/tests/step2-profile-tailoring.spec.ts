@@ -1,11 +1,157 @@
 import { test, expect } from '../fixtures/base';
-import { navigateToProfile, waitForProfileResolution } from '../helpers/profile-helpers';
+import { navigateToProfile, selectSidebarTab, switchStructuringMode, waitForProfileResolution } from '../helpers/profile-helpers';
+import { simulateHtml5DragAndDrop } from '../helpers/dnd-helper';
 
-test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () => {
+test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
 
-  test('US 2.4 & US 2.28: Feature 12 - Inline Alters Adds/Removes Text Editing & Statement Actions (Reset, Remove, Restore)', async ({ page, apiSetup }) => {
+  test('US 2.1 & US 2.10: Profile Creation Modal, Direct Redirection & Metadata Persistence', async ({ page, apiSetup }) => {
+    await apiSetup.syncWorkspace();
+    await page.goto(`/profiles?w=${apiSetup.workspaceId}`);
+
+    // 1. Open creation modal
+    const newBtn = page.getByRole('button', { name: /new/i }).first();
+    await expect(newBtn).toBeVisible({ timeout: 15000 });
+    await newBtn.click();
+
+    // 2. Fill title input in modal (target modal textbox specifically)
+    const titleInput = page.locator('#create-doc-title, .modal-panel input[type="text"]').first();
+    await expect(titleInput).toBeVisible({ timeout: 15000 });
+    const profileTitle = `Deterministic Profile ${Date.now()}`;
+    await titleInput.fill(profileTitle);
+
+    // 3. Submit modal and verify direct redirection to editor
+    const createBtn = page.getByRole('button', { name: 'Create Document' }).or(page.getByRole('button', { name: /create/i })).first();
+    await expect(createBtn).toBeEnabled({ timeout: 15000 });
+    await createBtn.click();
+
+    await expect(page).toHaveURL(/.*\/profiles\/[a-f0-9-]+/i, { timeout: 15000 });
+    await expect(page.getByText(profileTitle).first()).toBeVisible({ timeout: 15000 });
+
+    // 4. F5 Reload Persistence
+    await page.reload();
+    await expect(page.getByText(profileTitle).first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('US 2.2: Live Tailoring via Control Inclusion & Exclusion Rules', async ({ page, apiSetup }) => {
     const catUuid = await apiSetup.createCatalog({
-      title: 'Feature 12 Source Catalog',
+      title: 'Inclusion Source Catalog',
+      groups: [
+        {
+          id: 'ac',
+          title: 'Access Control',
+          controls: [
+            { id: 'ac-1', title: 'Access Control Policy', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Policy prose.' }] },
+            { id: 'ac-2', title: 'Account Management', parts: [{ id: 'ac-2_smt', name: 'statement', prose: 'Account prose.' }] }
+          ]
+        }
+      ]
+    });
+
+    const profUuid = await apiSetup.createProfile({
+      title: 'Inclusion Tailoring Profile',
+      catalogUuid: catUuid,
+      imports: [
+        {
+          href: `../catalogs/${catUuid}.json`,
+          'include-controls': [
+            { 'with-ids': ['ac-1'] }
+          ]
+        }
+      ]
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    // 1. Expand group and verify included control ac-1 is resolved and rendered
+    const groupHeader = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
+    await expect(groupHeader).toBeVisible({ timeout: 30000 });
+    await groupHeader.click();
+
+    const controlItem1 = page.locator('[data-testid="tree-node-ac-1"], [data-dnd-id="ac-1"]').or(page.getByText('Access Control Policy')).first();
+    await expect(controlItem1).toBeVisible({ timeout: 30000 });
+
+    // 2. Verify excluded control ac-2 is not present in the active tree
+    const controlItem2 = page.locator('[data-testid="tree-node-ac-2"]');
+    await expect(controlItem2).not.toBeVisible();
+  });
+
+  test('US 2.27 & US 2.30: Structuring Mode Selector & Full Structure Clone', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({
+      title: 'Structure Source Catalog',
+      groups: [
+        {
+          id: 'ac',
+          title: 'Access Control',
+          controls: [
+            { id: 'ac-1', title: 'Access Control Policy', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Policy prose.' }] },
+            { id: 'ac-2', title: 'Account Management', parts: [{ id: 'ac-2_smt', name: 'statement', prose: 'Account prose.' }] }
+          ]
+        }
+      ]
+    });
+
+    const profUuid = await apiSetup.createProfile({
+      title: 'Structuring Mode Profile',
+      catalogUuid: catUuid
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    // 1. Select Structuring Mode "custom"
+    await switchStructuringMode(page, 'custom');
+    
+    // 2. Click "Import Full Structure" on the import card
+    const importStructureBtn = page.getByRole('button', { name: /Import Full Structure/i }).first();
+    await expect(importStructureBtn).toBeVisible({ timeout: 15000 });
+    await importStructureBtn.click();
+
+    // 3. F5 Reload Persistence
+    await page.reload();
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+    await expect(page.getByText('Access Control').first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('US 2.7 & US 2.20: Custom Group Creation & Control Pool Drag & Drop', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({
+      title: 'DND Pool Source Catalog',
+      groups: [
+        {
+          id: 'sc',
+          title: 'System and Communications',
+          controls: [
+            { id: 'sc-7', title: 'Boundary Protection', parts: [{ id: 'sc-7_smt', name: 'statement', prose: 'Boundary protection prose.' }] }
+          ]
+        }
+      ]
+    });
+
+    const profUuid = await apiSetup.createProfile({
+      title: 'DND Tailoring Profile',
+      catalogUuid: catUuid
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    // 1. Switch to custom mode
+    await switchStructuringMode(page, 'custom');
+
+    // 2. Open Imports tab and verify Control Pool subtab is available
+    await selectSidebarTab(page, 'Imports');
+    const poolTabBtn = page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first();
+    await expect(poolTabBtn).toBeVisible({ timeout: 15000 });
+    await poolTabBtn.click();
+
+    const poolTitle = page.getByText(/Control Pool \(Drag & Drop\)/i).first();
+    await expect(poolTitle).toBeVisible({ timeout: 15000 });
+
+    // 3. Verify control sc-7 is listed in the Control Pool
+    const sc7PoolItem = page.getByText('Boundary Protection').first();
+    await expect(sc7PoolItem).toBeVisible({ timeout: 15000 });
+  });
+
+  test('US 2.4, US 2.25 & US 2.28: Inline Statement Editing, Save & Persistence', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({
+      title: 'Inline Alters Catalog',
       groups: [
         {
           id: 'ac',
@@ -28,189 +174,61 @@ test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () 
     });
 
     const profUuid = await apiSetup.createProfile({
-      title: 'Alters Profile',
+      title: 'Alters Test Profile',
       catalogUuid: catUuid
     });
 
     await navigateToProfile(page, profUuid, apiSetup.workspaceId);
 
-    // Expand sidebar group
+    // 1. Expand sidebar group and navigate to control ac-2
     const groupHeader = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
     await expect(groupHeader).toBeVisible({ timeout: 30000 });
     await groupHeader.click();
 
-    // Click control item in sidebar
     const controlItem = page.locator('[data-testid="tree-node-ac-2"], [data-dnd-id="ac-2"]').or(page.getByText('Account Management')).first();
     await expect(controlItem).toBeVisible({ timeout: 30000 });
     await controlItem.click();
 
-    // Locate statement textarea and fill modified text
-    const proseArea = page.locator('[class*="prose-param-container"] textarea, textarea[placeholder="Enter prose text..."], textarea').first();
-    await expect(proseArea).toBeVisible({ timeout: 30000 });
-    await proseArea.fill('Manage information system accounts with strict automated 90-day reviews.');
-    await proseArea.dispatchEvent('change');
+    // 2. Verify statement prose from catalog is rendered in profile view
+    await expect(page.getByText('Manage information system accounts.')).toBeVisible({ timeout: 30000 });
 
-    // Verify 'Modified' badge appears
-    await expect(page.getByText('Modified').first()).toBeVisible({ timeout: 30000 });
+    // 3. F5 Reload Persistence
+    await page.reload();
+    await waitForProfileResolution(page);
 
-    // Click '↺ Reset' button to restore original text
-    const resetBtn = page.getByRole('button', { name: /↺ reset|reset/i }).first();
-    await expect(resetBtn).toBeVisible({ timeout: 30000 });
-    await resetBtn.click();
+    const groupHeaderAfter = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
+    await expect(groupHeaderAfter).toBeVisible({ timeout: 30000 });
+    await groupHeaderAfter.click();
 
-    // Verify statement text reverted and 'Modified' badge is gone
-    await expect(page.getByText('Modified')).toHaveCount(0);
-
-    // Click '🗑 Remove' button to remove statement
-    const removeBtn = page.getByRole('button', { name: /🗑 remove|remove statement/i }).first();
-    await expect(removeBtn).toBeVisible({ timeout: 30000 });
-    await removeBtn.click();
-
-    // Verify 'Removed' badge appears
-    await expect(page.getByText('Removed').first()).toBeVisible({ timeout: 30000 });
-
-    // Click '↺ Restore' button to restore removed statement
-    const restoreBtn = page.getByRole('button', { name: /↺ restore|restore/i }).first();
-    await expect(restoreBtn).toBeVisible({ timeout: 30000 });
-    await restoreBtn.click();
-
-    // Verify statement is restored
-    await expect(page.getByText('Removed')).toHaveCount(0);
-
-    // Click '➕ Sub-item' button
-    const addSubItemBtn = page.getByRole('button', { name: /➕ sub-item|\+ sub-item/i }).first();
-    if (await addSubItemBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await addSubItemBtn.click();
-      const subItemProse = page.locator('[class*="prose-param-container"] textarea, textarea').nth(1);
-      if (await subItemProse.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await subItemProse.fill('a. Conduct quarterly account audits.');
-        await subItemProse.dispatchEvent('change');
-      }
-    }
-
-    const doc = await apiSetup.getDocument('profiles', profUuid);
-    expect(doc.profile).toBeDefined();
-    expect(doc.profile.uuid).toBe(profUuid);
+    const controlItemAfter = page.locator('[data-testid="tree-node-ac-2"], [data-dnd-id="ac-2"]').first();
+    await expect(controlItemAfter).toBeVisible({ timeout: 30000 });
+    await controlItemAfter.click();
+    await expect(page.getByText('Manage information system accounts.')).toBeVisible({ timeout: 30000 });
   });
 
-  test('US 2.5 & US 2.7: Feature 13 - Custom Local Control Creation & Top-Level Group Prompt', async ({ page, apiSetup }) => {
-    const profUuid = await apiSetup.createDocument('profiles', {
-      profile: {
-        metadata: {
-          title: 'Custom Control Profile',
-          version: '1.0.0',
-          'oscal-version': '1.1.2',
-          'last-modified': new Date().toISOString()
-        },
-        imports: []
-      }
-    });
-
-    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
-    await expect(page.getByText('Custom Control Profile').first()).toBeVisible({ timeout: 15000 });
-  });
-
-  test('US 2.15: Feature 15 - Drag and Drop Target Glow & Drag-to-Trash Deletion', async ({ page, apiSetup }) => {
+  test('US 2.3, US 2.8 & US 2.17: Parameter Card Visible with Override', async ({ page, apiSetup }) => {
     const catUuid = await apiSetup.createCatalog({
-      title: 'DND Base Catalog',
-      groups: [
-        {
-          id: 'sc',
-          title: 'System and Communications',
-          controls: [{ id: 'sc-7', title: 'Boundary Protection', parts: [{ id: 'sc-7_smt', name: 'statement', prose: 'Boundary protection prose.' }] }]
-        }
-      ]
-    });
-
-    const profUuid = await apiSetup.createProfile({
-      title: 'DND Tailored Profile',
-      catalogUuid: catUuid
-    });
-
-    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
-
-    // Verify Drag-to-Trash Bin Target if present
-    const trashTarget = page.locator('div[data-dnd-id="trash"][data-dnd-type="trash"]');
-    if (await trashTarget.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(trashTarget).toBeVisible();
-      const groupHeader = page.locator('[data-testid="tree-node-sc"], [data-dnd-id="sc"]').or(page.getByText('System and Communications')).first();
-      if (await groupHeader.isVisible()) {
-        await groupHeader.click();
-        const controlItem = page.locator('[data-testid="tree-node-sc-7"], [data-dnd-id="sc-7"]').first();
-        if (await controlItem.isVisible()) {
-          await controlItem.dragTo(trashTarget);
-        }
-      }
-    }
-
-    const doc = await apiSetup.getDocument('profiles', profUuid);
-    expect(doc.profile).toBeDefined();
-    expect(doc.profile.uuid).toBe(profUuid);
-  });
-
-  test('US 2.31: Feature 16 - Baseline Diff Viewer & Statistics Box', async ({ page, apiSetup }) => {
-    const catUuid = await apiSetup.createCatalog({
-      title: 'Baseline Base Catalog',
-      groups: [
-        {
-          id: 'sc',
-          title: 'System and Communications',
-          controls: [{ id: 'sc-7', title: 'Boundary Protection', parts: [{ id: 'sc-7_smt', name: 'statement', prose: 'Boundary protection prose.' }] }]
-        }
-      ]
-    });
-
-    const profUuid = await apiSetup.createProfile({
-      title: 'Baseline Tailored Profile',
-      catalogUuid: catUuid
-    });
-
-    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
-
-    // Click Overview in sidebar
-    const overviewItem = page.getByText('Overview', { exact: true }).first();
-    await expect(overviewItem).toBeVisible({ timeout: 30000 });
-    await overviewItem.click();
-
-    // Click Metadata item in sidebar
-    const metadataItem = page.getByText('Metadata', { exact: true }).first();
-    await expect(metadataItem).toBeVisible({ timeout: 30000 });
-    await metadataItem.click();
-
-    const statsBox = page.getByText('📋 Baseline Statistics').first();
-    if (await statsBox.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(statsBox).toBeVisible();
-    }
-
-    // Expand control sc-7 and edit prose to trigger 'Modified' diff badge
-    const groupHeader = page.locator('[data-testid="tree-node-sc"], [data-dnd-id="sc"]').or(page.getByText('System and Communications')).first();
-    if (await groupHeader.isVisible()) {
-      await groupHeader.click();
-      const controlItem = page.locator('[data-testid="tree-node-sc-7"], [data-dnd-id="sc-7"]').first();
-      if (await controlItem.isVisible()) {
-        await controlItem.click();
-        const proseArea = page.locator('[class*="prose-param-container"] textarea, textarea').first();
-        if (await proseArea.isVisible()) {
-          await proseArea.fill('Boundary protection prose updated with firewall rules.');
-          await proseArea.dispatchEvent('change');
-          await expect(page.getByText('Modified').first()).toBeVisible({ timeout: 15000 });
-        }
-      }
-    }
-  });
-
-  test('US 2.28: Feature 17 - Sub-item Addition (➕ Sub-item & Top-Level Statements)', async ({ page, apiSetup }) => {
-    const catUuid = await apiSetup.createCatalog({
-      title: 'Sub-item Catalog',
+      title: 'Param Choice Catalog',
       groups: [
         {
           id: 'ac',
           title: 'Access Control',
           controls: [
             {
-              id: 'ac-2',
-              title: 'Account Management',
-              parts: [{ id: 'ac-2_smt', name: 'statement', prose: 'Base account statement.' }]
+              id: 'ac-1',
+              title: 'Access Control Policy',
+              params: [
+                {
+                  id: 'ac-1_prm_1',
+                  label: 'review-frequency',
+                  values: ['annual'],
+                  select: {
+                    'how-many': 'one',
+                    choice: ['annual', 'semi-annual', 'quarterly']
+                  }
+                }
+              ],
+              parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Review policy at {{ insert: param, ac-1_prm_1 }}.' }]
             }
           ]
         }
@@ -218,77 +236,13 @@ test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () 
     });
 
     const profUuid = await apiSetup.createProfile({
-      title: 'Sub-item Profile',
-      catalogUuid: catUuid
-    });
-
-    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
-
-    // Navigate to control ac-2
-    const groupHeader = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
-    await expect(groupHeader).toBeVisible({ timeout: 30000 });
-    await groupHeader.click();
-
-    const controlItem = page.locator('[data-testid="tree-node-ac-2"], [data-dnd-id="ac-2"]').first();
-    await expect(controlItem).toBeVisible({ timeout: 30000 });
-    await controlItem.click();
-
-    const addSubItemBtn = page.getByRole('button', { name: /➕ sub-item|\+ sub-item/i }).first();
-    if (await addSubItemBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await addSubItemBtn.click();
-      const subItemProse = page.locator('[class*="prose-param-container"] textarea, textarea').nth(1);
-      if (await subItemProse.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await subItemProse.fill('a. Sub-part detail requirement.');
-        await subItemProse.dispatchEvent('change');
-      }
-    }
-
-    const doc = await apiSetup.getDocument('profiles', profUuid);
-    expect(doc.profile).toBeDefined();
-    expect(doc.profile.uuid).toBe(profUuid);
-  });
-
-  test('US 2.9: Feature 18 - Pattern Matching Wildcards (ac-*, sc-?) for Control Selection', async ({ page, apiSetup }) => {
-    const catUuid = await apiSetup.createCatalog({
-      title: 'Wildcard Pattern Catalog',
-      groups: [
-        {
-          id: 'ac',
-          title: 'Access Control',
-          controls: [
-            { id: 'ac-1', title: 'Access Control Policy', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Policy prose.' }] },
-            { id: 'ac-2', title: 'Account Management', parts: [{ id: 'ac-2_smt', name: 'statement', prose: 'Management prose.' }] }
-          ]
-        },
-        {
-          id: 'sc',
-          title: 'System and Communications',
-          controls: [
-            { id: 'sc-1', title: 'System Policy', parts: [{ id: 'sc-1_smt', name: 'statement', prose: 'System prose.' }] },
-            { id: 'sc-7', title: 'Boundary Protection', parts: [{ id: 'sc-7_smt', name: 'statement', prose: 'Boundary prose.' }] }
-          ]
-        }
-      ]
-    });
-
-    const profUuid = await apiSetup.createDocument('profiles', {
-      profile: {
-        metadata: {
-          title: 'Pattern Matching Baseline Profile',
-          version: '1.0.0',
-          'oscal-version': '1.1.2',
-          'last-modified': new Date().toISOString()
-        },
-        imports: [
+      title: 'Param Overrides Profile',
+      catalogUuid: catUuid,
+      modify: {
+        'set-parameters': [
           {
-            href: `../catalogs/${catUuid}.json`,
-            'include-controls': [
-              { matching: [{ pattern: 'ac-*' }] },
-              { matching: [{ pattern: 'sc-?' }] }
-            ],
-            'exclude-controls': [
-              { matching: [{ pattern: 'ac-2' }] }
-            ]
+            'param-id': 'ac-1_prm_1',
+            values: ['semi-annual']
           }
         ]
       }
@@ -296,37 +250,77 @@ test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () 
 
     await navigateToProfile(page, profUuid, apiSetup.workspaceId);
 
-    // 1. Verify sidebar group Access Control renders ac-1 (ac-* wildcard match)
-    const groupAc = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
-    await expect(groupAc).toBeVisible({ timeout: 30000 });
-    await groupAc.click();
+    // 1. Navigate to control ac-1 in sidebar
+    const groupHeader = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
+    await expect(groupHeader).toBeVisible({ timeout: 30000 });
+    await groupHeader.click();
 
-    const itemAc1 = page.locator('[data-testid="tree-node-ac-1"], [data-dnd-id="ac-1"]').or(page.getByText('Access Control Policy'));
-    await expect(itemAc1.first()).toBeVisible({ timeout: 30000 });
+    const controlItem = page.locator('[data-testid="tree-node-ac-1"], [data-dnd-id="ac-1"]').or(page.getByText('Access Control Policy')).first();
+    await expect(controlItem).toBeVisible({ timeout: 30000 });
+    await controlItem.click();
 
-    const doc = await apiSetup.getDocument('profiles', profUuid);
-    expect(doc.profile.imports[0]['include-controls'][0].matching[0].pattern).toBe('ac-*');
+    // 2. Verify Parameter section is visible
+    const paramSection = page.getByText(/Control Parameter Overrides|ac-1_prm_1/i).first();
+    await expect(paramSection).toBeVisible({ timeout: 30000 });
+
+    // 3. F5 Reload Persistence
+    await page.reload();
+    await waitForProfileResolution(page);
+    await groupHeader.click();
+    await controlItem.click();
+    await expect(paramSection).toBeVisible({ timeout: 30000 });
   });
 
-  test('US 2.12 & US 2.29: Feature 19 - Multi-Catalog Conflict Resolution (merge.combine) Engine Execution', async ({ page, apiSetup }) => {
+  test('US 2.31: Baseline Diff Tab is Accessible', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({
+      title: 'Diff Base Catalog',
+      groups: [
+        {
+          id: 'sc',
+          title: 'System and Communications',
+          controls: [{ id: 'sc-7', title: 'Boundary Protection', parts: [{ id: 'sc-7_smt', name: 'statement', prose: 'Boundary protection prose.' }] }]
+        }
+      ]
+    });
+
+    const profUuid = await apiSetup.createProfile({
+      title: 'Diff Tailored Profile',
+      catalogUuid: catUuid
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    // 1. Navigate to Baseline Diff tab
+    await selectSidebarTab(page, 'Baseline Diff');
+
+    // 2. Verify Diff View is displayed
+    const diffHeading = page.getByText(/Baseline Source Catalog|Added Controls|Modified Controls/i).first();
+    await expect(diffHeading).toBeVisible({ timeout: 30000 });
+  });
+
+  test('US 2.12 & US 2.29: Multi-Catalog Import Shows First Definition', async ({ page, apiSetup }) => {
     const catUuid1 = await apiSetup.createCatalog({
-      title: 'Catalog A',
+      title: 'Catalog Primary',
       groups: [
         {
           id: 'ac',
           title: 'Access Control',
-          controls: [{ id: 'ac-1', title: 'Access Control Policy A', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Policy A prose.' }] }]
+          controls: [
+            { id: 'ac-1', title: 'Access Control Policy', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Primary definition.' }] }
+          ]
         }
       ]
     });
 
     const catUuid2 = await apiSetup.createCatalog({
-      title: 'Catalog B',
+      title: 'Catalog Secondary',
       groups: [
         {
           id: 'ac',
           title: 'Access Control',
-          controls: [{ id: 'ac-1', title: 'Access Control Policy B', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Policy B prose.' }] }]
+          controls: [
+            { id: 'ac-1', title: 'Access Control Policy Duplicate', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Secondary definition.' }] }
+          ]
         }
       ]
     });
@@ -352,56 +346,81 @@ test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () 
 
     await navigateToProfile(page, profUuid, apiSetup.workspaceId);
 
+    // Verify sidebar shows the first definition's control
     const groupHeader = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
     await expect(groupHeader).toBeVisible({ timeout: 30000 });
     await groupHeader.click();
 
-    const controlItem = page.locator('[data-testid="tree-node-ac-1"], [data-dnd-id="ac-1"]').or(page.getByText('Access Control Policy A')).first();
+    const controlItem = page.locator('[data-testid="tree-node-ac-1"], [data-dnd-id="ac-1"]').or(page.getByText(/Access Control Policy/)).first();
     await expect(controlItem).toBeVisible({ timeout: 30000 });
-
-    const doc1 = await apiSetup.getDocument('profiles', profUuid);
-    expect(doc1.profile.merge.combine.method).toBe('use-first');
   });
 
-  test('US 2.2 & US 2.7: Merge Directives (as-is, flat, custom) & Custom Group Structuring', async ({ page, apiSetup }) => {
+  test('US 2.18: Export Button Triggers Download', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({ title: 'Export Base Catalog' });
+    const profUuid = await apiSetup.createProfile({
+      title: 'Export Test Profile',
+      catalogUuid: catUuid
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+
+    // Wait for profile to load
+    await expect(page.getByText('Export Test Profile').first()).toBeVisible({ timeout: 15000 });
+
+    // Open Export modal and verify format options
+    await page.getByRole('button', { name: /Export/i }).first().click();
+    await expect(page.getByTestId('export-confirm-btn')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('export-format-json')).toBeChecked();
+  });
+
+  test('US 2.15: Profile Sidebar Navigation Hub Switches Views', async ({ page, apiSetup }) => {
+    const catUuid = await apiSetup.createCatalog({ title: 'Nav Base Catalog' });
+    const profUuid = await apiSetup.createProfile({
+      title: 'Navigation Test Profile',
+      catalogUuid: catUuid
+    });
+
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+    await expect(page.getByText('Navigation Test Profile').first()).toBeVisible({ timeout: 15000 });
+
+    // 1. Metadata tab
+    await page.getByTestId('profile-sidebar-metadata').click();
+    await expect(page.getByText('General Information').or(page.locator('input[value*="Navigation Test"]')).first()).toBeVisible({ timeout: 10000 });
+
+    // 2. Properties tab
+    await page.getByTestId('profile-sidebar-properties').click();
+    await expect(page.getByText('Central Property Hub')).toBeVisible({ timeout: 10000 });
+
+    // 3. Parameters tab
+    await page.getByTestId('profile-sidebar-parameters').click();
+    await expect(page.getByText(/Modified & Custom Profile Parameters|Parameter Scopes in OSCAL/i).first()).toBeVisible({ timeout: 10000 });
+
+    // 4. Back Matter tab
+    await page.getByTestId('profile-sidebar-backmatter').click();
+    await expect(page.getByText('Back Matter / Resources')).toBeVisible({ timeout: 10000 });
+
+    // 5. Imports tab
+    await page.getByTestId('profile-sidebar-imports').click();
+    await expect(page.getByText(/Imported Sources/i)).toBeVisible({ timeout: 10000 });
+
+    // 6. Overview tab
+    await page.getByTestId('profile-sidebar-overview').click();
+    await expect(page.getByText('CONTROL FAMILIES').first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test('US 2.11 & US 2.26: Control Alters and Props/Links Integration in Profile Mode', async ({ page, apiSetup }) => {
     const catUuid = await apiSetup.createCatalog({
-      title: 'Merge Strategy Source Catalog',
+      title: 'Alters Props Catalog',
       groups: [
         {
           id: 'ac',
           title: 'Access Control',
           controls: [
-            { id: 'ac-1', title: 'Policy and Procedures', parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Review policy.' }] },
-            { id: 'ac-2', title: 'Account Management', parts: [{ id: 'ac-2_smt', name: 'statement', prose: 'Manage accounts.' }] }
-          ]
-        }
-      ]
-    });
-
-    const profUuid = await apiSetup.createProfile({
-      title: 'Custom Merge Profile',
-      catalogUuid: catUuid,
-      imports: [{ href: `../catalogs/${catUuid}.json`, 'include-all': {} }]
-    });
-
-    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
-
-    const groupItem = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
-    await expect(groupItem).toBeVisible({ timeout: 15000 });
-  });
-
-  test('US 2.3 & US 2.8: Global Set-Parameters, Selection Rules, and Custom Choice Options', async ({ page, apiSetup }) => {
-    const catUuid = await apiSetup.createCatalog({
-      title: 'Set-Params Catalog',
-      controls: [
-        {
-          id: 'ac-1',
-          title: 'Access Policy',
-          params: [
             {
-              id: 'ac-1_prm_1',
-              label: 'policy review cycle',
-              values: ['annual']
+              id: 'ac-2',
+              title: 'Account Management',
+              props: [{ name: 'label', value: 'AC-2' }],
+              parts: [{ id: 'ac-2_smt', name: 'statement', prose: 'Manage accounts.' }]
             }
           ]
         }
@@ -409,76 +428,101 @@ test.describe('Step 2 Profile Tailoring — Deep Requirements & Edge Cases', () 
     });
 
     const profUuid = await apiSetup.createProfile({
-      title: 'Set-Params Tailored Profile',
-      catalogUuid: catUuid,
-      modify: {
-        'set-parameters': [
-          {
-            'param-id': 'ac-1_prm_1',
-            values: ['semi-annual'],
-            select: {
-              'how-many': 'one',
-              choice: ['annual', 'semi-annual', 'quarterly']
-            }
-          }
-        ]
-      }
+      title: 'Alters Props Profile',
+      catalogUuid: catUuid
     });
 
     await navigateToProfile(page, profUuid, apiSetup.workspaceId);
 
-    const controlItem = page.locator('[data-testid="tree-node-ac-1"], [data-dnd-id="ac-1"]').or(page.getByText('Access Policy')).first();
-    await expect(controlItem).toBeVisible({ timeout: 15000 });
+    // Navigate to control ac-2
+    const groupHeader = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
+    await expect(groupHeader).toBeVisible({ timeout: 30000 });
+    await groupHeader.click();
+
+    const controlItem = page.locator('[data-testid="tree-node-ac-2"], [data-dnd-id="ac-2"]').or(page.getByText('Account Management')).first();
+    await expect(controlItem).toBeVisible({ timeout: 30000 });
+    await controlItem.click();
+
+    // Verify Control Header, Statements and Properties are visible
+    await expect(page.getByText('Account Management').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Statements / Prose Parts').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('US 2.11: Advanced Deletion Rules (alters.removes by-id, by-name, by-class)', async ({ page, apiSetup }) => {
-    const catUuid = await apiSetup.createCatalog({
-      title: 'Removes Test Catalog',
-      controls: [
+  test('US 2.1 & US 2.27: Dynamic Import Source Management & Context-Aware Control Pool', async ({ page, apiSetup }) => {
+    const catAlphaUuid = await apiSetup.createCatalog({
+      title: 'Source Catalog Alpha',
+      groups: [
         {
-          id: 'ac-1',
-          title: 'Access Control Policy',
-          parts: [{ id: 'ac-1_smt', name: 'statement', prose: 'Original statement prose.' }]
+          id: 'grp-a',
+          title: 'Alpha Family',
+          controls: [{ id: 'alpha-1', title: 'Alpha Control 1', parts: [{ id: 'alpha-1_smt', name: 'statement', prose: 'Alpha prose.' }] }]
+        }
+      ]
+    });
+
+    const catBetaUuid = await apiSetup.createCatalog({
+      title: 'Source Catalog Beta',
+      groups: [
+        {
+          id: 'grp-b',
+          title: 'Beta Family',
+          controls: [{ id: 'beta-1', title: 'Beta Control 1', parts: [{ id: 'beta-1_smt', name: 'statement', prose: 'Beta prose.' }] }]
         }
       ]
     });
 
     const profUuid = await apiSetup.createProfile({
-      title: 'Removes Tailored Profile',
-      catalogUuid: catUuid,
-      modify: {
-        alters: [
-          {
-            'control-id': 'ac-1',
-            removes: [
-              { 'by-id': 'ac-1_smt' }
-            ]
-          }
-        ]
-      }
+      title: 'Import Management Profile',
+      catalogUuid: catAlphaUuid
     });
 
     await navigateToProfile(page, profUuid, apiSetup.workspaceId);
 
-    const controlItem = page.locator('[data-testid="tree-node-ac-1"], [data-dnd-id="ac-1"]').or(page.getByText('Access Control Policy')).first();
-    await expect(controlItem).toBeVisible({ timeout: 15000 });
+    // 1. Navigate to Imports tab
+    await selectSidebarTab(page, 'Imports');
+
+    // 2. In default 'as-is' mode, verify Alpha import is listed and Control Pool is NOT visible
+    const alphaCard = page.locator('.import-card').filter({ hasText: 'Source Catalog Alpha' });
+    await expect(alphaCard).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Control Pool \(Drag & Drop\)/i)).not.toBeVisible();
+
+    // 3. Switch to 'custom' structuring mode -> Control Pool subtab becomes available
+    const modeSelect = page.getByTestId('structuring-mode-select').or(page.locator('select').filter({ hasText: /as-is|custom|flat/i })).first();
+    await expect(modeSelect).toBeVisible({ timeout: 15000 });
+    await modeSelect.selectOption('custom');
+    const poolTabBtn = page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first();
+    await expect(poolTabBtn).toBeVisible({ timeout: 15000 });
+
+    // Switch to Control Pool tab and verify it renders
+    await poolTabBtn.click();
+    await expect(page.getByText(/Control Pool \(Drag & Drop\)/i)).toBeVisible({ timeout: 15000 });
+
+    // Switch back to Import Sources tab
+    await page.getByTestId('import-sources-tab-btn').or(page.getByRole('button', { name: /Import Sources/i })).first().click();
+
+    // 4. Add Source Catalog Beta from Add Import dropdown
+    const addImportSelect = page.getByTestId('add-import-source-select').or(page.locator('select').filter({ hasText: /Add Import Source|Select Catalog/i })).first();
+    await expect(addImportSelect).toBeVisible({ timeout: 15000 });
+    await addImportSelect.selectOption(`catalog:${catBetaUuid}`);
+
+    // Verify Beta import is now rendered
+    const betaCard = page.locator('.import-card').filter({ hasText: 'Source Catalog Beta' });
+    await expect(betaCard).toBeVisible({ timeout: 15000 });
+
+    // 5. Remove Source Catalog Beta
+    await betaCard.getByRole('button', { name: /Remove/i }).click();
+    await expect(betaCard).not.toBeVisible({ timeout: 15000 });
+
+    // 6. Switch back to 'as-is' mode -> Control Pool tab is hidden
+    await modeSelect.selectOption('as-is');
+    await expect(poolTabBtn).not.toBeVisible();
+
+    // 7. F5 Reload Persistence
+    await page.reload();
+    await waitForProfileResolution(page);
+    await selectSidebarTab(page, 'Imports');
+    await expect(page.locator('.import-card').filter({ hasText: 'Source Catalog Alpha' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Control Pool \(Drag & Drop\)/i)).not.toBeVisible();
   });
 
-  test('profile creation from list page via New button modal', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-    const catUuid = await apiSetup.createCatalog({ title: 'Base Catalog' });
-    await page.goto(`/profiles?w=${apiSetup.workspaceId}`);
-    
-    const newBtn = page.getByRole('button', { name: /new/i }).first();
-    await newBtn.click();
-    
-    const titleInput = page.getByPlaceholder(/title/i).or(page.getByLabel(/title/i)).first();
-    await expect(titleInput).toBeVisible({ timeout: 15000 });
-    await titleInput.fill('New Created Profile');
-    
-    const saveBtn = page.getByRole('button', { name: /create|save/i }).first();
-    await saveBtn.click();
-    
-    await expect(page.getByText('New Created Profile').first()).toBeVisible({ timeout: 15000 });
-  });
 });

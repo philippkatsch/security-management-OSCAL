@@ -1,14 +1,41 @@
 import React from 'react';
 import styles from '../../dashboard/DashboardPage.module.css';
 
+export interface StatusBreakdownItem {
+  label: string;
+  count?: number;
+  value?: number;
+  color?: string;
+  percentage?: number;
+}
+
+export interface StatusBreakdownProps {
+  title?: string;
+  items?: StatusBreakdownItem[];
+  data?: StatusBreakdownItem[];
+  counts?: Record<string, number> | any;
+  category?: string;
+  variant?: 'list' | 'bar';
+  className?: string;
+}
+
 export default function StatusBreakdown({ 
   title, 
   items = [], 
+  data = [],
+  counts,
+  category: _category,
   variant = 'list', 
   className = '' 
-}) {
-  const safeItems = Array.isArray(items) ? items : [];
-  const total = safeItems.reduce((sum, item) => sum + (item.count || 0), 0);
+}: StatusBreakdownProps) {
+  const inputItems = items.length > 0 ? items : data;
+  const derivedItems: StatusBreakdownItem[] = inputItems && inputItems.length > 0 
+    ? inputItems 
+    : counts && typeof counts === 'object'
+      ? Object.entries(counts).map(([label, count]) => ({ label, count: Number(count) }))
+      : [];
+  const safeItems = Array.isArray(derivedItems) ? derivedItems : [];
+  const total = safeItems.reduce((sum, item) => sum + (item.count ?? item.value ?? 0), 0);
 
   const renderBarVariant = () => (
     <div className={styles['status-breakdown-bar-variant']}>

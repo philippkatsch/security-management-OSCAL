@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ParameterCard } from '@components/shared/ParameterCard';
 import { ParameterEditor } from '@components/shared/ParameterEditor';
+import { toast } from 'react-hot-toast';
 
 describe('ParameterCard Component', () => {
   const mockOnChange = vi.fn();
@@ -142,6 +143,36 @@ describe('ParameterCard Component', () => {
 
       expect(screen.queryByText('✏️ Edit')).not.toBeInTheDocument();
       expect(screen.queryByText('🗑')).not.toBeInTheDocument();
+    });
+
+    it('renders PARAMETER badge and toggles advanced settings in edit mode', () => {
+      const param = { id: 'ac-1_prm_1', label: 'Basic Param' };
+
+      render(
+        <ParameterCard readOnly={false}
+          param={param}
+          isExpanded={true}
+          onChange={mockOnChange}
+          onToggleExpand={mockOnToggleExpand}
+        />
+      );
+
+      // Verify category badge matches statement layout
+      expect(screen.getByText('PARAMETER')).toBeInTheDocument();
+
+      // Advanced metadata should be hidden initially for simple parameter
+      expect(screen.queryByText('⚙️ Advanced & Optional Metadata')).not.toBeInTheDocument();
+
+      // Toggle advanced metadata
+      const advBtn = screen.getByTitle(/toggle optional\/advanced parameter metadata/i);
+      fireEvent.click(advBtn);
+
+      // Advanced metadata should now be visible
+      expect(screen.getByText('⚙️ Advanced & Optional Metadata')).toBeInTheDocument();
+
+      // Toggle again to collapse
+      fireEvent.click(advBtn);
+      expect(screen.queryByText('⚙️ Advanced & Optional Metadata')).not.toBeInTheDocument();
     });
   });
 
@@ -426,6 +457,10 @@ describe('ParameterCard Component', () => {
         />
       );
 
+      // Open advanced section first since it is hidden by default for simple parameters
+      const advBtn = screen.getByTitle(/toggle optional\/advanced parameter metadata/i);
+      fireEvent.click(advBtn);
+
       const addBtn = screen.getByText('➕ Add Constraint');
       fireEvent.click(addBtn);
 
@@ -627,7 +662,7 @@ describe('ParameterCard Component', () => {
     });
 
     it('prevents deletion and alerts the user if parameter is referenced in the document', () => {
-      const mockAlert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      const mockToastError = vi.spyOn(toast, 'error').mockImplementation(() => '');
       const fullDoc = {
         id: "cat_1",
         metadata: {},
@@ -661,16 +696,16 @@ describe('ParameterCard Component', () => {
       expect(deleteBtn).toBeInTheDocument();
       fireEvent.click(deleteBtn);
 
-      expect(mockAlert).toHaveBeenCalledWith(
+      expect(mockToastError).toHaveBeenCalledWith(
         expect.stringContaining('Cannot delete parameter "custom_p1" because it is inserted in control statement prose')
       );
       expect(mockOnChange).not.toHaveBeenCalled();
 
-      mockAlert.mockRestore();
+      mockToastError.mockRestore();
     });
 
     it('prevents deletion and alerts the user if parameter is referenced via bracket notation [param_id]', () => {
-      const mockAlert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      const mockToastError = vi.spyOn(toast, 'error').mockImplementation(() => '');
       const fullDoc = {
         id: "cat_1",
         metadata: {},
@@ -704,12 +739,12 @@ describe('ParameterCard Component', () => {
       expect(deleteBtn).toBeInTheDocument();
       fireEvent.click(deleteBtn);
 
-      expect(mockAlert).toHaveBeenCalledWith(
+      expect(mockToastError).toHaveBeenCalledWith(
         expect.stringContaining('Cannot delete parameter "custom_p1" because it is inserted in control statement prose')
       );
       expect(mockOnChange).not.toHaveBeenCalled();
 
-      mockAlert.mockRestore();
+      mockToastError.mockRestore();
     });
 
     it('supports deleting and restoring catalog default parameters in profile mode', () => {

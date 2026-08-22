@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import styles from './Navigation.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAtomValue } from 'jotai';
+import { useAtomValue, useAtom } from 'jotai';
 import { documentCountsAtom } from '@stores/documentAtoms';
+import { masterEditEnabledAtom, isMasterModeAtom } from '@stores/workspaceAtoms';
 import { getWorkspaceId } from '@lib/api';
+import { toast } from 'react-hot-toast';
 
 const navSections = [
   {
@@ -161,6 +163,8 @@ export const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const counts = useAtomValue(documentCountsAtom);
+  const masterEditEnabled = useAtomValue(masterEditEnabledAtom);
+  const [isMasterMode, setIsMasterMode] = useAtom(isMasterModeAtom);
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
@@ -277,23 +281,76 @@ export const Navigation = () => {
       </div>
 
       <div className={styles['nav-footer']}>
-        {(() => {
-          const urlParams = new URLSearchParams(window.location.search);
-          const currentW = (
-            urlParams.get('w') ||
-            urlParams.get('workspace_id') ||
-            urlParams.get('workspace') ||
-            localStorage.getItem('reposol_workspace_id')
-          );
-          if (currentW === 'master' || currentW === 'templates') {
-            return (
-              <div className={styles['master-mode-badge']} style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)', color: '#ffffff', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center', boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)' }}>
-                👑 Master Templates Mode (Local Admin)
-              </div>
-            );
-          }
-          return null;
-        })()}
+        {/* Master Template Mode — only visible when backend has ALLOW_MASTER_EDIT=true */}
+        {masterEditEnabled && (
+          isMasterMode ? (
+            <div
+              className={styles['master-mode-badge']}
+              style={{
+                background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+                color: '#ffffff',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                marginBottom: '8px',
+                textAlign: 'center',
+                boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '4px'
+              }}
+              title="You are editing global Master Templates. Changes affect seed data for all new user sessions."
+            >
+              <span>👑 Master Templates</span>
+              <button
+                type="button"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '10px',
+                  padding: '2px 6px',
+                  lineHeight: '1'
+                }}
+                onClick={() => {
+                  setIsMasterMode(false);
+                  window.location.reload();
+                }}
+                title="Exit Master Mode and return to your session workspace"
+              >
+                Exit ✕
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={`${sharedStyles['btn-secondary']} ${sharedStyles['btn-sm']}`}
+              style={{
+                width: '100%',
+                marginBottom: '8px',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+                opacity: 0.7
+              }}
+              onClick={() => {
+                if (window.confirm('Enter Master Template Mode?\n\nChanges will affect the global seed templates for all new user sessions.')) {
+                  setIsMasterMode(true);
+                  window.location.reload();
+                }
+              }}
+              title="Enter Master Template Mode to edit global seed data (requires ALLOW_MASTER_EDIT=true on backend)"
+            >
+              👑 Master Templates
+            </button>
+          )
+        )}
         <button
           type="button"
           className={`${sharedStyles['btn-secondary']} ${sharedStyles['btn-sm']} ${styles['btn-share-workspace']} btn-share-workspace`}
@@ -302,7 +359,7 @@ export const Navigation = () => {
             const wsId = getWorkspaceId();
             const shareUrl = `${window.location.origin}${window.location.pathname}?w=${wsId}${window.location.hash}`;
             navigator.clipboard.writeText(shareUrl);
-            alert(`Workspace link copied to clipboard!\n\n${shareUrl}`);
+            toast.success('Workspace link copied to clipboard!');
           }}
           title="Copy shareable workspace URL to clipboard"
         >
@@ -318,6 +375,7 @@ export const Navigation = () => {
           <span className={styles['env-version']}>OSCAL v1.1.2</span>
         </div>
       </div>
+
     </nav>
   );
 }

@@ -11,16 +11,11 @@ export function createActionDispatcher(
     const currentDoc = getDocument();
     if (!currentDoc) return;
     
-    pushUndoSnapshot(currentDoc);
-    
-    if (options?.enableLogging) {
-      console.debug(`[Action] ${action.domain}/${action.type}:`, action.description);
-    }
-    
     const newDoc = produce(currentDoc, (draft: any) => {
       action.apply(draft);
     });
     
     setDocument(newDoc);
+    pushUndoSnapshot(newDoc);
   };
 }

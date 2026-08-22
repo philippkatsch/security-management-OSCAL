@@ -7,12 +7,19 @@ import { formatProse } from '@lib/oscal-utils';
 /**
  * Control Tailoring & Parameter Override Panel for Profiles.
  */
+export interface TailoringPanelProps {
+  control?: any;
+  profile?: any;
+  onChange?: (profile: any) => void;
+  isEditing?: boolean;
+}
+
 export function TailoringPanel({
   control = {},
   profile = {},
-  onChange,
+  onChange = () => {},
   isEditing = false
-}) {
+}: TailoringPanelProps) {
   const params = control.params || [];
   const parts = control.parts || [];
 
@@ -76,7 +83,7 @@ export function TailoringPanel({
         </span>
         {subparts.length > 0 && (
           <div style={{ marginLeft: '16px', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {subparts.map(renderPart)}
+            {subparts.map((sp, spIdx) => <React.Fragment key={sp.id || sp.prose || spIdx}>{renderPart(sp)}</React.Fragment>)}
           </div>
         )}
       </div>

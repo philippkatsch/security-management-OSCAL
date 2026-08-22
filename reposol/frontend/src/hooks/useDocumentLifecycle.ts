@@ -1,16 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAtom } from 'jotai';
+import { produce } from 'immer';
 import { useDocumentData } from './useDocumentData';
 import { useDocumentHistory } from './useDocumentHistory';
 import { useUnsavedChangesWarning } from './useUnsavedChangesWarning';
 import { editModeAtom } from '@stores/uiAtoms';
 import { OscalStage, OscalDocument } from '@lib/types/oscal';
 import { VersionInfo } from '@lib/types/api';
+import { useConfirm } from './useConfirm';
+import { toast } from 'react-hot-toast';
+import { ROOT_KEYS as STAGE_ROOT_KEYS } from '@lib/oscal-constants';
 
 /**
  * Unified Document Lifecycle Hook for all OSCAL document types.
  */
 export function useDocumentLifecycle(stage: OscalStage, modelName: string, documentId: string, initialEditMode = false) {
+  const { confirm } = useConfirm();
   const [, setGlobalEditMode] = useAtom(editModeAtom);
   const [isEditing, setIsEditingState] = useState<boolean>(() => {
     return initialEditMode || window.location.search.includes('edit=true');
@@ -30,18 +35,23 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
 
   const [editMode, setEditMode] = useState<string>('visual');
   const [inspectedVersion, setInspectedVersion] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
 
-  const data = useDocumentData(stage, modelName, documentId, isEditing);
+  const data = useDocumentData(stage, modelName, documentId, isEditing, isDirty);
   const history = useDocumentHistory(data.doc, data.setDoc, isEditing);
+
+  useEffect(() => {
+    setIsDirty(history.hasUnsavedChanges);
+  }, [history.hasUnsavedChanges]);
   
   useUnsavedChangesWarning(history.hasUnsavedChanges, isEditing);
 
   // Sync undoRedo state on initial doc load if not yet initialized
   useEffect(() => {
-    if (data.doc && !history.activeDoc) {
+    if (data.doc && history.currentIndex === -1) {
       history.resetUndoRedo(data.doc);
     }
-  }, [data.doc, history.activeDoc, history.resetUndoRedo]);
+  }, [data.doc, history.currentIndex, history.resetUndoRedo]);
 
   const handleToggleEdit = useCallback(async () => {
     if (isEditing) {
@@ -50,12 +60,14 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
         window.history.replaceState(null, '', window.location.pathname);
       }
       try {
-        await data.saveDraftTag(history.activeDoc as OscalDocument);
-        await data.loadVersions();
+        if (history.hasUnsavedChanges) {
+          await data.saveDraftTag(history.activeDoc as OscalDocument);
+          await data.loadVersions();
+        }
         const reloadedData = await data.reload({ silent: true });
         if (reloadedData) history.resetUndoRedo(reloadedData);
       } catch (err: any) {
-        alert(`Saving failed: ${err.message}`);
+        toast.error(`Saving failed: ${err.message}`);
       }
     } else {
       const hasDraftOnServer = data.versions.some(
@@ -96,14 +108,20 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
   }, [isEditing, data, history]);
 
   const handleDeleteDraft = useCallback(async () => {
-    if (window.confirm('Are you sure you want to delete the active draft and revert to the published version?')) {
+    const confirmed = await confirm({
+      title: 'Delete Active Draft',
+      message: 'Are you sure you want to delete the active draft and revert to the published version?',
+      confirmLabel: 'Delete Draft',
+      variant: 'danger',
+    });
+    if (confirmed) {
       data.markDraftDiscarded();
       try {
         if (data.deleteVersionTag) {
           await data.deleteVersionTag('draft');
         }
-      } catch (err) {
-        console.error('Failed to delete draft:', err);
+      } catch (err: any) {
+        toast.error(`Failed to delete draft: ${err.message || err}`);
       }
       setIsEditing(false);
       setInspectedVersion(null);
@@ -111,10 +129,34 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
       const docData = await data.reload({ silent: false });
       if (docData) history.resetUndoRedo(docData);
     }
-  }, [data, history, setIsEditing]);
+  }, [confirm, data, history, setIsEditing]);
 
-  const handlePublishVersion = useCallback(async (ver: string, docToSave?: OscalDocument, remarks?: string) => {
-    await data.saveVersionTag(ver, docToSave || (history.activeDoc as OscalDocument), remarks);
+  const handlePublishVersion = useCallback(async (ver: string, docToSave?: OscalDocument | string, remarks?: string) => {
+    let actualDocToSave: OscalDocument | undefined = undefined;
+    let actualRemarks: string | undefined = remarks;
+
+    if (typeof docToSave === 'string') {
+      actualRemarks = docToSave;
+      actualDocToSave = (history.activeDoc || data.doc) as OscalDocument;
+    } else {
+      actualDocToSave = docToSave || (history.activeDoc || data.doc) as OscalDocument;
+    }
+
+    if (actualDocToSave) {
+      const rootKey = STAGE_ROOT_KEYS[stage] || stage.replace(/s$/, '');
+      const docWithNewVer = produce(actualDocToSave, (draft: any) => {
+        const root = draft[rootKey] || draft[stage];
+        if (root?.metadata) {
+          root.metadata.version = ver;
+        }
+      });
+      if (data.save) {
+        await data.save(docWithNewVer);
+      }
+      actualDocToSave = docWithNewVer;
+    }
+
+    await data.saveVersionTag(ver, actualDocToSave, actualRemarks);
     setIsEditing(false);
     if (window.location.search.includes('edit=true')) {
       window.history.replaceState(null, '', window.location.pathname);
@@ -123,18 +165,22 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
     await data.loadVersions();
     const docData = await data.reload({ silent: true });
     if (docData) history.resetUndoRedo(docData);
-  }, [data, history, setIsEditing]);
+  }, [data, history, setIsEditing, stage]);
 
   const handleBack = useCallback(async (navigateBackFn?: () => void) => {
-    if (isEditing) {
-      const choice = window.confirm(
-        'You have unsaved changes.\n\nClick OK to save the draft and go back.\nClick Cancel to discard the draft and go back.'
-      );
+    if (isEditing && history.hasUnsavedChanges) {
+      const choice = await confirm({
+        title: 'Unsaved Draft Changes',
+        message: 'You have unsaved changes in your active draft. Click Save to save your draft, or Discard to discard changes.',
+        confirmLabel: 'Save Draft',
+        cancelLabel: 'Discard Changes',
+        variant: 'warning',
+      });
       if (choice) {
         try {
           await data.saveDraftTag(history.activeDoc as OscalDocument);
-        } catch (err) {
-          console.error("Back button draft save failed:", err);
+        } catch (err: any) {
+          toast.error(`Draft save failed: ${err.message || err}`);
         }
       } else {
         data.markDraftDiscarded();
@@ -142,15 +188,15 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
           if (data.deleteVersionTag) {
             await data.deleteVersionTag('draft');
           }
-        } catch (err) {
-          console.error("Back button draft delete failed:", err);
+        } catch (err: any) {
+          // Silent catch if draft tag did not exist on server
         }
       }
     }
     if (navigateBackFn) {
       navigateBackFn();
     }
-  }, [isEditing, data, history]);
+  }, [isEditing, history.hasUnsavedChanges, history.activeDoc, data]);
 
   return {
     doc: data.doc,

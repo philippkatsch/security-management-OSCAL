@@ -3,7 +3,52 @@ import styles from './EntityTable.module.css';
 import sharedStyles from '../SharedComponents.module.css';
 import BatchActionToolbar from './BatchActionToolbar';
 
-export default function EntityTable({ columns, data, onRowClick, onSelectionChange, actions, emptyState, addButton, onAdd, addLabel, className = '' }) {
+export interface EntityTableColumn {
+  key: string;
+  label: string;
+  width?: string | number;
+  sortable?: boolean;
+  searchable?: boolean;
+  filterable?: boolean;
+  render?: (value: any, row: any) => React.ReactNode;
+}
+
+export interface EntityTableProps {
+  columns: EntityTableColumn[];
+  data?: any[];
+  onRowClick?: (row: any) => void;
+  onSelectionChange?: (selectedRows: any[]) => void;
+  actions?: any[];
+  emptyState?: {
+    icon?: React.ReactNode;
+    title?: string;
+    description?: string;
+    actionLabel?: string;
+    onAction?: () => void;
+  };
+  addButton?: {
+    label: string;
+    onClick: () => void;
+  } | null;
+  onAdd?: () => void;
+  onDelete?: (ids: string[]) => void;
+  addLabel?: string;
+  className?: string;
+}
+
+export default function EntityTable({ 
+  columns = [], 
+  data = [], 
+  onRowClick, 
+  onSelectionChange, 
+  actions, 
+  emptyState, 
+  addButton, 
+  onAdd, 
+  onDelete: _onDelete,
+  addLabel, 
+  className = '' 
+}: EntityTableProps) {
   const rowData = data || [];
   const finalAddBtn = addButton || (onAdd ? { label: addLabel || '+ Add Item', onClick: onAdd } : null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -58,9 +103,10 @@ export default function EntityTable({ columns, data, onRowClick, onSelectionChan
     });
 
     if (sortConfig.key) {
+      const sortKey = sortConfig.key;
       result.sort((a, b) => {
-        const aVal = a[sortConfig.key];
-        const bVal = b[sortConfig.key];
+        const aVal = a[sortKey];
+        const bVal = b[sortKey];
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;

@@ -5,24 +5,39 @@ import styles from './SharedComponents.module.css';
 import { DebouncedInput } from './DebouncedInput';
 import { generateUUID } from '@lib/oscal-utils';
 
-/**
- * Properties CRUD editor.
- */
+export interface PropsEditorProps {
+  props?: any[];
+  properties?: any[];
+  onChange?: (props: any[]) => void;
+  allUsedKeys?: string[];
+  removedPropNames?: string[];
+  onRestoreProp?: (name: string) => void;
+  overriddenPropNames?: string[];
+  onRevertProp?: (name: string) => void;
+  readOnly?: boolean;
+  isEditing?: boolean;
+  isEditMode?: boolean;
+}
+
 export function PropsEditor({
-  props = [],
-  onChange,
+  props: rawProps,
+  properties,
+  onChange = () => {},
   allUsedKeys = [],
   removedPropNames = [],
   onRestoreProp,
   overriddenPropNames = [],
   onRevertProp,
-  readOnly
-}) {
+  readOnly,
+  isEditing: isEditingProp,
+  isEditMode
+}: PropsEditorProps) {
+  const props = rawProps || properties || [];
   const globalEditMode = useAtomValue(editModeAtom);
-  const isEditing = readOnly !== undefined ? !readOnly : globalEditMode;
+  const isEditing = isEditingProp !== undefined ? isEditingProp : (isEditMode !== undefined ? isEditMode : (readOnly !== undefined ? !readOnly : globalEditMode));
   const isReadOnlyState = !isEditing;
 
-  const [showAdvancedIndex, setShowAdvancedIndex] = useState({});
+  const [showAdvancedIndex, setShowAdvancedIndex] = useState<Record<number, boolean>>({});
 
   const handlePropChange = (index, field, val) => {
     const updated = props.map((p, i) => {
@@ -54,7 +69,7 @@ export function PropsEditor({
     }));
   };
 
-  const [focusedPropIdx, setFocusedPropIdx] = useState(null);
+  const [focusedPropIdx, setFocusedPropIdx] = useState<number | null>(null);
 
   // US 1.19: Combine allUsedKeys with keys currently in the props list, and common metadata keys
   const commonDefaultKeys = [
@@ -209,8 +224,8 @@ export function PropsEditor({
                           color: 'var(--color-text)',
                           textAlign: 'left'
                         }}
-                        onMouseEnter={(e) => e.target.style.background = 'var(--color-surface-3)'}
-                        onMouseLeave={(e) => e.target.style.background = 'none'}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface-3)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                       >
                         {k}
                       </div>

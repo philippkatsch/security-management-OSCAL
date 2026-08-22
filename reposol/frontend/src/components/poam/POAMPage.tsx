@@ -1,21 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { produce } from 'immer';
 import { useDocumentLifecycle } from '../../hooks/useDocumentLifecycle';
 import { useDocumentActions } from '../../hooks/useDocumentActions';
 import { updatePOAMRoot, updatePOAMList, savePOAMItem, replacePOAM } from '../../lib/document-actions';
+import { importARFindingsAction } from '../../lib/document-actions/poam-actions';
 import { DocumentPageLayout } from '../layout/DocumentPageLayout';
 import EntityTable from '../shared/entity/EntityTable';
 import { JsonEditor } from '../shared/JsonEditor';
 import { StandardMetadataTab } from '../shared/tabs/StandardMetadataTab';
 import { POAMDashboard } from './POAMDashboard';
 import { POAMItemsEditor } from './POAMItemsEditor';
+import { ARFindingsImportModal } from './ARFindingsImportModal';
+import { StatusBadge } from '../shared/status';
+import { LoadingSpinner } from '../shared/ui/LoadingSpinner';
+import styles from './POAMPage.module.css';
 
-const generateUUID = () => crypto.randomUUID();
+const generateUUID = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15));
 
-export function POAMPage({ poamId, initialEditMode = false, onClose }) {
+export interface POAMPageProps {
+  poamId?: string;
+  initialEditMode?: boolean;
+  onClose?: () => void;
+}
+
+export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAMPageProps) {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [itemType, setItemType] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [itemType, setItemType] = useState<any>(null);
+  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
+  const jsonEditorRef = useRef<any>(null);
 
   const lifecycle = useDocumentLifecycle('poams', 'plan-of-action-and-milestones', poamId, initialEditMode);
   const { doc, setDoc, loading, error, isEditing, pushUndoRedoState } = lifecycle;
@@ -40,24 +53,28 @@ export function POAMPage({ poamId, initialEditMode = false, onClose }) {
     setItemType(null);
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading POA&M...</div>;
+  const handleImportFindings = (newItems, newObs, newRisks) => {
+    dispatch(importARFindingsAction(newItems, newObs, newRisks));
+  };
+
+  if (loading && !doc) return <LoadingSpinner variant="skeleton" message="Loading POA&M..." />;
   if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
   if (!doc || !doc['plan-of-action-and-milestones']) return null;
 
-  const poam = doc['plan-of-action-and-milestones'];
+  const poam: any = doc['plan-of-action-and-milestones'];
   const items = poam['poam-items'] || [];
-  const completedItems = items.filter(i => (i.props || []).some(p => p.name === 'status' && p.value === 'completed'));
+  const completedItems = items.filter((i: any) => (i.props || []).some((p: any) => p.name === 'status' && p.value === 'completed'));
   const resolvedPercent = items.length > 0 ? Math.round((completedItems.length / items.length) * 100) : 0;
-  
-  const riskStatusData = {};
-  (poam.risks || []).forEach(r => {
+
+  const riskStatusData: Record<string, number> = {};
+  (poam.risks || []).forEach((r: any) => {
     const s = r.status || 'unknown';
     riskStatusData[s] = (riskStatusData[s] || 0) + 1;
   });
 
-  const priorityData = {};
-  items.forEach(i => {
-    const p = (i.props || []).find(pr => pr.name === 'priority')?.value || 'unassigned';
+  const priorityData: Record<string, number> = {};
+  items.forEach((i: any) => {
+    const p = (i.props || []).find((pr: any) => pr.name === 'priority')?.value || 'unassigned';
     priorityData[`P${p}`] = (priorityData[`P${p}`] || 0) + 1;
   });
 
@@ -80,7 +97,7 @@ export function POAMPage({ poamId, initialEditMode = false, onClose }) {
   const renderListTab = (listName, title, columns) => (
     <div className="p-6">
       <h2 className="text-xl font-bold mb-4">{title}</h2>
-      <EntityTable 
+      <EntityTable
         data={poam[listName] || []}
         columns={columns}
         onRowClick={item => { setItemType(listName); setSelectedItem(item); }}
@@ -92,6 +109,17 @@ export function POAMPage({ poamId, initialEditMode = false, onClose }) {
     </div>
   );
 
+  const headerActions = isEditing ? (
+    <button
+      type="button"
+      className={styles['poam-toolbar-btn']}
+      onClick={() => setIsImportWizardOpen(true)}
+      data-testid="btn-toolbar-import-ar"
+    >
+      📥 Import AR Findings
+    </button>
+  ) : undefined;
+
   return (
     <DocumentPageLayout
       stage="poams"
@@ -100,15 +128,26 @@ export function POAMPage({ poamId, initialEditMode = false, onClose }) {
       title={poam.metadata?.title || 'Untitled POA&M'}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(newTab) => {
+        if (activeTab === 'json' && newTab !== 'json') {
+          const entityId = jsonEditorRef.current?.getCursorEntityId?.();
+          if (entityId) {
+            const item = items.find((i: any) => i.uuid === entityId);
+            if (item) { setSelectedItem(item); setItemType('poam-item'); }
+          }
+        }
+        setActiveTab(newTab);
+      }}
       onClose={onClose}
+      headerActions={headerActions}
     >
       {activeTab === 'dashboard' && (
-        <POAMDashboard 
+        <POAMDashboard
           poam={poam} isEditing={isEditing} updateRootField={updateRootField}
           dashboardMetrics={dashboardMetrics} resolvedPercent={resolvedPercent}
           completedItems={completedItems} items={items}
           riskStatusData={riskStatusData} priorityData={priorityData}
+          onOpenImportWizard={() => setIsImportWizardOpen(true)}
         />
       )}
       {activeTab === 'items' && renderListTab('poam-items', 'POA&M Items', [
@@ -121,24 +160,31 @@ export function POAMPage({ poamId, initialEditMode = false, onClose }) {
       ])}
       {activeTab === 'risks' && renderListTab('risks', 'Risks', [
         { key: 'title', label: 'Title', sortable: true },
-        { key: 'status', label: 'Status' }
+        { key: 'status', label: 'Status', render: (status: any) => <StatusBadge category="risk-status" value={status || 'open'} /> }
       ])}
       {activeTab === 'metadata' && (
         <StandardMetadataTab document={poam} onChange={(newPoam) => dispatch(replacePOAM(newPoam))} isEditing={isEditing} />
       )}
       {activeTab === 'json' && (
-        <div className="p-6 h-full"><JsonEditor value={doc} onChange={handleUpdate} readOnly={!isEditing} /></div>
+        <div className="p-6 h-full"><JsonEditor ref={jsonEditorRef} value={doc} onChange={handleUpdate} readOnly={!isEditing} highlightId={selectedItem?.uuid || null} /></div>
       )}
 
       {selectedItem && (
-        <POAMItemsEditor 
-          item={selectedItem} 
+        <POAMItemsEditor
+          item={selectedItem}
           doc={poam}
-          readOnly={!isEditing} 
-          onSave={handleSaveItem} 
-          onClose={() => { setSelectedItem(null); setItemType(null); }} 
+          readOnly={!isEditing}
+          onSave={handleSaveItem}
+          onClose={() => { setSelectedItem(null); setItemType(null); }}
         />
       )}
+
+      <ARFindingsImportModal
+        isOpen={isImportWizardOpen}
+        onClose={() => setIsImportWizardOpen(false)}
+        onImport={handleImportFindings}
+      />
     </DocumentPageLayout>
   );
 }
+

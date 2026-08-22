@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useRef } from 'react';
 import { ConfirmModal } from './ConfirmModal';
 
 interface ConfirmOptions {
@@ -18,25 +18,31 @@ const ConfirmContext = createContext<ConfirmContextType | undefined>(undefined);
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
-  const [resolver, setResolver] = useState<{ resolve: (value: boolean) => void } | null>(null);
+  const resolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const confirm = useCallback((opts: ConfirmOptions) => {
     setOptions(opts);
     setIsOpen(true);
     return new Promise<boolean>((resolve) => {
-      setResolver({ resolve });
+      resolverRef.current = resolve;
     });
   }, []);
 
   const handleConfirm = useCallback(() => {
     setIsOpen(false);
-    resolver?.resolve(true);
-  }, [resolver]);
+    if (resolverRef.current) {
+      resolverRef.current(true);
+      resolverRef.current = null;
+    }
+  }, []);
 
   const handleCancel = useCallback(() => {
     setIsOpen(false);
-    resolver?.resolve(false);
-  }, [resolver]);
+    if (resolverRef.current) {
+      resolverRef.current(false);
+      resolverRef.current = null;
+    }
+  }, []);
 
   return (
     <ConfirmContext.Provider value={{ confirm }}>

@@ -2,9 +2,25 @@ import React from 'react';
 
 const generateUUID = () => crypto.randomUUID();
 
-export default function DiagramUploader({ diagrams = [], onDiagramsChange, backMatter = {}, onBackMatterChange, label, editMode }) {
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
+export interface DiagramUploaderProps {
+  diagrams?: any[];
+  onDiagramsChange?: (diagrams: any[]) => void;
+  backMatter?: any;
+  onBackMatterChange?: (bm: any) => void;
+  label?: string;
+  editMode?: boolean;
+}
+
+export default function DiagramUploader({ 
+  diagrams = [], 
+  onDiagramsChange = () => {}, 
+  backMatter = {}, 
+  onBackMatterChange = () => {}, 
+  label = '', 
+  editMode = false 
+}: DiagramUploaderProps) {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();

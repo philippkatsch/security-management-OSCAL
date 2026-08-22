@@ -71,7 +71,7 @@ A dedicated **🏷️ Properties** sidebar item (as already specified in US 0.13
 > The aggregation logic in the Properties Dashboard must be document-type-aware.
 
 2. **Unified Property Concept (Option A):** All properties across the document (both `metadata.props` header properties and tree element properties) are unified under the single **`🏷️` Property** identity. Artificial `🌐` and `🌳` sub-icons are removed for maximum UI simplicity and low cognitive load.
-3. **Element Properties (PropsEditor) & Control Header:** All property badges/pills rendered across controls, groups, sub-controls, and parts in `PropsEditor.jsx` (both read-only and edit mode) feature a `🏷️` icon prefix. Action buttons (`🔧` Advanced Settings and `🗑️` Delete) cleanly fade in onHover with `auto` container width in CSS (eliminating the old 28px clipping bug). The `🔧` wrench icon features uniform, consistent styling across all property pills (highlighting only when clicked open). Input field widths for `id`, `class`, `name`, and `value` guarantee extra character padding.
+3. **Element Properties (PropsEditor) & Control Header:** All property badges/pills rendered across controls, groups, sub-controls, and parts in `PropsEditor.jsx` (both read-only and edit mode) feature a `🏷️` icon prefix. Action buttons (`🔧` Advanced Settings and `🗑️` Delete) become visible on hover and are styled consistently.
 4. **Unified Icon Taxonomy:**
    - **`🏷️` Properties:** Reserved exclusively for property-related tabs, cards, pills, and actions.
    - **`⚙️` Parameters:** Reserved exclusively for parameters (sidebar navigation, Add Parameter button).

@@ -27,9 +27,12 @@ The Reposol frontend relied heavily on browser-native UI elements (`window.alert
 - Centralized `api-client.ts` wraps standard fetch calls.
 - Configured with interceptors to handle global 401 Unauthorized errors, format response JSON automatically, and standardize error throwing for React Query consumption.
 
-### 5. Suspense and Code Splitting
-- Introduced a unified `LoadingSpinner` component.
+### 5. Suspense, Skeleton Loading and Code Splitting
 - Implemented React `Suspense` for lazy-loading route components, improving initial bundle size and time-to-interactive.
+- Replaced legacy text spinners with a modern `LoadingSpinner` / `LoadingSkeleton` system featuring:
+  - **Workspace Skeleton Loader (`LoadingSkeleton`)**: Renders a ghost layout matching the document workspace.
+  - **Ambient Progress & Spinner**: For inline/modal loading, text is rendered outside/below the spinner.
+- Unified document editor loading in `DocumentEditorPage`, `DocumentPageLayout`, and stage components (`ProfilePage`, `SSPPage`, etc.).
 
 ### 6. Common UI Utility Components
 To accelerate development and maintain consistency, we introduced:
@@ -38,6 +41,7 @@ To accelerate development and maintain consistency, we introduced:
 - **`ListEditor<T>`**: A generic component for managing simple arrays of items (adding, removing, reordering) without full entity table overhead.
 
 ## Consequences
-- **Accessibility & UX**: Eliminated jarring browser native dialogs in favor of integrated, accessible UI components.
+- **Accessibility & UX**: Eliminated jarring browser native dialogs, broken spinners with rotating text, and non-functional buttons in favor of integrated, accessible, and polished UI components.
+- **Perceived Performance**: Skeleton screens provide an instant, seamless transition during document initialization and code-split chunk loading.
 - **Resilience**: The application gracefully handles API failures and render errors.
 - **Developer Experience**: Common UI patterns are encapsulated in simple hooks and utility components.

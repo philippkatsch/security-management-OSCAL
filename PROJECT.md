@@ -1,41 +1,61 @@
-# Project: Reposol OSCAL Management E2E & Full Test Integrity Audit
+# Project: Reposol OSCAL Management Platform
 
 ## Architecture
-- **Backend**: Python FastAPI with `aiofiles` async persistence, `darkspell` conda environment, Pytest suite (278+ tests across 5 directories).
-- **Frontend**: React, TypeScript, Vite, Jotai, React Query, Vitest suite (140+ tests across 13 test files).
-- **E2E Testing**: Playwright test suite in `reposol/e2e/tests/` (33 `.spec.ts` files, 171 tests covering Steps 0–8, stress tests, `full-compliance-lifecycle.spec.ts`).
+- **Backend (`reposol/backend/`):** FastAPI async application with modular API routers in `app/api/`, service layer in `app/services/`, repositories in `app/repositories/`, schema validation in `app/validation.py`, and multi-format conversion in `app/format_converter.py`.
+- **Frontend (`reposol/frontend/src/`):** React + TypeScript application with stage-specific page components (`src/components/`), DocumentPageLayout, CSS Modules, Jotai stores (`src/stores/`), React Query hooks (`src/hooks/`), Monaco editor (`JsonEditor.tsx`), and StatusBadge system (`StatusBadge.tsx`).
+- **E2E Testing (`reposol/e2e/`):** Playwright automated browser test suite with web server auto-spawning for backend (port 1000) and frontend (port 1001).
 
-## Feature Inventory & Test Coverage Requirements
-| # | Test Suite / Target | Description / Scope | Target Count | Milestone | Source |
-|---|---------------------|---------------------|--------------|-----------|--------|
-| 1 | Backend Pytest Suite | Unit, Storage, Integration, API Workflows, Stress tests in `reposol/backend/tests/` | 278+ tests | M1 | explorer_backend |
-| 2 | Backend Concurrency Test Fix | Refactor `tests/test_concurrency.py` HTTPX `AsyncClient` syntax (`ASGITransport`) | 2 tests | M1 | explorer_backend |
-| 3 | Frontend Vitest Import Fix | Fix orphaned `./profile-resolver` export in `src/lib/profile/index.ts` | 32 tests unlocked | M2 | explorer_frontend |
-| 4 | Frontend Accordion Query Fix | Fix placeholder text locator mismatch in `EnhancementsAccordionIntegration.test.tsx` | 1 test fixed | M2 | explorer_frontend |
-| 5 | Frontend Vitest Suite Execution | Run full Vitest suite (`npm test` in `reposol/frontend`) | 140+ tests | M2 | explorer_frontend |
-| 6 | E2E Step 0 (Global Requirements) | Global setup, theme, layout, header, footer Playwright specs | 100% pass | M3 | explorer_e2e |
-| 7 | E2E Step 1 (Catalog Management) | Catalog builder, group editor, param editor, control detail specs | 100% pass | M3 | explorer_e2e |
-| 8 | E2E Step 2 (Profile Tailoring) | Profile builder, alter editor, imports, profile resolver specs | 100% pass | M3 | explorer_e2e |
-| 9 | E2E Step 3 (System Security Plan) | SSP builder, implementation status, system characteristics specs | 100% pass | M3 | explorer_e2e |
-| 10 | E2E Step 4 (Assessment Plan) | AP builder, assessment subjects, task specs | 100% pass | M3 | explorer_e2e |
-| 11 | E2E Step 5 (Assessment Results) | AR builder, observations, risks, findings specs | 100% pass | M3 | explorer_e2e |
-| 12 | E2E Step 6 (POA&M) | POA&M builder, remediation items, POAM entry specs | 100% pass | M3 | explorer_e2e |
-| 13 | E2E Step 7 (Component Definition) | Component builder, capabilities, control implementations specs | 100% pass | M3 | explorer_e2e |
-| 14 | E2E Step 8 (Traceability & Mapping) | Control mapping collection, gap analysis specs | 100% pass | M3 | explorer_e2e |
-| 15 | E2E Stress & Lifecycle | Stress tests + `full-compliance-lifecycle.spec.ts` cross-stage E2E specs | 100% pass | M3 | explorer_e2e |
+## Feature Inventory
+| # | Feature | Description | Milestone | Source |
+|---|---------|-------------|-----------|--------|
+| 1 | Stage 8 Control Mapping Sankey Diagram | Interactive Sankey diagram rendering control flows between source & target OSCAL frameworks in `MappingPage.tsx` | M1 | R1, DD-019, Step 8 Story |
+| 2 | Stage 8 Matrix View & Gap Analysis | Interactive mapping matrix with 6 relationship types and unmapped control gap filter | M1 | R1, DD-019 |
+| 3 | Stage 6/7 AR-to-POA&M Automated Import | Automated wizard/bridge button in `POAMPage.tsx` importing unsatisfied AR findings into POA&M items | M2 | R1, DD-017, Step 7 Story |
+| 4 | Stage 7 Milestone & Progress Dashboard | POA&M remediation milestone tracking and status breakdown dashboard | M2 | R1, DD-022 |
+| 5 | Stage 4 FIPS 199 & NIST 800-60 UI | Structured UI editor in `SystemCharacteristicsEditor.tsx` for FIPS 199 impact scoring & 800-60 info types | M3 | R1, Step 4 Story |
+| 6 | Stage 2 Visual Baseline Diff Comparison | Side-by-side visual comparison in `ProfilePage.tsx` of resolved profile controls vs baseline catalog controls | M3 | R1, Step 2 Story |
+| 7 | Stage 3 Component & Protocol Management | Management of 11 OSCAL component types, capability editor, and control implementations | M3 | R1, Step 3 Story |
+| 8 | R2 Standardized Confirm & Export Modals | Replace `window.confirm` and `window.prompt` in `DocumentListPage.tsx` with `ConfirmModal` / `useConfirm` per DD-032 | M4 | R2, DD-032 |
+| 9 | R2 Multi-Format Serialization & Validation | Lossless JSON/YAML/XML import/export and NIST OSCAL v1.2.0 Metaschema validation | M4 | R2, DD-002, DD-004 |
+| 10 | R3 Monaco Editor & Live Syntax Checking | Virtualized Monaco editor with 500ms debounced syntax error hints and target element auto-scrolling | M4 | R3, DD-014 |
+| 11 | R3 Lifecycle Dashboard & Badges | Stage pipeline cards, recent activity, and 14-category HSL status badge system | M4 | R3, DD-020 |
+| 12 | Stage 1 Catalog & Parameter Management | Hierarchical control tree, multi-level parameters, parameter prose chips, and group editor | M4 | R1, Step 1 Story |
+| 13 | Stage 5 Assessment Plan Activity Scheduler | Assessment objectives, reviewed controls scope, local definitions, and task activity editor | M4 | R1, Step 5 Story |
+| 14 | E2E Opaque-Box Test Suite | Comprehensive Playwright test suite covering all 8 OSCAL stages and cross-stage workflows | E2E Track | R4 |
+| 15 | Final Verification & Adversarial Hardening | Green bar on Pytest, Vitest, Playwright E2E, and Tier 5 white-box coverage hardening | M5 | R4 |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Backend Pytest Verification & Fixes | Fix `test_concurrency.py` HTTPX transport; verify 294/294 Pytest pass | none | DONE |
-| M2 | Frontend Vitest Remediation | Fix `@lib/profile` export, fix placeholder query, run & pass 100% Vitest tests | none | DONE |
-| M3 | E2E Playwright Suite Audit & Execution | Execute 100% of 33 Playwright spec files (171 tests) against dual webServer | M1, M2 | DONE |
-| M4 | Final Synthesis & Victory Sign-off | Synthesize full pass results and declare completion to Sentinel | M1, M2, M3 | IN_PROGRESS |
+| M1 | Control Mapping Sankey Diagram & Stage 8 Polish | Sankey diagram visualization in `MappingPage.tsx` (SVG/Canvas) + mapping matrix gap analysis | None | DONE |
+| M2 | AR-to-POA&M Findings Import Bridge | Automated findings-to-POA&M item import wizard & cross-reference linking in `POAMPage.tsx` | None | DONE |
+| M3 | SSP FIPS 199/NIST 800-60 UI & Profile Baseline Diff | Structured FIPS 199 impact scoring in `SystemCharacteristicsEditor.tsx` & side-by-side visual profile baseline diff in `ProfilePage.tsx` | None | DONE |
+| M4 | Modal Infrastructure & R2/R3 UI/UX Polish | Replace `window.confirm`/`window.prompt` in `DocumentListPage.tsx` with `ConfirmModal` per DD-032 + Monaco/badge robustness | None | DONE |
+| E2E | E2E Testing Track | Requirement-driven Playwright test suite validation across Tiers 1-4 -> TEST_READY.md | Parallel | DONE |
+| M5 | Final Compliance Verification & Adversarial Hardening | Phase 1: 100% E2E test pass across all tiers. Phase 2: Tier 5 adversarial coverage hardening | M1, M2, M3, M4, E2E | IN_PROGRESS |
 
+## Interface Contracts
+### Control Mapping ↔ Stage 8 Sankey Renderer
+- Input: `mappingCollection: OscalMappingCollection` document object containing `mappings: OscalMappingEntry[]`
+- Function: `renderSankeyDiagram(sources, targets, mappings)`
+- Output: SVG node-and-link flow diagram visualizing mapped control relationships (`equal-to`, `equivalent-to`, `subset-of`, `superset-of`, `intersects-with`) and unmapped control gaps.
 
+### Assessment Results ↔ POA&M Import Bridge
+- Input: `assessmentResultsId: string`
+- Endpoint: `POST /api/documents/poams/{poam_id}/import-findings/{ar_id}`
+- Transformation: Converts unsatisfied AR findings (`finding.target.status == "not-satisfied"`) into `poam-item` objects with `finding-building-block` cross-references and initial `open` status.
 
+### Profile ↔ Catalog Baseline Diff
+- Input: `profileId: string`, `catalogId: string`
+- Endpoint: `GET /api/resolve/profile/{profile_id}/diff/{catalog_id}`
+- Output: Side-by-side control delta structure detailing added, removed, modified, and untouched controls.
 
-## Code Layout & Test Directories
-- `reposol/e2e/`: Playwright config, dual webServer, package.json, and `tests/` directory (33 `.spec.ts` files)
-- `reposol/backend/tests/`: Pytest test files across 5 subdirectories (`unit`, `storage`, `integration`, `api_workflows`, `stress`)
-- `reposol/frontend/`: Frontend source (`src/`) and Vitest test files (`src/tests/`)
+## Code Layout
+- `reposol/backend/app/api/`: FastAPI route modules (`document_routes.py`, `import_routes.py`, `resolution_routes.py`, `validation_routes.py`)
+- `reposol/backend/app/services/`: Core logic (`document_service.py`, `resolution_service.py`, `profile_service.py`, `import_service.py`)
+- `reposol/backend/app/format_converter.py`: JSON ↔ YAML ↔ XML bi-directional converter
+- `reposol/backend/app/validation.py`: Metaschema validator engine using cached `Draft7Validator`
+- `reposol/frontend/src/components/`: React stage page components (`catalog/`, `profile/`, `component-definition/`, `ssp/`, `assessment-plan/`, `assessment-results/`, `poam/`, `mapping/`, `common/`, `editors/`)
+- `reposol/frontend/src/stores/`: Jotai state atoms (`documentAtoms.ts`, `uiAtoms.ts`)
+- `reposol/frontend/src/hooks/`: React Query custom hooks (`useDocumentQuery.ts`, `useDocumentMutation.ts`)
+- `reposol/e2e/tests/`: Playwright E2E spec files

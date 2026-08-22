@@ -3,10 +3,15 @@ import React from 'react';
 /**
  * Validation feedback box.
  */
+export interface ValidationFeedbackProps {
+  result?: any;
+  onClose?: () => void;
+}
+
 export function ValidationFeedback({
   result,
   onClose
-}) {
+}: ValidationFeedbackProps) {
   if (!result) return null;
 
   const { valid, errors = [], error } = result;

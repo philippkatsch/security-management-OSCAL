@@ -26,7 +26,7 @@ const Accordion = ({ title, children, defaultOpen = false }) => {
 
 const ProtocolsEditor = ({ component, onChange, editMode }) => {
   const protocols = component.protocols || [];
-  const [expandedIndex, setExpandedIndex] = useState(null);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const addProtocol = () => { if (editMode) onChange('protocols', [...protocols, { uuid: generateUUID(), name: '', title: '', 'port-ranges': [] }]); };
   const removeProtocol = (idx) => { if (editMode) { const newP = [...protocols]; newP.splice(idx, 1); onChange('protocols', newP); } };
@@ -127,15 +127,22 @@ const ControlImplementationsEditor = ({ component, onChange, editMode }) => {
   const addReq = (implIdx) => {
     if (!editMode) return;
     const newImpls = [...impls];
-    const newReqs = [...(newImpls[implIdx]['implemented-requirements'] || []), { uuid: generateUUID(), 'control-id': 'new-control', description: '' }];
-    newImpls[implIdx]['implemented-requirements'] = newReqs;
+    const newImpl = { ...newImpls[implIdx] };
+    newImpl['implemented-requirements'] = [
+      ...(newImpl['implemented-requirements'] || []),
+      { uuid: generateUUID(), 'control-id': 'new-control', description: '' }
+    ];
+    newImpls[implIdx] = newImpl;
     onChange('control-implementations', newImpls);
   };
 
   const removeReq = (implIdx, reqIdx) => {
     if (!editMode) return;
     const newImpls = [...impls];
-    newImpls[implIdx]['implemented-requirements'].splice(reqIdx, 1);
+    const newImpl = { ...newImpls[implIdx] };
+    const reqs = newImpl['implemented-requirements'] || [];
+    newImpl['implemented-requirements'] = reqs.filter((_, i) => i !== reqIdx);
+    newImpls[implIdx] = newImpl;
     onChange('control-implementations', newImpls);
   };
 
@@ -220,10 +227,22 @@ const ControlImplementationsEditor = ({ component, onChange, editMode }) => {
   );
 };
 
-export default function ComponentEditor({ component, onUpdate, onClose, editMode }) {
+export interface ComponentEditorProps {
+  component: any;
+  onUpdate?: (component: any) => void;
+  onClose?: () => void;
+  editMode?: boolean;
+}
+
+export default function ComponentEditor({ 
+  component, 
+  onUpdate = () => {}, 
+  onClose, 
+  editMode = false 
+}: ComponentEditorProps) {
   if (!component) return null;
 
-  const handleChange = (field, value) => {
+  const handleChange = (field: string, value: any) => {
     if (!editMode) return;
     onUpdate({ ...component, [field]: value });
   };
@@ -303,7 +322,7 @@ export default function ComponentEditor({ component, onUpdate, onClose, editMode
               />
             ) : (
               <div className={styles['prose-readonly']}>
-                <ProseWithParams text={component.description} />
+                <ProseWithParams value={component.description} />
               </div>
             )}
           </div>
@@ -326,7 +345,7 @@ export default function ComponentEditor({ component, onUpdate, onClose, editMode
               />
             ) : (
               <div className={styles['prose-readonly']}>
-                <ProseWithParams text={component.remarks} />
+                <ProseWithParams value={component.remarks} />
               </div>
             )}
           </div>
@@ -369,7 +388,7 @@ export default function ComponentEditor({ component, onUpdate, onClose, editMode
           <LinksEditor 
             links={component.links || []} 
             onChange={(links) => handleChange('links', links)}
-            editMode={editMode}
+            isEditing={editMode}
           />
         </Accordion>
 

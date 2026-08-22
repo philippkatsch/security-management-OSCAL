@@ -3,11 +3,29 @@ import styles from './ControlDetail.module.css';
 import { PartsEditor } from '../PartsEditor';
 import { ReadOnlyParts } from '../ReadOnlyParts';
 
+export interface ControlPartsPanelProps {
+  mode?: any;
+  isEditing?: boolean;
+  parts?: any[];
+  handleFieldChange?: any;
+  combinedParams?: any;
+  handleDefineNewParam?: any;
+  originalControl?: any;
+  renderEditPart?: any;
+  handleAddProfilePartAtEnd?: any;
+  getModifiedPartIds?: any;
+  handleResetProse?: any;
+  renderProseToReact?: any;
+  infoTooltip?: any;
+  controlId?: string;
+  [key: string]: any;
+}
+
 export function ControlPartsPanel({
   mode,
   isEditing,
-  parts,
-  handleFieldChange,
+  parts = [],
+  handleFieldChange = () => {},
   combinedParams,
   handleDefineNewParam,
   originalControl,
@@ -16,10 +34,11 @@ export function ControlPartsPanel({
   getModifiedPartIds,
   handleResetProse,
   renderProseToReact,
-  infoTooltip
-}) {
+  infoTooltip,
+  controlId: _controlId
+}: ControlPartsPanelProps) {
   return (
-    <div className={styles['section-container']} style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
+    <div className={styles['section-container']}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
         <h4 style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 'bold' }}>Statements / Prose Parts</h4>
         {infoTooltip}
@@ -36,9 +55,19 @@ export function ControlPartsPanel({
         <div>
           {parts.length === 0 ? (
             <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: '13px' }}>No prose statements.</p>
+          ) : renderEditPart ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {parts.map((p, i) => renderEditPart(p, originalControl?.parts?.[i], 0, i))}
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {parts.map((p, i) => renderEditPart ? renderEditPart(p, originalControl?.parts?.[i], 0, i) : null)}
+              <ReadOnlyParts
+                parts={parts}
+                renderProse={renderProseToReact}
+                modifiedPartIds={getModifiedPartIds ? getModifiedPartIds() : undefined}
+                onResetPart={handleResetProse}
+                isEditing={isEditing}
+              />
             </div>
           )}
           <button

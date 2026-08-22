@@ -6,12 +6,18 @@ export default function CompletenessReport({
   sections = [], 
   onNavigate, 
   className = '' 
-}) {
-  const passes = sections.filter(s => s.status === 'pass').length;
-  const warnings = sections.filter(s => s.status === 'warn').length;
-  const failures = sections.filter(s => s.status === 'fail').length;
+}: any) {
+  const normalizedSections = sections.map((s: any) => {
+    const name = s.name || s.label || s.title || s.id || 'Section';
+    const status = s.status || (s.isComplete ? 'pass' : (s.required ? 'fail' : 'warn'));
+    return { ...s, name, status };
+  });
 
-  const renderIcon = (status) => {
+  const passes = normalizedSections.filter((s: any) => s.status === 'pass').length;
+  const warnings = normalizedSections.filter((s: any) => s.status === 'warn').length;
+  const failures = normalizedSections.filter((s: any) => s.status === 'fail').length;
+
+  const renderIcon = (status: string) => {
     switch (status) {
       case 'pass': return '✅';
       case 'warn': return '⚠️';
@@ -20,30 +26,30 @@ export default function CompletenessReport({
     }
   };
 
-  const handleRowClick = (link) => {
+  const handleRowClick = (link: string) => {
     if (typeof onNavigate === 'function' && link) {
       onNavigate(link);
     }
   };
 
   return (
-    <div className={`dashboard-card completeness-report ${className}`}>
+    <div className={`${styles['dashboard-card']} ${styles['completeness-report']} ${className}`}>
       {title && (
         <div className={styles['completeness-header']}>
           <h3 className={styles['completeness-title']}>{title}</h3>
           <div className={styles['completeness-summary']}>
-            {passes > 0 && <span className={[styles['summary-chip'], styles['pass']].filter(Boolean).join(' ')}>{passes} passed</span>}
-            {warnings > 0 && <span className={[styles['summary-chip'], styles['warn']].filter(Boolean).join(' ')}>{warnings} warnings</span>}
-            {failures > 0 && <span className={[styles['summary-chip'], styles['fail']].filter(Boolean).join(' ')}>{failures} failures</span>}
+            {passes > 0 && <span className={`${styles['summary-chip']} ${styles['pass']}`}>{passes} passed</span>}
+            {warnings > 0 && <span className={`${styles['summary-chip']} ${styles['warn']}`}>{warnings} warnings</span>}
+            {failures > 0 && <span className={`${styles['summary-chip']} ${styles['fail']}`}>{failures} failures</span>}
           </div>
         </div>
       )}
       
       <div className={styles['completeness-list']}>
-        {sections.map((section, idx) => (
+        {normalizedSections.map((section: any, idx: number) => (
           <div 
             key={idx} 
-            className={`completeness-row ${section.status} ${section.link && onNavigate ? 'clickable' : ''}`}
+            className={`${styles['completeness-row']} ${styles[section.status] || ''} ${section.link && onNavigate ? styles['clickable'] : ''}`}
             onClick={() => handleRowClick(section.link)}
             role={section.link && onNavigate ? 'button' : 'listitem'}
             tabIndex={section.link && onNavigate ? 0 : undefined}

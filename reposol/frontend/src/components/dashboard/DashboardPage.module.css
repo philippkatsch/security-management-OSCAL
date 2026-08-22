@@ -419,23 +419,13 @@
      ========================================================================== */
      
   .dashboard-card {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     padding: 16px;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
     overflow: hidden;
-  }
-  
-  /* Dark mode generic adaptations */
-  @media (prefers-color-scheme: dark) {
-    .dashboard-card {
-      background: rgba(30, 30, 30, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
   }
   
   .dashboard-card.clickable {
@@ -445,15 +435,9 @@
   .dashboard-card.clickable:hover,
   .dashboard-card.clickable:focus-visible {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    background: var(--color-surface-2);
     outline: none;
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .dashboard-card.clickable:hover {
-      background: rgba(45, 45, 45, 0.5);
-    }
   }
   
   /* ==========================================================================
@@ -495,22 +479,16 @@
   }
   
   .metric-card-label {
-    font-size: 13px;
-    color: var(--text-muted, #64748b);
-    font-weight: 500;
+    font-size: 11.5px;
+    color: var(--color-text-muted);
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
   
-  @media (prefers-color-scheme: dark) {
-    .metric-card-label {
-      color: var(--text-muted, #94a3b8);
-    }
-  }
-  
   .metric-card-icon {
     font-size: 16px;
-    opacity: 0.7;
+    opacity: 0.85;
   }
   
   .metric-card-body {
@@ -520,14 +498,8 @@
   .metric-card-value {
     font-size: 28px;
     font-weight: 700;
-    color: var(--text-primary, #0f172a);
+    color: var(--color-text);
     line-height: 1.2;
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .metric-card-value {
-      color: var(--text-primary, #f8fafc);
-    }
   }
   
   .metric-card-footer {
@@ -654,16 +626,10 @@
   }
   
   .status-breakdown-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     margin: 0;
-    color: var(--text-primary, #0f172a);
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .status-breakdown-title {
-      color: var(--text-primary, #f8fafc);
-    }
+    color: var(--color-text);
   }
   
   /* Bar Variant */
@@ -701,6 +667,7 @@
     align-items: center;
     gap: 6px;
     font-size: 13px;
+    color: var(--color-text-muted);
   }
   
   .status-dot {
@@ -794,16 +761,10 @@
   }
   
   .completeness-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     margin: 0;
-    color: var(--text-primary, #0f172a);
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .completeness-title {
-      color: var(--text-primary, #f8fafc);
-    }
+    color: var(--color-text);
   }
   
   .completeness-summary {
@@ -822,24 +783,18 @@
   }
   
   .summary-chip.pass {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--color-success, #059669);
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #34d399;
   }
   
   .summary-chip.warn {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: var(--color-warning, #d97706);
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
   }
   
   .summary-chip.fail {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: var(--color-danger, #dc2626);
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .summary-chip.pass { color: #34d399; }
-    .summary-chip.warn { color: #fbbf24; }
-    .summary-chip.fail { color: #f87171; }
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #f87171;
   }
   
   .completeness-list {
@@ -852,15 +807,9 @@
     align-items: flex-start;
     gap: 12px;
     padding: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-top: 1px solid var(--color-border);
     border-left: 4px solid transparent;
     transition: background-color 0.2s ease;
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .completeness-row {
-      border-top-color: rgba(255, 255, 255, 0.05);
-    }
   }
   
   .completeness-row:first-child {
@@ -873,15 +822,8 @@
   
   .completeness-row.clickable:hover,
   .completeness-row.clickable:focus-visible {
-    background-color: rgba(0, 0, 0, 0.03);
+    background-color: var(--color-surface-2);
     outline: none;
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .completeness-row.clickable:hover,
-    .completeness-row.clickable:focus-visible {
-      background-color: rgba(255, 255, 255, 0.03);
-    }
   }
   
   /* Status borders */
@@ -910,42 +852,23 @@
   .completeness-row-name {
     font-size: 14px;
     font-weight: 600;
-    color: var(--text-primary, #0f172a);
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .completeness-row-name {
-      color: var(--text-primary, #f8fafc);
-    }
+    color: var(--color-text);
   }
   
   .completeness-row-badge {
     font-size: 11px;
     font-weight: 700;
-    background-color: rgba(0,0,0,0.1);
-    color: var(--text-primary, #0f172a);
+    background-color: rgba(255,255,255,0.15);
+    color: var(--color-text);
     padding: 2px 6px;
     border-radius: 10px;
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .completeness-row-badge {
-      background-color: rgba(255,255,255,0.15);
-      color: var(--text-primary, #f8fafc);
-    }
   }
   
   .completeness-row-message {
     font-size: 13px;
     margin: 0;
-    color: var(--text-muted, #475569);
+    color: var(--color-text-muted);
     line-height: 1.4;
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .completeness-row-message {
-      color: var(--text-muted, #94a3b8);
-    }
   }
   
   .completeness-row-action {
@@ -967,4 +890,115 @@
   .nav-arrow {
     font-size: 18px;
     font-weight: bold;
+  }
+
+  /* ─── Workflow Pipeline ──────────────────────────────────────── */
+  .workflow-pipeline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 4px 20px 4px;
+    overflow-x: auto;
+    margin-bottom: 24px;
+    scrollbar-width: thin;
+  }
+
+  .workflow-step-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .workflow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 10px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+    position: relative;
+    gap: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .workflow-step:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-accent);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-glow);
+  }
+
+  .workflow-step.has-docs {
+    border-color: var(--color-accent);
+    background: var(--color-accent-bg);
+  }
+
+  .workflow-step.has-docs::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--color-accent);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+
+  .workflow-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .workflow-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  .workflow-count {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-accent-hover);
+    line-height: 1.1;
+    margin: 2px 0;
+  }
+
+  .workflow-desc {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .workflow-dev-badge {
+    font-size: 0.65rem;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-top: 4px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .workflow-arrow {
+    font-size: 1.2rem;
+    color: var(--color-text-subtle);
+    padding: 0 6px;
+    flex-shrink: 0;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }

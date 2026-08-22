@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 
 import { LoadingSpinner } from '@components/shared/ui/LoadingSpinner';
+import { ErrorBoundary } from '@components/shared/ui/ErrorBoundary';
 
 const CatalogPage = React.lazy(() => import('../catalog/CatalogPage').then(m => ({ default: m.CatalogPage })));
 const ProfilePage = React.lazy(() => import('../profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
@@ -11,7 +12,7 @@ const SSPPage = React.lazy(() => import('../ssp/SSPPage').then(m => ({ default: 
 const APPage = React.lazy(() => import('../assessment-plan/APPage').then(m => ({ default: m.APPage })));
 const ARPage = React.lazy(() => import('../assessment-results/ARPage').then(m => ({ default: m.ARPage })));
 const POAMPage = React.lazy(() => import('../poam/POAMPage').then(m => ({ default: m.POAMPage })));
-const TraceabilityPage = React.lazy(() => import('../traceability/TraceabilityPage').then(m => ({ default: m.TraceabilityPage })));
+import { TraceabilityPage } from '../traceability/TraceabilityPage';
 
 export const DocumentEditorPage = () => {
   const { stage, docId } = useParams<{ stage: string; docId: string }>();
@@ -62,7 +63,9 @@ export const DocumentEditorPage = () => {
 
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      {content}
+      <ErrorBoundary>
+        {content}
+      </ErrorBoundary>
     </Suspense>
   );
 };

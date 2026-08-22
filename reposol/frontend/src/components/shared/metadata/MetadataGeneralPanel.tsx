@@ -41,6 +41,8 @@ export function MetadataGeneralPanel({ metadata, readOnly, expandedSections, tog
                 value={metadata.title || ''}
                 onChange={(val) => handleFieldChange('title', val)}
                 className="form-input"
+                aria-label="Document Title"
+                data-testid="metadata-title-input"
                 style={{ width: '100%', height: '32px' }}
                 disabled={readOnly}
               />

@@ -10,7 +10,8 @@ export function useDocumentHistory(doc: OscalDocument | null, setDoc: (doc: Osca
     redo,
     canUndo,
     canRedo,
-    reset: resetUndoRedo
+    reset: resetUndoRedo,
+    currentIndex
   } = useUndoRedo(doc);
 
   const activeDoc = undoRedoDoc || doc;
@@ -59,6 +60,7 @@ export function useDocumentHistory(doc: OscalDocument | null, setDoc: (doc: Osca
     canUndo,
     canRedo,
     resetUndoRedo,
-    hasUnsavedChanges
+    hasUnsavedChanges,
+    currentIndex
   };
 }

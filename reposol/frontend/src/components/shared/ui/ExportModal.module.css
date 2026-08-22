@@ -1,0 +1,139 @@
+.dialog {
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-surface, #1e1e2e);
+  color: var(--color-text, #cdd6f4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  max-width: 460px;
+  width: 90%;
+}
+
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+}
+
+.content {
+  padding: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text, #cdd6f4);
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #a6adc8);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.closeBtn:hover {
+  background: var(--color-surface-hover, #313244);
+  color: var(--color-text, #cdd6f4);
+}
+
+.subtitle {
+  margin: 0 0 20px 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #a6adc8);
+}
+
+.formatList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.formatOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border, #45475a);
+  border-radius: 6px;
+  background: var(--color-surface-card, #181825);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formatOption:hover {
+  border-color: var(--color-primary, #89b4fa);
+  background: var(--color-surface-hover, #313244);
+}
+
+.formatOptionSelected {
+  border-color: var(--color-primary, #89b4fa);
+  background: rgba(137, 180, 250, 0.1);
+}
+
+.radioInput {
+  margin-top: 3px;
+  accent-color: var(--color-primary, #89b4fa);
+  cursor: pointer;
+}
+
+.formatDetails {
+  display: flex;
+  flex-direction: column;
+}
+
+.formatName {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text, #cdd6f4);
+}
+
+.formatDesc {
+  font-size: 0.825rem;
+  color: var(--color-text-muted, #a6adc8);
+  margin-top: 2px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #45475a);
+  background: var(--color-surface, #1e1e2e);
+  color: var(--color-text, #cdd6f4);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.btn:hover {
+  background: var(--color-surface-hover, #313244);
+}
+
+.btnPrimary {
+  background: var(--color-primary, #89b4fa);
+  color: #11111b;
+  border-color: var(--color-primary, #89b4fa);
+  font-weight: 600;
+}
+
+.btnPrimary:hover {
+  background: #b4befe;
+  border-color: #b4befe;
+}

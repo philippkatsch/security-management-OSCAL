@@ -5,13 +5,13 @@ import styles from './Version.module.css';
  * Formats a version object or string cleanly for display.
  * Prevents raw ISO timestamp clutter like "v2026-07-16T05:11:52..."
  */
-function formatVersionDisplay(ver) {
+function formatVersionDisplay(ver: any) {
   if (!ver) return 'v1.0.0';
   const verStr = typeof ver === 'string' ? ver : (ver.version || ver.oscal_version || '1.0.0');
   const isDraft = typeof ver === 'object' ? Boolean(ver.is_draft) : verStr.endsWith('-draft');
 
   if (isDraft) {
-    return '📝 Draft';
+    return 'Draft';
   }
 
   // Handle ISO timestamp string formatted as version (e.g. "2026-07-16T05:11:52.605669+00:00")
@@ -46,18 +46,18 @@ export default function VersionDropdown({
   onSaveVersion,
   onDeleteDraft,
   documentTitle = ''
-}) {
+}: any) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedVersion, setSelectedVersion] = useState(null);
-  const dropdownRef = useRef(null);
+  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const showDraftPill = hasDraft || isDirty;
   const currentSelectionIsDraft = selectedVersion === 'draft' || (selectedVersion === null && showDraftPill);
   const displayVersion = selectedVersion && selectedVersion !== 'draft' ? selectedVersion : activeVersion;
 
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
@@ -65,7 +65,7 @@ export default function VersionDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleVersionClick = (ver) => {
+  const handleVersionClick = (ver: any) => {
     // In edit mode, version switching is blocked
     if (isEditing) return;
     // Normalize: always pass a string or 'draft' to the callback
@@ -86,7 +86,7 @@ export default function VersionDropdown({
     setIsOpen(false);
   };
 
-  const handleDeleteDraftClick = (e) => {
+  const handleDeleteDraftClick = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -99,14 +99,14 @@ export default function VersionDropdown({
   };
 
   // Filter out standalone draft from main versions list if rendered separately
-  const publishedVersions = versions.filter(v => {
+  const publishedVersions = versions.filter((v: any) => {
     if (typeof v === 'string') return !v.endsWith('-draft');
-    return !v.is_draft && !v.version?.endsWith('-draft');
+    return !v?.is_draft && !v?.version?.endsWith?.('-draft');
   });
 
-  const draftVersions = versions.filter(v => {
+  const draftVersions = versions.filter((v: any) => {
     if (typeof v === 'string') return v.endsWith('-draft');
-    return v.is_draft || v.version?.endsWith('-draft');
+    return v?.is_draft || v?.version?.endsWith?.('-draft');
   });
 
   return (
@@ -114,34 +114,37 @@ export default function VersionDropdown({
       <button 
         type="button"
         data-testid="version-dropdown-toggle"
-        className={`version-dropdown-toggle ${currentSelectionIsDraft ? styles['is-draft'] : ''} ${isEditing ? 'is-locked' : ''}`}
+        className={`${styles['version-dropdown-toggle']} ${currentSelectionIsDraft ? styles['is-draft'] : ''} ${isEditing ? styles['is-locked'] : ''}`}
         onClick={() => { if (!isEditing) setIsOpen(!isOpen); }}
         title={isEditing ? 'Version switching is disabled during editing' : 'Click to view version history and draft state'}
         style={isEditing ? { cursor: 'default', opacity: 0.85 } : undefined}
       >
         {isEditing ? (
-          <span className={[styles['version-badge'], styles['version-badge--draft']].filter(Boolean).join(' ')}>
-            📝 Draft (editing)
+          <span className={`${styles['version-badge']} ${styles['version-badge--draft']}`}>
+            <span className={`${styles['indicator-dot']} ${styles['indicator-dot--draft']}`} />
+            Draft (editing)
           </span>
         ) : currentSelectionIsDraft ? (
-          <span className={[styles['version-badge'], styles['version-badge--draft']].filter(Boolean).join(' ')}>
-            📝 Draft
+          <span className={`${styles['version-badge']} ${styles['version-badge--draft']}`}>
+            <span className={`${styles['indicator-dot']} ${styles['indicator-dot--draft']}`} />
+            Draft
           </span>
         ) : (
-          <span className={[styles['version-badge'], styles['version-badge--published']].filter(Boolean).join(' ')}>
+          <span className={`${styles['version-badge']} ${styles['version-badge--published']}`}>
             {formatVersionDisplay(displayVersion)}
           </span>
         )}
-        {!isEditing && <span className={styles['version-dropdown-arrow']}>▼</span>}
-        {isEditing && <span className={styles['version-dropdown-arrow']} style={{ opacity: 0.4 }}>🔒</span>}
+        {!isEditing && <span className={styles['version-dropdown-arrow']}>▾</span>}
       </button>
 
       {isOpen && (
         <div className={styles['version-dropdown-menu']}>
           <div className={styles['version-dropdown-header']}>
-            <span>Version History</span>
+            <span className={styles['version-header-title']}>Version History</span>
             {versions.length > 0 && (
-              <span className={styles['version-count-badge']}>{versions.length} release{versions.length > 1 ? 's' : ''}</span>
+              <span className={styles['version-count-badge']}>
+                {versions.length} {versions.length === 1 ? 'version' : 'versions'}
+              </span>
             )}
           </div>
 
@@ -149,57 +152,66 @@ export default function VersionDropdown({
             {/* Draft Section if active draft exists */}
             {(showDraftPill || draftVersions.length > 0) && (
               <div 
-                className={`version-dropdown-item version-dropdown-item--draft ${currentSelectionIsDraft ? 'active' : ''}`}
+                className={`${styles['version-dropdown-item']} ${styles['version-dropdown-item--draft']} version-dropdown-item version-dropdown-item--draft ${currentSelectionIsDraft ? styles['selected'] : ''}`}
                 onClick={() => handleVersionClick('draft')}
               >
                 <div className={styles['version-dropdown-item-header']}>
-                  <span className={[styles['version-badge'], styles['version-badge--draft']].filter(Boolean).join(' ')}>📝 Draft</span>
+                  <span className={`${styles['version-badge']} ${styles['version-badge--draft']}`}>
+                    <span className={`${styles['indicator-dot']} ${styles['indicator-dot--draft']}`} />
+                    Draft
+                  </span>
                   {onDeleteDraft && (
                     <button
                       type="button"
                       className={styles['version-delete-draft-btn']}
                       onClick={handleDeleteDraftClick}
-                      title="Delete draft and revert to published version"
+                      title="Discard draft and revert to published version"
                     >
-                      🗑️ Delete Draft
+                      Discard Draft
                     </button>
                   )}
                 </div>
-                <span className={styles['version-dropdown-item-desc']}>
-                  Temporarily saved (Draft)
-                </span>
+                <div className={styles['version-dropdown-item-desc']}>
+                  Unpublished working changes
+                </div>
               </div>
             )}
 
             {/* Published Versions List */}
             {publishedVersions.length > 0 ? (
               <ul className={styles['version-dropdown-list']}>
-                {publishedVersions.map((ver, idx) => {
+                {publishedVersions.map((ver: any, idx: number) => {
                   const verStr = typeof ver === 'string' ? ver : (ver.version || ver.oscal_version || `1.0.${idx}`);
                   const isSelected = !showDraftPill && verStr === activeVersion;
-                  const dateStr = typeof ver === 'object' ? (ver.published || ver.last_modified || ver.date) : null;
-                  const remarks = typeof ver === 'object' ? (ver.remarks || ver.title) : null;
-                  const defaultRemarks = (ver.is_active || isSelected) ? 'Active version' : 'Historical version';
+                  const dateStr = typeof ver === 'object' && ver !== null ? (ver.published || ver.last_modified || ver.date) : null;
+                  const remarks = typeof ver === 'object' && ver !== null ? (ver.remarks || ver.title) : null;
 
                   return (
                     <li 
                       key={(verStr || idx) + '-' + idx}
-                      className={`version-dropdown-item ${isSelected ? styles['selected'] : ''}`}
+                      className={`${styles['version-dropdown-item']} version-dropdown-item ${isSelected ? styles['selected'] : ''}`}
                       onClick={() => handleVersionClick(ver)}
                     >
                       <div className={styles['version-dropdown-item-header']}>
-                        <span className={[styles['version-badge'], styles['version-badge--published']].filter(Boolean).join(' ')}>
-                          {formatVersionDisplay(ver)}
-                        </span>
+                        <div className={styles['version-item-title-wrap']}>
+                          <span className={`${styles['version-badge']} ${styles['version-badge--published']}`}>
+                            {formatVersionDisplay(ver)}
+                          </span>
+                          {isSelected && (
+                            <span className={styles['version-active-tag']}>Active</span>
+                          )}
+                        </div>
                         {dateStr && (
                           <span className={styles['version-date']}>
                             {new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         )}
                       </div>
-                      <div className={styles['version-dropdown-item-desc']}>
-                        {remarks || defaultRemarks}
-                      </div>
+                      {remarks && (
+                        <div className={styles['version-dropdown-item-desc']}>
+                          {remarks}
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -214,14 +226,14 @@ export default function VersionDropdown({
           </div>
 
           {/* Footer Action to Publish New Version */}
-          {onSaveVersion && (
+          {onSaveVersion && (showDraftPill || draftVersions.length > 0) && (
             <div className={styles['version-dropdown-footer']}>
               <button 
                 type="button"
                 className={styles['version-publish-btn']}
                 onClick={handlePublishClick}
               >
-                🚀 Publish New Version
+                Publish New Version
               </button>
             </div>
           )}
@@ -232,3 +244,4 @@ export default function VersionDropdown({
 }
 
 VersionDropdown.displayName = 'VersionDropdown';
+

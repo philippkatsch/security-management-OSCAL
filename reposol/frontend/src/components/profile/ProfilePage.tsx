@@ -12,8 +12,11 @@ import { GroupEditor } from '@components/shared/GroupEditor';
 import { ValidationFeedback } from '@components/shared/ValidationFeedback';
 import { JsonEditor } from '@components/shared/JsonEditor';
 import { ConfirmDialog } from '@components/shared/ConfirmDialog';
-import LifecycleBanner from '@components/shared/status/LifecycleBanner';
-import { getDocumentStatus, setDocumentStatus } from '@lib/status-machine';
+import { ProfileBaselineDiffView } from './ProfileBaselineDiffView';
+import { ExportModal } from '@components/shared/ui/ExportModal';
+import { LoadingSpinner } from '@components/shared/ui/LoadingSpinner';
+import { toast } from 'react-hot-toast';
+
 
 const getAncestors = (targetId, root) => {
   if (!targetId || !root) return [];
@@ -44,11 +47,19 @@ const getAncestors = (targetId, root) => {
 /**
  * Orchestrating Profile Page (Tailoring Baseline View / Editor).
  */
+export interface ProfilePageProps {
+  profileId?: string;
+  docTitle?: string;
+  initialEditMode?: boolean;
+  onClose?: () => void;
+}
+
 export function ProfilePage({
-  profileId,
+  profileId = '',
+  docTitle,
   initialEditMode = false,
   onClose
-}) {
+}: ProfilePageProps) {
   // Unified Document Lifecycle Hook
   const lifecycle = useDocumentLifecycle('profiles', 'profile', profileId, initialEditMode);
   const {
@@ -97,19 +108,20 @@ export function ProfilePage({
   } = lifecycle;
 
   // 2. Local States
-  const [selectedControlId, setSelectedControlId] = useState(null);
-  const [selectedGroupId, setSelectedGroupId] = useState(null);
-  const [activeSidebarView, setActiveSidebarView] = useState('overview');
+  const [selectedControlId, setSelectedControlId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [activeSidebarView, setActiveSidebarView] = useState<string | null>('overview');
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedGroups, setExpandedGroups] = useState({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [jsonText, setJsonText] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
   const { data: catalogsData } = useDocumentListQuery('catalogs');
   const { data: profilesData } = useDocumentListQuery('profiles');
   const availableCatalogs = useMemo(() => catalogsData || [], [catalogsData]);
   const availableProfiles = useMemo(() => profilesData || [], [profilesData]);
-  const jsonEditorRef = useRef(null);
+  const jsonEditorRef = useRef<any>(null);
 
-  const handleSelectGroup = (id) => {
+  const handleSelectGroup = (id: string | null) => {
     setSelectedGroupId(id);
     setSelectedControlId(null);
     if (id === null) {
@@ -119,7 +131,7 @@ export function ProfilePage({
     }
   };
 
-  const handleSelectControl = (id) => {
+  const handleSelectControl = (id: string | null) => {
     setSelectedControlId(id);
     setSelectedGroupId(null);
     setActiveSidebarView(null);
@@ -160,7 +172,7 @@ export function ProfilePage({
 
   // Run resolution engine on document change
   useEffect(() => {
-    if (activeDoc) {
+    if (activeDoc && typeof resolve === 'function') {
       resolve(activeDoc);
     }
   }, [activeDoc, resolve]);
@@ -183,28 +195,31 @@ export function ProfilePage({
         const migrated = {
           ...p,
           imports: updatedImports,
-          merge: p.merge || { 'as-is': true }
+          merge: p.merge || { 'as-is': {} }
         };
-        setDoc({ ...doc, profile: migrated });
+        setDoc({ ...doc, profile: migrated as any });
       }
     }
   }, [doc, setDoc]);
 
   // Update active document state helper
-  const handleDocChange = (updated) => {
+  const handleDocChange = (updated: any) => {
     setDoc(updated);
     pushUndoRedoState(updated);
   };
 
-  const handleToggleEditMode = (mode) => {
+  const handleToggleEditMode = (mode: string) => {
     if (mode === 'json') {
       setJsonText(JSON.stringify(activeDoc, null, 2));
     } else {
+      // Reverse sync: select control at cursor when switching to visual
+      const entityId = jsonEditorRef.current?.getCursorEntityId?.();
+      if (entityId) setSelectedControlId(entityId);
       try {
         const parsed = JSON.parse(jsonText);
         handleDocChange(parsed);
-      } catch (err) {
-        alert(`JSON syntax error: Cannot switch to visual view. ${err.message}`);
+      } catch (err: any) {
+        toast.error(`JSON syntax error: Cannot switch to visual view. ${err?.message || 'Syntax Error'}`);
         return;
       }
     }
@@ -216,19 +231,12 @@ export function ProfilePage({
   };
 
   const handleExport = () => {
-    const format = window.prompt("Export format: json, yaml, or xml", "json");
-    if (!format) return;
-    const fmt = format.trim().toLowerCase();
-    if (['json', 'yaml', 'xml'].includes(fmt)) {
-      window.open(`/api/export/profiles/${profileId}?format=${fmt}`, '_blank');
-    } else {
-      alert("Invalid format.");
-    }
+    setShowExportModal(true);
   };
 
   // --- Toggle Control Selection Callback in tailoring (US 2.2, 2.14) ---
-  const handleToggleControlSelection = (controlId, isChecked) => {
-    const profileData = activeDoc.profile || {};
+  const handleToggleControlSelection = (controlId: string, isChecked: boolean) => {
+    const profileData: any = activeDoc.profile || {};
     const imports = profileData.imports || [];
     if (imports.length === 0) return;
 
@@ -312,10 +320,10 @@ export function ProfilePage({
   };
 
   // --- Global Property Management (DD-011 Central Hub) ---
-  const handleGlobalPropertyRename = (oldName, newName) => {
+  const handleGlobalPropertyRename = (oldName: string, newName: string) => {
     if (!oldName || !newName || oldName === newName) return;
-    const profileData = activeDoc.profile || {};
-    const renameInProps = (props) => {
+    const profileData: any = activeDoc.profile || {};
+    const renameInProps = (props: any[]) => {
       if (!props) return props;
       return props.map(p => p.name === oldName ? { ...p, name: newName } : p);
     };
@@ -326,10 +334,10 @@ export function ProfilePage({
     handleDocChange({ ...activeDoc, profile: updatedProfile });
   };
 
-  const handleGlobalPropertyDelete = (propName) => {
+  const handleGlobalPropertyDelete = (propName: string) => {
     if (!propName) return;
-    const profileData = activeDoc.profile || {};
-    const removeFromProps = (props) => {
+    const profileData: any = activeDoc.profile || {};
+    const removeFromProps = (props: any[]) => {
       if (!props) return props;
       const filtered = props.filter(p => p.name !== propName);
       return filtered.length > 0 ? filtered : undefined;
@@ -395,17 +403,19 @@ export function ProfilePage({
       return null;
     };
     // Search through all cached catalogs
-    for (const [, entry] of catalogCache) {
-      const catData = entry?.data || entry;
-      const catalog = catData?.catalog || catData;
-      if (!catalog) continue;
-      for (let c of catalog.controls || []) {
-        const found = traverse(c);
-        if (found) return found;
-      }
-      for (let g of catalog.groups || []) {
-        const found = traverse(g);
-        if (found) return found;
+    if (catalogCache && typeof (catalogCache as any)[Symbol.iterator] === 'function') {
+      for (const [, entry] of catalogCache) {
+        const catData = entry?.data || entry;
+        const catalog = catData?.catalog || catData;
+        if (!catalog) continue;
+        for (let c of catalog.controls || []) {
+          const found = traverse(c);
+          if (found) return found;
+        }
+        for (let g of catalog.groups || []) {
+          const found = traverse(g);
+          if (found) return found;
+        }
       }
     }
     return null;
@@ -422,12 +432,12 @@ export function ProfilePage({
     return null;
   };
 
-  const handleGroupChange = (updatedGroup) => {
-    const profileData = activeDoc.profile || {};
+  const handleGroupChange = (updatedGroup: any) => {
+    const profileData: any = activeDoc.profile || {};
     const currentGroups = profileData.merge?.custom?.groups || [];
     
-    const updateGroupRecursive = (list) => {
-      return list.map(g => {
+    const updateGroupRecursive = (list: any[]) => {
+      return list.map((g: any) => {
         if (g.id === selectedGroupId || g.id === updatedGroup.id) {
           return {
             ...g,
@@ -464,11 +474,11 @@ export function ProfilePage({
     });
   };
 
-  if (loading) return <div style={{ padding: '20px', color: 'var(--color-text-muted)' }}>Loading Profile...</div>;
+  if (loading && !activeDoc) return <LoadingSpinner variant="skeleton" message="Loading Profile..." />;
   if (error) return <div style={{ padding: '20px', color: 'var(--color-danger)' }}>Error: {error}</div>;
   if (!doc) return <div style={{ padding: '20px' }}>No document loaded.</div>;
 
-  const profileData = activeDoc.profile || {};
+  const profileData: any = activeDoc.profile || {};
   const selectedControl = getSelectedControlDetails();
   const selectedGroup = selectedGroupId ? findGroupById(selectedGroupId, resolvedCatalog?.groups || []) : null;
 
@@ -479,12 +489,70 @@ export function ProfilePage({
     ...(profileData.metadata?.props || []).map(p => p.name).filter(Boolean)
   ]));
 
-  const status = getDocumentStatus(activeDoc?.profile);
-  const handleStatusChange = (newStatus, successorUuid) => {
-    if (!activeDoc?.profile) return;
-    const updatedProfile = setDocumentStatus(activeDoc.profile, newStatus, successorUuid);
-    handleDocChange({ ...activeDoc, profile: updatedProfile });
-  };
+  const profileSidebar = (
+    <ProfileSidebar
+      resolvedCatalog={resolvedCatalog || {}}
+      profile={profileData}
+      catalogCache={catalogCache}
+      selectedControlId={selectedControlId}
+      selectedGroupId={selectedGroupId}
+      activeSidebarView={activeSidebarView}
+      onSelectControl={handleSelectControl}
+      onSelectGroup={handleSelectGroup}
+      onSelectOverview={() => {
+        setSelectedControlId(null);
+        setSelectedGroupId(null);
+        setActiveSidebarView('overview');
+      }}
+      onSelectMetadata={() => {
+        setSelectedControlId(null);
+        setSelectedGroupId(null);
+        setActiveSidebarView('metadata');
+      }}
+      onSelectProperties={() => {
+        setSelectedControlId(null);
+        setSelectedGroupId(null);
+        setActiveSidebarView('properties');
+      }}
+      onSelectParameters={() => {
+        setSelectedControlId(null);
+        setSelectedGroupId(null);
+        setActiveSidebarView('parameters');
+      }}
+      onSelectBackMatter={() => {
+        setSelectedControlId(null);
+        setSelectedGroupId(null);
+        setActiveSidebarView('back-matter');
+      }}
+      onSelectImports={() => {
+        setSelectedControlId(null);
+        setSelectedGroupId(null);
+        setActiveSidebarView('imports');
+      }}
+      onSelectDiff={() => {
+        setSelectedControlId(null);
+        setSelectedGroupId(null);
+        setActiveSidebarView('diff');
+      }}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      isEditing={isEditing}
+      expandedGroups={expandedGroups}
+      onToggleGroup={(id, bulkState) => {
+        if (id === null && bulkState !== undefined) {
+           setExpandedGroups(bulkState);
+        } else {
+          setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
+        }
+      }}
+      onChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
+    />
+  );
+
+  const tabs = [
+    { id: 'visual', label: 'Visual' },
+    { id: 'json', label: 'JSON Source' }
+  ];
 
   return (
     <DocumentPageLayout
@@ -516,14 +584,19 @@ export function ProfilePage({
         handleBack: handleBackWithNavigation
       }}
       title={profileData.metadata?.title || 'Untitled Profile'}
+      tabs={tabs}
+      activeTab={editMode}
+      onTabChange={(mode) => {
+        if (editMode === 'json' && mode !== 'json') {
+          const entityId = jsonEditorRef.current?.getCursorEntityId?.();
+          if (entityId) handleSelectControl(entityId);
+        }
+        setEditMode(mode);
+      }}
       onClose={onClose}
+      sidebar={profileSidebar}
+      onExport={handleExport}
     >
-
-      <LifecycleBanner
-        status={status}
-        documentId={profileId}
-        onReactivate={() => handleStatusChange('active')}
-      />
 
       {/* Validation / Resolution error feedbacks */}
       {(validationResult || resolutionError) && (
@@ -537,143 +610,90 @@ export function ProfilePage({
         </div>
       )}
 
-      {/* Main split views panels */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        
-        {editMode === 'json' ? (
-          <div style={{ flex: 1, padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <JsonEditor
-              ref={jsonEditorRef}
-              value={jsonText}
-              onChange={setJsonText}
-              highlightId={selectedControlId}
-              onValidate={async (text) => {
-                try {
-                  const parsed = JSON.parse(text);
-                  await validate(parsed);
-                } catch (err) {
-                  console.error("Syntax error:", err.message);
-                }
-              }}
+      {/* Main workspace content */}
+      {editMode === 'json' ? (
+        <div style={{ flex: 1, padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <JsonEditor
+            ref={jsonEditorRef}
+            value={jsonText}
+            onChange={setJsonText}
+            highlightId={selectedControlId}
+            onValidate={async (text) => {
+              try {
+                const parsed = JSON.parse(text);
+                await validate(parsed);
+              } catch (err: any) {
+                toast.error(`JSON syntax error: ${err.message}`);
+              }
+            }}
+          />
+        </div>
+      ) : (
+        <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
+          {selectedControlId && selectedControl ? (
+            <UnifiedControlEditor
+              control={selectedControl}
+              stage="profile"
+              isEditing={isEditing}
+              allUsedPropKeys={allUsedPropKeys}
+              originalControl={findOriginalControl(selectedControlId)}
+              profile={profileData}
+              catalog={resolvedCatalog}
+              onProfileChange={(updatedProfile: any) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
+              backMatterResources={(profileData['back-matter']?.resources) || []}
+              onSelectControl={handleSelectControl}
+              onSelectGroup={handleSelectGroup}
+              alterations={profileData.modify?.alters?.filter((a: any) => a['control-id'] === selectedControl.id) || []}
             />
-          </div>
-        ) : (
-          <>
-            {/* Left sidebar tree representing the resolved catalog structure */}
-            {resolvedCatalog ? (
-              <ProfileSidebar
-                resolvedCatalog={resolvedCatalog}
-                profile={profileData}
-                catalogCache={catalogCache}
-                selectedControlId={selectedControlId}
-                selectedGroupId={selectedGroupId}
-                activeSidebarView={activeSidebarView}
-                onSelectControl={handleSelectControl}
-                onSelectGroup={handleSelectGroup}
-                onSelectOverview={() => {
-                  setSelectedControlId(null);
-                  setSelectedGroupId(null);
-                  setActiveSidebarView('overview');
-                }}
-                onSelectMetadata={() => {
-                  setSelectedControlId(null);
-                  setSelectedGroupId(null);
-                  setActiveSidebarView('metadata');
-                }}
-                onSelectProperties={() => {
-                  setSelectedControlId(null);
-                  setSelectedGroupId(null);
-                  setActiveSidebarView('properties');
-                }}
-                onSelectParameters={() => {
-                  setSelectedControlId(null);
-                  setSelectedGroupId(null);
-                  setActiveSidebarView('parameters');
-                }}
-                onSelectBackMatter={() => {
-                  setSelectedControlId(null);
-                  setSelectedGroupId(null);
-                  setActiveSidebarView('back-matter');
-                }}
-                onSelectImports={() => {
-                  setSelectedControlId(null);
-                  setSelectedGroupId(null);
-                  setActiveSidebarView('imports');
-                }}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                isEditing={isEditing}
-                expandedGroups={expandedGroups}
-                onToggleGroup={(id, bulkState) => {
-                  if (id === null && bulkState !== undefined) {
-                     setExpandedGroups(bulkState);
-                  } else {
-                    setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
-                  }
-                }}
-                onChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
-              />
-            ) : (
-              <div style={{ width: '300px', borderRight: '1px solid var(--color-border)', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-                Loading resolved controls...
-              </div>
-            )}
+          ) : selectedGroupId && selectedGroup ? (
+            <GroupEditor
+              group={selectedGroup}
+              catalog={resolvedCatalog}
+              onChange={handleGroupChange}
+              isEditing={isEditing}
+              allUsedPropKeys={allUsedPropKeys}
+              onSelectGroup={handleSelectGroup}
+              onSelectControl={handleSelectControl}
+              mode="profile"
+              profile={profileData}
+              onProfileChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
+            />
+          ) : activeSidebarView === 'diff' ? (
+            <ProfileBaselineDiffView
+              profileId={profileId}
+              profileDoc={profileData}
+              availableCatalogs={availableCatalogs}
+            />
+          ) : (
+            <DocumentOverview
+              document={profileData}
+              onChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
+              isEditing={isEditing}
+              allUsedPropKeys={allUsedPropKeys}
+              usedTagsSummary={usedTagsSummary}
+              mode="profile"
+              resolvedCatalog={resolvedCatalog}
+              availableCatalogs={availableCatalogs}
+              availableProfiles={availableProfiles}
+              catalogCache={catalogCache}
+              SourcesPanel={SourcesPanel}
+              activeView={activeSidebarView}
+              onSelectGroup={handleSelectGroup}
+              onSelectControl={handleSelectControl}
+              onGlobalPropertyRename={handleGlobalPropertyRename}
+              onGlobalPropertyDelete={handleGlobalPropertyDelete}
+            />
+          )}
+        </div>
+      )}
 
-            {/* Right main workspace detail views */}
-            {/* Right main workspace — 3-way conditional like CatalogPage */}
-            <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
-              {selectedControlId && selectedControl ? (
-                <UnifiedControlEditor
-                  control={selectedControl}
-                  stage="profile"
-                  isEditing={isEditing}
-                  allUsedPropKeys={allUsedPropKeys}
-                  originalControl={findOriginalControl(selectedControlId)}
-                  profile={profileData}
-                  catalog={resolvedCatalog}
-                  onProfileChange={(updatedProfile: any) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
-                  backMatterResources={(profileData['back-matter']?.resources) || []}
-                  onSelectControl={handleSelectControl}
-                  onSelectGroup={handleSelectGroup}
-                  alterations={profileData.modify?.alters?.filter((a: any) => a['control-id'] === selectedControl.id) || []}
-                />
-              ) : selectedGroupId && selectedGroup ? (
-                <GroupEditor
-                  group={selectedGroup}
-                  catalog={resolvedCatalog}
-                  onChange={handleGroupChange}
-                  isEditing={isEditing}
-                  allUsedPropKeys={allUsedPropKeys}
-                  onSelectGroup={handleSelectGroup}
-                  onSelectControl={handleSelectControl}
-                  mode="profile"
-                  profile={profileData}
-                  onProfileChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
-                />
-              ) : (
-                <DocumentOverview
-                  document={profileData}
-                  onChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
-                  isEditing={isEditing}
-                  allUsedPropKeys={allUsedPropKeys}
-                  usedTagsSummary={usedTagsSummary}
-                  mode="profile"
-                  resolvedCatalog={resolvedCatalog}
-                  availableCatalogs={availableCatalogs}
-                  availableProfiles={availableProfiles}
-                  catalogCache={catalogCache}
-                  SourcesPanel={SourcesPanel}
-                  activeView={activeSidebarView}
-                  onSelectGroup={handleSelectGroup}
-                  onSelectControl={handleSelectControl}
-                  onGlobalPropertyRename={handleGlobalPropertyRename}
-                  onGlobalPropertyDelete={handleGlobalPropertyDelete}
-                />
-              )}
-            </div>
-          </>
-        )}
-      </div>
+      <ExportModal
+        isOpen={showExportModal}
+        docId={profileId}
+        docTitle={docTitle || activeDoc?.['profile']?.metadata?.title || 'Profile'}
+        stage="profiles"
+        onClose={() => setShowExportModal(false)}
+      />
     </DocumentPageLayout>
   );
 }

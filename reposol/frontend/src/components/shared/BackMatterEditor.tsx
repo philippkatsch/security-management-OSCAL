@@ -10,11 +10,17 @@ import { LinksEditor } from './LinksEditor';
 /**
  * Back Matter & Resources CRUD editor.
  */
+export interface BackMatterEditorProps {
+  backMatter?: any;
+  onChange?: (backMatter: any) => void;
+  readOnly?: boolean;
+}
+
 export function BackMatterEditor({
   backMatter = {},
-  onChange,
+  onChange = () => {},
   readOnly
-}) {
+}: BackMatterEditorProps) {
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditing = readOnly !== undefined ? !readOnly : globalEditMode;
   const isReadOnlyState = !isEditing;
@@ -60,13 +66,14 @@ export function BackMatterEditor({
   };
 
   // Base64 File Attachment Helper
-  const handleFileUpload = (idx, e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = () => {
-      const base64String = reader.result.split(',')[1];
+      const resultStr = typeof reader.result === 'string' ? reader.result : '';
+      const base64String = resultStr.includes(',') ? resultStr.split(',')[1] : '';
       const base64Data = {
         filename: file.name,
         'media-type': file.type,

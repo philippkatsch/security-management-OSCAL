@@ -7,6 +7,16 @@ import styles from './SharedComponents.module.css';
  *
  * US 1.15: Enhancements shown as compact accordion, collapsed by default.
  */
+export interface EnhancementsAccordionProps {
+  enhancements?: any[];
+  isEditing?: boolean;
+  onSelectEnhancement?: (id: string) => void;
+  onAddEnhancement?: () => void;
+  onRemoveEnhancement?: (index: number, ev: React.MouseEvent) => void;
+  showNavArrow?: boolean;
+  renderEnhancementContent?: any;
+}
+
 export function EnhancementsAccordion({
   enhancements = [],
   isEditing = false,
@@ -15,7 +25,7 @@ export function EnhancementsAccordion({
   onRemoveEnhancement,
   showNavArrow = true,
   renderEnhancementContent
-}) {
+}: EnhancementsAccordionProps) {
   const [enhancementsOpen, setEnhancementsOpen] = useState(false);
   const [expandedItemIds, setExpandedItemIds] = useState({});
 
@@ -107,7 +117,7 @@ export function EnhancementsAccordion({
             </p>
           ) : (
             <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-surface)', overflow: 'hidden' }}>
-              {enhancements.map((e, idx) => {
+              {enhancements.map((e: any, idx: number) => {
                 const itemId = e.id || idx;
                 const isExpanded = !!expandedItemIds[itemId];
                 return (

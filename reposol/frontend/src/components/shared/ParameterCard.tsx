@@ -30,8 +30,8 @@ export function ParameterCard({
   const isEditing = readOnly !== undefined ? !readOnly : globalEditMode;
   const isReadOnlyState = !isEditing;
   const [showCustomInput, setShowCustomInput] = useState(false);
-  const usageRef = useRef(null);
-  const guidelinesRef = useRef(null);
+  const usageRef = useRef<any>(null);
+  const guidelinesRef = useRef<any>(null);
   const showViewMode = isReadOnlyState || !isExpanded || isRemoved;
   const showEditMode = !isReadOnlyState && isExpanded && !isRemoved;
 
@@ -149,7 +149,7 @@ export function ParameterCard({
   const activeValStr = activeValues[0] || '';
 
   // Validate regex constraints against active value
-  const constraintViolations = [];
+  const constraintViolations: string[] = [];
   if (activeValStr && constraints.length > 0) {
     constraints.forEach(c => {
       (c.tests || []).forEach(t => {
@@ -179,33 +179,85 @@ export function ParameterCard({
     handleFieldChange('values', newValuesArray.length > 0 ? newValuesArray : undefined);
   };
 
+  // Advanced metadata fields check
+  const hasAdvancedData = Boolean(
+    param.class || 
+    param['depends-on'] || 
+    param.remarks || 
+    (param.select?.choice && param.select.choice.length > 0) || 
+    (param.select?.['how-many']) ||
+    (param.constraints && param.constraints.length > 0) || 
+    (param.guidelines && param.guidelines.length > 0) || 
+    (param.links && param.links.length > 0) || 
+    (param.props && param.props.length > 0)
+  );
+
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(hasAdvancedData);
+
+  const toggleAdvanced = () => {
+    setShowAdvanced(prev => !prev);
+  };
+
+  const advancedCount = [
+    param.class,
+    param['depends-on'],
+    param.remarks,
+    param.select?.choice?.length ? `${param.select.choice.length} choices` : null,
+    param.constraints?.length ? `${param.constraints.length} constraints` : null,
+    param.guidelines?.[0]?.prose ? 'guidelines' : null,
+    param.links?.length ? `${param.links.length} links` : null,
+    param.props?.length ? `${param.props.length} props` : null,
+  ].filter(Boolean).length;
+
   return (
     <div
       id={`param-card-${(currentId || '').toLowerCase()}`}
       data-param-id={(currentId || '').toLowerCase()}
       className={styles['param-row-container']}
       style={{
-        background: isRemoved ? 'var(--color-surface-3, #0f172a)' : 'var(--color-surface-2)',
-        border: isRemoved ? '1px dashed var(--color-danger-subtle, rgba(239, 68, 68, 0.4))' : '1px solid var(--color-border-subtle)',
-        opacity: isRemoved ? 0.65 : 1,
+        background: isRemoved ? 'var(--color-surface-3, #0f172a)' : 'var(--color-surface)',
+        border: isRemoved ? '1px dashed var(--color-danger-subtle, rgba(239, 68, 68, 0.4))' : '1px solid var(--color-border)',
+        borderLeft: `4px solid ${isRemoved ? 'var(--color-danger, #ef4444)' : 'var(--color-accent, #3b82f6)'}`,
         borderRadius: 'var(--radius-md)',
-        padding: '12px',
+        padding: '16px 20px',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
-        boxShadow: 'var(--shadow-sm)'
+        gap: '10px',
+        boxShadow: 'var(--shadow-sm)',
+        opacity: isRemoved ? 0.65 : 1,
+        marginBottom: '12px'
       }}
     >
       {/* Header Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '16px', color: 'var(--color-accent, var(--color-primary))' }}>
+            ⚙️
+          </span>
+
+          {/* Category Type Badge */}
+          <div style={{
+            position: 'relative',
+            display: 'inline-flex',
+            alignItems: 'center',
+            background: 'var(--color-surface-2)',
+            border: '1px solid var(--color-border-subtle)',
+            borderRadius: '4px',
+            padding: '2px 8px'
+          }}>
+            <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-accent-hover, var(--color-primary))', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              PARAMETER
+            </span>
+          </div>
+
           <span 
             style={{ 
               background: isRemoved ? 'var(--color-surface-4, rgba(239, 68, 68, 0.08))' : 'var(--color-accent-bg, rgba(56, 139, 253, 0.12))', 
               padding: '2px 8px', 
               borderRadius: '4px', 
               fontSize: '11px', 
+              fontFamily: 'monospace',
               fontWeight: '700',
               color: isRemoved ? 'var(--color-danger, #ef4444)' : 'var(--color-accent-hover, #2563eb)',
               border: isRemoved ? '1px dashed var(--color-danger-subtle, rgba(239, 68, 68, 0.3))' : '1px solid rgba(56, 139, 253, 0.4)',
@@ -232,11 +284,11 @@ export function ParameterCard({
           {(!showEditMode) && (
             <span style={{ 
               fontSize: '13px', 
-              fontWeight: '500', 
+              fontWeight: '600', 
               color: isRemoved ? 'var(--color-text-muted)' : 'var(--color-text)',
               textDecoration: isRemoved ? 'line-through' : 'none'
             }}>
-              {displayParam.label || 'Parameter'}
+              {displayParam.label || ''}
             </span>
           )}
           {(!showEditMode) && activeValues && activeValues.length > 0 && (
@@ -282,7 +334,7 @@ export function ParameterCard({
         </div>
         
         {!isReadOnlyState && (
-          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             {isRemoved ? (
               onRestore && (
                 <button
@@ -305,6 +357,23 @@ export function ParameterCard({
                     title="Clear override and revert to catalog default"
                   >
                     ↩ Revert to Default
+                  </button>
+                )}
+                {showEditMode && (
+                  <button
+                    type="button"
+                    onClick={toggleAdvanced}
+                    className={styles['btn-soft']}
+                    style={{
+                      fontSize: '11px',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      color: showAdvanced ? 'var(--color-accent-hover)' : 'var(--color-text-muted)',
+                      borderColor: showAdvanced ? 'var(--color-accent)' : undefined
+                    }}
+                    title="Toggle optional/advanced parameter metadata"
+                  >
+                    ⚙️ Advanced {advancedCount > 0 ? `(${advancedCount})` : ''} {showAdvanced ? '▲' : '▼'}
                   </button>
                 )}
                 <button
@@ -333,17 +402,17 @@ export function ParameterCard({
 
       {/* View Mode Content */}
       {showViewMode && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
           {/* Usage / Guidelines */}
           {(displayParam.usage || displayParam.guidelines?.[0]?.prose) && (
-            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
+            <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: '1.5' }}>
               {displayParam.usage || displayParam.guidelines?.[0]?.prose}
             </div>
           )}
           
           {/* Select Constraint hint */}
           {select['how-many'] && choices.length > 0 && (
-            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
               Selection rule: {select['how-many']}
             </div>
           )}
@@ -371,12 +440,12 @@ export function ParameterCard({
           {/* ── CORE ESSENTIAL ROW (TOP ROW: ID TOP-LEFT, VALUE TOP-RIGHT) ── */}
           <div 
             style={{ 
-              background: 'var(--color-surface-3, var(--color-surface))', 
+              background: 'var(--color-surface-2)', 
               padding: '14px', 
               borderRadius: 'var(--radius-md, 6px)', 
               border: constraintViolations.length > 0 
                 ? '2px solid var(--color-danger)' 
-                : '1.5px solid var(--color-primary, #6366f1)',
+                : '1px solid var(--color-border)',
               boxShadow: 'var(--shadow-sm)',
               display: 'flex',
               flexDirection: 'column',
@@ -384,7 +453,7 @@ export function ParameterCard({
             }}
           >
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {/* TOP LEFT: PARAMETER ID (BLUE BADGE) */}
+              {/* TOP LEFT: PARAMETER ID */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                   <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-accent-hover, #2563eb)' }}>
@@ -417,11 +486,11 @@ export function ParameterCard({
                 </div>
               </div>
 
-              {/* TOP RIGHT: ASSIGNED VALUE (GREEN BADGE IF SET) */}
+              {/* TOP RIGHT: ASSIGNED VALUE */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <label style={{ fontSize: '11px', fontWeight: 'bold', color: activeValues?.length > 0 ? 'var(--color-success, #059669)' : 'var(--color-text-muted)' }}>
-                    🎯 Assigned Value <span style={{ fontSize: '9px', background: activeValues?.length > 0 ? 'var(--color-success-subtle, rgba(16, 185, 129, 0.15))' : 'var(--color-surface-2)', color: activeValues?.length > 0 ? 'var(--color-success, #059669)' : 'var(--color-text-muted)', padding: '1px 4px', borderRadius: '3px', border: activeValues?.length > 0 ? '1px solid var(--color-success, #059669)' : '1px solid var(--color-border)' }}>Core Field</span>
+                    🎯 Assigned Value <span style={{ fontSize: '9px', background: activeValues?.length > 0 ? 'var(--color-success-subtle, rgba(16, 185, 129, 0.15))' : 'var(--color-surface)', color: activeValues?.length > 0 ? 'var(--color-success, #059669)' : 'var(--color-text-muted)', padding: '1px 4px', borderRadius: '3px', border: activeValues?.length > 0 ? '1px solid var(--color-success, #059669)' : '1px solid var(--color-border)' }}>Core Field</span>
                   </label>
                   {mode === 'profile' && catalogDefaultParam?.values && (
                     <span style={{ fontSize: '10px', background: 'var(--color-surface)', padding: '1px 5px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
@@ -430,7 +499,6 @@ export function ParameterCard({
                   )}
                 </div>
 
-                {/* Input area components extracted */}
                 <ParameterFieldInputs
                   displayParam={displayParam}
                   isEditing={isEditing}
@@ -493,136 +561,152 @@ export function ParameterCard({
             )}
           </div>
 
-          {/* ── OPTIONAL & ADVANCED METADATA SECTION ── */}
-          <div style={{ background: 'var(--color-surface)', padding: '12px', borderRadius: 'var(--radius-md, 6px)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text-muted)', display: 'block' }}>
-              ⚙️ Advanced & Optional Metadata (Optionale Einstellungen)
-            </span>
+          {/* ── OPTIONAL & ADVANCED METADATA SECTION (COLLAPSIBLE) ── */}
+          {showAdvanced && (
+            <div style={{ 
+              background: 'var(--color-surface-2)', 
+              padding: '16px', 
+              borderRadius: 'var(--radius-md, 6px)', 
+              border: '1px solid var(--color-border)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '12px' 
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-accent-hover, var(--color-primary))', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  ⚙️ Advanced & Optional Metadata
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                  Constraints, Choices, Dependencies & Extensions
+                </span>
+              </div>
 
-            {/* Basic Meta Inputs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-              <div>
-                <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Class</label>
-                <DebouncedInput
-                  value={param.class || ''}
-                  onChange={(val) => handleFieldChange('class', val || undefined)}
-                  placeholder={catalogDefaultParam?.class || ''}
-                  className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
-                  style={{ width: '100%' }}
-                />
+              {/* Basic Meta Inputs */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Class</label>
+                  <DebouncedInput
+                    value={param.class || ''}
+                    onChange={(val) => handleFieldChange('class', val || undefined)}
+                    placeholder={catalogDefaultParam?.class || ''}
+                    className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Depends On (Param ID)</label>
+                  <DebouncedInput
+                    value={param['depends-on'] || ''}
+                    onChange={(val) => handleFieldChange('depends-on', val || undefined)}
+                    placeholder={catalogDefaultParam?.['depends-on'] || 'parameter-id'}
+                    className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
+                    style={{ width: '100%' }}
+                    list={`other-params-${currentId}`}
+                  />
+                  <datalist id={`other-params-${currentId}`}>
+                    {(allParams || []).filter(other => (other.id || other['param-id']) && (other.id || other['param-id']) !== currentId).map(other => {
+                      const oid = other.id || other['param-id'];
+                      return <option key={oid} value={oid} />;
+                    })}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Remarks / Notes</label>
+                  <DebouncedInput
+                    value={param.remarks || ''}
+                    onChange={(val) => handleFieldChange('remarks', val || undefined)}
+                    placeholder={catalogDefaultParam?.remarks || 'Parameter remarks...'}
+                    className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
+                    style={{ width: '100%' }}
+                  />
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Depends On (Param ID)</label>
-                <DebouncedInput
-                  value={param['depends-on'] || ''}
-                  onChange={(val) => handleFieldChange('depends-on', val || undefined)}
-                  placeholder={catalogDefaultParam?.['depends-on'] || 'parameter-id'}
-                  className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
-                  style={{ width: '100%' }}
-                  list={`other-params-${currentId}`}
-                />
-                <datalist id={`other-params-${currentId}`}>
-                  {(allParams || []).filter(other => (other.id || other['param-id']) && (other.id || other['param-id']) !== currentId).map(other => {
-                    const oid = other.id || other['param-id'];
-                    return <option key={oid} value={oid} />;
-                  })}
-                </datalist>
-              </div>
-              <div>
-                <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Remarks / Notes</label>
-                <DebouncedInput
-                  value={param.remarks || ''}
-                  onChange={(val) => handleFieldChange('remarks', val || undefined)}
-                  placeholder={catalogDefaultParam?.remarks || 'Parameter remarks...'}
-                  className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
-                  style={{ width: '100%' }}
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Select Options configuration (Catalog mode & Profile mode) */}
-          <div style={{ background: 'var(--color-surface)', padding: '10px', borderRadius: '4px', border: '1px solid var(--color-border-subtle)' }}>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Select / Choice Configuration</span>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <div>
-                <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>
-                  Choices (comma-separated) {mode === 'profile' && catalogDefaultParam?.select?.choice ? `(Default: ${catalogDefaultParam.select.choice.join(', ')})` : ''}
-                </label>
-                <DebouncedInput
-                  value={(param.select?.choice || []).join(', ')}
-                  onChange={handleChoiceChange}
-                  placeholder={catalogDefaultParam?.select?.choice?.join(', ') || "option A, option B"}
-                  className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>How Many?</label>
-                <select
-                  value={param.select?.['how-many'] || ''}
-                  onChange={(e) => handleSelectChange('how-many', e.target.value || undefined)}
-                  className="form-input"
-                  style={{ width: '100%', height: '32px', fontSize: '12px' }}
-                >
-                  <option value="">-- inherit/none --</option>
-                  <option value="one">one</option>
-                  <option value="one-or-more">one-or-more</option>
-                </select>
-              </div>
-            </div>
-          </div>
 
-          {/* Constraints array (Regex rules) */}
-          <ParameterConstraints
-            constraints={constraints}
-            onAdd={addConstraint}
-            onUpdate={updateConstraint}
-            onRemove={removeConstraint}
-            isEditing={isEditing}
-          />
+              {/* Select Options configuration (Catalog mode & Profile mode) */}
+              <div style={{ background: 'var(--color-surface)', padding: '12px', borderRadius: '4px', border: '1px solid var(--color-border-subtle)' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Select / Choice Configuration</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>
+                      Choices (comma-separated) {mode === 'profile' && catalogDefaultParam?.select?.choice ? `(Default: ${catalogDefaultParam.select.choice.join(', ')})` : ''}
+                    </label>
+                    <DebouncedInput
+                      value={(param.select?.choice || []).join(', ')}
+                      onChange={handleChoiceChange}
+                      placeholder={catalogDefaultParam?.select?.choice?.join(', ') || "option A, option B"}
+                      className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>How Many?</label>
+                    <select
+                      value={param.select?.['how-many'] || ''}
+                      onChange={(e) => handleSelectChange('how-many', e.target.value || undefined)}
+                      className="form-input"
+                      style={{ width: '100%', height: '32px', fontSize: '12px' }}
+                    >
+                      <option value="">-- inherit/none --</option>
+                      <option value="one">one</option>
+                      <option value="one-or-more">one-or-more</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
 
-          {/* Guidelines (Prose) */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '0px' }}>Guidelines</label>
-              <button
-                type="button"
-                className={styles['btn-soft']}
-                style={{ padding: '2px 6px', fontSize: '10px', color: 'var(--color-primary)' }}
-                onClick={() => guidelinesRef.current?.insertParamPlaceholder()}
-              >
-                ⚙️ Add Parameter
-              </button>
-            </div>
-            <ProseWithParams
-              ref={guidelinesRef}
-              value={param.guidelines?.[0]?.prose || ''}
-              onChange={handleGuidelineChange}
-              rows={2}
-              params={(allParams || []).map(p => ({ ...p, id: p.id || p['param-id'] }))}
-              placeholder={catalogDefaultParam?.guidelines?.[0]?.prose || "Enter guidance for assigning this parameter..."}
-            />
-          </div>
-
-          {/* Links & Properties Editor */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px' }}>
-            <div style={{ background: 'var(--color-surface)', padding: '10px', borderRadius: '4px', border: '1px solid var(--color-border-subtle)' }}>
-              <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Parameter Links</span>
-              <LinksEditor
-                links={param.links || []}
-                onChange={(updated) => handleFieldChange('links', updated.length > 0 ? updated : undefined)}
+              {/* Constraints array (Regex rules) */}
+              <ParameterConstraints
+                constraints={constraints}
+                onAdd={addConstraint}
+                onUpdate={updateConstraint}
+                onRemove={removeConstraint}
+                isEditing={isEditing}
               />
+
+              {/* Guidelines (Prose) */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '0px' }}>Guidelines</label>
+                  <button
+                    type="button"
+                    className={styles['btn-soft']}
+                    style={{ padding: '2px 6px', fontSize: '10px', color: 'var(--color-primary)' }}
+                    onClick={() => guidelinesRef.current?.insertParamPlaceholder()}
+                  >
+                    ⚙️ Add Parameter
+                  </button>
+                </div>
+                <ProseWithParams
+                  ref={guidelinesRef}
+                  value={param.guidelines?.[0]?.prose || ''}
+                  onChange={handleGuidelineChange}
+                  rows={2}
+                  params={(allParams || []).map(p => ({ ...p, id: p.id || p['param-id'] }))}
+                  placeholder={catalogDefaultParam?.guidelines?.[0]?.prose || "Enter guidance for assigning this parameter..."}
+                />
+              </div>
+
+              {/* Links & Properties Editor */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px' }}>
+                <div style={{ background: 'var(--color-surface)', padding: '10px', borderRadius: '4px', border: '1px solid var(--color-border-subtle)' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Parameter Links</span>
+                  <LinksEditor
+                    links={param.links || []}
+                    onChange={(updated) => handleFieldChange('links', updated.length > 0 ? updated : undefined)}
+                    readOnly={!isEditing}
+                  />
+                </div>
+                <div style={{ background: 'var(--color-surface)', padding: '10px', borderRadius: '4px', border: '1px solid var(--color-border-subtle)' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Parameter Properties</span>
+                  <PropsEditor
+                    props={param.props || []}
+                    onChange={(updated) => handleFieldChange('props', updated.length > 0 ? updated : undefined)}
+                    allUsedKeys={[]}
+                  />
+                </div>
+              </div>
             </div>
-            <div style={{ background: 'var(--color-surface)', padding: '10px', borderRadius: '4px', border: '1px solid var(--color-border-subtle)' }}>
-              <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Parameter Properties</span>
-              <PropsEditor
-                props={param.props || []}
-                onChange={(updated) => handleFieldChange('props', updated.length > 0 ? updated : undefined)}
-                allUsedKeys={[]}
-              />
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

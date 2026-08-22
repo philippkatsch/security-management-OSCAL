@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { produce } from 'immer';
+import { toast } from 'react-hot-toast';
 import { useDocumentLifecycle } from '../../hooks/useDocumentLifecycle';
 import { useDocumentActions } from '../../hooks/useDocumentActions';
 import { initializeSSPComponents, updateSSPField, updateSSPListItem, replaceSSP } from '../../lib/document-actions';
@@ -20,6 +21,7 @@ import { ControlImplementationTab } from './ControlImplementationTab';
 import { useControlTree } from '../../hooks/useControlTree';
 import { ControlTree } from '../shared/control-tree';
 import { authFetch } from '../../lib/api';
+import { LoadingSpinner } from '../shared/ui/LoadingSpinner';
 
 const generateUUID = () => crypto.randomUUID();
 
@@ -27,8 +29,11 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [itemType, setItemType] = useState<any>(null);
+  const jsonEditorRef = useRef<any>(null);
   const hasInitializedComponent = useRef(false);
   const [catalog, setCatalog] = useState<any>({ groups: [], controls: [] });
+  const [editingProfileHref, setEditingProfileHref] = useState(false);
+  const [profileHrefVal, setProfileHrefVal] = useState('');
 
   const lifecycle = useDocumentLifecycle('ssps', 'system-security-plan', sspId, initialEditMode);
   const { doc, setDoc, loading, error, isEditing, pushUndoRedoState } = lifecycle;
@@ -102,7 +107,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
     onSelect: handleControlSelect 
   });
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading SSP...</div>;
+  if (loading && !doc) return <LoadingSpinner variant="skeleton" message="Loading System Security Plan..." />;
   if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
   if (!doc || !ssp) return null;
 
@@ -111,13 +116,32 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
       <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded shadow border flex justify-between items-center">
         <div>
           <h3 className="text-sm font-semibold text-gray-500 uppercase">Referenced Profile</h3>
-          <div className="text-lg font-medium">{ssp['import-profile']?.href || 'None'}</div>
+          <div className="text-lg font-medium">{typeof ssp['import-profile']?.href === 'string' ? ssp['import-profile'].href : 'None'}</div>
         </div>
         {isEditing && (
-          <button className="text-blue-600 hover:underline" onClick={() => {
-            const href = prompt('Enter Profile URI:', ssp['import-profile']?.href || '');
-            if (href !== null) handleUpdateField(['import-profile'], { href });
-          }}>Edit</button>
+          editingProfileHref ? (
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={profileHrefVal}
+                onChange={(e) => setProfileHrefVal(e.target.value)}
+                style={{ padding: '4px 8px', fontSize: '13px', borderRadius: '4px', border: '1px solid #45475a', background: '#181825', color: '#cdd6f4' }}
+              />
+              <button type="button" className="text-blue-500 font-medium" onClick={() => {
+                if (profileHrefVal.trim()) {
+                  handleUpdateField(['import-profile'], { href: profileHrefVal.trim() });
+                  toast.success('Profile reference updated');
+                }
+                setEditingProfileHref(false);
+              }}>Save</button>
+              <button type="button" className="text-gray-400" onClick={() => setEditingProfileHref(false)}>Cancel</button>
+            </div>
+          ) : (
+            <button className="text-blue-600 hover:underline" onClick={() => {
+              setProfileHrefVal(typeof ssp['import-profile']?.href === 'string' ? ssp['import-profile'].href : '');
+              setEditingProfileHref(true);
+            }}>Edit</button>
+          )
         )}
       </div>
       <h2 className="text-xl font-bold mb-4">SSP Dashboard</h2>
@@ -170,22 +194,26 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
       title={ssp.metadata?.title || 'Untitled SSP'}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(newTab) => {
+        if (activeTab === 'json' && newTab !== 'json') {
+          const entityId = jsonEditorRef.current?.getCursorEntityId?.();
+          if (entityId) tree.select(entityId);
+        }
+        setActiveTab(newTab);
+      }}
       onClose={onClose}
       sidebarOpen={activeTab === 'ctrlimp'}
       sidebar={
         activeTab === 'ctrlimp' && (
-          <div style={{ width: '300px', height: '100%', background: 'var(--color-surface)' }}>
-             <ControlTree 
-               tree={tree} 
-               renderNodeExtra={(node) => {
-                  const req = (ctrlImp['implemented-requirements'] || []).find((r: any) => r['control-id'] === node.id);
-                  if (!req) return null;
-                  const state = req['by-components']?.[0]?.['implementation-status']?.state || 'unknown';
-                  return <StatusBadge status={state} category="implementation-status" />;
-               }}
-             />
-          </div>
+          <ControlTree 
+            tree={tree} 
+            renderNodeExtra={(node) => {
+               const req = (ctrlImp['implemented-requirements'] || []).find((r: any) => r['control-id'] === node.id);
+               if (!req) return null;
+               const state = req['by-components']?.[0]?.['implementation-status']?.state || 'unknown';
+               return <StatusBadge status={state} category="implementation-status" />;
+            }}
+          />
         )
       }
     >
@@ -194,7 +222,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
       {activeTab === 'sysimp' && <SystemImplementationTab sysImp={sysImp} isEditing={isEditing} handleUpdateField={handleUpdateField} openDetail={openDetail} />}
       {activeTab === 'ctrlimp' && <ControlImplementationTab ctrlImp={ctrlImp} isEditing={isEditing} handleUpdateField={handleUpdateField} openDetail={openDetail} coveragePercent={coveragePercent} />}
       {activeTab === 'metadata' && <StandardMetadataTab document={ssp} onChange={(newSsp: any) => dispatch(replaceSSP(newSsp))} isEditing={isEditing} />}
-      {activeTab === 'json' && <div className="p-6 h-full"><JsonEditor value={doc} onChange={handleUpdate} readOnly={!isEditing} /></div>}
+      {activeTab === 'json' && <div className="p-6 h-full"><JsonEditor ref={jsonEditorRef} value={doc} onChange={handleUpdate} readOnly={!isEditing} highlightId={selectedItem?.uuid || selectedItem?.['control-id'] || tree.selectedId || null} /></div>}
 
       <EntityDetailPanel isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title={"Detail"}>
         <div className="p-4">

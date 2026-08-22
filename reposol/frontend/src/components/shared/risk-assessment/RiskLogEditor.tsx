@@ -4,7 +4,7 @@ import StatusBadge from '../status/StatusBadge';
 
 export function RiskLogEditor({ value, isEditMode, onChange }) {
   const riskLog = value || { entries: [] };
-  const entries = [...(riskLog.entries || [])].sort((a, b) => new Date(a.start || 0) - new Date(b.start || 0));
+  const entries = [...(riskLog.entries || [])].sort((a, b) => (new Date(a.start || 0).getTime()) - (new Date(b.start || 0).getTime()));
 
   const updateEntry = (index, updated) => {
     const nextEntries = [...entries];
@@ -114,12 +114,13 @@ export function RiskLogEditor({ value, isEditMode, onChange }) {
                 <input 
                   type="text" 
                   placeholder="Type UUID and press Enter" 
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                    const target = e.currentTarget;
+                    if (e.key === 'Enter' && target.value.trim()) {
                       e.preventDefault();
-                      const next = [...(entry['related-responses'] || []), { 'response-uuid': e.target.value.trim() }];
+                      const next = [...(entry['related-responses'] || []), { 'response-uuid': target.value.trim() }];
                       updateEntry(i, { ...entry, 'related-responses': next });
-                      e.target.value = '';
+                      target.value = '';
                     }
                   }}
                 />

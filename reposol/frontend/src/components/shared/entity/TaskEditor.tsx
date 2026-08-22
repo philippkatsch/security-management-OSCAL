@@ -29,7 +29,7 @@ export function TaskEditor({ task, onChange, readOnly, onClose }) {
           <label>Timing</label>
           <select className="form-control" value={timingType} onChange={e => {
             const t = e.target.value;
-            let newTiming = undefined;
+            let newTiming: any = undefined;
             if (t === 'range') newTiming = { 'within-date-range': { start: '', end: '' } };
             if (t === 'date') newTiming = { 'on-date': { date: '' } };
             if (t === 'frequency') newTiming = { 'at-frequency': { period: 1, unit: 'days' } };

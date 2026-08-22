@@ -32,17 +32,20 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - History entries store the full document snapshot (simple but memory-safe for typical document sizes)
 
 ### 4. Draft Auto-Save & Mode Navigation (Toolbar UX)
-- Auto-save to backend every 30 seconds during editing (`<uuid>_draft.json`).
+- Auto-save to backend every 30 seconds during editing (`<uuid>_draft.json`), **only when uncommitted changes exist (`isDirty === true`)**. Unmodified documents do not trigger background auto-saves or unmount draft creation.
 - **Single Active Draft Rule**: Exactly one active draft exists per document (`<uuid>_draft.json`).
-- **Draft Detection (Server-Truth)**: The `hasDraft` signal is derived exclusively from the version list returned by the backend (`versions.some(v => v.is_draft)`), **not** from the OSCAL `document-status` metadata property (which represents a separate lifecycle concept per DD-023). This ensures the Draft pill in `VersionDropdown` only appears when a `_draft.json` file actually exists on the server.
+- **Draft Detection (Server-Truth)**: The `hasDraft` signal is derived exclusively from the version list returned by the backend (`versions.some(v => v.is_draft)`). This ensures the Draft pill in `VersionDropdown` only appears when a `_draft.json` file actually exists on the server.
 - **Segmented Mode Toggle (`[ 👁️ View | ✏️ Edit ]`)**: A persistent segmented control across all OSCAL document toolbars (`DocumentToolbar`).
-  - Selecting `👁️ View` auto-saves any active draft silently in the background and switches the interface to Read-Only preview instantly (`reload({ silent: true })`).
+  - Selecting `👁️ View` auto-saves any active dirty draft silently in the background and switches the interface to Read-Only preview instantly (`reload({ silent: true })`).
   - While in `👁️ View` mode, the user can freely select and inspect historical published versions (`v1.0.0`, `v0.9.0`) or the active `📝 Draft` via the `VersionDropdown`.
   - Selecting `✏️ Edit` activates inline editing:
     - If a working `📝 Draft` already exists, the editor seamlessly loads that active `📝 Draft`.
     - If no draft exists, it initializes a new working `📝 Draft` based on whichever published version the user was currently inspecting.
   - Both transitions synchronize browser history/URL search parameters (`?edit=true` vs base path) via `window.history.replaceState`.
 - **Edit-Mode Locking Rule**: When `isEditing === true`, the `VersionDropdown` is **locked** and always displays `📝 Draft (editing)` with a 🔒 indicator. The dropdown toggle is disabled — no version switching is possible during editing. This prevents accidental data loss from switching versions with unsaved edits. The dropdown fully unlocks when the user returns to `👁️ View` mode.
+- **Dirty-Aware Back Navigation (`⬅ Back`)**:
+  - If the user is in `✏️ Edit` mode and has uncommitted modifications (`hasUnsavedChanges === true`), clicking `⬅ Back` opens a confirmation modal offering **Save Draft** or **Discard Changes**.
+  - If no modifications have been made during the edit session (`hasUnsavedChanges === false`), clicking `⬅ Back` navigates back immediately without interrupting the user.
 - **Unified Header Version Selector (`VersionDropdown`)**:
   - Located directly in the top header toolbar title area next to the document type badge.
   - Automatically displays **`📝 Draft`** whenever a working draft exists on the server (`_draft.json`).
@@ -65,18 +68,19 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - Control enhancements (sub-controls) are rendered in both modes as a collapsed-by-default accordion containing a unified box/table list of ID and Title rows. Selecting a sub-control row navigates directly to its specific detail view instead of displaying full sub-control details inline.
 
 ### 7. Premium Group Details Editor
-- Group overview page features a modern glassmorphic banner header (`.group-banner-header`), distinct metrics cards (`.premium-metric-card-styled`), and a unified box/table-based listing for sub-groups and controls that matches the Document Overview layout.
+- Group overview page features a modern glassmorphic banner header, distinct metrics cards, and a unified box/table-based listing for sub-groups and controls that matches the Document Overview layout.
 - The Controls listing contains only the direct controls of the group. Nested control enhancements (sub-controls) are not rendered in the group view list and are only visible inside the specific Control Detail view when a control is opened.
-- Uses `flex-shrink: 0` on headers and metric grids to prevent flex layout squeezing when content overflows.
+- Header and metric grids maintain their layout proportions without squeezing when content overflows.
 
 ### 8. Interactive Merge Structuring Mode Selector in Profile Sources Panel
 - The `SourcesPanel` combines mode selection and source imports into an **ultra-compact 2-row setup panel** directly below the header.
-- Both label columns (`⚙️ Structuring Mode:` and `📥 Add Import:`) use exact fixed column widths (`width: 145px`, `flexShrink: 0`), guaranteeing pixel-perfect vertical alignment of the left edges of both select dropdowns.
+- Both label columns (`⚙️ Structuring Mode:` and `📥 Add Import:`) use fixed column widths to guarantee vertical alignment of the left edges of both select dropdowns.
 - **Row 1**: Structuring Mode selection (`⚙️ Structuring Mode: as-is / custom / flat`).
 - **Row 2**: Unified source import selection (**`📥 Add Import:`**). Contains a single combined dropdown listing both Catalogs (`📖`) and Profiles (`⚙️`) in clear optgroups with icons.
 - Selecting `as-is` clears `profile.merge.custom` and sets `profile.merge = { "as-is": true }`, causing the profile sidebar to render the original catalog folder structures of all imported catalogs 1:1 dynamically. In `as-is` mode, structure cloning buttons are hidden from import cards since `as-is` automatically merges all imported catalog structures.
 - Selecting `flat` sets `profile.merge = { flat: true }`, flattening all controls into a single unstructured list.
-- Selecting `custom` enables custom group management under `profile.merge.custom`. In `custom` mode, each catalog import card renders a single clean button **`📥 Import Full Structure`** to copy a catalog's hierarchy into custom profile groups. Structure copying is **additive** (appends new catalog groups to existing custom groups without overwriting) and executes instantly without disruptive `window.confirm()` popups.
+- Selecting `custom` enables custom group management under `profile.merge.custom`. In `custom` mode, the **Control Pool (Drag & Drop)** is displayed below the import manager and each catalog import card renders a single clean button **`📥 Import Full Structure`** to copy a catalog's hierarchy into custom profile groups. Structure copying is **additive** (appends new catalog groups to existing custom groups without overwriting) and executes instantly without disruptive `window.confirm()` popups.
+- **Context-Aware Control Pool**: In `as-is` and `flat` modes, the Control Pool is hidden entirely to maintain an uncluttered import manager interface where all space is dedicated to import source management and inclusion rules.
 - **Import Baseline Cleanup**: When removing an import source via `Remove`, if 0 imports remain, `profile.merge` automatically resets to `{ "as-is": true }` and custom groups are cleared so no orphan groups linger in the left sidebar.
 
 ### 9. New Standard UI Patterns
@@ -86,8 +90,7 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 - **EntityEditor**: A generic editor component replacing manual form construction (see DD-031).
 
 ### 10. Toast & Modal Infrastructure
-- **Toast Notifications**: Replaces all `window.alert()` calls. Implemented using `react-hot-toast` wrapped in a centralized `ToastProvider`. Used for save success/failure, validation errors, and background task completion.
-- **ConfirmModal**: Replaces all `window.confirm()` calls. A standardized accessible dialog used for destructive actions (deletions, unlinking), powered by a `useConfirm` hook for easy integration.
+- Toast notifications and modal dialogs are managed using a centralized infrastructure as detailed in DD-032.
 
 ### 11. Editor Paradigm Classification
 
@@ -101,7 +104,7 @@ The editors need consistent UX patterns for editing OSCAL documents across catal
 
 Note: Dual-mode visual/JSON editing (§1), undo/redo (§3), draft auto-save (§4), and version management (§5) apply ACROSS all paradigms.
 
-### 10. Memory-Efficient Undo/Redo for Large Documents
+### 12. Memory-Efficient Undo/Redo for Large Documents
 - For documents < 1MB: Continue using full document snapshots (current behavior per §3)
 - For documents ≥ 1MB: Use structural diff patches (RFC 6902 JSON Patch format) instead of full snapshots
 - Max 50 undo entries; older entries are discarded (FIFO)
@@ -116,7 +119,6 @@ Note: Dual-mode visual/JSON editing (§1), undo/redo (§3), draft auto-save (§4
 - DD-020 (Status Badges)
 - DD-021 (Entity List-Detail, Steps 3-8)
 - DD-022 (Dashboard Components)
-- DD-023 (Document Lifecycle)
 
 ## Consequences
 - Consistent UX across catalog and profile editors

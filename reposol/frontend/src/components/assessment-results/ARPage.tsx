@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './ARPage.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
 import { useDocumentLifecycle } from '@hooks/useDocumentLifecycle';
@@ -23,7 +23,13 @@ import { RiskLogEditor } from '@components/shared/risk-assessment/RiskLogEditor'
 import { RelevantEvidenceEditor } from '@components/shared/risk-assessment/RelevantEvidenceEditor';
 import { RemediationsEditor } from '@components/shared/risk-assessment/RemediationsEditor';
 
-export function ARPage({ arId, initialEditMode, onClose }) {
+export interface ARPageProps {
+  arId?: string;
+  initialEditMode?: boolean;
+  onClose?: () => void;
+}
+
+export function ARPage({ arId = '', initialEditMode = false, onClose }: ARPageProps) {
   const lifecycle = useDocumentLifecycle('assessment-results', 'assessment-results', arId, initialEditMode);
   const {
     activeDoc,
@@ -34,12 +40,13 @@ export function ARPage({ arId, initialEditMode, onClose }) {
 
   const [activeTab, setActiveTab] = useState('overview');
   
-  const [activeResultSetId, setActiveResultSetId] = useState(null);
+  const [activeResultSetId, setActiveResultSetId] = useState<string | null>(null);
   const [resultSetTab, setResultSetTab] = useState('observations');
 
-  const [activeObservation, setActiveObservation] = useState(null);
-  const [activeFinding, setActiveFinding] = useState(null);
-  const [activeRisk, setActiveRisk] = useState(null);
+  const [activeObservation, setActiveObservation] = useState<any>(null);
+  const [activeFinding, setActiveFinding] = useState<any>(null);
+  const [activeRisk, setActiveRisk] = useState<any>(null);
+  const jsonEditorRef = useRef<any>(null);
 
   // Set initial active result set when doc loads
   useEffect(() => {
@@ -214,8 +221,14 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                     <label>Title</label>
                     <input type="text" value={activeResultSet.title || ''} onChange={(e) => {
                       const newDoc = { ...activeDoc };
-                      const rs = newDoc['assessment-results'].results.find(res => res.uuid === activeResultSet.uuid);
-                      rs.title = e.target.value;
+                      const arRoot = newDoc['assessment-results'];
+                      if (arRoot?.results) {
+                        const rsIdx = arRoot.results.findIndex((res: any) => res.uuid === activeResultSet.uuid);
+                        if (rsIdx >= 0) {
+                          arRoot.results = [...arRoot.results];
+                          arRoot.results[rsIdx] = { ...arRoot.results[rsIdx], title: e.target.value };
+                        }
+                      }
                       setDoc(newDoc);
                       pushUndoRedoState(newDoc);
                     }} />
@@ -225,8 +238,21 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                       <label>Start Date</label>
                       <input type="datetime-local" value={(activeResultSet.start || '').slice(0, 16)} onChange={(e) => {
                         const newDoc = { ...activeDoc };
-                        const rs = newDoc['assessment-results'].results.find(res => res.uuid === activeResultSet.uuid);
-                        rs.start = new Date(e.target.value).toISOString();
+                        const arRoot = newDoc['assessment-results'];
+                        if (arRoot?.results) {
+                          const rsIdx = arRoot.results.findIndex((res: any) => res.uuid === activeResultSet.uuid);
+                          if (rsIdx >= 0) {
+                            arRoot.results = [...arRoot.results];
+                            const d = new Date(e.target.value);
+                            if (!isNaN(d.getTime())) {
+                              arRoot.results[rsIdx] = { ...arRoot.results[rsIdx], start: d.toISOString() };
+                            } else {
+                              const updated = { ...arRoot.results[rsIdx] };
+                              delete updated.start;
+                              arRoot.results[rsIdx] = updated;
+                            }
+                          }
+                        }
                         setDoc(newDoc);
                         pushUndoRedoState(newDoc);
                       }} />
@@ -235,8 +261,21 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                       <label>End Date</label>
                       <input type="datetime-local" value={(activeResultSet.end || '').slice(0, 16)} onChange={(e) => {
                         const newDoc = { ...activeDoc };
-                        const rs = newDoc['assessment-results'].results.find(res => res.uuid === activeResultSet.uuid);
-                        rs.end = new Date(e.target.value).toISOString();
+                        const arRoot = newDoc['assessment-results'];
+                        if (arRoot?.results) {
+                          const rsIdx = arRoot.results.findIndex((res: any) => res.uuid === activeResultSet.uuid);
+                          if (rsIdx >= 0) {
+                            arRoot.results = [...arRoot.results];
+                            const d = new Date(e.target.value);
+                            if (!isNaN(d.getTime())) {
+                              arRoot.results[rsIdx] = { ...arRoot.results[rsIdx], end: d.toISOString() };
+                            } else {
+                              const updated = { ...arRoot.results[rsIdx] };
+                              delete updated.end;
+                              arRoot.results[rsIdx] = updated;
+                            }
+                          }
+                        }
                         setDoc(newDoc);
                         pushUndoRedoState(newDoc);
                       }} />
@@ -616,7 +655,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Risk Log</h4>
                 <RiskLogEditor 
                   value={activeRisk['risk-log'] || { entries: [] }} 
-                  isEditing={isEditing} 
+                  isEditMode={isEditing} 
                   onChange={newLog => updateRiskField('risk-log', newLog)} 
                 />
               </div>
@@ -624,7 +663,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
                 <h4>Remediations</h4>
                 <RemediationsEditor 
                   value={activeRisk.remediations || []} 
-                  isEditing={isEditing} 
+                  isEditMode={isEditing} 
                   onChange={newRems => updateRiskField('remediations', newRems)} 
                 />
               </div>
@@ -661,7 +700,23 @@ export function ARPage({ arId, initialEditMode, onClose }) {
       title={metadata.title || 'Untitled Assessment Result'}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(newTab) => {
+        if (activeTab === 'json' && newTab !== 'json') {
+          const entityId = jsonEditorRef.current?.getCursorEntityId?.();
+          if (entityId) {
+            const ar = activeDoc?.['assessment-results'];
+            for (const rs of ar?.results || []) {
+              const obs = rs.observations?.find((o: any) => o.uuid === entityId);
+              if (obs) { setActiveObservation(obs); break; }
+              const finding = rs.findings?.find((f: any) => f.uuid === entityId);
+              if (finding) { setActiveFinding(finding); break; }
+              const risk = rs.risks?.find((r: any) => r.uuid === entityId);
+              if (risk) { setActiveRisk(risk); break; }
+            }
+          }
+        }
+        setActiveTab(newTab);
+      }}
       onClose={onClose}
     >
       <div className={styles['ar-content']}>
@@ -670,9 +725,9 @@ export function ARPage({ arId, initialEditMode, onClose }) {
         {activeTab === 'metadata' && (
           <div className={styles['ar-metadata']}>
             <StandardMetadataTab 
-              document={activeDoc['assessment-results']} 
+              document={activeDoc['assessment-results'] as any} 
               onChange={(updated) => {
-                const newDoc = { ...activeDoc };
+                const newDoc: any = { ...activeDoc };
                 newDoc['assessment-results'] = updated;
                 setDoc(newDoc);
                 pushUndoRedoState(newDoc);
@@ -681,7 +736,7 @@ export function ARPage({ arId, initialEditMode, onClose }) {
           </div>
         )}
         {activeTab === 'json' && (
-          <JsonEditor value={activeDoc} readOnly={!isEditing} onChange={(newDoc) => { setDoc(newDoc); pushUndoRedoState(newDoc); }} />
+          <JsonEditor ref={jsonEditorRef} value={activeDoc} readOnly={!isEditing} onChange={(newDoc) => { setDoc(newDoc); pushUndoRedoState(newDoc); }} highlightId={activeObservation?.uuid || activeFinding?.uuid || activeRisk?.uuid || activeResultSetId || null} />
         )}
       </div>
     </DocumentPageLayout>

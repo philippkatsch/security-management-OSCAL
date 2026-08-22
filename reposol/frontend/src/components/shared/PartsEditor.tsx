@@ -25,14 +25,23 @@ const PART_NAMES = [
 /**
  * Recursive parts/prose editor matching high-fidelity read-only layout.
  */
+export interface PartsEditorProps {
+  parts?: any[];
+  onChange?: (parts: any[]) => void;
+  params?: any[];
+  readOnly?: boolean;
+  depth?: number;
+  onDefineNewParam?: any;
+}
+
 export function PartsEditor({
   parts = [],
   onChange = () => {},
   params = [],
-  readOnly = undefined,
+  readOnly,
   depth = 0,
   onDefineNewParam = null
-}) {
+}: PartsEditorProps) {
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditing = readOnly !== undefined ? !readOnly : globalEditMode;
   const isReadOnlyState = !isEditing;
@@ -121,7 +130,7 @@ export function PartsEditor({
 
         // Top-Level Card Rendering
         if (isTopLevel) {
-          const cardStyle = {
+          const cardStyle: React.CSSProperties = {
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
             borderLeft: `4px solid ${p.name?.toLowerCase() === 'statement' ? 'var(--color-primary)' : 'var(--color-accent, var(--color-primary))'}`,
@@ -360,7 +369,7 @@ export function PartsEditor({
         }
 
         // Nested List Item Rendering (depth > 0)
-        const itemStyle = {
+        const itemStyle: React.CSSProperties = {
           display: 'flex',
           gap: '12px',
           marginBottom: '12px',
@@ -368,7 +377,7 @@ export function PartsEditor({
           position: 'relative'
         };
 
-        const verticalLineStyle = {
+        const verticalLineStyle: React.CSSProperties = {
           borderLeft: '2px solid var(--color-primary-light, var(--color-primary))',
           opacity: 0.5,
           marginRight: '2px',

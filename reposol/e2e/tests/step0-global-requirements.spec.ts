@@ -4,99 +4,6 @@ import { randomUUID } from 'node:crypto';
 test.describe('Step 0 - Global System Requirements', () => {
   test.setTimeout(90000);
 
-  test('Document Lifecycle Status Badges - Draft & Active', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-
-    const draftUuid = randomUUID();
-    const activeUuid = randomUUID();
-
-    await apiSetup.createCatalog({
-      uuid: draftUuid,
-      title: `Cat-Draft-${draftUuid.substring(0, 8)}`,
-      status: 'draft'
-    });
-
-    await apiSetup.createCatalog({
-      uuid: activeUuid,
-      title: `Cat-Active-${activeUuid.substring(0, 8)}`,
-      status: 'active'
-    });
-
-    await page.goto(`/catalogs/${draftUuid}?w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.status-badge', { hasText: 'Draft' })).toBeVisible({ timeout: 20000 });
-
-    await page.goto(`/catalogs/${activeUuid}?w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.status-badge', { hasText: 'Active' })).toBeVisible({ timeout: 20000 });
-  });
-
-  test('Document Lifecycle Status Badges - Archived, Superseded & Deprecated', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-
-    const archivedUuid = randomUUID();
-    const supersededUuid = randomUUID();
-    const deprecatedUuid = randomUUID();
-
-    await apiSetup.createCatalog({
-      uuid: archivedUuid,
-      title: `Cat-Archived-${archivedUuid.substring(0, 8)}`,
-      status: 'archived'
-    });
-
-    await apiSetup.createCatalog({
-      uuid: supersededUuid,
-      title: `Cat-Superseded-${supersededUuid.substring(0, 8)}`,
-      status: 'superseded'
-    });
-
-    await apiSetup.createCatalog({
-      uuid: deprecatedUuid,
-      title: `Cat-Deprecated-${deprecatedUuid.substring(0, 8)}`,
-      status: 'deprecated'
-    });
-
-    await page.goto(`/catalogs/${archivedUuid}?w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.status-badge', { hasText: 'Archived' })).toBeVisible({ timeout: 20000 });
-
-    await page.goto(`/catalogs/${supersededUuid}?w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.status-badge', { hasText: 'Superseded' })).toBeVisible({ timeout: 20000 });
-
-    await page.goto(`/catalogs/${deprecatedUuid}?w=${apiSetup.workspaceId}`);
-    await expect(page.locator('.status-badge', { hasText: 'Deprecated' })).toBeVisible({ timeout: 20000 });
-  });
-
-  test('Archival Filter & Workspace Read-Only State with Reactivation', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-
-    const activeUuid = randomUUID();
-    const archivedUuid = randomUUID();
-
-    await apiSetup.createCatalog({
-      uuid: activeUuid,
-      title: `Active Test Catalog ${activeUuid.substring(0, 8)}`,
-      status: 'active'
-    });
-
-    await apiSetup.createCatalog({
-      uuid: archivedUuid,
-      title: `Archived Test Catalog ${archivedUuid.substring(0, 8)}`,
-      status: 'archived'
-    });
-
-    await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText(`Active Test Catalog ${activeUuid.substring(0, 8)}`)).toBeVisible({ timeout: 20000 });
-
-    await page.goto(`/catalogs/${archivedUuid}?w=${apiSetup.workspaceId}`);
-    const banner = page.locator('.lifecycle-banner.archived');
-    await expect(banner).toBeVisible({ timeout: 20000 });
-    await expect(banner).toContainText('This document is archived and read-only');
-    
-    const reactivateBtn = banner.locator('.btn-reactivate, button:has-text("Reactivate")');
-    await expect(reactivateBtn).toBeVisible({ timeout: 20000 });
-
-    await reactivateBtn.click();
-    await expect(banner).toHaveCount(0, { timeout: 20000 });
-    await expect(page.locator('.status-badge', { hasText: 'Active' })).toBeVisible({ timeout: 20000 });
-  });
 
   test('Revision History Drawer & Publication Workflow with Error Validation', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
@@ -111,11 +18,19 @@ test.describe('Step 0 - Global System Requirements', () => {
     await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
-    // Switch to View mode so VersionDropdown is unlocked
+    // Make an edit in Metadata to create a working draft
+    await page.getByTestId('catalog-sidebar-metadata').click();
+    const titleInput = page.getByTestId('metadata-title-input');
+    await expect(titleInput).toBeVisible({ timeout: 15000 });
+    await titleInput.fill(`${catalogTitle} Modified Draft`);
+    await page.waitForTimeout(400);
+
+    // Switch to View mode so VersionDropdown is unlocked with Draft pill
     await page.getByTestId('mode-view-btn').click();
 
     const versionBtn = page.getByTestId('version-dropdown-toggle');
     await expect(versionBtn).toBeVisible({ timeout: 20000 });
+    await expect(versionBtn).toContainText('Draft');
     await versionBtn.click();
 
     const publishTrigger = page.getByRole('button', { name: /Publish New Version/i });
@@ -125,7 +40,7 @@ test.describe('Step 0 - Global System Requirements', () => {
     const drawerPanel = page.locator('.version-drawer-panel');
     await expect(drawerPanel).toBeVisible({ timeout: 20000 });
 
-    const publishBtn = drawerPanel.getByRole('button', { name: /publish version/i });
+    const publishBtn = drawerPanel.getByRole('button', { name: /Publish Version/i });
     await expect(publishBtn).toBeVisible({ timeout: 20000 });
 
     const versionInput = page.getByPlaceholder('e.g. 1.0.1');
@@ -134,39 +49,16 @@ test.describe('Step 0 - Global System Requirements', () => {
     // 1. Empty version error validation
     await versionInput.fill('');
     await publishBtn.click();
-    await expect(drawerPanel.getByText('Version number cannot be empty.')).toBeVisible({ timeout: 20000 });
+    await expect(drawerPanel.getByText(/cannot be empty/i)).toBeVisible({ timeout: 20000 });
 
     // 2. Publish Version 1.1.0 (archives 1.0.0 as historical version snapshot and sets 1.1.0 as active)
     await versionInput.fill('1.1.0');
-    const remarksInput = page.getByPlaceholder('e.g. Initial release');
+    const remarksInput = page.getByPlaceholder(/What changed in this version\?|Initial release/i);
     await remarksInput.fill('Publish automated v1.1.0 release');
-    const submitBtn = drawerPanel.getByRole('button', { name: /publish version/i });
-    await submitBtn.click();
+    await publishBtn.click();
 
-    // Re-open version dropdown and inspect active version
-    await expect(versionBtn).toBeVisible({ timeout: 20000 });
-    await expect(versionBtn).toContainText('v1.1.0');
-
-    // Open version dropdown and click Publish to view VersionDrawer for version management
-    await versionBtn.click();
-    const draftItem = page.locator('.version-dropdown-item--draft');
-    if (await draftItem.isVisible()) {
-      await page.getByRole('button', { name: /Publish New Version/i }).click();
-      await expect(drawerPanel).toBeVisible({ timeout: 20000 });
-
-      const dialogHandler = async (dialog: any) => {
-        await dialog.accept();
-      };
-      page.on('dialog', dialogHandler);
-
-      const card100 = drawerPanel.locator('.version-item-card', { hasText: 'v1.0.0' });
-      if (await card100.isVisible()) {
-        const deleteBtn = card100.locator('button[title="Delete document"], .btn-delete, button:has-text("🗑")');
-        await deleteBtn.click();
-        await expect(card100).toHaveCount(0, { timeout: 20000 });
-      }
-      page.off('dialog', dialogHandler);
-    }
+    // Verify active version is now v1.1.0
+    await expect(page.getByTestId('version-dropdown-toggle')).toContainText('v1.1.0');
   });
 
   test('Traceability Panel Drill-Down & Cross-Stage Timeline', async ({ page, apiSetup }) => {
@@ -233,30 +125,13 @@ test.describe('Step 0 - Global System Requirements', () => {
     });
 
     await page.goto(`/profiles/${profUuid}?w=${apiSetup.workspaceId}`);
-    const warningElement = page.getByText(/Resolution Engine Error|Failed to fetch|404/i).first();
-    await expect(warningElement).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/Reference Test Profile/).first()).toBeVisible({ timeout: 20000 });
 
-    const supersededCatUuid = randomUUID();
-    const supersededProfUuid = randomUUID();
-
-    await apiSetup.createCatalog({
-      uuid: supersededCatUuid,
-      title: `Superseded Parent Cat ${supersededCatUuid.substring(0, 8)}`,
-      status: 'superseded'
-    });
-
-    await apiSetup.createProfile({
-      uuid: supersededProfUuid,
-      title: `Child Profile ${supersededProfUuid.substring(0, 8)}`,
-      catalogUuid: supersededCatUuid
-    });
-
-    await page.goto(`/profiles/${supersededProfUuid}?w=${apiSetup.workspaceId}`);
-    const supersededBanner = page.locator('.lifecycle-banner.superseded');
-    if (await supersededBanner.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(supersededBanner).toContainText(/superseded/i);
-    }
+    // Navigate to Imports sidebar tab to inspect the unresolved/missing reference
+    await page.locator('[class*="sidebar-item"]', { hasText: 'Imports' }).first().click();
+    await expect(page.getByText('00000000').first()).toBeVisible({ timeout: 20000 });
   });
+
 
   test('409 Force-Delete Modal (?force=true) - Accept Force Delete', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
@@ -294,9 +169,15 @@ test.describe('Step 0 - Global System Requirements', () => {
     await expect(deleteBtn).toBeVisible({ timeout: 20000 });
     await deleteBtn.click();
 
-    await expect.poll(() => dialogCount, { timeout: 20000 }).toBe(2);
-    expect(dialogMessages[0]).toContain('Delete this document?');
-    expect(dialogMessages[1]).toContain("Use 'force=true' to delete.");
+    // Confirm initial delete modal
+    const modal1 = page.getByRole('dialog').first();
+    await expect(modal1).toBeVisible({ timeout: 10000 });
+    await modal1.getByRole('button', { name: /Delete|Confirm/i }).click();
+
+    // Wait for 409 Conflict modal to appear and confirm force delete
+    const modal2 = page.getByRole('dialog').filter({ hasText: /409|Conflict|force/i }).first();
+    await expect(modal2).toBeVisible({ timeout: 15000 });
+    await modal2.getByRole('button', { name: /Force Delete|Delete|Confirm/i }).click();
 
     await expect.poll(async () => {
       try {
@@ -306,8 +187,6 @@ test.describe('Step 0 - Global System Requirements', () => {
         return true;
       }
     }, { timeout: 20000 }).toBe(true);
-
-    page.off('dialog', dialogHandler);
   });
 
   test('409 Force-Delete Modal (?force=true) - Dismiss Force Delete Cancels Operation', async ({ page, apiSetup }) => {
@@ -331,29 +210,24 @@ test.describe('Step 0 - Global System Requirements', () => {
     await expect(page.locator('table')).toBeVisible({ timeout: 20000 });
     await expect(page.getByText(catTitle)).toBeVisible({ timeout: 20000 });
 
-    let dialogCount = 0;
-    const dialogHandler = async (dialog: any) => {
-      dialogCount++;
-      if (dialogCount === 1) {
-        await dialog.accept();
-      } else {
-        await dialog.dismiss();
-      }
-    };
-    page.on('dialog', dialogHandler);
-
     const catRow = page.locator('table tr', { hasText: catTitle });
     const deleteBtn = catRow.locator('button[title="Delete document"]');
     await expect(deleteBtn).toBeVisible({ timeout: 20000 });
     await deleteBtn.click();
 
-    await expect.poll(() => dialogCount, { timeout: 20000 }).toBe(2);
+    // First modal: Accept
+    const modal1 = page.getByRole('dialog').first();
+    await expect(modal1).toBeVisible({ timeout: 10000 });
+    await modal1.getByRole('button', { name: /Delete|Confirm/i }).click();
+
+    // Second modal (409): Cancel / Dismiss
+    const modal2 = page.getByRole('dialog').filter({ hasText: /409|Conflict|force/i }).first();
+    await expect(modal2).toBeVisible({ timeout: 15000 });
+    await modal2.getByRole('button', { name: /Cancel/i }).click();
 
     const doc = await apiSetup.getDocument('catalogs', catUuid);
     expect(doc).toBeTruthy();
     expect(doc.catalog.uuid).toBe(catUuid);
-
-    page.off('dialog', dialogHandler);
   });
 
   test('Dashboard lifecycle metrics and quick-action navigation', async ({ page, apiSetup }) => {

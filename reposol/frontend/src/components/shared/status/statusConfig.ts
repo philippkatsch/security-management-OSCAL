@@ -1,40 +1,30 @@
 export const STATUS_CONFIG = {
-  'document-lifecycle': {
-    label: 'Document Lifecycle',
-    values: {
-      'draft': { label: 'Draft', color: 'hsl(45, 93%, 47%)', icon: '📝', textColor: '#000' },
-      'active': { label: 'Active', color: 'hsl(142, 71%, 45%)', icon: '✅', textColor: '#fff' },
-      'archived': { label: 'Archived', color: 'hsl(0, 0%, 60%)', icon: '📦', textColor: '#fff' },
-      'superseded': { label: 'Superseded', color: 'hsl(0, 72%, 51%)', icon: '🔄', textColor: '#fff' },
-      'deprecated': { label: 'Deprecated', color: 'hsl(24, 98%, 53%)', icon: '⚠️', textColor: '#fff' },
-    }
-  },
   'operational-status': {
     label: 'Operational Status',
     values: {
-      'operational': { label: 'Operational', color: 'hsl(142, 71%, 45%)', icon: '✅', textColor: '#fff' },
-      'under-development': { label: 'Under Development', color: 'hsl(45, 93%, 47%)', icon: '🚧', textColor: '#000' },
-      'under-major-modification': { label: 'Major Modification', color: 'hsl(24, 98%, 53%)', icon: '🏗️', textColor: '#fff' },
-      'disposition': { label: 'Disposition', color: 'hsl(0, 0%, 60%)', icon: '🗑️', textColor: '#fff' },
-      'other': { label: 'Other', color: 'hsl(0, 0%, 60%)', icon: '❓', textColor: '#fff' },
+      'operational': { label: 'Operational', color: 'rgba(34, 197, 94, 0.16)', icon: '✅', textColor: '#4ade80' },
+      'under-development': { label: 'Under Development', color: 'rgba(234, 179, 8, 0.16)', icon: '🚧', textColor: '#facc15' },
+      'under-major-modification': { label: 'Major Modification', color: 'rgba(249, 115, 22, 0.16)', icon: '🏗️', textColor: '#fb923c' },
+      'disposition': { label: 'Disposition', color: 'rgba(148, 163, 184, 0.16)', icon: '🗑️', textColor: '#94a3b8' },
+      'other': { label: 'Other', color: 'rgba(148, 163, 184, 0.16)', icon: '❓', textColor: '#94a3b8' },
     }
   },
   'implementation-status': {
     label: 'Implementation Status',
     values: {
-      'implemented': { label: 'Implemented', color: 'hsl(142, 71%, 45%)', icon: '✅', textColor: '#fff' },
-      'partial': { label: 'Partial', color: 'hsl(45, 93%, 47%)', icon: '⏳', textColor: '#000' },
-      'planned': { label: 'Planned', color: 'hsl(217, 91%, 60%)', icon: '📅', textColor: '#fff' },
-      'alternative': { label: 'Alternative', color: 'hsl(270, 60%, 60%)', icon: '🔄', textColor: '#fff' },
-      'not-applicable': { label: 'Not Applicable', color: 'hsl(0, 0%, 60%)', icon: '⛔', textColor: '#fff' },
+      'implemented': { label: 'Implemented', color: 'rgba(34, 197, 94, 0.16)', icon: '✅', textColor: '#4ade80' },
+      'partial': { label: 'Partial', color: 'rgba(234, 179, 8, 0.16)', icon: '⏳', textColor: '#facc15' },
+      'planned': { label: 'Planned', color: 'rgba(56, 139, 253, 0.16)', icon: '📅', textColor: '#58a6ff' },
+      'alternative': { label: 'Alternative', color: 'rgba(168, 85, 247, 0.16)', icon: '🔄', textColor: '#c084fc' },
+      'not-applicable': { label: 'Not Applicable', color: 'rgba(148, 163, 184, 0.16)', icon: '⛔', textColor: '#94a3b8' },
     }
   },
   'fips-impact': {
     label: 'FIPS Impact',
     values: {
-      'low': { label: 'Low', color: 'hsl(142, 71%, 45%)', icon: '🟢', textColor: '#fff' },
-      'moderate': { label: 'Moderate', color: 'hsl(45, 93%, 47%)', icon: '🟡', textColor: '#000' },
-      'high': { label: 'High', color: 'hsl(0, 72%, 51%)', icon: '🔴', textColor: '#fff' },
+      'low': { label: 'Low', color: 'rgba(34, 197, 94, 0.16)', icon: '🟢', textColor: '#4ade80' },
+      'moderate': { label: 'Moderate', color: 'rgba(234, 179, 8, 0.16)', icon: '🟡', textColor: '#facc15' },
+      'high': { label: 'High', color: 'rgba(239, 68, 68, 0.16)', icon: '🔴', textColor: '#f87171' },
     }
   },
   'finding-status': {
@@ -146,10 +136,10 @@ export function getStatusLabel(category, value) {
   return getStatusConfig(category, value).label;
 }
 
-export function getStatusValues(category) {
-  const cat = STATUS_CONFIG[category];
+export function getStatusValues(category: string) {
+  const cat = (STATUS_CONFIG as Record<string, any>)[category];
   if (!cat) return [];
-  return Object.entries(cat.values).map(([val, config]) => ({
+  return Object.entries(cat.values).map(([val, config]: [string, any]) => ({
     value: val,
     label: config.label,
     color: config.color,

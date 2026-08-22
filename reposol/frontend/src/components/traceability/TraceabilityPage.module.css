@@ -24,9 +24,28 @@
     margin-bottom: 32px;
   }
   
-  .traceability-search .form-input {
+  .form-input {
     flex: 1;
     max-width: 400px;
+    padding: 8px 14px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    font-size: 13.5px;
+    font-family: inherit;
+    transition: all var(--transition-fast);
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent-glow);
+    background: var(--color-surface-3);
+  }
+
+  .form-input::placeholder {
+    color: var(--color-text-muted);
   }
   
   .traceability-results h3 {

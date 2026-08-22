@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { editModeAtom } from '@stores/uiAtoms';
+import { toast } from 'react-hot-toast';
 import styles from './SharedComponents.module.css';
 import { ParameterCard } from './ParameterCard';
 
@@ -25,21 +26,21 @@ export function ParameterEditor({
   const isReadOnlyState = !isEditing;
   const [expandedIndices, setExpandedIndices] = useState({});
 
-  const handleParamChange = (index, updatedParam, isProfileOverride = false, originalId = null) => {
+  const handleParamChange = (index: number, updatedParam: any, isProfileOverride = false, originalId: string | null = null) => {
     if (mode === 'profile') {
       const updatedSetParams = [...params];
       // Check if this is a custom parameter (not a catalog default param)
-      const isCustomParam = catalogParams && !catalogParams.some(cp => (cp.id || cp['param-id'])?.toLowerCase() === originalId?.toLowerCase());
+      const isCustomParam = catalogParams && !(catalogParams as any[]).some((cp: any) => String(cp.id || cp['param-id'] || '').toLowerCase() === String(originalId || '').toLowerCase());
       
       const targetId = (isCustomParam && updatedParam['param-id']) 
         ? updatedParam['param-id'] 
         : (originalId || updatedParam['param-id'] || updatedParam.id);
         
-      const targetIdLower = targetId?.toLowerCase();
-      const originalIdLower = originalId?.toLowerCase();
+      const targetIdLower = typeof targetId === 'string' ? targetId.toLowerCase() : undefined;
+      const originalIdLower = originalId ? originalId.toLowerCase() : undefined;
       
-      const existingIdx = updatedSetParams.findIndex(sp => {
-        const spId = (sp['param-id'] || sp.id)?.toLowerCase();
+      const existingIdx = updatedSetParams.findIndex((sp: any) => {
+        const spId = String(sp['param-id'] || sp.id || '').toLowerCase();
         return isCustomParam ? spId === originalIdLower : spId === targetIdLower;
       });
       
@@ -69,7 +70,7 @@ export function ParameterEditor({
     const newId = `param_${Date.now().toString().slice(-4)}`;
     let newParam;
     if (mode === 'profile') {
-      const propsList = [];
+      const propsList: any[] = [];
       if (parentId && parentType) {
         propsList.push({ name: `${parentType}-id`, value: parentId });
       }
@@ -106,7 +107,8 @@ export function ParameterEditor({
         } else {
           reason = "it is referenced as a dependency by another parameter";
         }
-        alert(`Cannot delete parameter "${targetId}" because ${reason}. Please remove its references first.`);
+        const msg = `Cannot delete parameter "${targetId}" because ${reason}. Please remove its references first.`;
+        toast.error(msg);
         return;
       }
     }
@@ -283,7 +285,9 @@ export function ParameterEditor({
         <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: '13px', margin: '0 0 8px 0' }}>
           {mode === 'profile'
             ? 'No parameter overrides or custom parameters defined in this profile yet.'
-            : 'No parameters defined for this control.'}
+            : (parentType === 'group'
+                ? 'No parameters defined for this group.'
+                : (context === 'global' ? 'No parameters defined.' : 'No parameters defined for this control.'))}
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

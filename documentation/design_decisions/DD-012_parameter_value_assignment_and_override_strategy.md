@@ -105,11 +105,11 @@ Profile authors are permitted to add new parameters (`➕ Add Parameter`) direct
 - The new profile parameter is immediately registered in the active control's parameter list and can be inserted into custom control prose modifications (`{{ insert: param, param_id }}`).
 
 ### 7. Prose Parameter Badging & Guidance Tooltips
-Embedded parameter placeholders (`{{ insert: param, param_id }}`) in control prose render visually as classic blue Chips (`.control-param-insert`):
+Embedded parameter placeholders (`{{ insert: param, param_id }}`) in control prose render visually as distinct chips:
 - **Unset Parameters:** Displayed with square brackets `[Label or ID]`.
-- **Set Parameters:** Displayed directly in green (`color: #059669`, `background: rgba(16, 185, 129, 0.15)`).
+- **Set Parameters:** Displayed directly with a distinct color to indicate they have a value.
 - **On-Hover Tooltip:** Displays Parameter header (`Parameter: <param_id>`), Status (`Status: Set ("value")` / `Status: Unset`), and Guidance prose if available.
-- **Click-to-Scroll:** Clicking a parameter chip smooth-scrolls directly to the corresponding `#param-card-<id>`.
+- **Click-to-Scroll:** Clicking a parameter chip smooth-scrolls directly to the corresponding parameter editor card.
 
 ### 8. DocumentOverview Parameters Tab Scope Differentiation (Catalog vs. Profile Mode)
 The Parameters tab in `DocumentOverview.jsx` provides explicit visual context explaining the fundamental architectural difference between Catalog and Profile mode:

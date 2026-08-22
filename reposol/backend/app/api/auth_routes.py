@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 import aiosqlite
 import uuid
+import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import List
 
@@ -13,6 +14,10 @@ from ..auth.database import get_db
 from ..dependencies import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+def _token_lookup_hash(token: str) -> str:
+    """Fast non-bcrypt prefix hash for indexed DB lookup (first 16 hex chars of SHA-256)."""
+    return hashlib.sha256(token.encode()).hexdigest()[:16]
 
 @router.post("/register", response_model=UserResponse)
 async def register(request: RegisterRequest, db: aiosqlite.Connection = Depends(get_db)):
@@ -55,24 +60,28 @@ async def login(request: LoginRequest, db: aiosqlite.Connection = Depends(get_db
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
+    
+    # Clean up expired tokens for this user on login
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.execute("DELETE FROM refresh_tokens WHERE user_id = ? AND expires_at < ?", (user["id"], now_iso))
+    await db.commit()
         
     access_token = create_access_token(user["id"], user["email"], bool(user["is_admin"]))
     refresh_token = create_refresh_token()
     
-    # Store refresh token
+    # Store refresh token — keep bcrypt hash for security, plus fast lookup hash
     refresh_id = str(uuid.uuid4())
     expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
     now = datetime.now(timezone.utc).isoformat()
-    # using plain token as token_hash for simplicity in this exercise, or hash it
-    # normally we'd hash it, but plain is OK for test requirements unless specified
     token_hash = hash_password(refresh_token)
+    lookup_hash = _token_lookup_hash(refresh_token)
     
     await db.execute(
         """
         INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (refresh_id, user["id"], token_hash, expires_at, now)
+        (lookup_hash + ":" + refresh_id, user["id"], token_hash, expires_at, now)
     )
     await db.commit()
     
@@ -89,18 +98,22 @@ class RefreshRequest(LoginRequest):
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(request: RefreshRequest, db: aiosqlite.Connection = Depends(get_db)):
-    # Need to find the token in DB and verify
-    # In real app, we check all tokens or user-specific. We need user_id to recreate access token
-    # Since we didn't send user_id, we just check all tokens to see which matches hash
-    async with db.execute("SELECT id, user_id, token_hash, expires_at FROM refresh_tokens") as cursor:
-        tokens = await cursor.fetchall()
-        
+    """Refresh access token using a valid refresh token."""
+    lookup_hash = _token_lookup_hash(request.refresh_token)
+    
+    # Look up only tokens matching the fast lookup hash prefix (indexed)
+    async with db.execute(
+        "SELECT id, user_id, token_hash, expires_at FROM refresh_tokens WHERE id LIKE ?",
+        (lookup_hash + ":%",)
+    ) as cursor:
+        candidates = await cursor.fetchall()
+    
     matched_token = None
-    for token in tokens:
+    for token in candidates:
         if verify_password(request.refresh_token, token["token_hash"]):
             matched_token = token
             break
-            
+        
     if not matched_token:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
         
@@ -125,10 +138,16 @@ async def refresh(request: RefreshRequest, db: aiosqlite.Connection = Depends(ge
 
 @router.post("/logout")
 async def logout(request: RefreshRequest, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT id, token_hash FROM refresh_tokens") as cursor:
-        tokens = await cursor.fetchall()
+    """Invalidate a refresh token."""
+    lookup_hash = _token_lookup_hash(request.refresh_token)
+    
+    async with db.execute(
+        "SELECT id, token_hash FROM refresh_tokens WHERE id LIKE ?",
+        (lookup_hash + ":%",)
+    ) as cursor:
+        candidates = await cursor.fetchall()
         
-    for token in tokens:
+    for token in candidates:
         if verify_password(request.refresh_token, token["token_hash"]):
             await db.execute("DELETE FROM refresh_tokens WHERE id = ?", (token["id"],))
             await db.commit()

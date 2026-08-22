@@ -197,7 +197,112 @@ def _apply_modify(catalog: Dict, modify: Dict):
         for g in catalog["groups"]:
             traverse_group(g)
 
-async def resolve_profile(workspace_id: str, profile_id: str) -> Dict[str, Any]:
+def _deduplicate_use_first(controls, groups):
+    seen = set()
+    def dedup_c(ctrls):
+        res = []
+        for c in ctrls:
+            cid = c.get("id", "").lower()
+            if cid not in seen:
+                seen.add(cid)
+                new_c = copy.deepcopy(c)
+                if new_c.get("controls"):
+                    new_c["controls"] = dedup_c(new_c["controls"])
+                res.append(new_c)
+        return res
+        
+    def dedup_g(grps):
+        res = []
+        for g in grps:
+            new_g = copy.deepcopy(g)
+            if new_g.get("controls"):
+                new_g["controls"] = dedup_c(new_g["controls"])
+            if new_g.get("groups"):
+                new_g["groups"] = dedup_g(new_g["groups"])
+            res.append(new_g)
+        return res
+        
+    return dedup_c(controls), dedup_g(groups)
+
+def _flatten_all(controls, groups):
+    result = []
+    def extract_ctrl(ctrl):
+        c_copy = copy.deepcopy(ctrl)
+        c_copy.pop("controls", None)
+        result.append(c_copy)
+        for sub in ctrl.get("controls", []):
+            extract_ctrl(sub)
+    def extract_grp(grp):
+        for c in grp.get("controls", []):
+            extract_ctrl(c)
+        for g in grp.get("groups", []):
+            extract_grp(g)
+    for c in controls:
+        extract_ctrl(c)
+    for g in groups:
+        extract_grp(g)
+    return result
+
+def _apply_custom_structure(custom_groups, custom_insert_controls, all_controls, all_groups):
+    ctrl_map = _collect_controls_map(all_controls, all_groups)
+    used_ids = set()
+    
+    def process_insert(insert_directives):
+        res_ctrls = []
+        for d in insert_directives:
+            if "include-all" in d:
+                for cid, c in ctrl_map.items():
+                    if cid.lower() not in used_ids:
+                        res_ctrls.append(copy.deepcopy(c))
+                        used_ids.add(cid.lower())
+            elif "include-controls" in d:
+                for inc in d.get("include-controls", []):
+                    for cid in inc.get("with-ids", []):
+                        cid_l = cid.lower()
+                        if cid_l in ctrl_map and cid_l not in used_ids:
+                            res_ctrls.append(copy.deepcopy(ctrl_map[cid_l]))
+                            used_ids.add(cid_l)
+                    for match in inc.get("matching", []):
+                        pat = match.get("pattern")
+                        if pat:
+                            for cid, c in ctrl_map.items():
+                                if cid.lower() not in used_ids and _matches_pattern(cid, [pat]):
+                                    res_ctrls.append(copy.deepcopy(c))
+                                    used_ids.add(cid.lower())
+            elif "exclude-controls" in d:
+                for exc in d.get("exclude-controls", []):
+                    for cid in exc.get("with-ids", []):
+                        used_ids.add(cid.lower())
+            
+            order = d.get("order", "keep")
+            if order == "ascending":
+                res_ctrls.sort(key=lambda x: x.get("id", "").lower())
+            elif order == "descending":
+                res_ctrls.sort(key=lambda x: x.get("id", "").lower(), reverse=True)
+                
+        return res_ctrls
+
+    def build_group(g):
+        new_g = copy.deepcopy(g)
+        if "insert-controls" in new_g:
+            new_g["controls"] = process_insert(new_g["insert-controls"])
+            new_g.pop("insert-controls")
+        if "groups" in new_g:
+            new_g["groups"] = [build_group(sub_g) for sub_g in new_g["groups"]]
+        return new_g
+
+    res_groups = [build_group(g) for g in custom_groups]
+    res_controls = process_insert(custom_insert_controls) if custom_insert_controls else []
+    
+    return res_controls, res_groups
+
+async def resolve_profile(workspace_id: str, profile_id: str, _resolving_stack: set = None) -> Dict[str, Any]:
+    if _resolving_stack is None:
+        _resolving_stack = set()
+    if profile_id in _resolving_stack:
+        raise ValueError("Circular profile reference detected")
+    _resolving_stack = _resolving_stack | {profile_id}
+
     doc, _ = await get_document("profiles", profile_id, workspace_id=workspace_id)
     profile = doc.get("profile", {})
     
@@ -212,14 +317,22 @@ async def resolve_profile(workspace_id: str, profile_id: str) -> Dict[str, Any]:
         if not cat_uuid:
             continue
             
-        try:
-            cat_doc, _ = await get_document("catalogs", cat_uuid, workspace_id=workspace_id)
+        from app.repositories.document_repository import document_exists
+        is_profile = await document_exists("profiles", cat_uuid, workspace_id=workspace_id)
+        if is_profile:
+            prof_res = await resolve_profile(workspace_id, cat_uuid, _resolving_stack=_resolving_stack)
+            cat = {"groups": prof_res.get("groups", []), "controls": prof_res.get("controls", [])}
             source_catalog_ids.add(cat_uuid)
-            source_catalog_titles.append(cat_doc.get("catalog", {}).get("metadata", {}).get("title", "Unknown Catalog"))
-        except FileNotFoundError:
-            continue
-            
-        cat = cat_doc.get("catalog", {})
+            source_catalog_titles.append("Profile")
+        else:
+            try:
+                cat_doc, _ = await get_document("catalogs", cat_uuid, workspace_id=workspace_id)
+                source_catalog_ids.add(cat_uuid)
+                source_catalog_titles.append(cat_doc.get("catalog", {}).get("metadata", {}).get("title", "Unknown Catalog"))
+            except FileNotFoundError:
+                continue
+                
+            cat = cat_doc.get("catalog", {})
         
         include_all = imp.get("include-all", None) is not None
         include_controls = imp.get("include-controls", [])
@@ -248,6 +361,20 @@ async def resolve_profile(workspace_id: str, profile_id: str) -> Dict[str, Any]:
         
         all_groups.extend(filtered_groups)
         all_controls.extend(filtered_controls)
+
+    merge = profile.get("merge", {})
+    combine_method = merge.get("combine", {}).get("method", "use-first")
+    
+    if combine_method == "use-first":
+        all_controls, all_groups = _deduplicate_use_first(all_controls, all_groups)
+        
+    if "flat" in merge:
+        all_controls = _flatten_all(all_controls, all_groups)
+        all_groups = []
+    elif "custom" in merge:
+        custom_groups = merge["custom"].get("groups", [])
+        custom_insert = merge["custom"].get("insert-controls", [])
+        all_controls, all_groups = _apply_custom_structure(custom_groups, custom_insert, all_controls, all_groups)
 
     resolved = {
         "uuid": profile.get("uuid"),
@@ -406,3 +533,99 @@ async def get_control_tree(workspace_id: str, stage: str, doc_id: str) -> Dict[s
         
     _resolution_cache[cache_key] = res
     return res
+
+def _collect_controls_map(controls: Optional[List[Dict]] = None, groups: Optional[List[Dict]] = None) -> Dict[str, Dict]:
+    res = {}
+    def traverse_c(ctrl):
+        cid = ctrl.get("id")
+        if cid:
+            res[cid] = ctrl
+        for sub in ctrl.get("controls", []):
+            traverse_c(sub)
+            
+    def traverse_g(group):
+        for c in group.get("controls", []):
+            traverse_c(c)
+        for g in group.get("groups", []):
+            traverse_g(g)
+            
+    if controls:
+        for c in controls:
+            traverse_c(c)
+    if groups:
+        for g in groups:
+            traverse_g(g)
+    return res
+
+async def get_profile_baseline_diff(workspace_id: str, profile_id: str, catalog_id: str) -> Dict[str, Any]:
+    cat_doc, _ = await get_document("catalogs", catalog_id, workspace_id=workspace_id)
+    catalog = cat_doc.get("catalog", {})
+    cat_map = _collect_controls_map(catalog.get("controls", []), catalog.get("groups", []))
+    
+    resolved_profile = await resolve_profile(workspace_id, profile_id)
+    prof_map = _collect_controls_map(resolved_profile.get("controls", []), resolved_profile.get("groups", []))
+    
+    cat_lower_map = {k.lower(): (k, v) for k, v in cat_map.items()}
+    prof_lower_map = {k.lower(): (k, v) for k, v in prof_map.items()}
+    
+    all_keys_lower = []
+    seen = set()
+    for k in cat_map.keys():
+        kl = k.lower()
+        if kl not in seen:
+            seen.add(kl)
+            all_keys_lower.append(kl)
+    for k in prof_map.keys():
+        kl = k.lower()
+        if kl not in seen:
+            seen.add(kl)
+            all_keys_lower.append(kl)
+            
+    deltas = []
+    added_count = 0
+    removed_count = 0
+    modified_count = 0
+    untouched_count = 0
+    
+    for kl in all_keys_lower:
+        cat_pair = cat_lower_map.get(kl)
+        prof_pair = prof_lower_map.get(kl)
+        
+        orig_id = cat_pair[0] if cat_pair else prof_pair[0]
+        cat_ctrl = cat_pair[1] if cat_pair else None
+        prof_ctrl = prof_pair[1] if prof_pair else None
+        
+        if cat_ctrl and prof_ctrl:
+            if cat_ctrl == prof_ctrl:
+                status = "untouched"
+                untouched_count += 1
+            else:
+                status = "modified"
+                modified_count += 1
+        elif cat_ctrl and not prof_ctrl:
+            status = "removed"
+            removed_count += 1
+        else:
+            status = "added"
+            added_count += 1
+            
+        title = (prof_ctrl or cat_ctrl or {}).get("title", "")
+        deltas.append({
+            "id": orig_id,
+            "status": status,
+            "title": title,
+            "baseline_control": cat_ctrl,
+            "profile_control": prof_ctrl
+        })
+        
+    return {
+        "summary": {
+            "added_count": added_count,
+            "removed_count": removed_count,
+            "modified_count": modified_count,
+            "untouched_count": untouched_count,
+            "total_baseline_controls": len(cat_map)
+        },
+        "deltas": deltas
+    }
+

@@ -6,7 +6,7 @@ import { cleanEmptyArrays } from '@lib/oscal-utils';
 import { OscalDocument, OscalStage } from '@lib/types/oscal';
 import { ValidationResult } from '@lib/types/api';
 
-export function useDocumentData(stage: OscalStage, modelName: string, documentId: string, isEditing: boolean) {
+export function useDocumentData(stage: OscalStage, modelName: string, documentId: string, isEditing: boolean, isDirty: boolean = false) {
   const query = useDocumentQuery(stage, documentId);
   const mutation = useDocumentMutation(stage);
   const validationMutation = useDocumentValidationMutation(stage);
@@ -43,7 +43,7 @@ export function useDocumentData(stage: OscalStage, modelName: string, documentId
     const targetDoc = documentToSave || docRef.current;
     if (!targetDoc) throw new Error('No document to save');
     const cleaned = cleanEmptyArrays(targetDoc);
-    const result = await mutation.mutateAsync({ docId: documentId, data: cleaned });
+    const result = (await mutation.mutateAsync({ docId: documentId, data: cleaned as any })) as any as OscalDocument;
     updateDoc(result);
     return result;
   }, [documentId, mutation, updateDoc]);
@@ -54,7 +54,8 @@ export function useDocumentData(stage: OscalStage, modelName: string, documentId
       const targetDoc = documentToValidate || docRef.current;
       if (!targetDoc) throw new Error('No document to validate');
       const result = await validationMutation.mutateAsync(targetDoc);
-      const mappedResult: ValidationResult = { ...result, valid: result.status === 'valid' };
+      const anyResult = result as any;
+      const mappedResult: ValidationResult = { ...result, valid: anyResult?.status === 'valid' || result.valid };
       setValidationResult(mappedResult);
       return mappedResult;
     } catch (err: any) {
@@ -81,7 +82,8 @@ export function useDocumentData(stage: OscalStage, modelName: string, documentId
     docRef.current,
     isEditing,
     30000,
-    saveDraftTag
+    saveDraftTag,
+    isDirty
   );
 
   const hasDraft = versions.some(

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAtomValue } from 'jotai';
 import { editModeAtom } from '@stores/uiAtoms';
+import { useConfirm } from '@hooks/useConfirm';
 import styles from './SharedComponents.module.css';
 import { DebouncedInput } from './DebouncedInput';
 
@@ -27,6 +28,7 @@ export function ControlHeader({
 }: any) {
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditing = isEditingProp !== undefined ? isEditingProp : globalEditMode;
+  const { confirm } = useConfirm();
 
   const isWithdrawn = control?.status === 'withdrawn' || control?.props?.some((p: any) => (p.name === 'status' || p.name === 'state') && p.value === 'withdrawn');
   const replacementLink = control?.links?.find((l: any) => l.rel === 'incorporated-into' || l.rel === 'moved-to' || l.rel === 'replacement' || (l.href && l.href.includes('#')));
@@ -34,8 +36,13 @@ export function ControlHeader({
     ? (replacementLink.href.includes('#') ? replacementLink.href.split('#').pop()! : replacementLink.href).trim().replace(/^#/, '')
     : null;
 
-  const handleRestore = () => {
-    if (window.confirm('Restore this control?')) {
+  const handleRestore = async () => {
+    const confirmed = await confirm({
+      title: 'Restore Control',
+      message: 'Restore this control?',
+      confirmLabel: 'Restore',
+    });
+    if (confirmed) {
       if (onRestoreControl) {
         onRestoreControl();
       } else if (onChange && control) {
@@ -93,23 +100,25 @@ export function ControlHeader({
           )}
         </span>
       </div>
-      <button
-        type="button"
-        className="btn-restore-control"
-        onClick={handleRestore}
-        style={{
-          padding: '4px 12px',
-          background: 'var(--color-primary, #3b82f6)',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          fontSize: '12px',
-          fontWeight: '600',
-          cursor: 'pointer'
-        }}
-      >
-        Restore Control
-      </button>
+      {isEditing && (
+        <button
+          type="button"
+          className="btn-restore-control"
+          onClick={handleRestore}
+          style={{
+            padding: '4px 12px',
+            background: 'var(--color-primary, #3b82f6)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '12px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
+          Restore Control
+        </button>
+      )}
     </div>
   ) : null;
 

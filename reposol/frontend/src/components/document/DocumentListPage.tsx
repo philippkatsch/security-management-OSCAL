@@ -6,6 +6,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authFetch, getWorkspaceId } from '@lib/api';
 import ImportWizard from './ImportWizard';
 import { CreateDocumentDialog } from './CreateDocumentDialog';
+import { useConfirm } from '@hooks/useConfirm';
+import { ExportModal } from '@components/shared/ui/ExportModal';
+import { TableSkeleton } from '@components/shared/ui/LoadingSpinner';
+import { toast } from 'react-hot-toast';
 
 const ROOT_KEYS: Record<string, string> = {
   catalogs: 'catalog',
@@ -46,10 +50,12 @@ export const DocumentListPage = () => {
   const { stage } = useParams<{ stage: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [exportDoc, setExportDoc] = useState<{ id: string; title: string } | null>(null);
 
   const safeStage = stage || 'catalogs';
   const rootKey = ROOT_KEYS[safeStage];
@@ -77,7 +83,13 @@ export const DocumentListPage = () => {
           const promptMsg = detail
             ? `${detail}\n\nDocument is referenced by other documents. Force delete?`
             : `Document is referenced by other documents. Force delete?`;
-          const forceDelete = window.confirm(promptMsg);
+          const forceDelete = await confirm({
+            title: 'Reference Conflict (409)',
+            message: promptMsg,
+            confirmLabel: 'Force Delete',
+            cancelLabel: 'Cancel',
+            variant: 'danger',
+          });
           if (forceDelete) {
             await authFetch(`/api/documents/${safeStage}/${id}?force=true`, { method: 'DELETE' });
             return;
@@ -88,32 +100,32 @@ export const DocumentListPage = () => {
       }
     },
     onSuccess: () => {
+      toast.success('Document deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['documents', safeStage] });
       queryClient.invalidateQueries({ queryKey: ['document-counts'] });
     },
     onError: (err: Error) => {
       if (err) {
-        alert(`Error: ${err.message}`);
+        toast.error(`Error deleting document: ${err.message}`);
       }
     }
   });
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Delete this document?')) {
+  const handleDelete = async (id: string, title?: string) => {
+    const confirmed = await confirm({
+      title: 'Delete Document',
+      message: title ? `Delete this document? Are you sure you want to delete "${title}"?` : 'Delete this document?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
+    if (confirmed) {
       deleteMutation.mutate(id);
     }
   };
 
-  const handleExport = (id: string) => {
-    const format = window.prompt("Select format for export: json, yaml or xml", "json");
-    if (!format) return;
-    const fmt = format.trim().toLowerCase();
-    if (['json', 'yaml', 'xml'].includes(fmt)) {
-      const wsId = getWorkspaceId();
-      window.open(`/api/export/${safeStage}/${id}?format=${fmt}&w=${encodeURIComponent(wsId)}`, '_blank');
-    } else {
-      alert("Invalid format. Please enter 'json', 'yaml' or 'xml'.");
-    }
+  const handleExport = (id: string, title?: string) => {
+    setExportDoc({ id, title: title || '' });
   };
 
   const navigateWithWs = (path: string) => {
@@ -180,10 +192,7 @@ export const DocumentListPage = () => {
       {error && <div className={sharedStyles['error-message']}>⚠️ {(error as Error).message}</div>}
 
       {loading ? (
-        <div className={sharedStyles['loading-indicator']}>
-          <span className={sharedStyles['spinner']} />
-          Loading documents…
-        </div>
+        <TableSkeleton rows={5} />
       ) : documents.length === 0 ? (
         <div className={sharedStyles['empty-state']}>
           <div className={sharedStyles['empty-icon']}>{STAGE_ICONS[safeStage] || '📄'}</div>
@@ -200,18 +209,20 @@ export const DocumentListPage = () => {
         </div>
       ) : (
         <div className={sharedStyles['documents-section']}>
-          <div className="search-bar-container">
-            <input
-              type="text"
-              className="search-input"
-              placeholder={`Search ${label.toLowerCase()} by title or UUID…`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button className="search-clear-btn" onClick={() => setSearchQuery('')}>✕</button>
-            )}
-            <span className="search-results-count">{filteredDocs.length} of {documents.length}</span>
+          <div className={sharedStyles['search-bar-container']}>
+            <div className={sharedStyles['search-input-wrapper']}>
+              <input
+                type="text"
+                className={sharedStyles['search-input']}
+                placeholder={`Search ${label.toLowerCase()} by title or UUID…`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className={sharedStyles['search-clear-btn']} onClick={() => setSearchQuery('')}>✕</button>
+              )}
+            </div>
+            <span className={sharedStyles['search-results-count']}>{filteredDocs.length} of {documents.length}</span>
           </div>
 
           <table className={sharedStyles['documents-table']}>
@@ -267,14 +278,15 @@ export const DocumentListPage = () => {
                         </button>
                         <button
                           className={[sharedStyles['btn-action'], sharedStyles['btn-export']].filter(Boolean).join(' ')}
-                          onClick={() => handleExport(data.uuid)}
-                          title="Export as JSON"
+                          onClick={() => handleExport(data.uuid, data.metadata?.title)}
+                          title="Export document"
+                          data-testid="export-btn"
                         >
                           📥
                         </button>
                         <button
                           className={[sharedStyles['btn-action'], sharedStyles['btn-delete']].filter(Boolean).join(' ')}
-                          onClick={() => handleDelete(data.uuid)}
+                          onClick={() => handleDelete(data.uuid, data.metadata?.title)}
                           title="Delete document"
                         >
                           🗑
@@ -305,6 +317,16 @@ export const DocumentListPage = () => {
             queryClient.invalidateQueries({ queryKey: ['document-counts'] });
           }}
           onClose={() => setShowImport(false)}
+        />
+      )}
+
+      {exportDoc && (
+        <ExportModal
+          isOpen={Boolean(exportDoc)}
+          docId={exportDoc.id}
+          docTitle={exportDoc.title}
+          stage={safeStage}
+          onClose={() => setExportDoc(null)}
         />
       )}
     </div>

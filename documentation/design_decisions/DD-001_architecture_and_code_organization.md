@@ -54,7 +54,6 @@ The frontend `src/` directory uses a strict domain-driven subdivision:
   - `oscal-utils.ts` — Constants, formatting, UUID generation, array cleaning, and validation helpers.
   - `document-actions/` — Centralized action layer domain modules (catalog, profile, ssp, etc.) with immer produce, logging, and auto undo-snapshot.
   - `api-client.ts` — Centralized API client with interceptors.
-  - `status-machine.ts` — Document lifecycle state transitions (DD-023).
 - **`hooks/`**: Contains custom React hooks encapsulating state management for cross-cutting concerns (e.g., `useDocumentData.ts`, `useDocumentHistory.ts`, `useDocumentLifecycle.ts`, `useDocumentActions.ts`).
 - **`components/layout/`**: Holds layout shells such as sidebar navigation (`Layout.tsx`, `Navigation.tsx`, `DocumentPageLayout.tsx`).
 - **`components/shared/`**: Contains reusable OSCAL editors and visual blocks shared across multiple pages (e.g. `PropsEditor`, `LinksEditor`, `ValidationFeedback`).
@@ -76,19 +75,7 @@ The frontend `src/` directory uses a strict domain-driven subdivision:
 - **Legacy Pruning**: Deprecated monoliths (`DocumentEditor.jsx`, `MappingViewer.jsx`) are retired and replaced by domain-specific pages and shared components.
 
 ### 3. Shared Control Detail Components (Strategy/Adapter Pattern)
-To cleanly separate direct mutation logic from adapter logic, we use a single **`UnifiedControlEditor`** paired with a shared **`ControlTree`**. We removed `CatalogControlEditor`, `ProfileControlOverlay`, and inline SSP editors.
-
-1. **`UnifiedControlEditor`**: Driven by stage adapters (`CatalogAdapter`, `ProfileAdapter`, `SSPAdapter`).
-2. **`ControlEditorContext`**: Provides stage-aware context to child components.
-3. **`ControlTree`**: Shared tree navigation component with a `useControlTree` hook, replacing `CatalogSidebar` and `ProfileSidebar`.
-
-```text
-Domain-Specific Adapters (Polymorphic UI Primitives)
-└── UnifiedControlEditor
-    ├── CatalogAdapter: Direct inline mutations
-    ├── ProfileAdapter: Adapter callbacks routing to modify.alters
-    └── SSPAdapter: Adapter for implementation details
-```
+To cleanly separate direct mutation logic from adapter logic, we use a single **`UnifiedControlEditor`** paired with a shared **`ControlTree`**. We removed `CatalogControlEditor`, `ProfileControlOverlay`, and inline SSP editors. For full details on the stage adapters and polymorphism, see DD-030.
 
 ### 4. Naming Conventions
 - **React Components**: PascalCase (e.g., `CatalogPage.tsx`, `CatalogControlEditor.tsx`).
@@ -106,7 +93,6 @@ Domain-Specific Adapters (Polymorphic UI Primitives)
 - DD-030 (Unified Control Editor - supersedes DD-008)
 - DD-021 (Entity List-Detail for Steps 3-8)
 - DD-022 (Dashboard Components)
-- DD-023 (Document Lifecycle)
 
 ---
 

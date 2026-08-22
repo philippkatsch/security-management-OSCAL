@@ -38,7 +38,7 @@ export function useVersions(stage: OscalStage, documentId: string) {
   const save = useCallback(async (versionNumber: string, document: OscalDocument, remarks?: string) => {
     const rootKey = STAGE_ROOT_KEYS[stage] || stage.replace(/s$/, '') as keyof OscalDocument;
     const docWithVersion = produce(document, (draft: Draft<OscalDocument>) => {
-      const root = draft[rootKey] as Record<string, unknown>;
+      const root = draft[rootKey] as Record<string, any>;
       if (root?.metadata) {
         root.metadata.version = versionNumber;
       }
@@ -53,13 +53,13 @@ export function useVersions(stage: OscalStage, documentId: string) {
 
   const saveDraft = useCallback(async (document: OscalDocument) => {
     const rootKey = STAGE_ROOT_KEYS[stage] || stage.replace(/s$/, '') as keyof OscalDocument;
-    const rootDoc = document[rootKey] as Record<string, unknown>;
+    const rootDoc = document[rootKey] as Record<string, any>;
     let version = rootDoc?.metadata?.version || '1.0.0';
-    const cleanVersion = version.replace(/-draft$/, '');
+    const cleanVersion = String(version).replace(/-draft$/, '');
     const draftVersion = `${cleanVersion}-draft`;
 
     const docWithVersion = produce(document, (draft: Draft<OscalDocument>) => {
-      const root = draft[rootKey] as Record<string, unknown>;
+      const root = draft[rootKey] as Record<string, any>;
       if (root?.metadata) {
         root.metadata.version = draftVersion;
       }

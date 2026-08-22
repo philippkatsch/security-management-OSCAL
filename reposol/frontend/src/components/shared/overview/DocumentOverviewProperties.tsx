@@ -1,14 +1,34 @@
 import React from 'react';
 import { DebouncedInput } from '../DebouncedInput';
 import styles from '../SharedComponents.module.css';
+import { useConfirm } from '@hooks/useConfirm';
 
-export function DocumentOverviewProperties({ properties, globalProps, isEditingState, onGlobalPropertyRename, onGlobalPropertyDelete, onAddProperty, onUpdateMetaProp }) {
+export interface DocumentOverviewPropertiesProps {
+  properties?: Record<string, any>;
+  globalProps?: any[];
+  isEditingState?: boolean;
+  onGlobalPropertyRename?: (oldName: string, newName: string) => void;
+  onGlobalPropertyDelete?: (name: string) => void;
+  onAddProperty?: () => void;
+  onUpdateMetaProp?: (propName: string, index: number, field: string, value: any) => void;
+}
+
+export function DocumentOverviewProperties({ 
+  properties = {}, 
+  globalProps = [], 
+  isEditingState, 
+  onGlobalPropertyRename, 
+  onGlobalPropertyDelete, 
+  onAddProperty, 
+  onUpdateMetaProp = () => {} 
+}: DocumentOverviewPropertiesProps) {
+  const { confirm } = useConfirm();
   const propertyStats = (() => {
     const uniqueKeys = Object.keys(properties).length;
     let declaredCount = globalProps.length;
     let elementCount = 0;
     let totalAssignments = 0;
-    Object.values(properties).forEach(p => {
+    Object.values(properties).forEach((p: any) => {
       if (p.isUsed) {
         elementCount++;
         totalAssignments += p.totalCount;
@@ -17,7 +37,7 @@ export function DocumentOverviewProperties({ properties, globalProps, isEditingS
     return { uniqueKeys, declaredCount, elementCount, totalAssignments };
   })();
 
-  const metricCardStyle = {
+  const metricCardStyle: React.CSSProperties = {
     background: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
     borderRadius: 'var(--radius-md)',
@@ -33,7 +53,7 @@ export function DocumentOverviewProperties({ properties, globalProps, isEditingS
     minWidth: '150px'
   };
 
-  const metricLabelStyle = {
+  const metricLabelStyle: React.CSSProperties = {
     fontSize: '11px',
     fontWeight: '700',
     color: 'var(--color-text-muted)',
@@ -79,7 +99,7 @@ export function DocumentOverviewProperties({ properties, globalProps, isEditingS
           <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: '12px' }}>No properties found.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {Object.entries(properties).map(([propName, propData]) => (
+            {Object.entries(properties).map(([propName, propData]: [string, any]) => (
               <div key={propName} className="card" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
@@ -101,7 +121,15 @@ export function DocumentOverviewProperties({ properties, globalProps, isEditingS
                       <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--color-warning)', fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}>⚠️ unused</span>
                     )}
                     {isEditingState && (
-                      <button type="button" className={styles['btn-soft']} onClick={() => { if(window.confirm("Delete this property globally?")) onGlobalPropertyDelete?.(propName); }} style={{ padding: '4px 8px', fontSize: '11px', color: '#ff4d4f', borderColor: 'rgba(255, 77, 79, 0.2)' }}>🗑 Delete</button>
+                      <button type="button" className={styles['btn-soft']} onClick={async () => {
+                        const confirmed = await confirm({
+                          title: 'Delete Property',
+                          message: 'Delete this property globally?',
+                          confirmLabel: 'Delete',
+                          variant: 'danger',
+                        });
+                        if (confirmed) onGlobalPropertyDelete?.(propName);
+                      }} style={{ padding: '4px 8px', fontSize: '11px', color: '#ff4d4f', borderColor: 'rgba(255, 77, 79, 0.2)' }}>🗑 Delete</button>
                     )}
                   </div>
                 </div>
@@ -138,7 +166,7 @@ export function DocumentOverviewProperties({ properties, globalProps, isEditingS
                       {Object.entries(propData.values).map(([val, count]) => (
                         <span key={val} className="badge" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border-subtle)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>
                           <span style={{ color: 'var(--color-text)' }}>{val}</span>
-                          <span style={{ color: 'var(--color-text-muted)', marginLeft: '4px', fontSize: '9px' }}>({count}x)</span>
+                          <span style={{ color: 'var(--color-text-muted)', marginLeft: '4px', fontSize: '9px' }}>({count as React.ReactNode}x)</span>
                         </span>
                       ))}
                     </div>

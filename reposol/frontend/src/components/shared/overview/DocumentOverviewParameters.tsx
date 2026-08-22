@@ -2,8 +2,18 @@ import React from 'react';
 import { ParameterEditor } from '../ParameterEditor';
 import styles from '../SharedComponents.module.css';
 
-export function DocumentOverviewParameters({ mode, document, paramStats, allResolvedCatalogParams, isEditingState, resolvedCatalog, onChange }) {
-  const metricCardStyle = {
+export interface DocumentOverviewParametersProps {
+  mode?: string;
+  document?: any;
+  paramStats?: any;
+  allResolvedCatalogParams?: any;
+  isEditingState?: boolean;
+  resolvedCatalog?: any;
+  onChange?: (updated: any) => void;
+}
+
+export function DocumentOverviewParameters({ mode, document, paramStats, allResolvedCatalogParams, isEditingState, resolvedCatalog, onChange = () => {} }: DocumentOverviewParametersProps) {
+  const metricCardStyle: React.CSSProperties = {
     background: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
     borderRadius: 'var(--radius-md)',
@@ -19,7 +29,7 @@ export function DocumentOverviewParameters({ mode, document, paramStats, allReso
     minWidth: '150px'
   };
 
-  const metricLabelStyle = {
+  const metricLabelStyle: React.CSSProperties = {
     fontSize: '11px',
     fontWeight: '700',
     color: 'var(--color-text-muted)',

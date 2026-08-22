@@ -22,7 +22,7 @@ function safeClone(obj) {
  * @returns {object}
  */
 
-function undoRedoReducer(state, action) {
+function undoRedoReducer<T>(state: { history: T[]; index: number }, action: any): { history: T[]; index: number } {
   switch (action.type) {
     case 'PUSH': {
       if (!action.payload) return state;
@@ -54,8 +54,8 @@ function undoRedoReducer(state, action) {
   }
 }
 
-export function useUndoRedo(initialState = null, maxHistory = 50) {
-  const [state, dispatch] = useReducer(undoRedoReducer, null, () => {
+export function useUndoRedo<T = any>(initialState: T | null = null, maxHistory = 50) {
+  const [state, dispatch] = useReducer(undoRedoReducer<T>, null, () => {
     const cloned = safeClone(initialState);
     return {
       history: cloned ? [cloned] : [],
@@ -67,7 +67,7 @@ export function useUndoRedo(initialState = null, maxHistory = 50) {
   const { history, index } = state;
   const current = index >= 0 && index < history.length ? history[index] : null;
 
-  const pushState = useCallback((newState) => {
+  const pushState = useCallback((newState: T) => {
     if (isUndoRedoRef.current) {
       isUndoRedoRef.current = false;
       return;
@@ -77,7 +77,7 @@ export function useUndoRedo(initialState = null, maxHistory = 50) {
     }
   }, [maxHistory]);
 
-  const undo = useCallback(() => {
+  const undo = useCallback((): T | null => {
     if (index > 0) {
       isUndoRedoRef.current = true;
       dispatch({ type: 'UNDO' });
@@ -86,7 +86,7 @@ export function useUndoRedo(initialState = null, maxHistory = 50) {
     return null;
   }, [index, history]);
 
-  const redo = useCallback(() => {
+  const redo = useCallback((): T | null => {
     if (index < history.length - 1) {
       isUndoRedoRef.current = true;
       dispatch({ type: 'REDO' });
@@ -95,7 +95,7 @@ export function useUndoRedo(initialState = null, maxHistory = 50) {
     return null;
   }, [index, history]);
 
-  const reset = useCallback((newState) => {
+  const reset = useCallback((newState?: T | null) => {
     dispatch({ type: 'RESET', payload: newState });
   }, []);
 

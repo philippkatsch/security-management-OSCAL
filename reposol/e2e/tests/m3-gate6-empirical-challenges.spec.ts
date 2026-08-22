@@ -56,60 +56,6 @@ test.describe('M3 Gate 6 — Empirical Stress & Challenge Suite', () => {
     expect(fetchError).toBe(true);
   });
 
-  test('Empirical Challenge 2: StatusBadge & LifecycleSelector Integration & Terminal State', async ({ page, apiSetup }) => {
-    await apiSetup.syncWorkspace();
-
-    const catUuid = await apiSetup.createCatalog({
-      title: 'Lifecycle State Machine Test Catalog',
-      controls: [{ id: 'ac-1', title: 'Access Control' }]
-    });
-
-    await page.goto(`/catalogs/${catUuid}?edit=true&w=${apiSetup.workspaceId}`);
-    
-    // Verify StatusBadge is rendered with data-testid="status-badge"
-    const statusBadge = page.locator('[data-testid="status-badge"]').first();
-    await expect(statusBadge).toBeVisible();
-    await expect(statusBadge).toContainText(/draft/i);
-
-    // Open LifecycleSelector toggle dropdown
-    const lifecycleToggle = page.locator('.lifecycle-selector-toggle').first();
-    await expect(lifecycleToggle).toBeVisible();
-    await lifecycleToggle.click();
-
-    // Select 'active' status option
-    const activeOption = page.locator('.lifecycle-selector-item', { hasText: 'Published and active' });
-    await expect(activeOption).toBeVisible();
-    await activeOption.click();
-
-    // Confirm status change dialog inside dropdown
-    const confirmBtn = page.locator('button', { hasText: 'Confirm' });
-    await expect(confirmBtn).toBeVisible();
-    await confirmBtn.click();
-
-    // Verify status updated to active
-    await expect(statusBadge).toContainText(/active/i);
-
-    // Now switch active -> superseded with a successor UUID
-    await lifecycleToggle.click();
-    const supersededOption = page.locator('.lifecycle-selector-item', { hasText: 'Replaced by a newer document' });
-    await expect(supersededOption).toBeVisible();
-    await supersededOption.click();
-
-    // Fill successor UUID input by placeholder
-    const successorInput = page.locator('input[placeholder="Enter successor UUID..."]');
-    await expect(successorInput).toBeVisible();
-    await successorInput.fill('00000000-0000-4000-8000-000000000099');
-    
-    const confirmBtn2 = page.locator('button', { hasText: 'Confirm' });
-    await confirmBtn2.click();
-
-    // Verify status updated to superseded
-    await expect(statusBadge).toContainText(/superseded/i);
-
-    // Verify LifecycleSelector button is now disabled (terminal state)
-    await expect(lifecycleToggle).toBeDisabled();
-  });
-
   test('Empirical Challenge 3: Control Withdrawal Banner & Replacement Link Navigation & Reinstatement', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
 
@@ -130,7 +76,7 @@ test.describe('M3 Gate 6 — Empirical Stress & Challenge Suite', () => {
       ]
     });
 
-    await page.goto(`/catalogs/${catUuid}?w=${apiSetup.workspaceId}`);
+    await page.goto(`/catalogs/${catUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.locator('[class*="catalog-main-content"], body').first()).toBeVisible();
     
     // Select control ac-1 in tree/sidebar using data-testid

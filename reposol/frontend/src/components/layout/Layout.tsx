@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from './Layout.module.css';
 import { Navigation } from './Navigation';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 export interface LayoutProps {
   children?: React.ReactNode;
@@ -10,6 +10,8 @@ export interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const [healthStatus, setHealthStatus] = useState('checking');
   const [showDevNotice, setShowDevNotice] = useState(true);
+  const location = useLocation();
+  const isEditorPage = location.pathname.split('/').filter(Boolean).length >= 2;
 
   const dismissDevNotice = () => {
     setShowDevNotice(false);
@@ -83,10 +85,10 @@ export const Layout = ({ children }: LayoutProps) => {
             </div>
           </div>
         </header>
-        <main className={`content-body`}>
+        <main className={`content-body ${isEditorPage ? 'no-padding' : ''}`}>
           {children || <Outlet />}
         </main>
       </div>
     </div>
   );
-}
+};

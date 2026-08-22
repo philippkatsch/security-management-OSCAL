@@ -11,13 +11,24 @@ import { useEffect, useCallback, useRef } from 'react';
  * @param {function} saveDraftCallback - Function to persist draft to backend
  * @returns {object} { saveNow }
  */
-export function useDraft(model, uuid, data, isEditing = false, interval = 30000, saveDraftCallback = null) {
-  const timerRef = useRef(null);
+export function useDraft(
+  model?: string, 
+  uuid?: string | null, 
+  data?: any, 
+  isEditing: boolean = false, 
+  interval: number = 30000, 
+  saveDraftCallback: ((data: any) => Promise<any>) | null = null,
+  isDirty: boolean = false
+) {
+  const timerRef = useRef<any>(null);
   const dataRef = useRef(data);
   dataRef.current = data;
 
   const isEditingRef = useRef(isEditing);
   isEditingRef.current = isEditing;
+
+  const isDirtyRef = useRef(isDirty);
+  isDirtyRef.current = isDirty;
 
   const saveCallbackRef = useRef(saveDraftCallback);
   saveCallbackRef.current = saveDraftCallback;
@@ -31,24 +42,26 @@ export function useDraft(model, uuid, data, isEditing = false, interval = 30000,
     }
   }, [isEditing]);
 
-  // Auto-save on interval
+  // Auto-save on interval (only if document has uncommitted changes)
   useEffect(() => {
     if (!isEditing || !uuid || !saveDraftCallback) return;
     timerRef.current = setInterval(() => {
-      if (dataRef.current && !isDiscardedRef.current) {
+      if (dataRef.current && isDirtyRef.current && !isDiscardedRef.current && saveDraftCallback) {
         saveDraftCallback(dataRef.current).catch(err => {
           console.error('Backend auto-save failed:', err);
         });
       }
     }, interval);
-    return () => clearInterval(timerRef.current);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [model, uuid, isEditing, interval, saveDraftCallback]);
 
-  // Save on unmount with closure data matching exact uuid
+  // Save on unmount with closure data matching exact uuid (only if document has uncommitted changes)
   useEffect(() => {
     const currentUuid = uuid;
     return () => {
-      if (isEditingRef.current && dataRef.current && currentUuid && !isDiscardedRef.current && saveCallbackRef.current) {
+      if (isEditingRef.current && isDirtyRef.current && dataRef.current && currentUuid && !isDiscardedRef.current && saveCallbackRef.current) {
         saveCallbackRef.current(dataRef.current).catch(err => {
           console.error('Backend save on unmount failed:', err);
         });

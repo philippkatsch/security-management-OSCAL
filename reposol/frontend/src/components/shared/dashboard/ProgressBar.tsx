@@ -1,15 +1,44 @@
 import React from 'react';
 import styles from '../../dashboard/DashboardPage.module.css';
 
+export interface ProgressBarSegment {
+  label: string;
+  value: number;
+  color: string;
+}
+
+export interface ProgressBarThreshold {
+  max: number;
+  color: string;
+}
+
+export interface ProgressBarProps {
+  value?: number;
+  progress?: number;
+  percent?: number;
+  max?: number;
+  label?: string;
+  showPercentage?: boolean;
+  thresholds?: ProgressBarThreshold[];
+  segments?: ProgressBarSegment[];
+  className?: string;
+}
+
 export default function ProgressBar({ 
-  value = 0, 
+  value, 
+  progress,
+  percent,
+  max,
   label, 
-  showPercentage = false, 
-  thresholds, 
-  segments, 
+  showPercentage = true, 
+  thresholds = [], 
+  segments = [],
   className = '' 
-}) {
-  const clampedValue = Math.min(Math.max(value, 0), 100);
+}: ProgressBarProps) {
+  const actualValue = value !== undefined ? value : (progress !== undefined ? progress : (percent !== undefined ? percent : 0));
+  const maxVal = max !== undefined && max > 0 ? max : 100;
+  const percentage = (actualValue / maxVal) * 100;
+  const clampedValue = Math.min(Math.max(percentage, 0), 100);
   
   // Determine fill color based on thresholds if segments aren't used
   let fillColor = 'var(--color-primary, hsl(220, 70%, 55%))';

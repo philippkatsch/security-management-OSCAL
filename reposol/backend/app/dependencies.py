@@ -31,6 +31,8 @@ async def get_workspace_id(
     """
     Extracts workspace ID from X-Workspace-ID header or query parameter.
     Enforces authentication if the workspace has any registered members.
+    Protected workspace IDs (master, templates, default) are only accessible
+    when ALLOW_MASTER_EDIT env var is set to true.
     """
     ws = (
         request.headers.get("x-workspace-id")
@@ -44,6 +46,15 @@ async def get_workspace_id(
     else:
         ws_id = ws or "default"
 
+    # Gate protected workspace access on env var
+    master_edit_enabled = os.environ.get("ALLOW_MASTER_EDIT", "").lower() in ("true", "1")
+    if ws_id in ("master", "templates", "default") and not master_edit_enabled:
+        # In non-master-edit mode, "default" is the fallback for missing workspace IDs,
+        # which is correct — it still maps to the default workspace for reads.
+        # But explicit "master" or "templates" should not be directly addressable.
+        if ws and ws in ("master", "templates"):
+            ws_id = "default"
+
     if ws_id != "default":
         async with db.execute("SELECT 1 FROM workspace_members WHERE workspace_id = ? LIMIT 1", (ws_id,)) as cursor:
             has_members = await cursor.fetchone()
@@ -56,6 +67,7 @@ async def get_workspace_id(
                 if not is_member:
                     raise HTTPException(status_code=403, detail="Not a member of this workspace")
     return ws_id
+
 
 def require_write_permission(request: Request, ws_id: str = Depends(get_workspace_id)) -> str:
     """

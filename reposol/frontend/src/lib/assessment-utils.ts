@@ -9,7 +9,7 @@ export const extractAssessmentMethods = (controlObject: Control) => {
         part.parts.forEach((sub: Part) => {
           const subName = sub.name?.toLowerCase();
           if (subName === 'method' || ['examine', 'interview', 'test'].includes(subName || '')) {
-            const methodVal = sub.props?.find((p: Record<string, unknown>) => typeof p.name === 'string' && p.name.toLowerCase() === 'method')?.value || sub.name;
+            const methodVal = sub.props?.find((p: any) => typeof p.name === 'string' && p.name.toLowerCase() === 'method')?.value || sub.name;
             methods.push({
               id: sub.id || `${controlObject.id}_obj.${methodVal.toLowerCase()}`,
               method: methodVal,
@@ -20,7 +20,7 @@ export const extractAssessmentMethods = (controlObject: Control) => {
       }
     }
     if (partName === 'assessment-method' || ['examine', 'interview', 'test'].includes(partName || '')) {
-      const methodVal = part.props?.find((p: Record<string, unknown>) => typeof p.name === 'string' && p.name.toLowerCase() === 'method')?.value || part.name;
+      const methodVal = part.props?.find((p: any) => typeof p.name === 'string' && p.name.toLowerCase() === 'method')?.value || part.name;
       methods.push({
         id: part.id || `${controlObject.id}_obj.${methodVal.toLowerCase()}`,
         method: methodVal,

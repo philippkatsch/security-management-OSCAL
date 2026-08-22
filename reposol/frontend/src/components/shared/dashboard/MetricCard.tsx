@@ -1,6 +1,23 @@
 import React from 'react';
 import styles from '../../dashboard/DashboardPage.module.css';
 
+export interface MetricCardTrend {
+  direction?: 'up' | 'down' | 'neutral' | string;
+  value?: string | number;
+  period?: string;
+}
+
+export interface MetricCardProps {
+  label?: React.ReactNode;
+  title?: React.ReactNode;
+  value?: React.ReactNode;
+  icon?: React.ReactNode;
+  trend?: MetricCardTrend;
+  accentColor?: string;
+  onClick?: () => void;
+  className?: string;
+}
+
 export default function MetricCard({ 
   label, 
   title,
@@ -10,7 +27,7 @@ export default function MetricCard({
   accentColor = 'var(--color-primary, hsl(220, 70%, 55%))', 
   onClick, 
   className = '' 
-}) {
+}: MetricCardProps) {
   const isClickable = typeof onClick === 'function';
   const displayLabel = label || title;
   
@@ -25,7 +42,7 @@ export default function MetricCard({
 
   return (
     <div 
-      className={`dashboard-card metric-card ${isClickable ? styles['clickable'] : ''} ${className}`}
+      className={`${styles['dashboard-card']} ${styles['metric-card']} ${isClickable ? styles['clickable'] : ''} ${className}`}
       onClick={isClickable ? onClick : undefined}
       style={{ borderLeftColor: accentColor }}
       role={isClickable ? 'button' : 'region'}

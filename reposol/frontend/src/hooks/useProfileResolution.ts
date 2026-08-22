@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { authFetch } from '@lib/api';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 /**
  * Hook for resolving OSCAL profiles into virtual catalogs.
@@ -63,3 +63,24 @@ export function useProfileResolution() {
 
   return { resolvedCatalog, resolving, error, resolve, clearCache, catalogCache: cacheMap };
 }
+
+/**
+ * React Query hook for fetching baseline diff between a profile and a catalog.
+ */
+export function useProfileDiffQuery(profileId: string | null | undefined, catalogId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['profile-baseline-diff', profileId, catalogId],
+    queryFn: async () => {
+      if (!profileId || !catalogId) return null;
+      const res = await authFetch(`/api/resolve/profile/${profileId}/diff/${catalogId}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ detail: `Failed to fetch diff: ${res.statusText}` }));
+        throw new Error(errData.detail || `Failed to fetch diff: ${res.statusText}`);
+      }
+      return res.json();
+    },
+    enabled: Boolean(profileId && catalogId),
+    staleTime: 60 * 1000,
+  });
+}
+

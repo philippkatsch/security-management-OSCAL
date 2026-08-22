@@ -4,7 +4,6 @@ import { randomUUID } from 'node:crypto';
 export interface CatalogOptions {
   uuid?: string;
   title?: string;
-  status?: string;
   groups?: any[];
   controls?: any[];
   'back-matter'?: any;
@@ -13,10 +12,10 @@ export interface CatalogOptions {
 export interface ProfileOptions {
   uuid?: string;
   title?: string;
-  status?: string;
   catalogUuid?: string;
   imports?: any[];
   modify?: any;
+  merge?: any;
 }
 
 export interface ComponentDefinitionOptions {
@@ -47,6 +46,11 @@ export interface AssessmentPlanOptions {
   sspId?: string;
   sspHref?: string;
   reviewedControls?: any;
+  tasks?: any[];
+  localDefinitions?: any;
+  assessmentSubjects?: any[];
+  assessmentAssets?: any;
+  termsAndConditions?: any;
 }
 
 export interface AssessmentResultsOptions {
@@ -223,15 +227,6 @@ export class ApiSetup {
     await this.syncWorkspace();
     const req = await this.getRequest();
     const uuid = options.uuid || randomUUID();
-    
-    const props: any[] = [];
-    if (options.status) {
-      props.push({
-        name: 'document-status',
-        value: options.status,
-        ns: 'https://reposol.dev/ns'
-      });
-    }
 
     const payload = {
       catalog: {
@@ -240,8 +235,7 @@ export class ApiSetup {
           title: options.title || 'Test Catalog',
           version: '1.0.0',
           'oscal-version': '1.1.2',
-          'last-modified': new Date().toISOString(),
-          ...(props.length > 0 ? { props } : {})
+          'last-modified': new Date().toISOString()
         },
         groups: options.groups || [],
         ...(options.controls ? { controls: options.controls } : {}),
@@ -266,15 +260,6 @@ export class ApiSetup {
     }
     const req = await this.getRequest();
     const uuid = options.uuid || randomUUID();
-    
-    const props: any[] = [];
-    if (options.status) {
-      props.push({
-        name: 'document-status',
-        value: options.status,
-        ns: 'https://reposol.dev/ns'
-      });
-    }
 
     const payload = {
       profile: {
@@ -283,11 +268,11 @@ export class ApiSetup {
           title: options.title || 'Test Profile',
           version: '1.0.0',
           'oscal-version': '1.1.2',
-          'last-modified': new Date().toISOString(),
-          ...(props.length > 0 ? { props } : {})
+          'last-modified': new Date().toISOString()
         },
         imports: options.imports || [{ href: `../catalogs/${catUuid}.json`, 'include-all': {} }],
-        modify: options.modify
+        modify: options.modify,
+        ...(options.merge ? { merge: options.merge } : {})
       }
     };
     
@@ -534,7 +519,12 @@ export class ApiSetup {
               'include-all': {}
             }
           ]
-        }
+        },
+        ...(opts.tasks ? { tasks: opts.tasks } : {}),
+        ...(opts.localDefinitions ? { 'local-definitions': opts.localDefinitions } : {}),
+        ...(opts.assessmentSubjects ? { 'assessment-subjects': opts.assessmentSubjects } : {}),
+        ...(opts.assessmentAssets ? { 'assessment-assets': opts.assessmentAssets } : {}),
+        ...(opts.termsAndConditions ? { 'terms-and-conditions': opts.termsAndConditions } : {})
       }
     };
     

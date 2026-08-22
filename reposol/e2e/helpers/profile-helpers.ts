@@ -56,3 +56,40 @@ export async function navigateToProfile(
   }
   throw lastError;
 }
+
+export async function selectSidebarTab(page: Page, tabName: 'Overview' | 'Metadata' | 'Properties' | 'Parameters' | 'Imports' | 'Baseline Diff' | 'Back Matter') {
+  const testIdMap: Record<string, string> = {
+    'Overview': 'profile-sidebar-overview',
+    'Metadata': 'profile-sidebar-metadata',
+    'Properties': 'profile-sidebar-properties',
+    'Parameters': 'profile-sidebar-parameters',
+    'Imports': 'profile-sidebar-imports',
+    'Baseline Diff': 'profile-sidebar-diff',
+    'Back Matter': 'profile-sidebar-backmatter'
+  };
+
+  const testId = testIdMap[tabName];
+  const tabLocator = testId 
+    ? page.getByTestId(testId).or(page.locator('[class*="sidebar-item"]').filter({ hasText: tabName })).first()
+    : page.locator('[class*="sidebar-item"]').filter({ hasText: tabName }).first();
+
+  await expect(tabLocator).toBeVisible({ timeout: 15000 });
+  await tabLocator.click();
+}
+
+export async function switchStructuringMode(page: Page, mode: 'as-is' | 'custom' | 'flat') {
+  await selectSidebarTab(page, 'Imports');
+  
+  // Ensure edit mode is enabled if currently in view mode
+  const editBtn = page.getByTestId('mode-edit-btn');
+  if (await editBtn.isVisible().catch(() => false)) {
+    const isEditActive = await editBtn.evaluate(el => el.classList.contains('_btn-primary_1m2w8_3') || el.style.fontWeight === 'bold' || window.getComputedStyle(el).fontWeight === '700').catch(() => false);
+    if (!isEditActive) {
+      await editBtn.click().catch(() => {});
+    }
+  }
+
+  const modeSelect = page.locator('select').filter({ hasText: /as-is|custom|flat/i }).first();
+  await expect(modeSelect).toBeVisible({ timeout: 15000 });
+  await modeSelect.selectOption(mode);
+}

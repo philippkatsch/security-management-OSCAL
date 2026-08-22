@@ -57,8 +57,8 @@
 
 ### US 8.11: Mapping Visualization (Matrix & Sankey Diagrams)
 > **As a** Compliance Officer
-> **I want to** visualize the relationships between source and target frameworks via a matrix grid and optional flow diagram (e.g., Sankey)
-> **so that** I can easily present the mapping topology, intersections, subsets, and supersets to external auditors or stakeholders.
+> **I want to** visualize relationships between source and target frameworks using an interactive Matrix grid and a dynamic Sankey flow diagram with seamless view toggling
+> **so that** I can easily present mapping topology, cross-framework control coverage, relationship types, and unmapped control gaps to external auditors and stakeholders.
 
 ### US 8.12: Mapping Overrides
 > **As a** Framework Developer
@@ -182,8 +182,12 @@
   - [ ] **Visual Report:** The platform offers a visual report highlighting unmapped controls vs. defined maps.
 
 - [ ] **US 8.11: Mapping Visualization (Matrix & Sankey Diagrams)**
-  - [ ] **Matrix View:** The system MUST provide a matrix grid view showing the relationship mapping between source and target frameworks.
-  - [ ] **Flow Diagram:** The system SHOULD offer a visual flow diagram (e.g., Sankey) to represent mapping topology.
+  - [ ] **Matrix & Sankey View Toggle:** The system MUST provide a view mode switcher on the Stage 8 Mapping page allowing users to toggle between Matrix View and Sankey Flow Diagram view seamlessly.
+  - [ ] **3-Column Topological Flow:** The Sankey diagram MUST render source controls on the left column, target controls on the right column, and flow links connecting them in the center.
+  - [ ] **Color-Coded Relationship Flows:** Flow links MUST be color-coded according to the 6 relationship types (`equal-to`: purple, `equivalent-to`: green, `subset-of`: blue, `superset-of`: orange, `intersects-with`: yellow, `no-relationship`: red).
+  - [ ] **Gap Representation:** Unmapped source and target controls MUST be visually represented in the Sankey diagram (e.g., dedicated gap node sections with distinct dashed or muted styling).
+  - [ ] **Interactive Highlighting & Tooltips:** Hovering over any control node or flow link MUST highlight connected paths, dim unselected links, and display an interactive tooltip showing Source ID, Target ID, Relationship type, Confidence score, and Rationale.
+  - [ ] **Filtering & Responsive Layout:** The Sankey diagram MUST respond to framework control filters (e.g., relationship filter) and fit within responsive container bounds without SVG clipping.
 
 - [ ] **US 8.12: Mapping Overrides**
   - [ ] **Local Overrides:** The system MUST allow users to override `method`, `matching-rationale`, and `status` at the `mapping` or `map` level, overriding document-level provenance defaults.

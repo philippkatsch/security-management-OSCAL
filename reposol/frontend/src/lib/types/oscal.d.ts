@@ -1,4 +1,4 @@
-export type OscalStage = 'catalog' | 'profile' | 'component-definition' | 'ssp' | 'assessment-plan' | 'assessment-results' | 'poam' | 'mapping';
+export type OscalStage = 'catalog' | 'profile' | 'component-definition' | 'ssp' | 'assessment-plan' | 'assessment-results' | 'poam' | 'mapping' | 'catalogs' | 'profiles' | 'component-definitions' | 'ssps' | 'assessment-plans' | 'poams' | 'mappings' | 'control-mappings';
 
 export interface Property {
   name: string;

@@ -21,8 +21,8 @@ export function useDocumentListQuery(stage: OscalStage) {
 
 export function useDocumentMutation(stage: OscalStage) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ docId, data }: { docId: string; data: OscalDocument }): Promise<OscalDocument> =>
+  return useMutation<OscalDocument, unknown, { docId: string; data: OscalDocument }>({
+    mutationFn: ({ docId: _docId, data }: { docId: string; data: OscalDocument }): Promise<OscalDocument> =>
       api.saveDocument(stage, data),
     onSuccess: (_, { docId }) => {
       if (docId) {
@@ -104,21 +104,28 @@ export function useTraceabilityQuery(searchControlId: string) {
 
       await Promise.all(stages.map(async (stage) => {
         try {
-          const docs = await api.fetchDocuments(stage.key);
-          for (const doc of docs) {
-            const docData = doc as unknown; // Cast as it's DocumentSummary here, but actually wait, api.fetchDocuments returns DocumentSummary[]
-            const data = docData[stage.root] || docData; 
-            if (!data) continue;
-            const strData = JSON.stringify(data).toLowerCase();
-            if (strData.includes(`"${lowerCtrlId}"`) || strData.includes(`:${lowerCtrlId}`) || strData.includes(lowerCtrlId)) {
-              foundItems.push({
-                stageName: stage.name,
-                stageKey: stage.key,
-                title: data.metadata?.title || data.title || 'Untitled',
-                uuid: data.uuid || data.id
-              });
+          const summaries = await api.fetchDocuments(stage.key);
+          await Promise.all(summaries.map(async (item: any) => {
+            try {
+              const inner = item[stage.root] || item;
+              const uuid = inner.uuid || item.uuid || inner.id;
+              if (!uuid) return;
+              const fullDoc = await api.fetchDocument(stage.key, uuid);
+              if (!fullDoc) return;
+              const strData = JSON.stringify(fullDoc).toLowerCase();
+              if (strData.includes(`"${lowerCtrlId}"`) || strData.includes(`:${lowerCtrlId}`) || strData.includes(lowerCtrlId)) {
+                const fullInner = (fullDoc as any)[stage.root] || fullDoc;
+                foundItems.push({
+                  stageName: stage.name,
+                  stageKey: stage.key === 'catalog' ? 'catalogs' : stage.key === 'profile' ? 'profiles' : stage.key,
+                  title: fullInner.metadata?.title || inner.metadata?.title || 'Untitled',
+                  uuid: uuid
+                });
+              }
+            } catch (err) {
+              // Ignore single doc fetch failure
             }
-          }
+          }));
         } catch (e) {
           console.error('Error searching stage', stage.key, e);
         }
@@ -129,3 +136,16 @@ export function useTraceabilityQuery(searchControlId: string) {
     enabled: !!searchControlId && searchControlId.trim().length > 0,
   });
 }
+
+export function useImportARFindingsMutation(poamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ arId, findingUuids }: { arId: string; findingUuids?: string[] }) =>
+      api.importARFindings(poamId, arId, findingUuids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document', 'poam', poamId] });
+      queryClient.invalidateQueries({ queryKey: ['documents', 'poam'] });
+    },
+  });
+}
+

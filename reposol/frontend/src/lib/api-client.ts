@@ -1,5 +1,5 @@
 import { getDefaultStore } from 'jotai';
-import { workspaceIdAtom } from '@stores/workspaceAtoms';
+import { workspaceIdAtom, isMasterModeAtom } from '@stores/workspaceAtoms';
 import toast from 'react-hot-toast';
 
 const BASE_URL = '/api';
@@ -19,27 +19,20 @@ export async function apiClient(path: string, options: RequestInit = {}): Promis
   }
 
   try {
-    let wsId: string | null = null;
-    if (typeof window !== 'undefined' && window.location) {
-      if (window.location.search) {
-        const params = new URLSearchParams(window.location.search);
-        wsId = params.get('w') || params.get('workspace');
-        if (wsId) {
-          localStorage.setItem('reposol_workspace_id', wsId);
-        }
-      }
-      if (!wsId) {
-        wsId = localStorage.getItem('reposol_workspace_id');
-      }
-    }
     const store = getDefaultStore();
-    const workspaceId = wsId || store.get(workspaceIdAtom);
+    const isMasterMode = store.get(isMasterModeAtom);
+    // In master mode, use 'default' (the master/template workspace on the backend).
+    // Otherwise, use the user's session workspace ID from the atom.
+    const workspaceId = isMasterMode ? 'default' : store.get(workspaceIdAtom);
     if (workspaceId) {
       headers.set('X-Workspace-ID', workspaceId);
-      headers.set('X-Workspace-Id', workspaceId);
     }
   } catch (e) {
-    // Store might not be initialized yet
+    // Store might not be initialized yet — fall back to localStorage
+    const wsId = localStorage.getItem('reposol_workspace_id');
+    if (wsId) {
+      headers.set('X-Workspace-ID', wsId);
+    }
   }
 
   const response = await fetch(`${BASE_URL}${path}`, { ...options, headers });

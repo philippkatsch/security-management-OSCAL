@@ -1,63 +1,70 @@
 ---
 name: doc_first_development
 description: >
-  Enforce a documentation-first workflow for the Security Management OSCAL website (Reposol).
-  Before implementing any new feature, UI change, or functional addition on the website,
-  the agent MUST first check and update BOTH the relevant user story in documentation/user_stories/
-  AND review all design decisions in documentation/design_decisions/ for relevance and consistency.
-  User Stories and Design Decisions are equal — both must be satisfied before code is written.
-  Triggers on: new feature, implement, add functionality, build, create page, UI change, website change,
-  frontend change, backend change, architecture, design decision, technical decision.
+  Enforce a documentation-first workflow for significant feature and architecture work
+  on the Security Management OSCAL website (Reposol).
+  Before implementing new features, new OSCAL lifecycle steps, new editors, or architectural changes,
+  the agent MUST first check and update the relevant user story AND review design decisions.
+  Minor UI polish, cosmetic fixes, and small UX improvements skip the full workflow and are implemented directly.
+  Triggers on: new feature, implement, add functionality, build, create page, new editor, new endpoint,
+  architecture, design decision, technical decision.
 ---
 
 # Documentation-First Development Skill
 
-This skill enforces a **mandatory documentation-first workflow** for all development work on the Security Management OSCAL website (Reposol). It integrates **User Stories** and **Design Decisions** as equal, complementary documentation sources.
-
-> **Core Rule:** You MUST NOT write or modify any code in `reposol/` until:
-> 1. The corresponding **User Story** in `documentation/user_stories/` has been written or updated.
-> 2. All relevant **Design Decisions** in `documentation/design_decisions/` have been reviewed, and any new important architectural decisions have been documented.
-> 3. You have read both back in full and presented a **Pre-Implementation Review** to the user.
+This skill enforces a **documentation-first workflow** for **significant** development work on the Security Management OSCAL website (Reposol). It uses a **two-tier system** to distinguish important feature work (which requires documentation) from minor polish work (which does not).
 
 ---
 
-## When This Skill Applies
+## Tier Classification — Does This Change Need Documentation?
 
-This skill applies whenever you are asked to:
-- Implement a **new feature** or functionality
-- **Add, change, or remove** UI elements, pages, or components
-- **Modify backend** endpoints, logic, or data models to support new behaviour
-- **Build** a new step, wizard, editor, or workflow in the application
-- Make any **functional change** to the Reposol website
-- Make **architectural or technical design decisions** that affect the codebase
+Before starting any work, classify the request into one of two tiers:
 
-This skill does **NOT** apply to:
-- Pure bug fixes that don't change functionality (typos, crash fixes, CSS alignment)
-- Refactoring that preserves existing behaviour
-- Documentation-only changes
-- Test-only additions for already-implemented features
-- Questions, research, or investigation tasks
+### Tier 1 — Full Documentation Required 📋
+
+The full 4-phase workflow (Documentation → Read-Back → Review → Implement) applies when the change:
+
+- **Adds a new user-facing feature** (e.g., new editor, new page, new wizard, new workflow step)
+- **Adds or modifies a backend API endpoint** or data model
+- **Introduces a new OSCAL lifecycle capability** (e.g., building Step 5 Assessment Plan support)
+- **Changes how existing features fundamentally work** (e.g., switching from local to server-side validation)
+- **Introduces a new architectural pattern, library, or technology**
+- **Establishes a significant UI/UX layout pattern** (e.g., sidebar + right-column control panel, how editors are structured, how navigation works across document types)
+- **Adds cross-cutting infrastructure** that affects multiple components (e.g., new state management approach, new auth system)
+- **Changes the data flow** between frontend and backend
+
+> **Rule of thumb:** If a user would notice new functionality, or if the change establishes a pattern that future work will follow, it's Tier 1.
+
+> **Keep it high-level.** Tier 1 documentation should capture the *what* and *why* at a strategic level — not spell out every CSS class or component prop. A user story needs clear acceptance criteria, but they should describe user-visible outcomes, not implementation details. Design decisions should capture the chosen approach and rationale, not exhaustive technical specs.
+
+### Tier 2 — Implement Directly, No Documentation Overhead ⚡
+
+Skip the documentation workflow entirely and implement directly when the change:
+
+- **Polishes existing UI** (loading screens, spinners, animations, color tweaks, icon swaps, font changes)
+- **Fixes cosmetic/visual bugs** (alignment, spacing, CSS corrections, responsive layout fixes)
+- **Removes dead code** or non-functional UI elements (unused buttons, orphan components)
+- **Refactors without changing behavior** (code cleanup, file reorganization, renaming internals)
+- **Adds or updates tests** for already-implemented features
+- **Fixes bugs** that don't change functionality (crash fixes, typos, null checks)
+- **Updates dependencies** without API changes
+- **Performance optimizations** that don't change the public API or user-facing behavior
+- **Style/theme changes** across existing components
+- **Adjusts text, labels, or tooltips** in the existing UI
+
+> **Rule of thumb:** If the user would describe it as "make it look/feel better" or "fix that broken thing" rather than "add this new capability", it's Tier 2.
+
+### Edge Cases
+
+When uncertain, lean towards **Tier 2** (implement directly). The documentation exists to capture *important decisions and requirements*, not to slow down routine work. If a Tier 2 change unexpectedly grows into something significant during implementation, pause and escalate to Tier 1.
 
 ---
 
-## Documentation Ecosystem
-
-The workflow manages two document types as **equal partners**:
-
-| Document Type | Location | Purpose |
-|---|---|---|
-| **User Stories** | `documentation/user_stories/` | Define WHAT to build and WHY (user value) |
-| **Design Decisions** | `documentation/design_decisions/` | Define HOW to build it (architectural constraints & patterns) |
-
-> **Note:** [GOAL.md](../../../documentation/GOAL.md) is a static context document and is NOT part of this workflow.
-
----
-
-## Mandatory Workflow (4 Phases)
+## Tier 1 Workflow (4 Phases)
 
 ### Phase 1 — Documentation Check 📋
 
-Before touching any code, you must update or create the relevant documentation:
+Before touching any code, update or create the relevant documentation:
 
 #### Step A: User Story
 
@@ -94,10 +101,11 @@ Before touching any code, you must update or create the relevant documentation:
 
 #### Step B: Design Decisions
 
-1. **Read ALL existing Design Decision files** in `documentation/design_decisions/` to understand the current architectural landscape.
+1. **Scan existing Design Decision files** in `documentation/design_decisions/` for relevance to the planned change.
+   - You do NOT need to read every DD in full for every change. Scan filenames and skim headers to identify relevant ones.
+   - Read in full only the DDs that directly relate to the area being changed.
 
-2. **Check for relevance:** For each DD, determine whether the planned change:
-   - **Touches** an area governed by an existing DD (e.g., component structure → DD-001, editor UX → DD-004, validation → DD-002)
+2. **Check for relevance:** Determine whether the planned change:
    - **Contradicts** an existing decision (if so, the DD must be updated BEFORE implementation)
    - **Requires a new DD** — only for **important** architectural or design decisions, such as:
      - New architectural patterns or significant refactors
@@ -137,42 +145,28 @@ Before touching any code, you must update or create the relevant documentation:
 
 After writing or modifying documentation:
 
-1. **Read the complete user story file** back using `view_file` to ensure it is correct, complete, and consistent.
-2. **Read back any modified or newly created DD files** using `view_file`.
-3. **Verify** that:
+1. **Read back** the modified user story and any modified/new DD files using `view_file`.
+2. **Verify** that:
    - The user story number is unique and sequential.
    - The acceptance criteria are concrete and testable.
-   - The format matches the existing stories in the same file.
    - No DD is contradicted by the planned implementation.
-   - Any new DD follows the standardised format.
 
 ### Phase 3 — Pre-Implementation Review ✅
 
 Present a structured summary to the user before writing any code:
 
-1. **User Story Summary:**
-   - Which user story (US X.Y) is being implemented
-   - The acceptance criteria in brief
-
-2. **Design Decision Summary:**
-   - Which existing DDs are relevant and will guide implementation
-   - Any DDs that were updated (what changed and why)
-   - Any new DDs that were created (summary of the decision)
-
-3. **Implementation Approach:**
-   - Brief outline of how the feature will be implemented, respecting both the user story and the design decisions
-
+1. **User Story Summary:** Which user story (US X.Y) is being implemented with key acceptance criteria.
+2. **Design Decision Summary:** Which existing DDs are relevant; any DDs updated or created.
+3. **Implementation Approach:** Brief outline of how the feature will be implemented.
 4. **Request explicit user confirmation** before proceeding to code.
 
 ### Phase 4 — Implement 🚀
 
 Only after Phases 1–3 are complete and the user has confirmed:
 
-1. **Implement** the feature in the `reposol/` codebase (frontend, backend, or both) as described by the user story and its acceptance criteria.
-2. **Respect** all relevant Design Decisions during implementation (architectural patterns, naming conventions, UX patterns, etc.).
-3. **Verify** the implementation satisfies:
-   - All acceptance criteria listed in the user story.
-   - All architectural constraints from relevant Design Decisions.
+1. **Implement** the feature in the `reposol/` codebase as described by the user story.
+2. **Respect** all relevant Design Decisions during implementation.
+3. **Verify** the implementation satisfies all acceptance criteria.
 
 ---
 
@@ -188,19 +182,19 @@ Only after Phases 1–3 are complete and the user has confirmed:
 
 ---
 
-## Checklist (for self-verification)
+## Quick Reference Checklist
 
-Before writing any code, confirm all boxes are checked:
+### Tier 2 (Minor work) — just implement:
+- [ ] Confirmed the change is Tier 2 (UI polish, bugfix, refactor, dead code removal, test addition)
+- [ ] Implement directly — no documentation changes needed
 
-- [ ] I identified the correct user story file
-- [ ] I read the existing user stories in that file
-- [ ] I wrote/updated the user story with proper format (As a / I want to / So that + Acceptance Criteria)
-- [ ] I read ALL existing Design Decision files
-- [ ] I checked whether any existing DD is affected by the planned change
-- [ ] I updated affected DDs or created a new DD if needed (only for important decisions)
-- [ ] I read back the full user story file to verify correctness
-- [ ] I read back any modified/new DD files to verify correctness
-- [ ] I verified no contradictions between user story and design decisions
-- [ ] I presented the Pre-Implementation Review (User Story + DDs + Approach) to the user
-- [ ] I received explicit user confirmation
-- [ ] Now I may proceed to implementation
+### Tier 1 (Significant work) — full workflow:
+- [ ] Identified the correct user story file
+- [ ] Read the existing user stories in that file
+- [ ] Wrote/updated the user story with proper format
+- [ ] Scanned Design Decision files for relevance
+- [ ] Read relevant DDs in full; updated or created new DD if needed
+- [ ] Read back modified documentation to verify correctness
+- [ ] Presented Pre-Implementation Review to the user
+- [ ] Received explicit user confirmation
+- [ ] Now proceeding to implementation

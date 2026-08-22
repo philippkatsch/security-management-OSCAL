@@ -1,9 +1,17 @@
 import React from 'react';
 import { MetadataEditor } from '../MetadataEditor';
 
-export function DocumentOverviewMetadata({ mode, document: rawDocument, isEditingState, baselineStats, onChange }) {
+export interface DocumentOverviewMetadataProps {
+  mode?: string;
+  document?: any;
+  isEditingState?: boolean;
+  baselineStats?: any;
+  onChange?: (updated: any) => void;
+}
+
+export function DocumentOverviewMetadata({ mode, document: rawDocument, isEditingState, baselineStats, onChange = () => {} }: DocumentOverviewMetadataProps) {
   const document = rawDocument || {};
-  const badgeStyle = {
+  const badgeStyle: React.CSSProperties = {
     background: 'var(--color-surface-2)',
     border: '1px solid var(--color-border-subtle)',
     padding: '4px 10px',
@@ -12,7 +20,7 @@ export function DocumentOverviewMetadata({ mode, document: rawDocument, isEditin
     borderRadius: 'var(--radius-sm)'
   };
 
-  const badgeLabelStyle = {
+  const badgeLabelStyle: React.CSSProperties = {
     fontSize: '9px',
     color: 'var(--color-text-muted)',
     textTransform: 'uppercase',

@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import styles from './Editors.module.css';
-import ReadOnlyParts from '../ReadOnlyParts';
+import { ReadOnlyParts } from '../ReadOnlyParts';
+
+export interface ControlReferenceCardProps {
+  controlId?: string;
+  controlTitle?: string;
+  controlParts?: any[];
+  controlParams?: any[];
+  sourceDocument?: string;
+  className?: string;
+}
 
 export default function ControlReferenceCard({ 
   controlId, 
@@ -9,7 +18,7 @@ export default function ControlReferenceCard({
   controlParams = [], 
   sourceDocument, 
   className = '' 
-}) {
+}: ControlReferenceCardProps) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -39,7 +48,7 @@ export default function ControlReferenceCard({
             <div className={styles['control-reference-card-params']}>
               <div className={styles['control-reference-card-params-label']}>Parameters:</div>
               <div className={styles['control-reference-card-params-list']}>
-                {controlParams.map(param => (
+                {controlParams.map((param: any) => (
                   <span key={param.id} className={styles['control-reference-card-param-badge']}>
                     <span className={styles['param-badge-id']}>{param.id}</span>
                     {param.label && <span className={styles['param-badge-label']}>{param.label}</span>}

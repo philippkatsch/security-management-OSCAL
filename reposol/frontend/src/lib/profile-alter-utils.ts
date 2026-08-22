@@ -1,11 +1,21 @@
 import { Profile, Part, ProfileAlter, Addition, Removal } from './types/oscal';
 
-export const resolveProfilePartsForRendering = (origParts: Part[] | undefined, alter: ProfileAlter | undefined, level = 0): (Part & { isRemoved?: boolean, isModified?: boolean, isAdded?: boolean, originalId?: string, originalName?: string, originalProse?: string })[] => {
+export type RenderablePart = Part & {
+  isRemoved?: boolean;
+  isModified?: boolean;
+  isAdded?: boolean;
+  originalId?: string;
+  originalName?: string;
+  originalProse?: string;
+  parts?: RenderablePart[];
+};
+
+export const resolveProfilePartsForRendering = (origParts: Part[] | undefined, alter: ProfileAlter | undefined, level = 0): RenderablePart[] => {
   if (!origParts) origParts = [];
   const removes = alter?.removes || [];
   const adds = alter?.adds || [];
   
-  let result = origParts.map(p => {
+  let result: RenderablePart[] = origParts.map(p => {
     const isReplacementRemoves = removes.some((r: Removal) => r['by-id'] === p.id);
     const replacementAdd = isReplacementRemoves
       ? adds.find((a: Addition) => a['by-id'] === p.id && a.position === 'after' && a.parts?.some((pt: Part) => pt.id === p.id))
@@ -40,19 +50,19 @@ export const resolveProfilePartsForRendering = (origParts: Part[] | undefined, a
         if (add.position === 'before') {
           const targetIdx = result.findIndex(p => p.id === add['by-id'] || p.originalId === add['by-id']);
           if (targetIdx >= 0 && !result.some(p => p.id === newPart.id)) {
-            result.splice(targetIdx, 0, { ...newPart, isAdded: true });
+            result.splice(targetIdx, 0, { ...newPart, isAdded: true } as RenderablePart);
           }
         } else if (add.position === 'after') {
           const targetIdx = result.findIndex(p => p.id === add['by-id'] || p.originalId === add['by-id']);
           if (targetIdx >= 0 && !result.some(p => p.id === newPart.id)) {
-            result.splice(targetIdx + 1, 0, { ...newPart, isAdded: true });
+            result.splice(targetIdx + 1, 0, { ...newPart, isAdded: true } as RenderablePart);
           }
         } else if (add.position === 'starting') {
           const parent = result.find(p => p.id === add['by-id'] || p.originalId === add['by-id']);
           if (parent) {
             if (!parent.parts) parent.parts = [];
             if (!parent.parts.some((sp: Part) => sp.id === newPart.id)) {
-              parent.parts.unshift({ ...newPart, isAdded: true });
+              parent.parts.unshift({ ...newPart, isAdded: true } as RenderablePart);
             }
           }
         } else if (add.position === 'ending') {
@@ -60,7 +70,7 @@ export const resolveProfilePartsForRendering = (origParts: Part[] | undefined, a
           if (parent) {
             if (!parent.parts) parent.parts = [];
             if (!parent.parts.some((sp: Part) => sp.id === newPart.id)) {
-              parent.parts.push({ ...newPart, isAdded: true });
+              parent.parts.push({ ...newPart, isAdded: true } as RenderablePart);
             }
           }
         }
@@ -68,11 +78,11 @@ export const resolveProfilePartsForRendering = (origParts: Part[] | undefined, a
         if (level === 0) {
           if (add.position === 'starting') {
             if (!result.some(p => p.id === newPart.id)) {
-              result.unshift({ ...newPart, isAdded: true });
+              result.unshift({ ...newPart, isAdded: true } as RenderablePart);
             }
           } else if (add.position === 'ending') {
             if (!result.some(p => p.id === newPart.id)) {
-              result.push({ ...newPart, isAdded: true });
+              result.push({ ...newPart, isAdded: true } as RenderablePart);
             }
           }
         }
@@ -100,13 +110,24 @@ export const updateAlter = (
   const hasRemoves = currentAlter.removes && currentAlter.removes.length > 0;
 
   if (!hasAdds && !hasRemoves) {
-    if (alterIdx >= 0) alters.splice(alterIdx, 1);
+    if (alterIdx >= 0) {
+      alters.splice(alterIdx, 1);
+    }
   } else {
-    if (alterIdx >= 0) alters[alterIdx] = currentAlter;
-    else alters.push(currentAlter);
+    if (alterIdx >= 0) {
+      alters[alterIdx] = currentAlter;
+    } else {
+      alters.push(currentAlter);
+    }
   }
 
-  onProfileChange({ ...profile, modify: { ...modify, alters } });
+  onProfileChange({
+    ...profile,
+    modify: {
+      ...modify,
+      alters: alters.length > 0 ? alters : undefined
+    }
+  });
 };
 
 export const getAlterForControl = (profile: Profile | undefined, controlId: string): ProfileAlter | undefined => {
@@ -171,7 +192,7 @@ export const handleOriginalPartFieldChange = (
       const newAddBlock: Addition = {
         position: 'after',
         'by-id': originalId,
-        parts: [currentPart]
+        parts: [currentPart as unknown as Part]
       };
       if (addIdx >= 0) {
         adds[addIdx] = newAddBlock;

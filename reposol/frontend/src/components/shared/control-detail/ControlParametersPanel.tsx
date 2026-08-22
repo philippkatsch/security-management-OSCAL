@@ -2,6 +2,26 @@ import React from 'react';
 import styles from './ControlDetail.module.css';
 import { ParameterEditor } from '../ParameterEditor';
 
+export interface ControlParametersPanelProps {
+  mode?: any;
+  isEditing?: boolean;
+  isSubcontrol?: boolean;
+  isWithdrawn?: boolean;
+  params?: any[];
+  setParams?: any;
+  originalControl?: any;
+  handleFieldChange?: any;
+  control?: any;
+  controlId?: string;
+  profile?: any;
+  onProfileChange?: any;
+  updateAlter?: any;
+  catalog?: any;
+  paramSectionRef?: any;
+  infoTooltip?: any;
+  [key: string]: any;
+}
+
 export function ControlParametersPanel({
   mode,
   isEditing,
@@ -12,13 +32,14 @@ export function ControlParametersPanel({
   originalControl,
   handleFieldChange,
   control,
+  controlId: _controlId,
   profile,
   onProfileChange,
   updateAlter,
   catalog,
   paramSectionRef,
   infoTooltip
-}) {
+}: ControlParametersPanelProps) {
   return (
     <div 
       ref={paramSectionRef} 

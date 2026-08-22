@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { DebouncedInput } from './DebouncedInput';
 import styles from './SharedComponents.module.css';
 
-export function ParameterFieldInputs({ displayParam, isEditing, mode, howMany, choices, activeValues, constraintViolations, handleValuesChange, handleSelectChange, handleChoiceChange, handleToggleMultiChoice, handleFieldChange }) {
+export function ParameterFieldInputs({ displayParam, isEditing, mode, howMany, choices, activeValues, constraintViolations, handleValuesChange, handleSelectChange, handleChoiceChange, handleToggleMultiChoice, handleFieldChange }: any) {
   const [showCustomInput, setShowCustomInput] = useState(false);
 
-  let content = null;
+  let content: React.ReactNode = null;
   
   if (isEditing) {
     if (choices.length > 0 && howMany === 'one') {

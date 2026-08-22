@@ -1,22 +1,26 @@
 import React from 'react';
 import styles from './SharedComponents.module.css';
 import VersionDropdown from './version/VersionDropdown';
-import StatusBadge from './status/StatusBadge';
-import LifecycleSelector from './status/LifecycleSelector';
-import { getDocumentStatus } from '@lib/status-machine';
 
 /**
  * Badge color mapping for all OSCAL document types.
  */
 const MODE_CONFIG = {
-  'catalog':            { bg: 'var(--color-primary-subtle)',  color: 'var(--color-primary)',  label: 'OSCAL Catalog' },
-  'profile':            { bg: 'var(--color-success-subtle)',  color: 'var(--color-success)',  label: 'OSCAL Profile' },
-  'component-definition': { bg: '#fff3e0', color: '#e65100', label: 'Component Definition' },
-  'ssp':                { bg: '#f3e5f5', color: '#7b1fa2', label: 'System Security Plan' },
-  'assessment-plan':    { bg: '#e0f2f1', color: '#00695c', label: 'Assessment Plan' },
-  'assessment-results': { bg: '#e8eaf6', color: '#283593', label: 'Assessment Results' },
-  'poam':               { bg: '#fce4ec', color: '#c62828', label: 'POA&M' },
-  'control-mappings':   { bg: '#fff8e1', color: '#f57f17', label: 'Control Mappings' },
+  'catalog':               { bg: 'rgba(99, 102, 241, 0.18)', color: '#818cf8', label: 'OSCAL Catalog' },
+  'catalogs':              { bg: 'rgba(99, 102, 241, 0.18)', color: '#818cf8', label: 'OSCAL Catalog' },
+  'profile':               { bg: 'rgba(236, 72, 153, 0.18)', color: '#f472b6', label: 'OSCAL Profile' },
+  'profiles':              { bg: 'rgba(236, 72, 153, 0.18)', color: '#f472b6', label: 'OSCAL Profile' },
+  'component-definition':  { bg: 'rgba(245, 158, 11, 0.18)', color: '#fbbf24', label: 'Component Definition' },
+  'component-definitions': { bg: 'rgba(245, 158, 11, 0.18)', color: '#fbbf24', label: 'Component Definition' },
+  'ssp':                   { bg: 'rgba(168, 85, 247, 0.18)', color: '#c084fc', label: 'System Security Plan' },
+  'ssps':                  { bg: 'rgba(168, 85, 247, 0.18)', color: '#c084fc', label: 'System Security Plan' },
+  'assessment-plan':       { bg: 'rgba(14, 165, 233, 0.18)', color: '#38bdf8', label: 'Assessment Plan' },
+  'assessment-plans':      { bg: 'rgba(14, 165, 233, 0.18)', color: '#38bdf8', label: 'Assessment Plan' },
+  'assessment-results':    { bg: 'rgba(34, 197, 94, 0.18)',  color: '#4ade80', label: 'Assessment Results' },
+  'poam':                  { bg: 'rgba(239, 68, 68, 0.18)',  color: '#f87171', label: 'POA&M' },
+  'poams':                 { bg: 'rgba(239, 68, 68, 0.18)',  color: '#f87171', label: 'POA&M' },
+  'control-mappings':      { bg: 'rgba(234, 179, 8, 0.18)',  color: '#facc15', label: 'Control Mappings' },
+  'mappings':              { bg: 'rgba(234, 179, 8, 0.18)',  color: '#facc15', label: 'Control Mappings' },
 };
 
 /**
@@ -24,7 +28,7 @@ const MODE_CONFIG = {
  *
  * Provides a consistent toolbar with:
  * - Back button
- * - Document type badge + StatusBadge / LifecycleSelector + VersionDropdown (handles Draft & Version History)
+ * - Document type badge + VersionDropdown (handles Draft & Version History)
  * - Undo/Redo (edit mode only)
  * - Visual/JSON mode switch (edit mode only)
  * - Segmented View/Edit mode toggle
@@ -32,6 +36,44 @@ const MODE_CONFIG = {
  * Props are normalized: accepts common aliases so all page components
  * work with a single consistent API.
  */
+export interface DocumentToolbarProps {
+  title?: string;
+  isEditing?: boolean;
+  onToggleEdit?: () => void;
+  onBack?: () => void;
+  onSaveVersion?: () => void;
+  onShowVersions?: () => void;
+  onSelectVersion?: (version: any) => void;
+  versions?: any[];
+  version?: string;
+  editMode?: string;
+  onToggleEditMode?: (mode: string) => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  saving?: boolean;
+  validating?: boolean;
+  isSaving?: boolean;
+  mode?: string;
+  typeLabel?: string;
+  documentType?: string;
+  stage?: string;
+  resolving?: boolean;
+  onCopy?: () => void;
+  onExport?: () => void;
+  onSave?: () => void;
+  onCancel?: () => void;
+  isDirty?: boolean;
+  hasDraft?: boolean;
+  saveStatus?: string;
+  oscalVersion?: string;
+  documentId?: string;
+  documentTitle?: string;
+  doc?: any;
+  [key: string]: any;
+}
+
 export function DocumentToolbar({
   title = 'Untitled Document',
   isEditing = false,
@@ -51,8 +93,6 @@ export function DocumentToolbar({
   saving = false,
   validating = false,
   isSaving = false,
-  status,
-  onStatusChange,
   mode = 'catalog',
   typeLabel,
   documentType,
@@ -70,7 +110,7 @@ export function DocumentToolbar({
   documentTitle,
   doc: _doc,
   ...rest
-}) {
+}: DocumentToolbarProps) {
   const effectiveTitle = title !== 'Untitled Document' ? title : (documentTitle || title);
   // ── Handlers & Fallbacks ──
   // Minimal fallback for missing handlers if someone was relying on aliases
@@ -89,10 +129,8 @@ export function DocumentToolbar({
   const badgeLabel = typeLabel || documentType || modeConfig.label;
   const badgeColor = { bg: modeConfig.bg, color: modeConfig.color };
 
-  // ── Normalize: version & status display ──
-  const activeVersion = activeVersionStr || versions.find(v => v.is_active)?.version || '1.0.0';
-  const docObj = rest.document || _doc || rest.activeDoc;
-  const docStatus = status || (docObj ? getDocumentStatus(docObj) : 'draft');
+  // ── Normalize: version display ──
+  const activeVersion = activeVersionStr || (versions as any[]).find(v => v.is_active)?.version || '1.0.0';
 
   return (
     <div
@@ -123,14 +161,9 @@ export function DocumentToolbar({
         )}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="badge" style={{ background: badgeColor.bg, color: badgeColor.color, fontSize: '10px' }}>
+            <span style={{ background: badgeColor.bg, color: badgeColor.color, fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', display: 'inline-block' }}>
               {badgeLabel}
             </span>
-            {onStatusChange ? (
-              <LifecycleSelector currentStatus={docStatus} onStatusChange={onStatusChange} documentTitle={effectiveTitle} />
-            ) : (
-              <StatusBadge status={docStatus} />
-            )}
             <VersionDropdown
               activeVersion={activeVersion}
               versions={versions}

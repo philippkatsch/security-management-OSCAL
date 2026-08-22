@@ -54,7 +54,11 @@ test.describe('Catalog CRUD', () => {
       const deleteBtn = row.locator('button[title="Delete document"]');
       if (await deleteBtn.isVisible()) {
         await deleteBtn.click();
-        await expect(page.getByText(title)).not.toBeVisible();
+        const modal = page.getByRole('dialog').first();
+        if (await modal.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await modal.getByRole('button', { name: /Delete|Confirm/i }).click();
+        }
+        await expect(page.locator('table tr', { hasText: title })).not.toBeVisible({ timeout: 15000 });
       }
     }
   });

@@ -20,11 +20,17 @@ const ADD_POSITIONS = ['before', 'after', 'starting', 'ending'];
 /**
  * Advanced profile alterations (set-parameters & alters) configurator.
  */
+export interface ModifyPanelProps {
+  modify?: any;
+  onChange?: (modify: any) => void;
+  isEditing?: boolean;
+}
+
 export function ModifyPanel({
   modify = {},
-  onChange,
+  onChange = () => {},
   isEditing = false
-}) {
+}: ModifyPanelProps) {
   const [expandedAlters, setExpandedAlters] = useState({});
 
   const alters = modify.alters || [];
@@ -90,10 +96,10 @@ export function ModifyPanel({
       const adds = alter.adds.map((a, i) => i === ruleIdx ? { ...a, [field]: val } : a);
       handleAlterChange(alterIdx, 'adds', adds);
     } else {
-      const removes = alter.removes.map((r, i) => {
+      const removes = (alter.removes || []).map((r: any, i: number) => {
         if (i === ruleIdx) {
           // Remove old criteria keys when switching selector types
-          const newRemove = { [field]: val };
+          const newRemove: Record<string, any> = { [field]: val };
           if (r.remarks) newRemove.remarks = r.remarks;
           return newRemove;
         }

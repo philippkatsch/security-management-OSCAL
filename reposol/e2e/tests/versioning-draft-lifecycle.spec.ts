@@ -30,20 +30,34 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await expect(page.locator('[class*="version-dropdown-menu"]')).toBeHidden();
   });
 
-  test('2. Back button in Edit Mode prompts confirmation and handles draft save vs discard', async ({ page, apiSetup }) => {
-    // A. Test OK choice (Save draft & exit)
+  test('2. Back button in Edit Mode: immediate exit when unmodified, prompts confirmation when modified', async ({ page, apiSetup }) => {
+    // A. Clean exit without changes — should NOT prompt confirmation dialog
     await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
-    // Set dialog handler to accept (click OK = save draft)
-    const saveDialogHandler = async (dialog: any) => {
-      expect(dialog.message()).toContain('You have unsaved changes');
-      await dialog.accept();
-    };
-    page.once('dialog', saveDialogHandler);
+    await page.getByTestId('back-btn').click();
+    // Navigates away directly to catalog list view without modal
+    await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible({ timeout: 20000 });
+
+    // Re-open catalog in View mode: clean published v1.0.0
+    await page.goto(`/catalogs/${catalogUuid}?w=${apiSetup.workspaceId}`);
+    await expect(page.getByTestId('version-dropdown-toggle')).toContainText('v1.0.0');
+
+    // B. Modified exit with Save Draft — prompts confirmation and saves draft
+    await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
+    await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
+
+    await page.getByTestId('catalog-sidebar-metadata').click();
+    const titleInput = page.getByTestId('metadata-title-input');
+    await titleInput.fill(`E2E Modified Title ${catalogUuid.substring(0, 4)}`);
+    await page.waitForTimeout(400);
 
     await page.getByTestId('back-btn').click();
-    // Navigates away to catalog list view
+    // ConfirmModal appears
+    const saveDraftBtn = page.getByRole('button', { name: 'Save Draft' });
+    await expect(saveDraftBtn).toBeVisible({ timeout: 5000 });
+    await saveDraftBtn.click();
+
     await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible({ timeout: 20000 });
 
     // Re-open catalog in View mode: draft exists on server
@@ -52,18 +66,20 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await expect(toggle).toBeVisible({ timeout: 15000 });
     await expect(toggle).toContainText('Draft');
 
-    // B. Test Cancel choice (Discard draft & exit)
+    // C. Modified exit with Discard Changes — prompts confirmation and discards draft
     await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
-    // Set dialog handler to dismiss (click Cancel = discard draft)
-    const discardDialogHandler = async (dialog: any) => {
-      expect(dialog.message()).toContain('You have unsaved changes');
-      await dialog.dismiss();
-    };
-    page.once('dialog', discardDialogHandler);
+    await page.getByTestId('catalog-sidebar-metadata').click();
+    const titleInput2 = page.getByTestId('metadata-title-input');
+    await titleInput2.fill(`E2E Another Change ${catalogUuid.substring(0, 4)}`);
+    await page.waitForTimeout(400);
 
     await page.getByTestId('back-btn').click();
+    const discardBtn = page.getByRole('button', { name: 'Discard Changes' });
+    await expect(discardBtn).toBeVisible({ timeout: 5000 });
+    await discardBtn.click();
+
     await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible({ timeout: 20000 });
 
     // Re-open catalog in View mode: draft was discarded, shows v1.0.0
@@ -76,14 +92,10 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
-    await page.getByText('Metadata', { exact: true }).first().click();
-    const titleInput = page.locator('input[value*="E2E Draft"], input').first();
+    await page.getByTestId('catalog-sidebar-metadata').click();
+    const titleInput = page.getByTestId('metadata-title-input');
     await titleInput.fill(`E2E Draft Test Catalog Modified ${catalogUuid.substring(0, 4)}`);
-
-    const saveBtn = page.getByTestId('save-btn');
-    if (await saveBtn.isVisible()) {
-      await saveBtn.click();
-    }
+    await page.waitForTimeout(400);
 
     await page.getByTestId('mode-view-btn').click();
     await expect(page.getByTestId('version-dropdown-toggle')).toContainText('Draft');
@@ -99,15 +111,14 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     const publishBtn = page.getByRole('button', { name: /Publish New Version/i });
     await expect(publishBtn).toBeVisible();
 
-    // Setup dialog listener for Delete Draft confirmation
-    const deleteDialogHandler = async (dialog: any) => {
-      expect(dialog.message()).toContain('delete the active draft');
-      await dialog.accept();
-    };
-    page.once('dialog', deleteDialogHandler);
-
     // Click Delete Draft
     await page.getByRole('button', { name: /Delete Draft/i }).click();
+
+    // Confirm in ConfirmModal
+    const confirmDeleteBtn = page.getByRole('button', { name: 'Delete Draft' }).last();
+    if (await confirmDeleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await confirmDeleteBtn.click();
+    }
 
     // Revert to v1.0.0
     await expect(page.getByTestId('version-dropdown-toggle')).toContainText('v1.0.0');
@@ -123,14 +134,10 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await page.goto(`/catalogs/${catalogUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.getByTestId('mode-edit-btn')).toBeVisible({ timeout: 20000 });
 
-    await page.getByText('Metadata', { exact: true }).first().click();
-    const titleInput = page.locator('input[value*="E2E Draft"], input').first();
+    await page.getByTestId('catalog-sidebar-metadata').click();
+    const titleInput = page.getByTestId('metadata-title-input');
     await titleInput.fill(`E2E Draft Test Catalog Modified ${catalogUuid.substring(0, 4)}`);
-
-    const saveBtn = page.getByTestId('save-btn');
-    if (await saveBtn.isVisible()) {
-      await saveBtn.click();
-    }
+    await page.waitForTimeout(400);
 
     await page.getByTestId('mode-view-btn').click();
     await expect(page.getByTestId('version-dropdown-toggle')).toContainText('Draft');
@@ -144,7 +151,7 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await expect(versionInput).toBeVisible({ timeout: 15000 });
     await versionInput.fill('1.1.0');
 
-    const remarksInput = page.getByPlaceholder('e.g. Initial release');
+    const remarksInput = page.getByPlaceholder('What changed in this version?');
     await remarksInput.fill('E2E Published Version 1.1.0');
 
     await page.locator('[class*="version-drawer"]').getByRole('button', { name: /Publish Version/i }).click();

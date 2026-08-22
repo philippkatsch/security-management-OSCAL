@@ -48,13 +48,13 @@
     *   **Inline Prose Editing:** The individual paragraphs of the control text (statements and sub-statements) are rendered as input fields/textareas. The user can click directly into the text and edit it.
     *   **Transparent OSCAL Alters Mapping:** As soon as the text of a paragraph is changed, the system automatically creates in the background:
         *   A `removes` entry for the ID of the modified paragraph (to remove the old text).
-        *   An `adds` entry with a new, unique ID (e.g., `<original-id>_modified`) and the new prose text. The insertion position references the original ID, so that the change appears at the same location, without `removes` deleting the added content as well.
+        *   An `adds` entry with a new, unique ID and the new prose text. The insertion position references the original ID, so that the change appears at the same location, without `removes` deleting the added content as well.
         *   If the text is reverted to its original state, the corresponding entries are deleted in the background.
-    *   **Visual Traceability (Edit vs. View Mode):** In Editor Mode, the original text that was replaced/removed via `alters.removes` is still displayed but clearly marked as struck through (strikethrough) and visually disabled, so the user can trace exactly what was modified. In View Mode (and in the final resolved profile), this removed text is completely hidden.
-    *   **Structural Additions (`alters.adds`):** The system must allow users to add entirely new elements (`props`, `params`, `links`, or `parts` representing statements/guidance) to a control at positions `starting`, `ending`, `before`, or `after` (using a reference sibling `by-id`).
-    *   **Strict Alters Boundaries (Schema Compliance):** The `alter` directive **cannot** and must not be used to add or remove subcontrols (enhancements). The backend resolution and the frontend editor enforce this constraint (subcontrol inclusions/exclusions are handled exclusively via `select-control` rules).
-    *   **Reset Function (Revert):** Next to each modified text field, a "Reset" button is displayed, allowing the user to discard text changes and restore the original text of the catalog.
-    *   **Recursive Resolution (Deep Alters):** The Profile Resolution Engine (`resolveProfileSync`) has been extended to recursively apply `adds` and `removes` to deeply nested paragraphs (sub-statements such as `ac-2_smt.a`) correctly across all levels and display them in the resolved rulebook. Even if an imported control originally did not have any textual statements/parts in the source catalog, profile changes (`adds`) must be applied correctly in the resolution engine (`resolveProfileSync` / `applyAltersToParts`) (i.e., new parts are created and added to the control object instead of the resolution aborting prematurely).
+    *   **Visual Traceability (Edit vs. View Mode):** In Editor Mode, the original text that was replaced/removed via `alters.removes` is still displayed but clearly marked as struck through and visually disabled, so the user can trace exactly what was modified. In View Mode, this removed text is completely hidden.
+    *   **Structural Additions (`alters.adds`):** The system must allow users to add entirely new elements (`props`, `params`, `links`, or `parts` representing statements/guidance) to a control at positions `starting`, `ending`, `before`, or `after`.
+    *   **Strict Alters Boundaries:** The `alter` directive **cannot** and must not be used to add or remove subcontrols (enhancements).
+    *   **Reset Function (Revert):** Next to each modified text field, a "Reset" button is displayed, allowing the user to discard text changes.
+    *   **Recursive Resolution (Deep Alters):** The Profile Resolution Engine recursively applies `adds` and `removes` to deeply nested paragraphs correctly across all levels.
     *   **Inline Parameter Override:** Parameter values can be adjusted and overridden directly under the corresponding control (`set-parameters`).
 
 ### US 2.5: Local Custom Controls via Managed Catalog Import (OSCAL-compliant)
@@ -81,14 +81,14 @@
 > **I want to** define the profile's merge directive, sort imported controls into self-created groups, and enrich these groups with custom metadata and text,  
 > **so that** the final baseline follows a tailored, company-internal structure.
 *   **Acceptance Criteria:**
-    *   **Selection of the Merge Directive:** The user can choose between `as-is` (default), `flat`, and `custom` in the GUI. When saving, `merge` contains exclusively the chosen directive; UI helper fields like `defaultStructure` are not saved in the OSCAL profile.
+    *   **Selection of the Merge Directive:** The user can choose between `as-is`, `flat`, and `custom` in the GUI. When saving, `merge` contains exclusively the chosen directive.
     *   **Creation of Custom Groups:** When `custom` is selected, the user can create, edit, and delete new groups with ID and title.
-    *   **Nesting of Groups:** The GUI allows hierarchical nesting of groups (groups within groups).
-    *   **Sorting Controls & Folders (Drag & Drop):** The user can drag & drop imported controls as well as entire categories/folders (marked with a `📁` symbol) from the control pool into a custom group in the sidebar. Since a control structurally can only occur once in the OSCAL catalog hierarchy, this assignment is exclusive (if a control is added to a group, it is automatically removed from all other groups).
-    *   **Insert Controls and Sorting:** Within each custom group, `insert-controls` can be used to specify which controls are included. The sorting order can be configured via a dropdown as `keep` (original order), `ascending` (ascending by ID), or `descending` (descending by ID).
-    *   **Include-All in Groups:** `insert-controls` supports both `include-all` (include all remaining controls), `include-controls` with explicit IDs or `matching` patterns, and `exclude-controls` (exclude specific controls from an `include-all` selection).
-    *   **Group Metadata & Texts:** For each created group, a `class` attribute (e.g., `appendix`, `family`), custom properties/tags (`props`), reference links (`links`), parameters (`params`), and description texts (`parts`) can be defined in a GUI form.
-    *   **Round-tripping:** The configured `custom` structure is correctly saved in the Profile JSON under `merge.custom` and converted back to the GUI state when the profile is reloaded.
+    *   **Nesting of Groups:** The GUI allows hierarchical nesting of groups.
+    *   **Sorting Controls & Folders:** The user can move imported controls as well as entire categories/folders from the control pool into a custom group. Assignment is exclusive.
+    *   **Insert Controls and Sorting:** Within each custom group, `insert-controls` can be used to specify which controls are included. The sorting order can be configured.
+    *   **Include-All in Groups:** `insert-controls` supports `include-all`, `include-controls`, and `exclude-controls`.
+    *   **Group Metadata & Texts:** For each created group, class attributes, custom properties/tags, reference links, parameters, and description texts can be defined.
+    *   **Round-tripping:** The configured `custom` structure is correctly saved in the Profile JSON.
     *   **Resolution & Preview:** The Resolved Catalog in the live preview reflects the configured group structure and its group metadata.
 
 ### US 2.8: Parameter Selection Rules, Validations, and Constraints (select & choice) in the GUI
@@ -171,51 +171,6 @@
         *   **Automatic Categorization:** Controls of the selected default-structure catalog are sorted into their respective standard categories. Controls from all other imported catalogs are automatically listed at the bottom under **Unassigned Controls**.
         *   **No Quick Setup Pop-ups:** Obsolete Quick Setup logic and intermediate pop-ups are removed. All structure and activity states are manipulated directly and live within the sidebar and the main pane.
 
-### US 2.15: Detailed Editability of Controls (Title, IDs, Labels & Enhancements in-place)
-> *Implements [US 0.17](step0_global_requirements.md) with profile-specific additions.*
-
-> **As a** Compliance Officer and Enterprise Architect (Alice)  
-> **I want to** edit all components of a control and its enhancements directly inline in the right detail pane, without having to navigate through confusing subpages,  
-> **so that** the structure remains flat and intuitive and all aspects of a control (including all enhancements) can be maintained in one place.
-
-*   **Acceptance Criteria:**
-    *   **Title Editing:** Clicking the control title (e.g., "Organizational Context" in the detail view) transforms it into a text input field to edit the title directly inline.
-    *   **ID Editing:** Clicking the identifier/ID (e.g., the blue ID badge "GV.OC") opens an input field to adjust the control/category ID.
-    *   **Edit Properties/Labels:** Properties (e.g., `label: Organizational Context (GV.OC)`) can be edited directly by clicking them or deleted/added via a button.
-    *   **Manage Global Properties:**
-        *   In the **Document Overview** area, there is a separate subtab **Global Tags** (next to *Metadata* and *Imported Catalogs*) where global properties/tags can be created, edited, and deleted centrally.
-        *   In the control detail pane, a dropdown selection field **"+ Assign Global Tag..."** allows directly assigning one of these globally defined properties.
-    *   **Control Enhancements completely in-place:**
-        *   **No Separate Subpage:** Navigation/selection of enhancements as independent controls is completely deactivated. Clicking the ID badge or double-clicking the enhancement no longer redirects to a separate subpage.
-        *   **In-Card Properties Editor:** Each enhancement card under **CONTROL ENHANCEMENTS** renders its own properties/tags directly inline (with the same features as main controls: double-click to edit, delete via `×`, add via `+ Custom Property` button, and assign via `+ Assign Global Tag...` dropdown).
-        *   Titles, IDs, and prose of enhancements continue to be edited and deleted directly in-place.
-        *   **Type Display for Subcategories:** Each enhancement card (subcategory) displays a type badge (e.g., `SUBCATEGORY` or the corresponding class value) left-aligned in the header (flowing next to ID and title) to visually clarify the hierarchical mapping analogously to the main controls (categories).
-    *   **Conditional Title Display (Avoid Redundancy):** If the title of a control or enhancement is empty or exactly matches the ID, it is completely hidden in the read-only view (no redundant title next to the ID badge). Also, in edit mode, no distracting "(Click to add title...)" placeholder is displayed.
-    *   **Structured & Labeled Fields in Edit Mode:**
-        *   In edit mode, the ID and title/name of controls and enhancements are described with clear, hierarchical labels in uppercase letters (e.g., `CONTROL ID`, `CONTROL TITLE / NAME`) to ease orientation.
-        *   To avoid a cluttered design with stacked boxes, the header area and the properties area (properties / tags) are combined in edit mode into **a single cohesive card** (gray background with border).
-        *   **Type Badge Alignment of Category:** The type badge of the main control (category) is displayed at the right edge of the header area, while the type badges of subcategories flow left-aligned with the ID and title.
-        *   **No Redundant Moving in the Detail Card:** The dropdown field for moving into groups is removed from the central editing card, as the reordering of controls is already controlled exclusively and clearly via the sidebar.
-    *   **Suggestions for Property Names:** All custom property name fields (both global and local at the control and enhancement level) offer an autocompletion suggestion list (`datalist`) while typing, suggesting all property keys occurring in the imported catalog (e.g., `sort-id`, `label`, `risk-party` etc.) for quick selection.
-    *   **Round-tripping & Resolution:** All changes are serialized in compliance with OSCAL in the profile under `modify.alters` (or directly in the local controls area).
-    *   **Consistent Button Design & Exit Behavior:**
-        *   The "Publish New Version" button is represented uniformly in the same format as "Save Draft" and other action buttons of the app (matching the standard theme instead of ad-hoc green).
-        *   **Polymorphic UnifiedControlEditor & Icon Taxonomy Consistency:** In both Catalog Mode and Profile Mode, `UnifiedControlEditor` provides identical inline editing capabilities for control parts, sub-parts/items, and links, including the `🔧` Advanced Settings toggle button for optional attributes (`ns`, `class`, `title`, `props`, `links`).
-
-### US 2.16: Extended Management of Tags and Existing Properties in the Document Overview
-> *Implements [US 0.16](step0_global_requirements.md) with profile-specific additions.*
-
-> **As a** Compliance Officer (Alice)  
-> **I want to** clearly see already used properties/tags and their used values in the Document Overview and be able to add them directly to the global tags,  
-> **so that** I can manage existing tags consistently and without erroneous manual typing for the entire document.
-
-*   **Acceptance Criteria:**
-    *   **Unified "Tags" Tab:** The "Global Tags" tab in the Document Overview is renamed to "Tags" and is available for both profiles and catalogs in read-only and edit modes.
-    *   **Division of the Tags Area:** The area is divided into:
-        *   **Global Property Tags:** The list of globally defined metadata properties, which can be added, edited, and deleted in edit mode, and are displayed read-only in view mode.
-        *   **Used / Existing Tags:** A dynamically generated list of all tags actually used in controls/groups.
-    *   **Dropdown of Used Values:** For each existing tag, next to its name and frequency (count), a dropdown field (`<select>`) is displayed listing all unique values already entered for this tag in the document.
-    *   ~~**Quick Promotion (Promote):**~~ *Removed per [DD-011](../design_decisions/DD-011_properties_vs_parameters_separation.md) — `metadata.props` does not cascade to controls, so promoting a used tag to a "global property" would be semantically misleading. Property Usage Overview (US 0.16) provides read-only visibility instead.*
 
 ### US 2.17: Profile Parameter Overrides (`modify.set-parameters`) & Dropdown Value Selection
 > *References DD-012*
@@ -258,23 +213,6 @@
     *   **Linking with Controls:** Controls can reference back-matter resources via `links` with `rel="reference"`. A dropdown offers all existing resources for selection.
     *   **Parity with Catalog Editor:** The back-matter management uses the same UI components as the Catalog Editor (cf. US 0.18).
 
-### US 2.20: Drag-to-Delete Target for Groups and Controls in the Sidebar (Full-Width & Dynamic)
-> **As a** Compliance Officer and Enterprise Architect (Alice)  
-> **I want to** see a full-width Drag-to-Delete target (trash bin area) in the sidebar below the "Add Top-level Group" button, where I can drop dragged groups or controls,  
-> **so that** I can delete them or unassign them directly via drag-and-drop, and instantly see what is being deleted when hovering over it.
-*   **Acceptance Criteria:**
-    *   **Trash Bin Area in the Sidebar (below the button):** The trash bin area is rendered as a separate, full-width area below the "Add Top-level Group" button (only in edit mode `canEdit`).
-    *   **Dynamic Status Message on Dragover:**
-        *   When no dragging is taking place, the area displays: `🗑️ Drag elements here to delete`.
-        *   When dragging is active, the area displays by default: `🗑️ Drag here to delete...`.
-        *   When a dragged element (group or control) is moved directly over the trash bin area (`dropIndicator?.id === 'trash'`), the text changes dynamically to indicate what will happen:
-            *   For a group: `🗑️ Delete Group "{NAME}"`.
-            *   For a control: `🗑️ Unassign "{NAME}"`.
-    *   **Visual Feedback on Dragover:** When hovering over the area, it lights up red (red border, red background, box-shadow glow) and expands slightly.
-    *   **Unassign / Delete via Drop:**
-        *   If a **group** is dropped, the confirmation dialog to delete the group appears. After confirmation, it is deleted.
-        *   If a **control** is dropped, its assignment is removed, returning it to the unassigned controls pool.
-
 ### US 2.21: Resolution of Back-Matter Resources in Profile Imports
 > **As a** Compliance Officer (Alice)  
 > **I want to** resolve profile imports that reference resources in back-matter (e.g., `#resource-uuid`) correctly via their `rlinks` and the local catalog registry,  
@@ -283,35 +221,6 @@
     *   **Back-Matter Resolution:** If an import uses a fragment reference (e.g., `#uuid`), the Resolution Engine searches for the resource in the `back-matter`.
     *   **Registry Matching:** The Resolution Engine matches the filenames of the resource `rlinks` with the URLs of the catalogs imported / registered in Reposol.
     *   **Error-Free Loading:** After importing the NIST SP 800-53 Rev 5 Low Baseline, all controls are successfully loaded in the sidebar and edit view.
-
-### US 2.22: Two-line Display of Prose Parts with ID Display (analogous to Catalogs)
-> **As a** Compliance Officer (Alice)  
-> **I want to** see prose parts using two-line display with ID in profile detail view and editor,  
-> **so that** I can instantly see which ID a paragraph has in the source catalog and trace modifications specifically.
-
-*   **Acceptance Criteria:**
-    *   **AC 1**: In profile detail view mode (read-only and edit in `UnifiedControlEditor` / `ProfileAdapter.tsx`), each prose part is rendered in two lines.
-    *   **AC 2**: The first line (header) displays the category badge (e.g., `[STATEMENT]`) left-aligned in `var(--color-success)` (green) and directly next to it the ID of the part (e.g., `ac-2_smt.a`), if present, in a small monospace font with a subtle background.
-    *   **AC 3**: If the part was modified (`isModified`), the `Modified` badge is also displayed in this header (as before).
-    *   **AC 4**: The second line displays the formatted prose text (in view mode) or the `DebouncedTextarea` (in edit mode).
-
-### US 2.23: Visual Consistency of the Profile Control Detail View with the Catalog Editor through Shared Components
-> *References [DD-030](../design_decisions/DD-030_unified_control_editor.md)*
-
-> **As a** Compliance Officer and Enterprise Architect (Alice)  
-> **I want to** have the detail view of a control in Profile Editor look and behave visually identical to Catalog view,  
-> **so that** when switching between the Catalog and Profile editors, I experience the same consistent, high-quality user interface and do not have to get used to different layouts and interaction patterns.
-
-*   **Acceptance Criteria:**
-    *   **AC 1 — Shared Header (`ControlHeader`):** The header section (ID badge, title, optional class) in the profile detail area uses the same shared component as the Catalog Editor. In edit mode, `DebouncedInput` fields with auto-sizing are used (no click-to-edit with separate states).
-    *   **AC 2 — Uniform Props/Tags Representation:** Properties/tags in the profile detail area use the shared `PropsEditor` component (with autocomplete suggestions and advanced fields support), rather than their own simplified badge representation.
-    *   **AC 3 — Shared Read-Only Parts (`ReadOnlyParts`):** The prose parts display in view mode uses a single shared component for both Catalog and Profile. Profile-specific features (Modified badge, Reset button) are controlled via optional props.
-    *   **AC 4 — Shared Enhancements Accordion (`EnhancementsAccordion`):** Control enhancements in the profile are displayed as a compact accordion (collapsed by default) with a count badge — identical to the Catalog view. The enhancement details are expandable.
-    *   **AC 5 — Uniform Section Styling:** All sections (Header, Props, Parts, Parameters, Links, Enhancements) use the same CSS class `section-container` with `border-top` separators and consistent spacing in both Catalog and Profile.
-    *   **AC 6 — Shared Prose Formatting:** The `formatProse()` function from `@lib/oscal-formatting` is used in both contexts.
-    *   **AC 7 — Functional Links Editing:** The `LinksEditor` in the profile detail area has a functional `onChange` handler (instead of the current empty handler).
-    *   **AC 8 — Profile-specific Logic Preserved:** The OSCAL modification logic (modify.alters, set-parameters, Reset, Modified badge) remains unchanged and is injected into the shared components via context-specific callbacks.
-    *   **AC 9 — No Regression:** All existing Catalog and Profile functions (Undo/Redo, draft saving, versioning, Profile resolution, import sources, sidebar checkboxes) function unchanged after the transition.
 
 ### US 2.24: Enhancements Accordion Inline Expansion & Parameter Placement in Profile Mode (New for R1)
 > **As a** lead enterprise architect (Alice)  
@@ -345,20 +254,6 @@
     *   **Object-bound Import Revert (Source Level):** If a specific catalog source is removed, exactly the modifications that relate to the controls from this specific catalog are discarded.
     *   **No Blanket Global Wipes:** The system does not perform any undirected blanket pruning, but always acts event- and context-driven based on the respective target object.
 
-### US 2.27: Interactive Merge Structuring Mode Selector (as-is / flat / custom) in the Profile UI
-> **As a** Compliance Officer and Enterprise Architect (Alice)  
-> **I want to** use an ultra-compact 2-line setup panel in the profile editor (in the `SourcesPanel`), whose dropdown boxes are perfectly aligned vertically on the left down to the pixel,  
-> **so that** the interface appears absolutely symmetrical and visually perfect.
-*   **Acceptance Criteria:**
-    *   **Combined 2-line Setup Panel:**
-        *   **Line 1:** `⚙️ Structuring Mode:` [ Dropdown `as-is` / `custom` / `flat` ]
-        *   **Line 2:** `📥 Add Import:` [ Combined Dropdown with Catalogs & Profiles ]
-    *   **Pixel-perfect Vertical Alignment:** Both labels (`⚙️ Structuring Mode:` and `📥 Add Import:`) have a fixed identical column width (`width: 145px`, `flexShrink: 0`), meaning the left edges of both selection dropdowns are aligned exactly underneath each other.
-    *   **Grouped & Icon-labeled Options:** In the `Add Import:` dropdown, available catalogs (`📖`) and profiles (`⚙️`) are clearly distinguished from each other with optgroups and icons.
-    *   **Structure Button in `custom` Mode:** 
-        *   In **`custom`** mode, every catalog import card has the button **`📥 Import Full Structure`** (additively adopts the folder structure & controls of the catalog).
-        *   In **`as-is`** and **`flat`** modes, structure clone buttons are hidden.
-    *   **Pruning when Removing Import Sources (`Remove`):** When all import sources are removed, `profile.merge` automatically resets to `{ 'as-is': true }` and `merge.custom.groups` is pruned.
 
 ### US 2.28: Profile Statement & Sub-item Addition (Streamlined UX & Engine Resolution)
 > **As a** Compliance Officer (Alice)  
@@ -370,15 +265,6 @@
     *   **Streamlined UX without Redundancy:** The confusing `Add After` button on individual statement cards is removed to avoid mix-ups with `Add Statement`.
     *   **No Unintended Recursion on Global Adds:** `position: 'ending'`/`position: 'starting'` adds defined without `by-id` are exclusively evaluated at the top-level (`level === 0`) and not mistakenly nested inside sub-items.
     *   **Exact Replacement Check:** An add block is only treated by the resolution engine as a replacement (text overwrite) of an original statement if the original ID is explicitly listed in `alter.removes` and the add block defines a part with the same ID.
-
-### US 2.29: Multi-Catalog Conflict Resolution and Combination Rules (`merge.combine`)
-> **As a** lead enterprise architect (Alice)  
-> **I want to** configure the combination strategy (`use-first`, `merge`, `keep`) when importing multiple catalogs with identical control IDs,  
-> **so that** contradictory control definitions in the underlying rulebook are merged or prioritized in an orderly fashion.
-*   **Acceptance Criteria:**
-    *   **Conflict Visualization:** The `Import Sources` panel identifies ID overlaps when importing multiple sources.
-    *   **Combination Strategy Dropdown:** Selection of the strategy (`merge.combine` -> `use-first`, `merge`, `keep`) via dropdown.
-    *   **Schema-compliant Engine Resolution:** The Profile Resolution Engine implements the chosen strategy during the generation of the Resolved Catalog.
 
 ### US 2.30: Cascading Profile Imports (Profile from Profiles)
 > **As a** lead enterprise architect (Alice)  
@@ -451,20 +337,13 @@
 - [ ] US 2.12: Collision and Merge Rules (merge.combine) in the GUI
 - [ ] US 2.13: Integrated Profile Versioning in the Backend
 - [ ] US 2.14: Assignment in the Right Pane (Document Overview) & Default Structure in the Sidebar
-- [ ] US 2.15: Detailed Editability of Controls (Title, IDs, Labels & Enhancements in-place)
-- [ ] US 2.16: Extended Management of Tags and Existing Properties in the Document Overview
 - [ ] US 2.17: Profile Parameter Overrides (`modify.set-parameters`) & Dropdown Value Selection
 - [ ] US 2.18: Profile Resolution Export
 - [ ] US 2.19: Profile Back-Matter and Resource Management
-- [ ] US 2.20: Drag-to-Delete Target for Groups and Controls in the Sidebar (Full-Width & Dynamic)
 - [ ] US 2.21: Resolution of Back-Matter Resources in Profile Imports
-- [ ] US 2.22: Two-line Display of Prose Parts with ID Display (analogous to Catalogs)
-- [ ] US 2.23: Visual Consistency of the Profile Control Detail View with the Catalog Editor through Shared Components
 - [ ] US 2.24: Enhancements Accordion Inline Expansion & Parameter Placement in Profile Mode (New for R1)
 - [ ] US 2.25: Properties Overhaul in Profile Editor (Deletion & Revert) (New for Step 2)
 - [ ] US 2.26: Object-Bound Targeted Modification Reverting & Pruning (Control, Group & Text Scope)
-- [ ] US 2.27: Interactive Merge Structuring Mode Selector (as-is / flat / custom) in the Profile UI
 - [ ] US 2.28: Profile Statement & Sub-item Addition (Streamlined UX & Engine Resolution)
-- [ ] US 2.29: Multi-Catalog Conflict Resolution and Combination Rules (`merge.combine`)
 - [ ] US 2.30: Cascading Profile Imports (Profile from Profiles)
 - [ ] US 2.31: Visual Baseline Comparison & Diff Viewer (Profile vs. Base Catalog)

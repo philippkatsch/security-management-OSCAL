@@ -84,7 +84,9 @@ const buildTree = (
       ...childrenControls.map(c => c.id!).filter(Boolean)
     ];
     
-    const withdrawn = getPropValue(item.props, 'status')?.toLowerCase() === 'withdrawn';
+    const withdrawn = (item as any).status?.toLowerCase() === 'withdrawn' || 
+      getPropValue(item.props, 'status')?.toLowerCase() === 'withdrawn' || 
+      getPropValue(item.props, 'state')?.toLowerCase() === 'withdrawn';
     const label = getPropValue(item.props, 'label') || item.id;
     
     // Simplistic heuristic for enhancements vs sub-controls
@@ -127,8 +129,8 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
   }, [groups, controls]);
   
   const nodes = useMemo(() => {
-     return flatList.filter(n => n.parentId === null);
-  }, [flatList]);
+     return flatList.filter(n => n.parentId === null && (showWithdrawn || !n.withdrawn));
+  }, [flatList, showWithdrawn]);
 
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -182,6 +184,12 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
     });
   }, [getAncestors]);
 
+  const isNodeOrAncestorWithdrawn = useCallback((node: ControlTreeNode): boolean => {
+    if (node.withdrawn) return true;
+    const ancestors = getAncestors(node.id);
+    return ancestors.some(aId => flatList.find(n => n.id === aId)?.withdrawn);
+  }, [flatList, getAncestors]);
+
   const filteredNodes = useMemo(() => {
     if (!searchQuery.trim() && showWithdrawn) return flatList;
     
@@ -191,7 +199,7 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
     const matchingIds = new Set<string>();
     
     for (const node of flatList) {
-        if (!showWithdrawn && node.withdrawn) continue;
+        if (!showWithdrawn && isNodeOrAncestorWithdrawn(node)) continue;
         
         if (!query || 
             (node.id && node.id.toLowerCase().includes(query)) ||
@@ -200,12 +208,17 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
         ) {
             matchingIds.add(node.id);
             // Ensure ancestors are included so we can show them in the tree
-            getAncestors(node.id).forEach(a => matchingIds.add(a));
+            getAncestors(node.id).forEach(a => {
+              const ancestorNode = flatList.find(n => n.id === a);
+              if (showWithdrawn || !ancestorNode?.withdrawn) {
+                matchingIds.add(a);
+              }
+            });
         }
     }
     
     return flatList.filter(n => matchingIds.has(n.id));
-  }, [flatList, searchQuery, showWithdrawn, getAncestors]);
+  }, [flatList, searchQuery, showWithdrawn, getAncestors, isNodeOrAncestorWithdrawn]);
   
   const selectedNode = flatList.find(n => n.id === selectedId) || null;
   const breadcrumbs = selectedId ? getAncestors(selectedId).map(id => flatList.find(n => n.id === id)!).filter(Boolean) : [];

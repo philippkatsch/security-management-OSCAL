@@ -27,9 +27,14 @@ To prevent massive prop-drilling through nested control properties, a `ControlEd
 To navigate controls, a shared `ControlTree` UI component replaces the distinct `CatalogSidebar` and `ProfileSidebar`. 
 - Powered by a `useControlTree` hook that interacts with the backend resolution endpoint (`get_control_tree`).
 - Renders hierarchical groups and controls consistently across stages.
-- Supports search, filtering, and lazy loading.
+### 5. View Mode vs. Edit Mode Withdrawn & Removed Controls Handling
+To maintain clean, distraction-free reading while preserving full authoring traceability:
+- **View Mode (`👁️ View`)**: Withdrawn controls (`status: withdrawn`) and withdrawn groups in catalogs, as well as removed items in profiles (`alters.removes`), are **completely omitted / hidden** from navigation trees, group listings, and overview panels.
+- **Edit Mode (`✏️ Edit`)**: Withdrawn and removed items are **visible** with explicit visual styling (dimmed/strikethrough text, `Withdrawn` status badge, withdrawal warning banner) and include action buttons such as `Restore Control` or `↺ Restore` to allow editors to inspect and reinstate them. Mutation actions like `Restore Control` are strictly omitted in View Mode.
 
 ## Consequences
 - **Zero Visual Regression**: Controls always look identical whether you are writing them, tailoring them, or implementing them.
+- **Clean Read-Only View**: Consumers inspecting catalogs or profiles see a clean, active baseline without visual clutter from withdrawn legacy elements.
+- **Full Authoring Traceability**: Editors retain full visibility into deprecated or removed elements with one-click restore capabilities during editing sessions.
 - **DRY Codebase**: Significant reduction in duplicated markup and styling logic.
 - **Extensibility**: Adding a new stage (e.g., Assessment Plan objectives linking to controls) only requires writing a new adapter, not a new UI component.

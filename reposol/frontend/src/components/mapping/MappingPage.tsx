@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { produce } from 'immer';
 import styles from './MappingPage.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
@@ -20,9 +20,20 @@ import MetricCard from '@components/shared/dashboard/MetricCard';
 import MetricCardGrid from '@components/shared/dashboard/MetricCardGrid';
 import ProgressBar from '@components/shared/dashboard/ProgressBar';
 import StatusBreakdown from '@components/shared/dashboard/StatusBreakdown';
+import CompletenessReport from '@components/shared/dashboard/CompletenessReport';
+import { SankeyDiagram } from './SankeyDiagram';
+import { useConfirm } from '@hooks/useConfirm';
+import { toast } from 'react-hot-toast';
 
-export function MappingPage({ mappingId, initialEditMode, onClose }) {
+export interface MappingPageProps {
+  mappingId?: string;
+  initialEditMode?: boolean;
+  onClose?: () => void;
+}
+
+export function MappingPage({ mappingId = '', initialEditMode = false, onClose }: MappingPageProps) {
   const lifecycle = useDocumentLifecycle('control-mappings', 'mapping-collection', mappingId, initialEditMode);
+  const { confirm } = useConfirm();
   const {
     activeDoc,
     setDoc,
@@ -33,16 +44,32 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
   
   // Master lists
-  const [sourceControls, setSourceControls] = useState([]);
-  const [targetControls, setTargetControls] = useState([]);
+  const [sourceControls, setSourceControls] = useState<any[]>([]);
+  const [targetControls, setTargetControls] = useState<any[]>([]);
 
   // Mapping selections
   const [selectedMappingIdx, setSelectedMappingIdx] = useState(0);
   
   // Selection states for mappings detail
-  const [selectedMapEntry, setSelectedMapEntry] = useState(null);
+  const [selectedMapEntry, setSelectedMapEntry] = useState<any>(null);
   const [selectedMaps, setSelectedMaps] = useState([]);
   const [matrixFilter, setMatrixFilter] = useState('all');
+  const jsonEditorRef = useRef<any>(null);
+
+  const updateResourceField = (resourceKey: 'source-resource' | 'target-resource', field: string, value: any) => {
+    setDoc(prev => {
+      if (!prev) return prev;
+      const next = getCleanDocCopy(prev);
+      const mappings = next['mapping-collection']?.mappings?.[0];
+      if (mappings) {
+        if (!mappings[resourceKey]) {
+          mappings[resourceKey] = {};
+        }
+        mappings[resourceKey][field] = value;
+      }
+      return next;
+    });
+  };
 
   // Load referenced controls when doc changes
   useEffect(() => {
@@ -77,8 +104,8 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
     try {
       const docData = await fetchDocument(stage, uuid);
       if (docData) {
-        const controls = [];
-        const traverse = (item) => {
+        const controls: any[] = [];
+        const traverse = (item: any) => {
           if (item.controls) {
             item.controls.forEach(c => {
               controls.push({ id: c.id, title: c.title, group: item.title || 'Ungrouped' });
@@ -96,7 +123,6 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
         setter(controls);
       }
     } catch (e) {
-      console.error("Error loading resource controls:", e);
       setter([]);
     }
   };
@@ -143,31 +169,32 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
     const confidences = maps.map(m => m.props?.find(p => p.name === 'confidence')?.value).filter(Boolean).map(Number);
     const avgConfidence = confidences.length ? Math.round(confidences.reduce((a,b)=>a+b,0)/confidences.length) : 0;
 
-    const methodCounts = { manual: 0, automated: 0, mixed: 0 };
-    maps.forEach(m => {
-      const method = m.props?.find(p => p.name === 'method')?.value || 'manual';
+    const methodCounts: Record<string, number> = { manual: 0, automated: 0, mixed: 0 };
+    maps.forEach((m: any) => {
+      const method = m.props?.find((p: any) => p.name === 'method')?.value || 'manual';
       methodCounts[method] = (methodCounts[method] || 0) + 1;
     });
-    const methodStats = Object.entries(methodCounts).map(([label, count]) => ({ label, count }));
+    const methodStats: { label: string; count: number }[] = Object.entries(methodCounts).map(([label, count]) => ({ label, count: Number(count) }));
 
     return { coverage, unmappedSource, unmappedTarget, avgConfidence, methodStats };
   };
 
   const stats = calculateGapStats();
 
-  const getRelationshipStats = () => {
-    const counts = {};
-    maps.forEach(m => {
+  const getRelationshipStats = (): { label: string; count: number }[] => {
+    const counts: Record<string, number> = {};
+    maps.forEach((m: any) => {
       const rel = m.relationship || 'unknown';
       counts[rel] = (counts[rel] || 0) + 1;
     });
-    return Object.entries(counts).map(([label, count]) => ({ label, count }));
+    return Object.entries(counts).map(([label, count]) => ({ label, count: Number(count) }));
   };
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'mappings', label: 'Mappings' },
     { id: 'matrix', label: 'Matrix View' },
+    { id: 'sankey', label: 'Sankey Flow View' },
     { id: 'gap', label: 'Gap Analysis' },
     { id: 'metadata', label: 'Metadata' },
     { id: 'json', label: 'JSON Source' }
@@ -181,7 +208,18 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
       title={mcNode.metadata?.title || 'Untitled Mapping'}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(newTab) => {
+        if (activeTab === 'json' && newTab !== 'json') {
+          const entityId = jsonEditorRef.current?.getCursorEntityId?.();
+          if (entityId) {
+            for (const mapping of mcNode.mappings || []) {
+              const map = (mapping.maps || []).find((m: any) => m.uuid === entityId);
+              if (map) { setSelectedMapEntry(map); break; }
+            }
+          }
+        }
+        setActiveTab(newTab);
+      }}
       onClose={onClose}
     >
       <div className={styles['mapping-content']}>
@@ -242,23 +280,34 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                   onRowClick={(entity) => setSelectedMapEntry(maps.find(m => m.uuid === entity.id))}
                   onSelectionChange={setSelectedMaps}
                   actions={isEditing ? [
-                    { label: 'Set Relationship', icon: '🔗', onClick: (selected) => {
-                        const rel = window.prompt("Enter relationship (equal-to, equivalent-to, subset-of, superset-of, intersects-with):");
-                        if (rel) {
+                    { label: 'Set Relationship', icon: '🔗', onClick: async (selected) => {
+                        const confirmed = await confirm({
+                          title: 'Set Relationship',
+                          message: `Set relationship for ${selected.length} selected map entry(ies) to "equivalent-to"?`,
+                          confirmLabel: 'Set Relationship',
+                        });
+                        if (confirmed) {
                           setDoc(prev => {
                             const next = getCleanDocCopy(prev);
                             const nextMaps = next['mapping-collection'].mappings[0].maps;
                             selected.forEach(s => {
                               const m = nextMaps.find(x => x.uuid === s.id);
-                              if (m) m.relationship = rel;
+                              if (m) m.relationship = 'equivalent-to';
                             });
                             return next;
                           });
+                          toast.success('Updated relationship for selected map(s)');
                         }
                       }
                     },
-                    { label: 'Delete Selected', icon: '🗑️', onClick: (selected) => {
-                        if (window.confirm("Delete selected maps?")) {
+                    { label: 'Delete Selected', icon: '🗑️', onClick: async (selected) => {
+                        const confirmed = await confirm({
+                          title: 'Delete Selected Maps',
+                          message: `Delete ${selected.length} selected map(s)?`,
+                          confirmLabel: 'Delete',
+                          variant: 'danger',
+                        });
+                        if (confirmed) {
                           setDoc(prev => {
                             const next = getCleanDocCopy(prev);
                             const nextMaps = next['mapping-collection'].mappings[0].maps;
@@ -267,6 +316,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                             setSelectedMapEntry(null);
                             return next;
                           });
+                          toast.success('Deleted selected map(s)');
                         }
                       }
                     }
@@ -513,9 +563,22 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                               m.sources?.some(s => s['id-ref'] === sc.id) && 
                               m.targets?.some(t => t['id-ref'] === tc.id)
                             );
-                            const relClass = match ? `rel-cell-${match.relationship}` : '';
+                            const relClass = match && match.relationship ? (styles[`rel-cell-${match.relationship}`] || '') : '';
                             return (
-                              <div key={`${sc.id}-${tc.id}`} className={`matrix-cell ${match ? styles['mapped'] : ''} ${relClass}`}>
+                              <div
+                                key={`${sc.id}-${tc.id}`}
+                                className={`${styles['matrix-cell']} ${match ? styles['mapped'] : ''} ${relClass}`}
+                                tabIndex={0}
+                                role="gridcell"
+                                aria-label={`Mapping cell ${sc.id} to ${tc.id}: ${match ? match.relationship : 'unmapped'}`}
+                                onClick={() => match && setSelectedMapEntry(match)}
+                                onKeyDown={(e) => {
+                                  if ((e.key === 'Enter' || e.key === ' ') && match) {
+                                    e.preventDefault();
+                                    setSelectedMapEntry(match);
+                                  }
+                                }}
+                              >
                                 {match && (
                                   <div className={styles['matrix-tooltip']}>
                                     {sc.id} → {tc.id} ({match.relationship})
@@ -530,6 +593,199 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                   </div>
                 );
               })()}
+            </div>
+          )}
+
+          {activeTab === 'sankey' && (
+            <div style={{ display: 'flex', gap: '20px', height: '100%' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <SankeyDiagram
+                  sourceControls={sourceControls}
+                  targetControls={targetControls}
+                  maps={maps}
+                  selectedMapUuid={selectedMapEntry?.uuid}
+                  onSelectMap={(mapEntry) => setSelectedMapEntry(mapEntry)}
+                  filterRelationship={matrixFilter}
+                  sourceTitle={mappingNode['source-resource']?.title || 'Source Framework'}
+                  targetTitle={mappingNode['target-resource']?.title || 'Target Framework'}
+                />
+              </div>
+              {selectedMapEntry && (
+                <EntityDetailPanel
+                  isOpen={true}
+                  title="Mapping Entry Detail"
+                  onClose={() => setSelectedMapEntry(null)}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <strong>Source:</strong> {selectedMapEntry.sources?.[0]?.['id-ref']}
+                    </div>
+                    <div>
+                      <strong>Target:</strong> {selectedMapEntry.targets?.[0]?.['id-ref']}
+                    </div>
+                    
+                    <div>
+                      <strong>Relationship:</strong>
+                      {isEditing ? (
+                        <select 
+                          style={{ marginLeft: '8px', padding: '4px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                          value={selectedMapEntry.relationship || ''} 
+                          onChange={(e) => {
+                            setDoc(prev => {
+                              if (!prev) return prev;
+                              const next = getCleanDocCopy(prev);
+                              const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
+                              if (m) m.relationship = e.target.value;
+                              setSelectedMapEntry(m ? { ...m } : null);
+                              return next;
+                            });
+                          }}
+                        >
+                          <option value="equal-to">equal-to</option>
+                          <option value="equivalent-to">equivalent-to</option>
+                          <option value="subset-of">subset-of</option>
+                          <option value="superset-of">superset-of</option>
+                          <option value="intersects-with">intersects-with</option>
+                        </select>
+                      ) : (
+                        <span style={{ marginLeft: '8px' }}>
+                          <StatusBadge value={selectedMapEntry.relationship} category="mapping-relationship" />
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--color-surface-2)', borderRadius: '8px' }}>
+                      <h4 style={{ margin: 0 }}>Provenance & Confidence</h4>
+                      <div>
+                        <strong>Method:</strong>
+                        {isEditing ? (
+                          <select 
+                            style={{ marginLeft: '8px', padding: '4px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                            value={selectedMapEntry.props?.find(p => p.name === 'method')?.value || 'manual'}
+                            onChange={(e) => {
+                              setDoc(prev => {
+                                if (!prev) return prev;
+                                const next = getCleanDocCopy(prev);
+                                const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
+                                if (m) {
+                                  if (!m.props) m.props = [];
+                                  const idx = m.props.findIndex(p => p.name === 'method');
+                                  if (idx >= 0) m.props[idx].value = e.target.value;
+                                  else m.props.push({ name: 'method', value: e.target.value });
+                                }
+                                setSelectedMapEntry(m ? { ...m } : null);
+                                return next;
+                              });
+                            }}
+                          >
+                            <option value="manual">Manual</option>
+                            <option value="automated">Automated</option>
+                            <option value="mixed">Mixed</option>
+                          </select>
+                        ) : (
+                          <span style={{ marginLeft: '8px' }}>{selectedMapEntry.props?.find(p => p.name === 'method')?.value || 'manual'}</span>
+                        )}
+                      </div>
+                      <div>
+                        <strong>Confidence:</strong>
+                        {isEditing ? (
+                          <input 
+                            type="number" min="0" max="100"
+                            style={{ marginLeft: '8px', width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                            value={selectedMapEntry.props?.find(p => p.name === 'confidence')?.value || '0'}
+                            onChange={(e) => {
+                              setDoc(prev => {
+                                if (!prev) return prev;
+                                const next = getCleanDocCopy(prev);
+                                const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
+                                if (m) {
+                                  if (!m.props) m.props = [];
+                                  const idx = m.props.findIndex(p => p.name === 'confidence');
+                                  if (idx >= 0) m.props[idx].value = e.target.value;
+                                  else m.props.push({ name: 'confidence', value: e.target.value });
+                                }
+                                setSelectedMapEntry(m ? { ...m } : null);
+                                return next;
+                              });
+                            }}
+                          />
+                        ) : (
+                          <span style={{ marginLeft: '8px' }}>{selectedMapEntry.props?.find(p => p.name === 'confidence')?.value || '0'}%</span>
+                        )}
+                        <ProgressBar progress={parseInt(selectedMapEntry.props?.find(p => p.name === 'confidence')?.value || '0')} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <strong>Rationale:</strong>
+                        {isEditing ? (
+                          <textarea
+                            style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)', minHeight: '60px' }}
+                            value={selectedMapEntry.props?.find(p => p.name === 'rationale')?.value || ''}
+                            onChange={(e) => {
+                              setDoc(prev => {
+                                if (!prev) return prev;
+                                const next = getCleanDocCopy(prev);
+                                const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
+                                if (m) {
+                                  if (!m.props) m.props = [];
+                                  const idx = m.props.findIndex(p => p.name === 'rationale');
+                                  if (idx >= 0) m.props[idx].value = e.target.value;
+                                  else m.props.push({ name: 'rationale', value: e.target.value });
+                                }
+                                setSelectedMapEntry(m ? { ...m } : null);
+                                return next;
+                              });
+                            }}
+                          />
+                        ) : (
+                          <div style={{ background: 'var(--color-surface)', padding: '8px', borderRadius: '4px' }}>
+                            {selectedMapEntry.props?.find(p => p.name === 'rationale')?.value || 'No rationale provided'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <strong>Remarks:</strong>
+                      {isEditing ? (
+                        <textarea
+                          style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)', minHeight: '60px', marginTop: '4px' }}
+                          value={selectedMapEntry.remarks || ''}
+                          onChange={(e) => {
+                            setDoc(prev => {
+                              if (!prev) return prev;
+                              const next = getCleanDocCopy(prev);
+                              const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
+                              if (m) m.remarks = e.target.value;
+                              setSelectedMapEntry(m ? { ...m } : null);
+                              return next;
+                            });
+                          }}
+                        />
+                      ) : (
+                        <div style={{ marginTop: '4px' }}>{selectedMapEntry.remarks || 'None'}</div>
+                      )}
+                    </div>
+                    
+                    <div style={{ marginTop: '16px' }}>
+                      <h4 style={{ margin: '0 0 12px 0' }}>Map Entry Properties</h4>
+                      <PropsEditor
+                        properties={selectedMapEntry.props || []}
+                        isEditing={isEditing}
+                        onChange={(props) => {
+                          setDoc(prev => {
+                            if (!prev) return prev;
+                            const next = getCleanDocCopy(prev);
+                            const m = next['mapping-collection']?.mappings?.[0]?.maps?.find(x => x.uuid === selectedMapEntry.uuid);
+                            if (m) m.props = props;
+                            setSelectedMapEntry(m ? { ...m } : null);
+                            return next;
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </EntityDetailPanel>
+              )}
             </div>
           )}
 
@@ -685,8 +941,8 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
               </div>
 
               <MetadataEditor
-                metadata={mc.metadata || {}}
-                isEditing={isEditing}
+                metadata={mcNode.metadata || {}}
+                readOnly={!isEditing}
                 onChange={(md) => {
                   setDoc(prev => {
                     if (!prev) return prev;
@@ -699,7 +955,7 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                 }}
               />
               <PropsEditor
-                properties={mc.metadata?.props || []}
+                properties={mcNode.metadata?.props || []}
                 isEditing={isEditing}
                 onChange={(props) => {
                   setDoc(prev => {
@@ -714,8 +970,8 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
                 }}
               />
               <BackMatterEditor
-                backMatter={mc['back-matter'] || { resources: [] }}
-                isEditing={isEditing}
+                backMatter={mcNode['back-matter'] || { resources: [] }}
+                readOnly={!isEditing}
                 onChange={(bm) => {
                   setDoc(prev => {
                     if (!prev) return prev;
@@ -732,9 +988,11 @@ export function MappingPage({ mappingId, initialEditMode, onClose }) {
 
           {activeTab === 'json' && (
             <JsonEditor
+              ref={jsonEditorRef}
               value={activeDoc}
               readOnly={!isEditing}
               onChange={(newDoc) => handleDocUpdate(newDoc)}
+              highlightId={selectedMapEntry?.uuid || null}
             />
           )}
         </div>

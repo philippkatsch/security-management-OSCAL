@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useDocumentLifecycle } from '@hooks/useDocumentLifecycle';
+import { useConfirm } from '@hooks/useConfirm';
 import { updateDocumentWith } from '@lib/document-updater';
 import { DocumentPageLayout } from '../layout/DocumentPageLayout';
 import EntityTable from '@components/shared/entity/EntityTable';
@@ -18,31 +19,36 @@ import styles from './ComponentPage.module.css';
 
 const generateUUID = () => crypto.randomUUID();
 
-interface ComponentPageProps {
-  componentDefId: string;
+export interface ComponentPageProps {
+  componentDefId?: string;
+  compId?: string;
   initialEditMode?: boolean;
   onClose?: () => void;
 }
 
 export const ComponentPage: React.FC<ComponentPageProps> = ({ 
   componentDefId, 
+  compId,
   initialEditMode, 
   onClose 
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedComponent, setSelectedComponent] = useState<any>(null);
   const [selectedCapability, setSelectedCapability] = useState<any>(null);
+  const jsonEditorRef = useRef<any>(null);
+  const { confirm } = useConfirm();
 
+  const effectiveId = componentDefId || compId || '';
   const lifecycle = useDocumentLifecycle(
     'component-definitions', 
     'component-definition', 
-    componentDefId, 
+    effectiveId, 
     initialEditMode
   );
 
   const { activeDoc, isEditing, setDoc, pushUndoRedoState } = lifecycle;
   const doc = activeDoc;
-  const compDef = doc?.['component-definition'] || {};
+  const compDef: any = doc?.['component-definition'] || {};
   const components = compDef.components || [];
   const capabilities = compDef.capabilities || [];
 
@@ -74,8 +80,14 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
     setSelectedComponent(newComp);
   };
 
-  const handleDeleteComponents = (uuids: string[]) => {
-    if (!window.confirm(`Delete ${uuids.length} component(s)?`)) return;
+  const handleDeleteComponents = async (uuids: string[]) => {
+    const confirmed = await confirm({
+      title: 'Delete Component',
+      message: `Delete ${uuids.length} component(s)?`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     handleUpdate(draft => {
       if (draft['component-definition'].components) {
         draft['component-definition'].components = draft['component-definition'].components.filter(
@@ -116,8 +128,14 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
     setSelectedCapability(newCap);
   };
 
-  const handleDeleteCapabilities = (uuids: string[]) => {
-    if (!window.confirm(`Delete ${uuids.length} capability(ies)?`)) return;
+  const handleDeleteCapabilities = async (uuids: string[]) => {
+    const confirmed = await confirm({
+      title: 'Delete Capability',
+      message: `Delete ${uuids.length} capability(ies)?`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     handleUpdate(draft => {
       if (draft['component-definition'].capabilities) {
         draft['component-definition'].capabilities = draft['component-definition'].capabilities.filter(
@@ -204,21 +222,34 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
       title={compDef.metadata?.title || 'Untitled Component Definition'}
       tabs={tabsConfig}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(newTab) => {
+        if (activeTab === 'json' && newTab !== 'json') {
+          const entityId = jsonEditorRef.current?.getCursorEntityId?.();
+          if (entityId) {
+            const comp = components.find((c: any) => c.uuid === entityId);
+            if (comp) setSelectedComponent(comp);
+            else {
+              const cap = capabilities.find((c: any) => c.uuid === entityId);
+              if (cap) setSelectedCapability(cap);
+            }
+          }
+        }
+        setActiveTab(newTab);
+      }}
       onClose={onClose}
     >
-      <div className={styles['panel-body']}>
+      <div className={styles['panel-body']} style={{ height: '100%', overflowY: 'auto', padding: '24px' }}>
         {activeTab === 'overview' && (
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">Component Definition Dashboard</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: 'var(--color-text)' }}>Component Definition Dashboard</h2>
             <MetricCardGrid>
-              <MetricCard title="Total Components" value={components.length} icon="🧱" />
-              <MetricCard title="Total Capabilities" value={capabilities.length} icon="⚡" />
-              <MetricCard title="Control Impls" value={totalControlImpls} icon="🔒" />
-              <MetricCard title="Impl Reqs" value={totalControls} icon="✅" />
+              <MetricCard title="Total Components" value={components.length} icon="🧱" accentColor="var(--color-primary)" />
+              <MetricCard title="Total Capabilities" value={capabilities.length} icon="⚡" accentColor="var(--color-warning)" />
+              <MetricCard title="Control Impls" value={totalControlImpls} icon="🔒" accentColor="var(--color-info)" />
+              <MetricCard title="Impl Reqs" value={totalControls} icon="✅" accentColor="var(--color-success)" />
             </MetricCardGrid>
 
-            <div className="mt-8">
+            <div>
               <StatusBreakdown 
                 title="Component Types" 
                 variant="bar"
@@ -233,7 +264,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
         )}
 
         {activeTab === 'components' && (
-          <div className="p-6 h-full flex flex-col">
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
             <EntityTable
               data={components}
               columns={componentColumns}
@@ -246,7 +277,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
         )}
 
         {activeTab === 'capabilities' && (
-          <div className="p-6 h-full flex flex-col">
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
             <EntityTable
               data={capabilities}
               columns={capabilityColumns}
@@ -259,9 +290,9 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
         )}
 
         {activeTab === 'metadata' && (
-          <div className="p-6 max-w-4xl mx-auto space-y-8">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '900px', margin: '0 auto', width: '100%' }}>
             <section>
-              <h3 className="text-lg font-semibold mb-4">Document Metadata</h3>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Document Metadata</h3>
               <MetadataEditor
                 metadata={compDef.metadata || {}}
                 onChange={(md: any) => handleUpdate(draft => {
@@ -272,7 +303,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
             </section>
             
             <section>
-              <h3 className="text-lg font-semibold mb-4">Properties</h3>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Properties</h3>
               <PropsEditor
                 props={compDef.metadata?.props || []}
                 onChange={(props: any) => handleUpdate(draft => {
@@ -284,7 +315,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold mb-4">Back Matter</h3>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Back Matter</h3>
               <BackMatterEditor
                 backMatter={compDef['back-matter'] || {}}
                 onChange={(bm: any) => handleUpdate(draft => {
@@ -297,14 +328,16 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
         )}
 
         {activeTab === 'json' && (
-          <div className="h-full">
+          <div style={{ height: '100%' }}>
             <JsonEditor
+              ref={jsonEditorRef}
               value={doc}
               onChange={(newDoc: any) => {
                 setDoc(newDoc);
                 pushUndoRedoState(newDoc);
               }}
               readOnly={!isEditing}
+              highlightId={selectedComponent?.uuid || selectedCapability?.uuid || null}
             />
           </div>
         )}

@@ -7,21 +7,28 @@ import { DebouncedInput } from './DebouncedInput';
 /**
  * Links CRUD editor.
  */
+export interface LinksEditorProps {
+  links?: any[];
+  onChange?: (links: any[]) => void;
+  resources?: any[];
+  readOnly?: boolean;
+}
+
 export function LinksEditor({
   links = [],
-  onChange,
+  onChange = () => {},
   resources = [], // Back-matter resources list for rel="reference" autocomplete dropdown
   readOnly
-}) {
+}: LinksEditorProps) {
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditing = readOnly !== undefined ? !readOnly : globalEditMode;
   const isReadOnlyState = !isEditing;
-  const [showAdvancedIndex, setShowAdvancedIndex] = useState({});
+  const [showAdvancedIndex, setShowAdvancedIndex] = useState<Record<number, boolean>>({});
 
-  const handleLinkChange = (index, field, val) => {
+  const handleLinkChange = (index: number, field: string, val: any) => {
     const updated = links.map((l, i) => {
       if (i === index) {
-        const item = { ...l, [field]: val };
+        const item = typeof l === 'object' && l !== null ? { ...l, [field]: val } : { [field]: val };
         // Clean up empty optional fields
         if (field === 'text' || field === 'rel' || field === 'media-type' || field === 'resource-fragment') {
           if (!val) delete item[field];
@@ -60,7 +67,7 @@ export function LinksEditor({
           </p>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {links.map((l, idx) => (
+            {links.map((l: any, idx: number) => (
               <a
                 key={idx}
                 href={l.href}
@@ -94,7 +101,7 @@ export function LinksEditor({
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {links.map((l, idx) => {
+              {links.map((l: any, idx: number) => {
                 const isReference = l.rel === 'reference';
                 return (
                   <div
@@ -131,7 +138,7 @@ export function LinksEditor({
                             style={{ flex: '2 1 200px' }}
                           >
                             <option value="">-- Select Resource --</option>
-                            {resources.map((res) => (
+                            {resources.map((res: any) => (
                               <option key={res.uuid} value={`#${res.uuid}`}>
                                 {res.title || 'Untitled Resource'} (#{res.uuid.substring(0, 8)})
                               </option>

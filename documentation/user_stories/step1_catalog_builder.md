@@ -29,10 +29,11 @@
     *   Assignment of unique IDs for groups (e.g., `ac`, `ac-ia`).
     *   Subsequent moving and reordering of groups in the editor.
     *   **Group Editing (Props, Links, Parts, Class):** Each group can be edited in the detail pane when selected. This includes modifying the ID, title, and `class` attribute (e.g., `family`, `sub-family`), assigning properties/tags (`props`), adding links (`links`), and capturing description texts (`parts`).
-    *   **Premium Group Details Interface:** The Group Editor pane features a premium glassmorphic header banner, a structured metadata grid (with visual metrics for Family ID, controls, sub-groups, and total controls), and a unified list table layout matching the Document Overview aesthetics. The Controls table lists only the direct/main controls of the group (excluding nested control enhancements/sub-controls, which are accessed when selecting a specific control).
+    *   **Premium Group Details Interface:** The Group Editor pane features a structured metadata grid and a unified list table layout matching the Document Overview aesthetics. The Controls table lists only the direct/main controls of the group.
     *   **ProseWithParams in Group Parts:** All group description texts (`parts` in the `PartsEditor` of the `GroupEditor`) are integrated with `ProseWithParams`.
-    *   **Add-Parameter & Callback in Group-Prose:** When editing group texts, the "🏷️ Add Parameter" button with caret-relative positioning is available.
-    *   **onNewParam for Group Parameters:** Clicking on "➕ Define New Parameter..." in the dropdown of a group text field automatically creates a new group parameter in `group.params` and smoothly scrolls the view to the "Group Parameters" card in the `GroupEditor`.
+    *   **Add-Parameter & Callback in Group-Prose:** When editing group texts, the "Add Parameter" button with caret-relative positioning is available.
+    *   **onNewParam for Group Parameters:** Clicking on "Define New Parameter..." in the dropdown of a group text field automatically creates a new group parameter in `group.params` and smoothly scrolls the view to the "Group Parameters" card.
+    *   **Functional Use of label and sort-id:** The UI functionally uses the standard OSCAL properties `label` (as primary display text instead of technical ID) and `sort-id` (for alphanumeric sorting in lists and sidebars) to correctly display imported catalogs.
 
 ### US 1.3: Control Statements, Parts & Enhancements — Creation and Inline Editing
 > **As a** Compliance Officer and Framework Developer (Alice)  
@@ -42,12 +43,11 @@
     *   Creation of main controls with IDs and unique requirement texts (statements).
     *   **Inline Editing of Statement Parts:** The structured sub-parts of a statement (e.g., `a.`, `b.`, `c.`) are rendered individually as editable text fields. New sub-parts can be added, existing ones edited, and deleted.
     *   **Inline Editing of all Prose Parts:** Guidance, Discussion, Example, Information, Overview, Assessment Method, and other parts (`parts`) can be edited directly in the editor as free text.
-    *   Definition of nested control enhancements (sub-controls) with their own ID and statement. In the main control's detail view, these enhancements are shown as a compact, collapsible overview table listing only IDs and Titles (collapsed by default). Selecting an enhancement navigates directly to its specific detail editor.
+    *   Definition of nested control enhancements (sub-controls) with their own ID and statement. In the main control's detail view, these enhancements are shown as a compact, collapsible overview table listing only IDs and Titles. Selecting an enhancement navigates directly to its specific detail editor.
     *   **Class Attribute:** The `class` attribute of a control (e.g., `SP800-53`, `custom`) can be set and modified via an input field.
-    *   **Icon Taxonomy & Visual Consistency:** The gear icon (`⚙️`) is reserved exclusively for Parameter-related elements and actions (e.g., `⚙️ Add Parameter`, `⚙️ Parameters`). Advanced settings toggles for parts, sub-parts/items, subcontrols, links, and property badges consistently use the wrench icon (`🔧`).
-    *   **Universal Parameter Insertion (⚙️ Add Parameter):** Every prose entry field — including top-level statements/parts and all nested sub-parts/items (e.g., `a.`, `b.`, `c.`) in both Catalog and Profile modes — features a `⚙️` (Add Parameter) button to trigger caret-relative parameter placeholder insertion.
-    *   **Unlimited Recursive Part Nesting:** The UI renders parts nested to any depth (`part.parts[].parts[]...`), as stipulated by the OSCAL standard (e.g., NIST SP 800-53: Statement → Item a → Item 1 → Item (a) → Item (i) = 5+ levels).
-    *   **Part-Level Metadata (Advanced):** Via the `🔧 Advanced Settings` panel, `title`, `props`, and `links` can optionally be maintained for each individual part in order to capture paragraph-specific metadata (e.g., `applicability: cloud-only`) in a schema-compliant manner.
+    *   **Universal Parameter Insertion:** Every prose entry field — including top-level statements/parts and all nested sub-parts/items — features an Add Parameter button to trigger caret-relative parameter placeholder insertion.
+    *   **Unlimited Recursive Part Nesting:** The UI renders parts nested to any depth (`part.parts[].parts[]...`), as stipulated by the OSCAL standard.
+    *   **Part-Level Metadata (Advanced):** Via the Advanced Settings panel, `title`, `props`, and `links` can optionally be maintained for each individual part in order to capture paragraph-specific metadata in a schema-compliant manner.
 
 ### US 1.4: Parameter Definitions, Constraints & Interactive Value Assignment
 > **As a** Compliance Officer and Framework Developer (Alice)  
@@ -115,26 +115,11 @@
 > **I want to** manage the catalog's metadata and properties in clearly separated views within the Document Overview,  
 > **so that** I have a clear, OSCAL-correct overview of document metadata vs. property usage across controls and groups.
 *   **Acceptance Criteria:**
-    *   **Sidebar Navigation (per US 0.21 & DD-011):** The sidebar provides separate navigation items for `ℹ️ Metadata`, `🏷️ Properties`, and `⚙️ Parameters`, each rendering a dedicated view in the right main pane.
-    *   **Metadata View (ℹ️ Metadata):** Shows the MetadataEditor (title, version, OSCAL version, roles, parties, locations, document-ids, remarks, revisions). Does NOT display control/group property aggregations.
-    *   **Properties View (🏷️ Properties):** Contains:
-        *   **Properties Dashboard:** An overview metric bar showing 4 key metrics: **Global Header Properties** (`metadata.props` count), **Element Properties** (unique properties used across tree elements), **Unique Keys** (total distinct property names in the document), and **Total Assignments** (total property occurrences in the tree).
-    *   **Unified Property Cards & Tooltips:** Property cards display `🏷️ Header Property` (with tooltip explaining `metadata.props` header storage and inline editability) or `🏷️ Property` (with tooltip explaining tree element storage).
-    *   **Add Header Property Button:** In edit mode (`isEditing`), the action button is labeled `➕ Add Header Property` with tooltip clarifying that it creates a document-level property in `metadata.props`.
-    *   **Unified Icon Taxonomy (Option A):** 
-        *   `🏷️` reserved strictly for **Properties** (sidebar tab, Property Hub cards, property pills, Add Property buttons).
-        *   `⚙️` reserved strictly for **Parameters** (sidebar tab, Add Parameter button).
-        *   `🔧` reserved for **Property Advanced Settings** (`PropsEditor.tsx` wrench popup).
-> **Note (2026-07-22):** Standardized button label to `➕ Add Header Property` and added hover tooltips explaining Header Property vs. Element Property behavior.
-
-### US 1.11: Detailed Editability of Controls & Exit Button in the Catalog
-> *Implements [US 0.17](step0_global_requirements.md) with catalog-specific additions.*
-> **As a** Compliance Officer and Framework Developer (Alice)  
-> **I want to** edit all components of a control and its enhancements inline in a single cohesive detail card and save edits using an exit button,  
-> **so that** the operation is consistent and error-resistant.
-    *   **In-Card Properties Editor:** In edit mode, the header area (ID, title) and properties area are combined into a single cohesive card (gray background with border). All property pills feature a prefix `🏷️` icon. Action buttons (`🔧` Advanced Settings and `🗑️` Delete) cleanly fade in onHover with `auto` container width (no CSS 28px clipping). The `🔧` wrench icon has uniform, neutral styling across all property pills, highlighting only when clicked open. Input widths for `id`, `class`, `name`, and `value` are sized dynamically with comfortable padding so control IDs (e.g. `GC.3.1.1`), class categories, placeholder texts, and short keys are never truncated.
-    *   **Suggestions for Property Names:** When entering local or global properties, an autocompletion list (`datalist`) suggests all property keys already used in the catalog (e.g., `sort-id`, `label`).
-    *   **Exit Button with Backend Drafting:** The "Cancel" button is replaced by an "Exit" button. This closes the editor and redirects to the read-only view (Catalog Viewer). Unsaved drafts are stored in `localStorage` so that they can be restored or discarded upon re-entering the catalog.
+    *   **Sidebar Navigation:** The sidebar provides separate navigation items for Metadata, Properties, and Parameters, each rendering a dedicated view in the right main pane.
+    *   **Metadata View:** Shows the MetadataEditor. Does NOT display control/group property aggregations.
+    *   **Properties View:** Contains a Properties Dashboard showing key metrics (Global Header Properties, Element Properties, Unique Keys, Total Assignments).
+    *   **Unified Property Cards:** Property cards display Header Property or regular Property depending on storage scope.
+    *   **Add Header Property Button:** In edit mode, the action button allows creating document-level properties.
 
 ### US 1.12: Full Editability of All OSCAL Control Elements
 > **As a** Compliance Officer and Framework Developer (Alice)  
@@ -162,15 +147,13 @@
 > **I want to** move groups and controls in the catalog sidebar using drag-and-drop — both in their order within the same hierarchy level and between different groups (hierarchy change),  
 > **so that** I can intuitively and efficiently reorder the structure of my catalog without relying on context menu buttons.
 *   **Acceptance Criteria:**
-    *   **Drag Handle:** In edit mode, each group and control in the sidebar displays a visual drag handle (e.g., `⠿` icon) to start a drag operation.
-    *   **Seamless Targeting (Midpoint Partitioning):** When dragging over the sidebar, there are no dead zones or dropouts. The drop position is calculated based on the midpoints between elements. Placing an item directly into the gap that opens up is reliably possible.
-    *   **Smooth Gap Opening (Accordion Spacing):** When dragging between elements (reordering), a gap gently slides open at the insertion point to make room for the element.
-    *   **Dropping inside a Group without Gap:** When moving over the center of a group, no gap opens. Instead, the target group is visually highlighted (dashed outline + glow) to indicate the hierarchy change.
-    *   **Collision-Free Ghost Element:** The floating ghost element (bearing the name of the dragged object) is positioned offset from the cursor (e.g., shifted down-right) so it doesn't obscure the target object and text.
+    *   **Drag Handle:** In edit mode, each group and control in the sidebar displays a visual drag handle to start a drag operation.
+    *   **Seamless Targeting:** Dropping elements into specific positions between other elements or within groups is reliably possible.
     *   **Same Level — Reordering:** An element can be moved up or down within its current peer list (e.g., controls within a group or root groups at the top level).
     *   **Hierarchy Change:** A control can be dragged and dropped from one group into another group (or to the root level). A group can be moved into another group as a subgroup or dragged to the root level.
     *   **Edit Mode Only:** Drag-and-drop is only active when the user is in edit mode. In view mode, elements are not draggable.
-    *   **Undo-Capable:** Each drag-and-drop operation creates a new undo history entry, allowing the relocation to be undone (Ctrl+Z).
+    *   **Undo-Capable:** Each drag-and-drop operation creates a new undo history entry, allowing the relocation to be undone.
+
 ### US 1.15: Multi-Level Parameter Management and Referencing (Catalog, Group, and Control Level)
 > **As a** Framework Developer (Alice)  
 > **I want to** be able to define, manage, and reference parameters in prose texts at the catalog, group, and control level,  
@@ -215,19 +198,10 @@
 *   **Acceptance Criteria:**
     *   **Withdrawal Action:** In the context menu or detail editor of a control, there is an action "⛔ Withdraw Control" that sets a property `prop name="status" value="withdrawn"`.
     *   **Replacement Link:** When withdrawing, the user is prompted to select the replacing control. The system automatically generates a `link rel="incorporated-into" href="#<replacement-control-id>"` on the withdrawn control.
-    *   **Visual Marking:** Withdrawn controls are grayed out in the sidebar and detail editor with a strikethrough title and a red `Withdrawn` badge.
-    *   **Parameter Freeze:** The parameters of withdrawn controls are displayed as read-only.
+    *   **Visual Marking & Edit vs. View Mode:** In Editor Mode (`✏️ Edit`), withdrawn controls are displayed grayed out in the sidebar tree and detail editor with a strikethrough title, a red `Withdrawn` badge, and a "Restore Control" button for visual traceability. In View Mode (`👁️ View`), withdrawn controls and withdrawn groups are completely hidden from the sidebar navigation tree and group lists, keeping the read-only view clean.
+    *   **Parameter Freeze:** In Edit Mode, the parameters of withdrawn controls are displayed as read-only.
+    *   **Restore Action:** In Edit Mode, withdrawn controls can be restored to active status via a "Restore Control" button. In View Mode, this restoration button is hidden.
     *   **Dashboard Metric:** The Withdrawn count on the overview page (US 0.13) correctly reflects all `status: withdrawn` controls.
-
-### US 1.20: Functional Use of `label` and `sort-id` Properties in the UI
-> **As a** Framework Developer (Alice)  
-> **I want to** have the UI functionally use the standard OSCAL properties `label` and `sort-id` (as primary display text and for sidebar sorting, respectively),  
-> **so that** imported NIST catalogs are correctly displayed and sorted (e.g., `AC-1` instead of `ac-1`, and `ac-01, ac-02, ac-10` instead of `ac-1, ac-10, ac-2`).
-*   **Acceptance Criteria:**
-    *   **Label as Display Text:** If a control or group has a property `prop name="label"`, its value (e.g., `AC-1`) is used as the primary display text in the sidebar, in breadcrumbs, and in the detail header (instead of the technical `id`).
-    *   **Sort-ID for Sorting:** If controls or groups have a property `prop name="sort-id"`, they are sorted alphanumerically by this value in the sidebar and in lists.
-    *   **Fallback:** Without a `label` property, the `id` is used as the display text. Without a `sort-id`, the default document order is preserved.
-    *   **Automatic Generation:** When creating new controls, a `label` (uppercase version of the ID) and a `sort-id` (zero-padded version) are optionally suggested.
 
 ### US 1.21: Part-Level Metadata — Properties, Links, and Title at the Paragraph Level
 > **As a** Compliance Officer (Alice)  
@@ -301,6 +275,5 @@
 - [x] Interactive parameter constraint builder and live regex test validation (US 1.17).
 - [x] Standalone catalog export with complete metadata attribution (US 1.18).
 - [ ] Control withdrawal workflow with `status: withdrawn` property, `incorporated-into` replacement links, visual graying, and parameter freeze (US 1.19).
-- [ ] Functional use of `label` property as primary display text and `sort-id` for alphanumeric sidebar sorting (US 1.20).
 - [ ] Part-level metadata (title, props, links) editable via Advanced Settings panel on individual prose parts (US 1.21).
 

@@ -7,6 +7,7 @@ import { PropsEditor } from '@components/shared/PropsEditor';
 import { LinksEditor } from '@components/shared/LinksEditor';
 import { PartsEditor } from '@components/shared/PartsEditor';
 import { ParameterEditor } from './ParameterEditor';
+import { ErrorBoundary } from '@components/shared/ui/ErrorBoundary';
 
 const countControlsInGroup = (g) => {
   let count = 0;
@@ -111,18 +112,22 @@ export function GroupEditor({
     }));
   };
 
+  const isItemWithdrawn = (item: any) => {
+    return item?.status === 'withdrawn' || item?.props?.some((p: any) => (p.name === 'status' || p.name === 'state') && p.value === 'withdrawn');
+  };
+
   const props = group.props || [];
   const links = group.links || [];
   const parts = group.parts || [];
-  const subgroups = group.groups || [];
-  const controls = group.controls || [];
+  const subgroups = (group.groups || []).filter((g: any) => isEditing || !isItemWithdrawn(g));
+  const controls = (group.controls || []).filter((c: any) => isEditing || !isItemWithdrawn(c));
   const setParams = profile?.modify?.['set-parameters'] || [];
 
   const directControlsCount = controls.length;
   const subgroupsCount = subgroups.length;
   const totalControlsCount = countControlsInGroup(group);
 
-  const metricCardStyle = {
+  const metricCardStyle: React.CSSProperties = {
     background: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
     borderRadius: 'var(--radius-md)',
@@ -134,7 +139,7 @@ export function GroupEditor({
     minWidth: '130px'
   };
 
-  const metricLabelStyle = {
+  const metricLabelStyle: React.CSSProperties = {
     fontSize: '10px',
     fontWeight: '700',
     color: 'var(--color-text-muted)',
@@ -143,83 +148,76 @@ export function GroupEditor({
   };
 
   return (
-    <div className="group-editor-view premium-group-editor-view" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', height: '100%', overflowY: 'auto' }}>
-      
-      {/* Breadcrumbs */}
-      <div className="breadcrumbs" style={{ flexShrink: 0, fontSize: '12px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span onClick={() => onSelectGroup?.(null)} style={{ cursor: onSelectGroup ? 'pointer' : 'default' }} className="breadcrumb-link">Overview</span>
-        {getGroupAncestorsPath(group.id, catalog).slice(0, -1).map(b => (
-          <React.Fragment key={b.id}>
-            <span>/</span>
-            <span 
-              onClick={() => onSelectGroup?.(b.id)}
-              style={{ cursor: onSelectGroup ? 'pointer' : 'default' }}
-              className="breadcrumb-link"
-            >
-              {b.title || b.id}
-            </span>
-          </React.Fragment>
-        ))}
-        <span>/</span>
-        <span style={{ color: 'var(--color-text)', fontWeight: '500' }}>{group.title || group.id}</span>
-      </div>
-
-      {/* Header Title section */}
-      <div className="group-banner-header" style={{ flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '32px' }}>📁</span>
-          {isEditing ? (
-            <DebouncedInput
-              value={group.title || ''}
-              onChange={(val) => handleFieldChange('title', val)}
-              placeholder="Group Title"
-              className={['form-input', styles['form-input-plain'], styles['form-input-h2']].filter(Boolean).join(' ')}
-              style={{ 
-                fontSize: '24px',
-                fontWeight: '800',
-                color: 'var(--color-text)',
-                width: '100%',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none'
-              }}
-            />
-          ) : (
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: 'var(--color-text)', letterSpacing: '-0.3px' }}>
-              {group.title || 'Untitled Group'}
-            </h1>
-          )}
+    <ErrorBoundary>
+      <div className="group-editor-view premium-group-editor-view" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', height: '100%', overflowY: 'auto' }}>
+        
+        {/* Breadcrumbs */}
+        <div className="breadcrumbs" style={{ flexShrink: 0, fontSize: '12px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span onClick={() => onSelectGroup?.(null)} style={{ cursor: onSelectGroup ? 'pointer' : 'default' }} className="breadcrumb-link">Overview</span>
+          {getGroupAncestorsPath(group.id, catalog).slice(0, -1).map(b => (
+            <React.Fragment key={b.id}>
+              <span>/</span>
+              <span 
+                onClick={() => onSelectGroup?.(b.id)} 
+                style={{ cursor: onSelectGroup ? 'pointer' : 'default' }}
+                className="breadcrumb-link"
+              >
+                {b.title || b.id}
+              </span>
+            </React.Fragment>
+          ))}
+          <span>/</span>
+          <span style={{ color: 'var(--color-text)', fontWeight: '600' }}>{group.title || group.id}</span>
         </div>
 
-        {isEditing ? (
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Folder ID:</span>
-            <DebouncedInput
-              value={group.id}
-              onChange={(val) => handleFieldChange('id', val)}
-              className={styles['form-input-plain']}
-              style={{ width: '120px', fontSize: '12px', color: 'var(--color-text-muted)', padding: '2px 6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
-            />
-            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: '12px' }}>Class:</span>
-            <DebouncedInput
-              value={group.class || ''}
-              onChange={(val) => handleFieldChange('class', val)}
-              className={styles['form-input-plain']}
-              style={{ width: '120px', fontSize: '12px', color: 'var(--color-text-muted)', padding: '2px 6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
-            />
+        {/* Header section */}
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '24px' }}>📁</span>
+            {isEditing ? (
+              <DebouncedInput
+                value={group.title || ''}
+                onChange={(val) => handleFieldChange('title', val)}
+                className={styles['form-input-plain']}
+                style={{ fontSize: '20px', fontWeight: '800', width: '100%', padding: '4px 8px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '6px' }}
+                placeholder="Group Title"
+              />
+            ) : (
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: 'var(--color-text)' }}>
+                {group.title || 'Untitled Group'}
+              </h2>
+            )}
           </div>
-        ) : (
-          props.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
-              {props.map((p, idx) => (
-                <span key={idx} className="badge premium-prop-badge">
-                  🏷️ <strong style={{ color: 'var(--color-text-muted)' }}>{p.name}:</strong> <span style={{ color: 'var(--color-text)' }}>{p.value}</span>
-                </span>
-              ))}
+          
+          {isEditing ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>ID:</span>
+              <DebouncedInput
+                value={group.id || ''}
+                onChange={(val) => handleFieldChange('id', val)}
+                className={styles['form-input-plain']}
+                style={{ width: '120px', fontSize: '12px', color: 'var(--color-text-muted)', padding: '2px 6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
+              />
+              <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: '12px' }}>Class:</span>
+              <DebouncedInput
+                value={group.class || ''}
+                onChange={(val) => handleFieldChange('class', val)}
+                className={styles['form-input-plain']}
+                style={{ width: '120px', fontSize: '12px', color: 'var(--color-text-muted)', padding: '2px 6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
+              />
             </div>
-          )
-        )}
-      </div>
+          ) : (
+            props.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                {props.map((p, idx) => (
+                  <span key={p.name ? `${p.name}-${p.value}` : `prop-${idx}`} className="badge premium-prop-badge">
+                    🏷️ <strong style={{ color: 'var(--color-text-muted)' }}>{p.name}:</strong> <span style={{ color: 'var(--color-text)' }}>{p.value}</span>
+                  </span>
+                ))}
+              </div>
+            )
+          )}
+        </div>
 
       {/* Metrics Row */}
       <div className={styles['overview-metrics-grid']} style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
@@ -331,6 +329,29 @@ export function GroupEditor({
         </div>
       </div>
 
+      {/* Links & Prose parts (Only when editing group) */}
+      {isEditing && (
+        <>
+          <div className="section-container" style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
+            <PartsEditor
+              parts={parts}
+              onChange={(val) => handleFieldChange('parts', val)}
+              readOnly={false}
+              params={visibleGroupParams}
+              onDefineNewParam={handleDefineNewParam}
+            />
+          </div>
+
+          <div className="section-container" style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
+            <LinksEditor
+              links={links}
+              onChange={(val) => handleFieldChange('links', val)}
+              readOnly={false}
+            />
+          </div>
+        </>
+      )}
+
       {/* Group Parameters Card (Always open and matches Control Parameters style) */}
       {(isEditing || (group.params && group.params.length > 0)) && (
         <div 
@@ -380,29 +401,7 @@ export function GroupEditor({
         </div>
       )}
 
-      {/* Links & Prose parts (Only when editing group) */}
-      {isEditing && (
-        <>
-          <div className="section-container" style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
-            <LinksEditor
-              links={links}
-              onChange={(val) => handleFieldChange('links', val)}
-              readOnly={false}
-            />
-          </div>
-
-          <div className="section-container" style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
-            <PartsEditor
-              parts={parts}
-              onChange={(val) => handleFieldChange('parts', val)}
-              readOnly={false}
-              params={visibleGroupParams}
-              onDefineNewParam={handleDefineNewParam}
-            />
-          </div>
-        </>
-      )}
-
     </div>
+    </ErrorBoundary>
   );
 }

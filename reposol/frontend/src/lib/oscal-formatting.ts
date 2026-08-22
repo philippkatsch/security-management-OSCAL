@@ -5,12 +5,12 @@ export function formatProse(prose: string | null | undefined, params: Parameter[
 
   const placeholderRegex = /\{\{\s*insert:\s*param,\s*([^\s}]+)\s*\}\}/g;
 
-  return prose.replace(placeholderRegex, (_match, paramId) => {
+  return prose.replace(placeholderRegex, (_match: string, paramId: string): string => {
     if (Array.isArray(params)) {
-      const param = params.find(p => (p.id || (p as Record<string, unknown>)['param-id']) === paramId);
+      const param = params.find((p: any) => (p.id || p['param-id']) === paramId) as any;
       if (param) {
         if (param.values && param.values.length > 0 && param.values[0]) {
-          return param.values[0];
+          return String(param.values[0]);
         }
         if (param.label) {
           return `[${param.label}]`;
@@ -18,7 +18,8 @@ export function formatProse(prose: string | null | undefined, params: Parameter[
       }
       return `[${paramId}]`;
     } else if (params && typeof params === 'object') {
-      return params[paramId] !== undefined ? params[paramId] : `[${paramId}]`;
+      const val = (params as Record<string, any>)[paramId];
+      return val !== undefined ? String(val) : `[${paramId}]`;
     }
     return `[${paramId}]`;
   });

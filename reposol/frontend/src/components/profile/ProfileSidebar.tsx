@@ -16,20 +16,37 @@ export function ProfileSidebar({
   onSelectParameters,
   onSelectBackMatter,
   onSelectImports,
+  onSelectDiff,
   searchQuery = '',
-  onSearchChange
+  onSearchChange,
+  isEditing = false
 }: any) {
+  const findNodeType = React.useCallback((id: string) => {
+    const isGrp = (items: any[]): boolean => {
+      if (!items) return false;
+      for (const item of items) {
+        if (item.id === id) return true;
+        if (item.groups && isGrp(item.groups)) return true;
+      }
+      return false;
+    };
+    return isGrp(resolvedCatalog.groups || []) ? 'group' : 'control';
+  }, [resolvedCatalog]);
+
   const tree = useControlTree({
     groups: resolvedCatalog.groups || [],
     controls: resolvedCatalog.controls || [],
     initialSelectedId: selectedControlId || selectedGroupId || null,
     onSelect: (id) => {
-      // Need to figure out if id is a group or control.
-      // useControlTree maintains `selectedNode` but it only updates after render.
-      // We can use a trick or just let the page track it.
-      // For now, if we don't know, we could check the flatList.
+      if (!id) return;
+      const type = findNodeType(id);
+      if (type === 'group') {
+        onSelectGroup(id);
+      } else {
+        onSelectControl(id);
+      }
     },
-    showWithdrawn: true
+    showWithdrawn: isEditing
   });
   
   // Sync external search query if needed (or just use tree's)
@@ -48,33 +65,27 @@ export function ProfileSidebar({
   // Sync selected node
   const activeId = selectedControlId || selectedGroupId;
   React.useEffect(() => {
-     if (activeId && activeId !== tree.selectedId) {
+     if (activeId !== tree.selectedId) {
          tree.select(activeId);
      }
   }, [activeId]);
   
-  // Custom onSelect logic that bridges ControlTree with ProfilePage
-  const handleSelect = (id: string | null) => {
-      tree.select(id);
-      if (!id) {
-          onSelectOverview();
-          return;
-      }
-      const node = tree.flatList.find(n => n.id === id);
-      if (node?.type === 'group') {
-          onSelectGroup(id);
-      } else {
-          onSelectControl(id);
-      }
+  const handleSelectNode = (id: string | null) => {
+    tree.select(id);
+    if (!id) return;
+    const node = tree.flatList.find(n => n.id === id);
+    if (node?.type === 'group') {
+      onSelectGroup(id);
+    } else {
+      onSelectControl(id);
+    }
   };
-  
-  // Override the tree's select to use our bridging logic
-  tree.select = handleSelect;
 
   const headerContent = (
     <div style={{ padding: '12px 12px 0 12px' }}>
       <div
-        onClick={() => handleSelect(null)}
+        data-testid="profile-sidebar-overview"
+        onClick={() => { tree.select(null); onSelectOverview(); }}
         className={`${sharedStyles['sidebar-item']} ${(!tree.selectedId && activeSidebarView === 'overview') ? sharedStyles['sidebar-item-selected'] : ''}`}
         style={{ fontWeight: 'bold', cursor: 'pointer' }}
       >
@@ -84,7 +95,8 @@ export function ProfileSidebar({
         </div>
       </div>
       <div
-        onClick={() => { handleSelect(null); onSelectMetadata(); }}
+        data-testid="profile-sidebar-metadata"
+        onClick={() => { tree.select(null); onSelectMetadata(); }}
         className={`${sharedStyles['sidebar-item']} ${(!tree.selectedId && activeSidebarView === 'metadata') ? sharedStyles['sidebar-item-selected'] : ''}`}
         style={{ fontWeight: 'bold', cursor: 'pointer', marginTop: '4px' }}
       >
@@ -94,7 +106,8 @@ export function ProfileSidebar({
         </div>
       </div>
       <div
-        onClick={() => { handleSelect(null); onSelectProperties(); }}
+        data-testid="profile-sidebar-properties"
+        onClick={() => { tree.select(null); onSelectProperties(); }}
         className={`${sharedStyles['sidebar-item']} ${(!tree.selectedId && activeSidebarView === 'properties') ? sharedStyles['sidebar-item-selected'] : ''}`}
         style={{ fontWeight: 'bold', cursor: 'pointer', marginTop: '4px' }}
       >
@@ -104,7 +117,8 @@ export function ProfileSidebar({
         </div>
       </div>
       <div
-        onClick={() => { handleSelect(null); onSelectParameters(); }}
+        data-testid="profile-sidebar-parameters"
+        onClick={() => { tree.select(null); onSelectParameters(); }}
         className={`${sharedStyles['sidebar-item']} ${(!tree.selectedId && activeSidebarView === 'parameters') ? sharedStyles['sidebar-item-selected'] : ''}`}
         style={{ fontWeight: 'bold', cursor: 'pointer', marginTop: '4px' }}
       >
@@ -114,7 +128,8 @@ export function ProfileSidebar({
         </div>
       </div>
       <div
-        onClick={() => { handleSelect(null); onSelectImports(); }}
+        data-testid="profile-sidebar-imports"
+        onClick={() => { tree.select(null); onSelectImports(); }}
         className={`${sharedStyles['sidebar-item']} ${(!tree.selectedId && activeSidebarView === 'imports') ? sharedStyles['sidebar-item-selected'] : ''}`}
         style={{ fontWeight: 'bold', cursor: 'pointer', marginTop: '4px' }}
       >
@@ -124,7 +139,19 @@ export function ProfileSidebar({
         </div>
       </div>
       <div
-        onClick={() => { handleSelect(null); onSelectBackMatter(); }}
+        data-testid="profile-sidebar-diff"
+        onClick={() => { tree.select(null); onSelectDiff && onSelectDiff(); }}
+        className={`${sharedStyles['sidebar-item']} ${(!tree.selectedId && activeSidebarView === 'diff') ? sharedStyles['sidebar-item-selected'] : ''}`}
+        style={{ fontWeight: 'bold', cursor: 'pointer', marginTop: '4px' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ width: '18px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>⚖️</span>
+          <span>Baseline Diff</span>
+        </div>
+      </div>
+      <div
+        data-testid="profile-sidebar-backmatter"
+        onClick={() => { tree.select(null); onSelectBackMatter(); }}
         className={`${sharedStyles['sidebar-item']} ${(!tree.selectedId && activeSidebarView === 'back-matter') ? sharedStyles['sidebar-item-selected'] : ''}`}
         style={{ fontWeight: 'bold', cursor: 'pointer', marginTop: '4px' }}
       >
@@ -138,12 +165,10 @@ export function ProfileSidebar({
   );
 
   return (
-    <div style={{ width: '300px', height: '100%', background: 'var(--color-surface)' }}>
-      <ControlTree 
-        tree={tree} 
-        headerContent={headerContent} 
-        renderNodeExtra={(node) => node.hasAlterations ? <span style={{fontSize: '10px', color: '#f59e0b'}}>●</span> : null}
-      />
-    </div>
+    <ControlTree 
+      tree={tree} 
+      headerContent={headerContent} 
+      renderNodeExtra={(node) => node.hasAlterations ? <span style={{fontSize: '10px', color: '#f59e0b'}}>●</span> : null}
+    />
   );
 }

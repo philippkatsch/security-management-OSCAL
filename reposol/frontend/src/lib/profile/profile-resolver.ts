@@ -150,8 +150,8 @@ export function applyModify(catalog, modify) {
   if (!modify) return;
   const setParams = modify['set-parameters'] || [];
   const alters = modify.alters || [];
-  const paramMap = new Map(setParams.map(p => [(p['param-id'] || p.id)?.toLowerCase(), p]).filter(([k]) => Boolean(k)));
-  const alterMap = new Map(alters.map(a => [a['control-id']?.toLowerCase(), a]));
+  const paramMap = new Map<string, any>(setParams.map((p: any) => [(p['param-id'] || p.id)?.toLowerCase(), p]).filter(([k]: [any, any]) => Boolean(k)));
+  const alterMap = new Map<string, any>(alters.map((a: any) => [a['control-id']?.toLowerCase(), a]));
 
   const mergeParamOverride = (param, override) => {
     if (!override) return param;
@@ -395,19 +395,19 @@ export function applyModify(catalog, modify) {
  * @param {Function}    [fetchFn=fetch]     - Optional custom fetch function (for testing).
  * @returns {Promise<Map>} The populated cache.
  */
-export async function fetchImportedCatalogs(profileDoc, cache = new Map(), fetchFn = authFetch) {
-  const profile = profileDoc.profile;
+export async function fetchImportedCatalogs(profileDoc: any, cache = new Map<string, any>(), fetchFn = authFetch) {
+  const profile = profileDoc?.profile;
   if (!profile) return cache;
   const imports = profile.imports || [];
 
-  let availableCatalogs = new Set();
-  let availableProfiles = new Set();
-  let registryTemplates = [];
+  const availableCatalogs = new Set<string>();
+  const availableProfiles = new Set<string>();
+  let registryTemplates: any[] = [];
   try {
     const listRes = await fetchFn('/api/documents/catalogs');
     if (listRes.ok) {
       const listData = await listRes.json();
-      listData.forEach(doc => {
+      listData.forEach((doc: any) => {
         const catUuid = doc.catalog?.uuid || doc.uuid;
         if (catUuid) {
           availableCatalogs.add(catUuid.toLowerCase());
@@ -417,7 +417,7 @@ export async function fetchImportedCatalogs(profileDoc, cache = new Map(), fetch
     const listProf = await fetchFn('/api/documents/profiles');
     if (listProf.ok) {
       const listProfData = await listProf.json();
-      listProfData.forEach(doc => {
+      listProfData.forEach((doc: any) => {
         const profUuid = doc.profile?.uuid || doc.uuid;
         if (profUuid) {
           availableProfiles.add(profUuid.toLowerCase());
@@ -433,7 +433,7 @@ export async function fetchImportedCatalogs(profileDoc, cache = new Map(), fetch
   }
 
   await Promise.all(
-    imports.map(async (imp) => {
+    imports.map(async (imp: any) => {
       const match = imp.href ? imp.href.match(/([a-f0-9-]{36})/i) : null;
       const uuid = match ? match[1] : null;
       if (!uuid) return;
@@ -449,7 +449,7 @@ export async function fetchImportedCatalogs(profileDoc, cache = new Map(), fetch
       if (cache.has(uuidLower) && hasControlsOrGroups) return;
 
       let targetUuid = uuidLower;
-      let targetType = null;
+      let targetType: 'catalog' | 'profile' | null = null;
 
       // Check if this import refers to a back-matter resource
       if (imp.href && imp.href.startsWith('#')) {
@@ -550,13 +550,13 @@ export async function fetchImportedCatalogs(profileDoc, cache = new Map(), fetch
  * @param {boolean} [keepAll=false] - If true, inactive controls are marked rather than removed.
  * @returns {{ catalog: Object }} Resolved virtual catalog wrapper.
  */
-export function resolveProfileSync(profileDoc, cache, keepAll = false) {
-  const profile = profileDoc.profile;
+export function resolveProfileSync(profileDoc: any, cache: Map<string, any>, keepAll = false) {
+  const profile = profileDoc?.profile;
   if (!profile) return { catalog: {} };
   const imports = profile.imports || [];
 
-  const allMergedGroups = [];
-  const allMergedControls = [];
+  const allMergedGroups: any[] = [];
+  const allMergedControls: any[] = [];
 
   for (const imp of imports) {
     const match = imp.href ? imp.href.match(/([a-f0-9-]{36})/i) : null;
@@ -667,8 +667,8 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
   }
 
   // Collect all controls flatly for lookup by ID
-  const flatControlsMap = new Map();
-  const collectControls = (ctrl) => {
+  const flatControlsMap = new Map<string, any>();
+  const collectControls = (ctrl: any) => {
     flatControlsMap.set(ctrl.id.toLowerCase(), ctrl);
     if (ctrl.originalId) {
       flatControlsMap.set(ctrl.originalId.toLowerCase(), ctrl);
@@ -678,7 +678,7 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
     }
   };
   allMergedControls.forEach(collectControls);
-  const collectFromGroup = (g) => {
+  const collectFromGroup = (g: any) => {
     if (g.controls) g.controls.forEach(collectControls);
     if (g.groups) g.groups.forEach(collectFromGroup);
   };
@@ -695,13 +695,13 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
       controls: Array.from(flatControlsMap.values()).map(c => ({ ...c, controls: undefined })),
     };
   } else if (merge.custom && ((merge.custom.groups && merge.custom.groups.length > 0) || merge.custom['insert-controls'])) {
-    const resolveCustomGroup = (g) => {
-      const groupCtrls = [];
+    const resolveCustomGroup = (g: any): any => {
+      const groupCtrls: any[] = [];
       // Normalize insert-controls to array
       const icRaw = g['insert-controls'];
       const icArray = Array.isArray(icRaw) ? icRaw : (icRaw ? [icRaw] : []);
       
-      icArray.forEach(ic => {
+      icArray.forEach((ic: any) => {
         if (ic['include-all'] !== undefined) {
           // Include all remaining controls into this group
           flatControlsMap.forEach((ctrl) => {
@@ -711,9 +711,9 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
           });
         }
         if (ic['include-controls']) {
-          ic['include-controls'].forEach(inc => {
+          ic['include-controls'].forEach((inc: any) => {
             if (inc['with-ids']) {
-              inc['with-ids'].forEach(id => {
+              inc['with-ids'].forEach((id: string) => {
                 const ctrl = flatControlsMap.get(id.toLowerCase());
                 if (ctrl) {
                   groupCtrls.push(ctrl);
@@ -721,7 +721,7 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
               });
             }
             if (inc['matching']) {
-              inc['matching'].forEach(m => {
+              inc['matching'].forEach((m: any) => {
                 const pattern = m.pattern;
                 if (pattern) {
                   const regexStr = '^' + pattern.toLowerCase().replace(/\*/g, '.*').replace(/\?/g, '.') + '$';
@@ -740,9 +740,9 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
         }
         if (ic['exclude-controls']) {
           const excludedIds = new Set();
-          ic['exclude-controls'].forEach(exc => {
+          ic['exclude-controls'].forEach((exc: any) => {
             if (typeof exc === 'string') excludedIds.add(exc.toLowerCase());
-            if (exc['with-ids']) exc['with-ids'].forEach(id => excludedIds.add(id.toLowerCase()));
+            if (exc['with-ids']) exc['with-ids'].forEach((id: string) => excludedIds.add(id.toLowerCase()));
           });
           if (excludedIds.size > 0) {
             for (let i = groupCtrls.length - 1; i >= 0; i--) {
@@ -754,7 +754,7 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
         }
       });
       // Apply order
-      icArray.forEach(ic => {
+      icArray.forEach((ic: any) => {
         if (ic.order === 'ascending') {
           groupCtrls.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
         } else if (ic.order === 'descending') {
@@ -777,7 +777,7 @@ export function resolveProfileSync(profileDoc, cache, keepAll = false) {
     const customGroups = (merge.custom.groups || []).map(resolveCustomGroup);
     
     // Resolve top-level insert-controls
-    const topLevelCtrls = [];
+    const topLevelCtrls: any[] = [];
     const topIcRaw = merge.custom['insert-controls'];
     const topIcArray = Array.isArray(topIcRaw) ? topIcRaw : (topIcRaw ? [topIcRaw] : []);
     

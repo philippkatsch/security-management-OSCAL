@@ -2,13 +2,17 @@ import type { ImportResult, ValidationResult, DocumentSummary, VersionInfo } fro
 import { OscalStage, OscalDocument } from './types/oscal';
 import { apiClient } from './api-client';
 
+/** Reserved workspace IDs that cannot be set via URL parameters. */
+const RESERVED_WORKSPACE_IDS = new Set(['master', 'templates', 'default']);
+
 export function getWorkspaceId(): string {
   if (typeof window !== 'undefined' && window.location && window.location.search) {
     const params = new URLSearchParams(window.location.search);
     const urlWsId = params.get('w') || params.get('workspace');
     if (urlWsId) {
       const cleanWsId = urlWsId.replace(/[^a-zA-Z0-9_\-]/g, '');
-      if (cleanWsId) {
+      // Reserved workspace IDs cannot be set via URL — master mode is backend-driven
+      if (cleanWsId && !RESERVED_WORKSPACE_IDS.has(cleanWsId)) {
         localStorage.setItem('reposol_workspace_id', cleanWsId);
         return cleanWsId;
       }
@@ -16,12 +20,24 @@ export function getWorkspaceId(): string {
   }
 
   let wsId = localStorage.getItem('reposol_workspace_id');
-  if (!wsId) {
+  if (!wsId || RESERVED_WORKSPACE_IDS.has(wsId)) {
     wsId = `session-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)}`;
     localStorage.setItem('reposol_workspace_id', wsId);
   }
   return wsId;
 }
+
+/** Fetches backend feature flags from GET /api/config. */
+export async function fetchConfig(): Promise<{ masterEditEnabled: boolean; oscalVersion: string }> {
+  try {
+    const res = await fetch('/api/config');
+    if (res.ok) return res.json();
+  } catch {
+    // Backend may not be reachable yet
+  }
+  return { masterEditEnabled: false, oscalVersion: '1.1.2' };
+}
+
 
 export function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   // Strip /api prefix if present since apiClient adds it
@@ -126,4 +142,13 @@ export async function uploadFile(formData: FormData): Promise<ImportResult> {
   });
   return res.json();
 }
+
+export async function importARFindings(poamId: string, arId: string, findingUuids?: string[]): Promise<any> {
+  const res = await apiClient(`/documents/poams/${poamId}/import-findings/${arId}`, {
+    method: 'POST',
+    body: JSON.stringify({ finding_uuids: findingUuids }),
+  });
+  return res.json();
+}
+
 

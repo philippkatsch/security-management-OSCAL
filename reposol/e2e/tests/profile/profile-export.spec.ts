@@ -34,10 +34,8 @@ test.describe('Profile Export', () => {
     
     const exportBtn = page.getByRole('button', { name: /export/i });
     if (await exportBtn.isVisible()) {
+      const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
       await exportBtn.click();
-      
-      const downloadPromise = page.waitForEvent('download');
-      await page.getByRole('menuitem', { name: /json/i }).click();
       const download = await downloadPromise;
       
       expect(download.suggestedFilename()).toMatch(/\.json$/i);

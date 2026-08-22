@@ -192,3 +192,39 @@ async def recent_documents(ws_id: str = Depends(get_workspace_id)):
             continue
     all_docs.sort(key=lambda d: d.get("last-modified", ""), reverse=True)
     return all_docs[:10]
+
+
+from pydantic import BaseModel
+from app.services.import_service import import_findings_from_ar
+
+class ImportFindingsRequest(BaseModel):
+    finding_uuids: Optional[List[str]] = None
+
+@router.post("/api/documents/poams/{poam_id}/import-findings/{ar_id}")
+async def import_ar_findings_to_poam(
+    poam_id: str,
+    ar_id: str,
+    request_data: Optional[ImportFindingsRequest] = Body(None),
+    ws_id: str = Depends(get_workspace_id),
+):
+    """
+    Import unsatisfied findings from Assessment Results (AR) into a POA&M document (US 7.6 & DD-017).
+    """
+    finding_uuids = request_data.finding_uuids if request_data else None
+    try:
+        result = await import_findings_from_ar(
+            poam_id=poam_id,
+            ar_id=ar_id,
+            finding_uuids=finding_uuids,
+            workspace_id=ws_id,
+        )
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValidationError as e:
+        return validation_error_response(e)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal persistence error: {str(e)}")
+

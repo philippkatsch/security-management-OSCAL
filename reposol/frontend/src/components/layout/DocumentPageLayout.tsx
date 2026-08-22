@@ -4,13 +4,9 @@ import sharedStyles from '@components/shared/SharedComponents.module.css';
 import { useNavigate } from 'react-router-dom';
 import { DocumentToolbar } from '@components/shared/DocumentToolbar';
 import { VersionDrawer } from '@components/shared/VersionDrawer';
-import { ROOT_KEYS, STAGE_LABELS } from '@lib/constants'; // Let's just hardcode if missing
 
-import StatusBadge from '@components/shared/status/StatusBadge';
-import LifecycleSelector from '@components/shared/status/LifecycleSelector';
-import LifecycleBanner from '@components/shared/status/LifecycleBanner';
-import { getDocumentStatus, setDocumentStatus } from '@lib/status-machine';
 import { getWorkspaceId, exportDocument } from '@lib/api';
+import { LoadingSpinner } from '@components/shared/ui/LoadingSpinner';
 
 const STAGE_CONFIG: Record<string, { label: string; rootKey: string }> = {
   catalogs: { label: 'Catalog', rootKey: 'catalog' },
@@ -36,6 +32,8 @@ export interface DocumentPageLayoutProps {
   sidebarOpen?: boolean;
   onSidebarToggle?: () => void;
   onClose?: () => void;
+  headerActions?: React.ReactNode;
+  onExport?: () => void;
 }
 
 export const DocumentPageLayout = ({
@@ -50,7 +48,9 @@ export const DocumentPageLayout = ({
   sidebar,
   sidebarOpen,
   onSidebarToggle,
-  onClose
+  onClose,
+  headerActions,
+  onExport
 }: DocumentPageLayoutProps) => {
   const navigate = useNavigate();
 
@@ -68,30 +68,16 @@ export const DocumentPageLayout = ({
   const config = STAGE_CONFIG[stage] || { label: stage, rootKey: stage };
 
   const activeDoc = lifecycle.activeDoc || lifecycle.doc;
-  const docStatus = getDocumentStatus(activeDoc);
-
-  const handleStatusChange = (newStatus: string, successorUuid?: string) => {
-    if (activeDoc && lifecycle.setDoc) {
-      const updated = setDocumentStatus(activeDoc, newStatus as any, successorUuid);
-      lifecycle.setDoc(updated);
-      if (lifecycle.pushUndoRedoState) {
-        lifecycle.pushUndoRedoState(updated);
-      }
-      if (lifecycle.save) {
-        lifecycle.save(updated);
-      }
-    }
-  };
 
   return (
-    <div className="document-page">
+    <div className={styles['document-page']}>
       <DocumentToolbar
         stage={stage}
         documentId={docId}
         title={title}
         document={activeDoc}
-        status={docStatus}
-        onStatusChange={handleStatusChange}
+        version={lifecycle.version || activeDoc?.[config.rootKey]?.metadata?.version}
+        versions={lifecycle.versions || []}
         onBack={handleBack}
         isEditing={lifecycle.isEditing}
         onToggleEdit={lifecycle.handleToggleEdit}
@@ -107,54 +93,43 @@ export const DocumentPageLayout = ({
         redo={lifecycle.redo}
         canUndo={lifecycle.canUndo}
         canRedo={lifecycle.canRedo}
-        onExport={() => exportDocument(stage as any, docId, 'json')}
+        onExport={onExport || (() => exportDocument(stage as any, docId, 'json'))}
         onVersionsClick={() => lifecycle.setShowDrawer(true)}
       />
 
-      <LifecycleBanner
-        status={docStatus}
-        documentId={docId}
-        onReactivate={() => handleStatusChange('active')}
-      />
-
       {lifecycle.error && (
-        <div className="error-banner">
-          Error: {lifecycle.error.message || String(lifecycle.error)}
+        <div className={styles['error-banner']}>
+          Error: {typeof lifecycle.error === 'string' ? lifecycle.error : (lifecycle.error as any)?.message || String(lifecycle.error)}
         </div>
       )}
 
       {lifecycle.loading && !lifecycle.activeDoc ? (
-        <div className="loading-state">
-          <span className={sharedStyles['spinner']} /> Loading Document...
-        </div>
+        <LoadingSpinner variant="skeleton" message="Loading Document..." />
       ) : (
-        <div className="document-workspace">
+        <div className={styles['document-workspace']}>
           {sidebar && (
-            <div className={`workspace-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
-              <div className="sidebar-toggle" onClick={onSidebarToggle}>
-                {sidebarOpen ? '◀' : '▶'}
-              </div>
-              {sidebarOpen && <div className="sidebar-content">{sidebar}</div>}
+            <div className={`${styles['workspace-sidebar']} ${sidebarOpen !== false ? styles['open'] : styles['closed']}`}>
+              {sidebarOpen !== false && <div className={styles['sidebar-content']}>{sidebar}</div>}
             </div>
           )}
 
-          <div className="workspace-main">
+          <div className={styles['workspace-main']}>
             {tabs && tabs.length > 0 && (
-              <div className="document-tabs">
+              <div className={styles['document-tabs']}>
                 {tabs.map(tab => (
                   <button
                     key={tab.id}
-                    className={`doc-tab ${activeTab === tab.id ? 'active' : ''}`}
+                    className={`${styles['doc-tab']} ${activeTab === tab.id ? styles['active'] : ''}`}
                     onClick={() => onTabChange?.(tab.id)}
                   >
-                    {tab.icon && <span className="tab-icon">{tab.icon}</span>}
+                    {tab.icon && <span className={styles['tab-icon']}>{tab.icon}</span>}
                     {tab.label}
                   </button>
                 ))}
               </div>
             )}
             
-            <div className="document-content">
+            <div className={styles['document-content']}>
               {children}
             </div>
           </div>
@@ -163,12 +138,13 @@ export const DocumentPageLayout = ({
 
       {lifecycle.showDrawer && (
         <VersionDrawer
+          isOpen={true}
           versions={lifecycle.versions}
           currentVersion={lifecycle.currentVersion}
-          inspectedVersion={lifecycle.inspectedVersion}
-          onSelectVersion={lifecycle.handleSelectVersion}
+          onSave={lifecycle.handlePublishVersion || lifecycle.handleSave}
+          onSwitch={lifecycle.handleSelectVersion}
+          onDelete={lifecycle.handleDeleteDraft}
           onClose={() => lifecycle.setShowDrawer(false)}
-          onPublish={lifecycle.handlePublishVersion}
           isEditing={lifecycle.isEditing}
         />
       )}

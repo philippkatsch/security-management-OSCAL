@@ -51,20 +51,20 @@ export function TraceabilityPage() {
       {error && <div className={sharedStyles['error-message']}>Error: {error.message || String(error)}</div>}
 
       {searchQuery && results && (
-        <div className={styles['traceability-results']}>
+        <div className={`traceability-results ${styles['traceability-results']}`}>
           <h3>Results for "{searchQuery}"</h3>
           {results.length === 0 ? (
             <p>No documents reference this control.</p>
           ) : (
             <div className={styles['timeline-container']}>
-              {results.map((r, i) => (
-                <div key={i} className={styles['timeline-item']}>
+              {results.map((r) => (
+                <div key={`${r.stageKey}-${r.uuid}`} className={styles['timeline-item']}>
                   <div className={styles['timeline-marker']}></div>
                   <div className={styles['timeline-content']}>
                     {getStatusBadge(r.stageName)}
                     <span className={styles['timeline-title']}>{r.title}</span>
                     <a 
-                      href={`/${r.stageKey === 'catalogs' ? 'catalog' : r.stageKey === 'profiles' ? 'profile' : r.stageKey === 'component-definitions' ? 'component-definition' : r.stageKey === 'ssps' ? 'ssp' : r.stageKey === 'assessment-plans' ? 'assessment-plan' : r.stageKey === 'assessment-results' ? 'assessment-result' : 'poam'}/${r.uuid}`}
+                      href={`/${r.stageKey}/${r.uuid}`}
                       target="_blank" 
                       rel="noreferrer"
                       className={styles['timeline-link']}

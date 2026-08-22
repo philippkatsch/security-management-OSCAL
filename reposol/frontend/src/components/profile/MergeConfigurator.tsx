@@ -19,11 +19,17 @@ const ORDER_MODES = [
  * Merge Configuration Panel for Profiles.
  * Supports as-is, flat, and custom (with grouping, insert-controls, and sort rules - US 2.7).
  */
+export interface MergeConfiguratorProps {
+  merge?: any;
+  onChange?: (merge: any) => void;
+  isEditing?: boolean;
+}
+
 export function MergeConfigurator({
   merge = {},
-  onChange,
+  onChange = () => {},
   isEditing = false
-}) {
+}: MergeConfiguratorProps) {
   const combineMethod = merge.combine?.method || 'use-first';
 
   const isAsIs = merge['as-is'] !== undefined;
@@ -37,8 +43,8 @@ export function MergeConfigurator({
     onChange(updatedMerge);
   };
 
-  const handleModeChange = (mode) => {
-    const updatedMerge = { combine: merge.combine || { method: 'use-first' } };
+  const handleModeChange = (mode: string) => {
+    const updatedMerge: Record<string, any> = { combine: merge.combine || { method: 'use-first' } };
     if (mode === 'as-is') {
       updatedMerge['as-is'] = {};
     } else if (mode === 'flat') {

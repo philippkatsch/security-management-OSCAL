@@ -151,25 +151,20 @@ test.describe('Challenger M3 Gate 10 Empirical Challenge Suite', () => {
     await expect(page.locator('table')).toBeVisible({ timeout: 20000 });
     await expect(page.getByText(catTitle)).toBeVisible({ timeout: 20000 });
 
-    let confirmCount = 0;
-    let alertCount = 0;
-
-    page.on('dialog', async (dialog) => {
-      if (dialog.type() === 'confirm') {
-        confirmCount++;
-      } else {
-        alertCount++;
-      }
-      await dialog.accept();
-    });
-
     const catRow = page.locator('table tr', { hasText: catTitle });
     const deleteBtn = catRow.locator('button[title="Delete document"]');
     await expect(deleteBtn).toBeVisible({ timeout: 20000 });
     await deleteBtn.click();
 
-    // Confirm dialog count must reach exactly 2 regardless of how many alert dialogs fire
-    await expect.poll(() => confirmCount, { timeout: 20000 }).toBe(2);
+    // Confirm initial delete modal
+    const modal1 = page.getByRole('dialog').first();
+    await expect(modal1).toBeVisible({ timeout: 10000 });
+    await modal1.getByRole('button', { name: /Delete|Confirm/i }).click();
+
+    // Wait for 409 Conflict modal to appear and confirm force delete
+    const modal2 = page.getByRole('dialog').filter({ hasText: /409|Conflict|force/i }).first();
+    await expect(modal2).toBeVisible({ timeout: 15000 });
+    await modal2.getByRole('button', { name: /Force Delete|Delete|Confirm/i }).click();
 
     // Document should be deleted
     await expect.poll(async () => {

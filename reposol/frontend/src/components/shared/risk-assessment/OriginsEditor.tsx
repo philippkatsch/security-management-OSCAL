@@ -126,12 +126,13 @@ export function OriginsEditor({ value, isEditMode, onChange }) {
                 <input 
                   type="text" 
                   placeholder="Type UUID and press Enter" 
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                    const target = e.currentTarget;
+                    if (e.key === 'Enter' && target.value.trim()) {
                       e.preventDefault();
-                      const next = [...(orig['related-tasks'] || []), { 'task-uuid': e.target.value.trim() }];
+                      const next = [...(orig['related-tasks'] || []), { 'task-uuid': target.value.trim() }];
                       updateOrigin(i, { ...orig, 'related-tasks': next });
-                      e.target.value = '';
+                      target.value = '';
                     }
                   }}
                 />

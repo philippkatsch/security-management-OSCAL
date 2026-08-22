@@ -3,31 +3,47 @@ import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
 // Mock localStorage for all tests
-const localStorageMock = (() => {
-  let store = {};
-  return {
-    getItem: (key) => store[key] ?? null,
-    setItem: (key, value) => { store[key] = String(value); },
-    removeItem: (key) => { delete store[key]; },
-    clear: () => { store = {}; },
-  };
-})();
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+if (typeof window !== 'undefined') {
+  const localStorageMock = (() => {
+    let store = {};
+    return {
+      getItem: (key: string) => (store as any)[key] ?? null,
+      setItem: (key: string, value: any) => { (store as any)[key] = String(value); },
+      removeItem: (key: string) => { delete (store as any)[key]; },
+      clear: () => { store = {}; },
+    };
+  })();
+  Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
-// Mock window.matchMedia (used by some CSS-related hooks)
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: (query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => {},
-  }),
-});
+  // Mock window.matchMedia (used by some CSS-related hooks)
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: any) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => {},
+    }),
+  });
+}
+
+// Polyfill HTMLDialogElement showModal and close for Vitest jsdom environment
+if (typeof HTMLDialogElement !== 'undefined') {
+  if (!HTMLDialogElement.prototype.showModal) {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.open = true;
+    };
+  }
+  if (!HTMLDialogElement.prototype.close) {
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.open = false;
+    };
+  }
+}
 
 // Mock fetch globally — individual tests override with vi.fn()
 global.fetch = vi.fn().mockImplementation(() => Promise.resolve({
@@ -38,5 +54,7 @@ global.fetch = vi.fn().mockImplementation(() => Promise.resolve({
 // Reset all mocks between tests
 afterEach(() => {
   vi.clearAllMocks();
-  localStorageMock.clear();
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.clear();
+  }
 });

@@ -8,16 +8,17 @@ import { ProfileOverviewPanel } from './overview/ProfileOverviewPanel';
 import { DocumentOverviewMetadata } from './overview/DocumentOverviewMetadata';
 import { DocumentOverviewProperties } from './overview/DocumentOverviewProperties';
 import { DocumentOverviewParameters } from './overview/DocumentOverviewParameters';
+import { SourcesPanel as DefaultSourcesPanel } from '../profile/SourcesPanel';
 import styles from './SharedComponents.module.css';
 
-export const countControlsInGroup = (group) => {
+export const countControlsInGroup = (group: any) => {
   let count = 0;
-  const traverse = (item) => {
+  const traverse = (item: any) => {
     count++;
     if (item.controls) item.controls.forEach(traverse);
   };
   if (group.controls) group.controls.forEach(traverse);
-  const traverseGroup = (g) => {
+  const traverseGroup = (g: any) => {
     if (g.controls) g.controls.forEach(traverse);
     if (g.groups) g.groups.forEach(traverseGroup);
   };
@@ -25,28 +26,28 @@ export const countControlsInGroup = (group) => {
   return count;
 };
 
-const countControls = (groups = [], controls = []) => {
+const countControls = (groups: any[] = [], controls: any[] = []) => {
   let total = 0;
   let active = 0;
   let withdrawn = 0;
 
-  const traverseControl = (control) => {
+  const traverseControl = (control: any) => {
     total++;
     const isWithdrawn = (control.props || []).some(
-      p => p.name?.toLowerCase() === 'status' && p.value?.toLowerCase() === 'withdrawn'
+      (p: any) => p.name?.toLowerCase() === 'status' && p.value?.toLowerCase() === 'withdrawn'
     );
     if (isWithdrawn) withdrawn++; else active++;
     if (control.controls) control.controls.forEach(traverseControl);
   };
 
-  controls.forEach(traverseControl);
-
-  const traverseGroup = (group) => {
+  const traverseGroup = (group: any) => {
     if (group.controls) group.controls.forEach(traverseControl);
     if (group.groups) group.groups.forEach(traverseGroup);
   };
 
+  controls.forEach(traverseControl);
   groups.forEach(traverseGroup);
+
   return { total, active, withdrawn };
 };
 
@@ -67,29 +68,30 @@ export function DocumentOverview({
   availableProfiles = [],
   catalogCache = null,
   SourcesPanel = null
-}) {
-  const document = rawDocument || {};
+}: any) {
+  const document = rawDocument?.catalog || rawDocument?.profile || rawDocument?.['component-definition'] || rawDocument?.['system-security-plan'] || rawDocument?.['assessment-plan'] || rawDocument?.['assessment-results'] || rawDocument?.['plan-of-action-and-milestones'] || rawDocument || {};
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditingState = isEditing !== undefined ? isEditing : globalEditMode;
+  const ActiveSourcesPanel = SourcesPanel || DefaultSourcesPanel;
 
   const [activeTab, setActiveTab] = useState('metadata');
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
-  const [registryTemplates, setRegistryTemplates] = useState([]);
+  const [registryTemplates, setRegistryTemplates] = useState<any[]>([]);
   const [loadingRegistry, setLoadingRegistry] = useState(false);
 
-  const effectiveTab = (activeTab === 'imports' && !isEditingState) ? 'metadata' : activeTab;
+  const effectiveTab = activeTab;
 
-  const handleMetadataChange = (updatedMetadata) => onChange({ ...document, metadata: updatedMetadata });
-  const handleBackMatterChange = (updatedBackMatter) => onChange({ ...document, 'back-matter': updatedBackMatter });
+  const handleMetadataChange = (updatedMetadata: any) => onChange({ ...document, metadata: updatedMetadata });
+  const handleBackMatterChange = (updatedBackMatter: any) => onChange({ ...document, 'back-matter': updatedBackMatter });
 
   const globalProps = document.metadata?.props || [];
 
   const getUnifiedProperties = () => {
-    const properties = {};
-    const metaProps = document.metadata?.props || [];
-    metaProps.forEach(p => {
+    const properties: Record<string, any> = {};
+
+    globalProps.forEach((p: any) => {
       if (!p.name) return;
       if (!properties[p.name]) {
         properties[p.name] = { values: {}, metaValues: [], metaDetails: [], isMetadata: true, isUsed: false, totalCount: 0 };
@@ -104,24 +106,25 @@ export function DocumentOverview({
       });
     });
 
-    Object.entries(usedTagsSummary || {}).forEach(([name, valMap]) => {
-      const totalCount = Object.values(valMap).reduce((sum, c) => sum + c, 0);
+    Object.entries((usedTagsSummary || {}) as Record<string, any>).forEach(([name, valMap]) => {
+      const totalCount = Object.values(valMap || {}).reduce((sum: number, c: any) => sum + Number(c || 0), 0);
+      const safeValMap = (typeof valMap === 'object' && valMap !== null) ? valMap : {};
       if (!properties[name]) {
-        properties[name] = { values: { ...valMap }, metaValues: [], metaDetails: [], isMetadata: false, isUsed: true, totalCount };
+        properties[name] = { values: { ...safeValMap }, metaValues: [], metaDetails: [], isMetadata: false, isUsed: true, totalCount };
       } else {
         properties[name].isUsed = true;
         properties[name].totalCount = totalCount;
-        properties[name].values = { ...properties[name].values, ...valMap };
+        properties[name].values = { ...(properties[name].values || {}), ...safeValMap };
       }
     });
 
     return properties;
   };
 
-  const handleUpdateMetaProp = (propName, metaIdx, field, newValue) => {
+  const handleUpdateMetaProp = (propName: string, metaIdx: number, field: string, newValue: any) => {
     const metaProps = document.metadata?.props || [];
     let count = 0;
-    const updatedProps = metaProps.map(p => {
+    const updatedProps = metaProps.map((p: any) => {
       if (p.name === propName) {
         if (count === metaIdx) {
           count++;
@@ -166,22 +169,22 @@ export function DocumentOverview({
       const fullDoc = await fetchDocument(imported.stage, imported.uuid);
       onChange({ ...fullDoc.catalog, uuid: document.uuid, metadata: document.metadata });
       setActiveTab('metadata');
-    } catch (err) {
-      setImportError(`Import failed: ${err.message}`);
+    } catch (err: any) {
+      setImportError(`Import failed: ${err?.message || 'Error'}`);
     } finally {
       setImporting(false);
     }
   };
 
-  const handleImportRegistry = (sourceId) => performImport(importFromRegistry(sourceId));
+  const handleImportRegistry = (sourceId: string) => performImport(importFromRegistry(sourceId));
   const handleImportUrl = () => { if (importUrl.trim()) performImport(importFromUrl(importUrl.trim())); };
 
   const baselineStats = (() => {
     if (mode !== 'profile' || !resolvedCatalog) return null;
     let c = 0, g = 0;
-    const traverse = (items, isGroup) => {
+    const traverse = (items: any[], isGroup: boolean) => {
       if (!Array.isArray(items)) return;
-      items.forEach((item) => {
+      items.forEach((item: any) => {
         if (isGroup) { g++; traverse(item.groups, true); traverse(item.controls, false); }
         else { c++; traverse(item.controls, false); }
       });
@@ -208,12 +211,12 @@ export function DocumentOverview({
     let groupCount = 0;
     let controlCount = 0;
 
-    const countControlParams = (control) => {
+    const countControlParams = (control: any) => {
       if (control.params) controlCount += control.params.length;
       if (control.controls) control.controls.forEach(countControlParams);
     };
 
-    const countGroupParams = (group) => {
+    const countGroupParams = (group: any) => {
       if (group.params) groupCount += group.params.length;
       if (group.controls) group.controls.forEach(countControlParams);
       if (group.groups) group.groups.forEach(countGroupParams);
@@ -227,18 +230,18 @@ export function DocumentOverview({
 
   const allResolvedCatalogParams = (() => {
     if (!resolvedCatalog) return [];
-    const list = [];
-    if (resolvedCatalog.params) resolvedCatalog.params.forEach(p => list.push({ ...p, scope: 'catalog' }));
-    const traverseControl = (c, isSub = false) => {
-      if (c.params) c.params.forEach(p => list.push({ ...p, scope: 'control', isSubcontrol: isSub }));
-      if (c.controls) c.controls.forEach(childC => traverseControl(childC, true));
+    const list: any[] = [];
+    if (resolvedCatalog.params) resolvedCatalog.params.forEach((p: any) => list.push({ ...p, scope: 'catalog' }));
+    const traverseControl = (c: any, isSub = false) => {
+      if (c.params) c.params.forEach((p: any) => list.push({ ...p, scope: 'control', isSubcontrol: isSub }));
+      if (c.controls) c.controls.forEach((childC: any) => traverseControl(childC, true));
     };
-    const traverseGroup = (g) => {
-      if (g.params) g.params.forEach(p => list.push({ ...p, scope: 'group' }));
-      if (g.controls) g.controls.forEach(c => traverseControl(c, false));
+    const traverseGroup = (g: any) => {
+      if (g.params) g.params.forEach((p: any) => list.push({ ...p, scope: 'group' }));
+      if (g.controls) g.controls.forEach((c: any) => traverseControl(c, false));
       if (g.groups) g.groups.forEach(traverseGroup);
     };
-    if (resolvedCatalog.controls) resolvedCatalog.controls.forEach(c => traverseControl(c, false));
+    if (resolvedCatalog.controls) resolvedCatalog.controls.forEach((c: any) => traverseControl(c, false));
     if (resolvedCatalog.groups) resolvedCatalog.groups.forEach(traverseGroup);
     return list;
   })();
@@ -248,8 +251,8 @@ export function DocumentOverview({
       <div style={{ flex: 1, overflow: 'hidden', height: '100%' }}>
         {currentTab === 'overview' && mode === 'catalog' && <CatalogOverviewPanel document={document} stats={stats} onSelectGroup={onSelectGroup} />}
         {currentTab === 'overview' && mode === 'profile' && <ProfileOverviewPanel document={document} resolvedCatalog={resolvedCatalog} stats={stats} onSelectGroup={onSelectGroup} />}
-        {currentTab === 'imports' && mode === 'profile' && SourcesPanel && (
-          <SourcesPanel profile={document} onChange={onChange} isEditingState={isEditingState} availableCatalogs={availableCatalogs} availableProfiles={availableProfiles} catalogCache={catalogCache} resolvedCatalog={resolvedCatalog} />
+        {currentTab === 'imports' && mode === 'profile' && (
+          <ActiveSourcesPanel profile={document} onChange={onChange} isEditing={isEditingState} isEditingState={isEditingState} availableCatalogs={availableCatalogs} availableProfiles={availableProfiles} catalogCache={catalogCache} resolvedCatalog={resolvedCatalog} />
         )}
         {currentTab === 'metadata' && <DocumentOverviewMetadata mode={mode} document={document} isEditingState={isEditingState} baselineStats={baselineStats} onChange={onChange} />}
         {currentTab === 'properties' && (
@@ -286,7 +289,7 @@ export function DocumentOverview({
                   <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Loading templates...</span>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    {registryTemplates.map((t) => (
+                    {registryTemplates.map((t: any) => (
                       <div key={t.id} style={{ padding: '10px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '8px' }}>
                         <div>
                           <strong style={{ fontSize: '12px', display: 'block' }}>{t.title}</strong>

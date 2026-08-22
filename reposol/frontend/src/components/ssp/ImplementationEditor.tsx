@@ -51,10 +51,10 @@ export default function ImplementationEditor({ controlImpl, systemComponents, on
   const [expandedRow, setExpandedRow] = useState(null);
 
   const columns = [
-    { id: 'control-id', label: 'Control ID', sortable: true, searchable: true },
-    { id: 'status', label: 'Status', filterable: true, render: (req) => <StatusBadge category="implementation-status" status={getImplementationStatus(req)} /> },
-    { id: 'components', label: 'Components', render: (req) => req?.['by-components']?.length || 0 },
-    { id: 'description', label: 'Description', searchable: true, render: (req) => (req?.description || '').substring(0, 60) + ((req?.description?.length > 60) ? '...' : '') }
+    { key: 'control-id', label: 'Control ID', sortable: true, searchable: true },
+    { key: 'status', label: 'Status', filterable: true, render: (_: any, req: any) => <StatusBadge category="implementation-status" status={getImplementationStatus(req)} /> },
+    { key: 'components', label: 'Components', render: (_: any, req: any) => req?.['by-components']?.length || 0 },
+    { key: 'description', label: 'Description', searchable: true, render: (_: any, req: any) => (req?.description || '').substring(0, 60) + ((req?.description?.length > 60) ? '...' : '') }
   ];
 
   return (
@@ -85,41 +85,40 @@ export default function ImplementationEditor({ controlImpl, systemComponents, on
         data={requirements}
         columns={columns}
         onRowClick={(req) => setExpandedRow(expandedRow === req['control-id'] ? null : req['control-id'])}
-        rowExpandable={true}
-        expandedRowContent={(req) => (
-          <div className={styles['impl-req-expanded']}>
-            <h4>By-Components</h4>
-            {req['by-components']?.map((bc, idx) => (
-              <div key={idx} className={styles['by-component-entry']}>
-                <div className="form-group">
-                  <label className="form-label">Component</label>
-                  {editMode ? (
-                    <select className="form-input" value={bc['component-uuid'] || ''} readOnly>
-                       <option value={bc['component-uuid']}>{systemComponents?.find(c => c.uuid === bc['component-uuid'])?.title || bc['component-uuid']}</option>
-                    </select>
-                  ) : (
-                    <div className="read-only-text">{systemComponents?.find(c => c.uuid === bc['component-uuid'])?.title || bc['component-uuid']}</div>
-                  )}
-                </div>
-                <div className="form-group">
-                   <label className="form-label">Description</label>
-                   <textarea className="form-input" value={bc.description || ''} readOnly={!editMode} rows={2} />
-                </div>
-                <div className="form-group">
-                   <label className="form-label">Status</label>
-                   {editMode ? (
-                     <select className="form-input" value={bc['implementation-status']?.state || ''} readOnly>
-                        <option value={bc['implementation-status']?.state}>{bc['implementation-status']?.state}</option>
-                     </select>
-                   ) : (
-                      <StatusBadge category="implementation-status" status={bc['implementation-status']?.state || 'planned'} />
-                   )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       />
+      {expandedRow && (
+        <div className={styles['impl-req-expanded']} style={{ marginTop: '16px' }}>
+          <h4>By-Components for {expandedRow}</h4>
+          {requirements.find(r => r['control-id'] === expandedRow)?.['by-components']?.map((bc, idx) => (
+            <div key={idx} className={styles['by-component-entry']}>
+              <div className="form-group">
+                <label className="form-label">Component</label>
+                {editMode ? (
+                  <select className="form-input" value={bc['component-uuid'] || ''} disabled={!editMode}>
+                     <option value={bc['component-uuid']}>{systemComponents?.find(c => c.uuid === bc['component-uuid'])?.title || bc['component-uuid']}</option>
+                  </select>
+                ) : (
+                  <div className="read-only-text">{systemComponents?.find(c => c.uuid === bc['component-uuid'])?.title || bc['component-uuid']}</div>
+                )}
+              </div>
+              <div className="form-group">
+                 <label className="form-label">Description</label>
+                 <textarea className="form-input" value={bc.description || ''} readOnly={!editMode} rows={2} />
+              </div>
+              <div className="form-group">
+                 <label className="form-label">Status</label>
+                 {editMode ? (
+                   <select className="form-input" value={bc['implementation-status']?.state || ''} disabled={!editMode}>
+                      <option value={bc['implementation-status']?.state}>{bc['implementation-status']?.state}</option>
+                   </select>
+                 ) : (
+                    <StatusBadge category="implementation-status" status={bc['implementation-status']?.state || 'planned'} />
+                 )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,8 @@ Exposes dedicated endpoints for resolution:
 - `GET /api/resolve/profile/{id}`
 - `GET /api/resolve/ssp/{id}`
 - `GET /api/resolve/tree/{stage}/{id}`
+- `GET /api/resolve/profile/{profile_id}/diff/{catalog_id}`: Compares baseline catalog controls vs resolved profile controls. Inputs: `profile_id` and `catalog_id` path parameters (and workspace header/query context). Returns summary statistics (`added_count`, `removed_count`, `modified_count`, `untouched_count`) and a `deltas` array containing individual control status categorizations (`added`, `removed`, `modified`, `untouched`) along with catalog baseline control and resolved profile control payloads.
+
 
 ### 4. Caching Strategy
 To ensure high performance and reduce CPU overhead, resolution results are cached on the server:

@@ -7,13 +7,13 @@ export interface StatusBadgeProps {
   value?: string;
   status?: string;
   size?: 'sm' | 'md' | 'lg';
-  variant?: 'pill' | 'dot' | 'bar';
+  variant?: 'pill' | 'dot' | 'bar' | 'badge';
   showIcon?: boolean;
   className?: string;
 }
 
 export default function StatusBadge({
-  category = 'document-lifecycle',
+  category = 'implementation-status',
   value,
   status,
   size = 'md',

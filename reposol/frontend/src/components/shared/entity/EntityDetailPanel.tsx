@@ -2,9 +2,43 @@ import React from 'react';
 import styles from './EntityTable.module.css';
 import sharedStyles from '../SharedComponents.module.css';
 
-export default function EntityDetailPanel({ mode = 'slide-out', isOpen, onClose, title, subtitle, badge, actions, children, className = '' }) {
+export interface EntityDetailPanelAction {
+  label: string;
+  onClick: () => void;
+  variant?: string;
+  destructive?: boolean;
+  icon?: React.ReactNode;
+}
+
+export interface EntityDetailPanelProps {
+  mode?: 'slide-out' | 'accordion' | 'full-page' | string;
+  isOpen?: boolean;
+  onClose?: () => void;
+  title?: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
+  actions?: EntityDetailPanelAction[];
+  entity?: any;
+  readOnly?: boolean;
+  children?: React.ReactNode;
+  className?: string;
+}
+
+export default function EntityDetailPanel({ 
+  mode = 'slide-out', 
+  isOpen = false, 
+  onClose, 
+  title = '', 
+  subtitle, 
+  badge, 
+  actions, 
+  entity,
+  readOnly: _readOnly,
+  children, 
+  className = '' 
+}: EntityDetailPanelProps) {
   React.useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen && onClose) {
         onClose();
       }
@@ -14,6 +48,19 @@ export default function EntityDetailPanel({ mode = 'slide-out', isOpen, onClose,
   }, [isOpen, onClose]);
 
   if (mode === 'slide-out' && !isOpen) return null;
+
+  const contentToRender = children || (entity ? (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {Object.entries(entity).map(([key, val]) => (
+        <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{key}</span>
+          <div style={{ fontSize: '13px', background: 'var(--color-surface-2)', padding: '6px 10px', borderRadius: '4px' }}>
+            {typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val ?? '')}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : null);
 
   const renderHeader = () => (
     <div className={styles['entity-panel-header']}>
@@ -48,7 +95,7 @@ export default function EntityDetailPanel({ mode = 'slide-out', isOpen, onClose,
         <div onClick={onClose} style={{cursor: 'pointer'}}>
           {renderHeader()}
         </div>
-        {isOpen && <div className={styles['entity-panel-content']}>{children}</div>}
+        {isOpen && <div className={styles['entity-panel-content']}>{contentToRender}</div>}
       </div>
     );
   }
@@ -60,7 +107,7 @@ export default function EntityDetailPanel({ mode = 'slide-out', isOpen, onClose,
           <button onClick={onClose} className={styles['btn-back']}>← Back</button>
         </div>
         {renderHeader()}
-        <div className={styles['entity-panel-content']}>{children}</div>
+        <div className={styles['entity-panel-content']}>{contentToRender}</div>
       </div>
     );
   }
@@ -71,7 +118,7 @@ export default function EntityDetailPanel({ mode = 'slide-out', isOpen, onClose,
       <div className={styles['entity-panel-backdrop']} onClick={onClose} />
       <div className={`entity-panel-slide-out ${isOpen ? styles['open'] : ''} ${className}`}>
         {renderHeader()}
-        <div className={styles['entity-panel-content']}>{children}</div>
+        <div className={styles['entity-panel-content']}>{contentToRender}</div>
       </div>
     </>
   );

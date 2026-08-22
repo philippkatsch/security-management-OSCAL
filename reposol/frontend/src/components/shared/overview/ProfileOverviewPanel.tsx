@@ -2,9 +2,16 @@ import React from 'react';
 import styles from '../SharedComponents.module.css';
 import { countControlsInGroup } from '../DocumentOverview';
 
-export function ProfileOverviewPanel({ document, resolvedCatalog, stats, onSelectGroup }) {
+export interface ProfileOverviewPanelProps {
+  document?: any;
+  resolvedCatalog?: any;
+  stats?: any;
+  onSelectGroup?: (groupId: string) => void;
+}
+
+export function ProfileOverviewPanel({ document, resolvedCatalog, stats = { total: 0, active: 0, withdrawn: 0 }, onSelectGroup }: ProfileOverviewPanelProps) {
   const doc = document || {};
-  const metricCardStyle = {
+  const metricCardStyle: React.CSSProperties = {
     background: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
     borderRadius: 'var(--radius-md)',
@@ -20,7 +27,7 @@ export function ProfileOverviewPanel({ document, resolvedCatalog, stats, onSelec
     minWidth: '150px'
   };
 
-  const metricLabelStyle = {
+  const metricLabelStyle: React.CSSProperties = {
     fontSize: '11px',
     fontWeight: '700',
     color: 'var(--color-text-muted)',

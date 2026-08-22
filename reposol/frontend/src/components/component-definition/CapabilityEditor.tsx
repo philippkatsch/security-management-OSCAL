@@ -19,34 +19,48 @@ const Accordion = ({ title, children, defaultOpen = false }) => {
   );
 };
 
-export default function CapabilityEditor({ capability, components = [], onUpdate, onClose, editMode }) {
+export interface CapabilityEditorProps {
+  capability: any;
+  components?: any[];
+  onUpdate?: (capability: any) => void;
+  onClose?: () => void;
+  editMode?: boolean;
+}
+
+export default function CapabilityEditor({ 
+  capability, 
+  components = [], 
+  onUpdate = () => {}, 
+  onClose, 
+  editMode = false 
+}: CapabilityEditorProps) {
   if (!capability) return null;
 
-  const handleChange = (field, value) => {
+  const handleChange = (field: string, value: any) => {
     if (!editMode) return;
     onUpdate({ ...capability, [field]: value });
   };
 
-  const addIncorporatedComponent = (componentUuid) => {
+  const addIncorporatedComponent = (componentUuid: string) => {
     if (!editMode || !componentUuid) return;
     const newComps = [...(capability['incorporates-components'] || []), { 'component-uuid': componentUuid }];
     handleChange('incorporates-components', newComps);
   };
 
-  const removeIncorporatedComponent = (index) => {
+  const removeIncorporatedComponent = (index: number) => {
     if (!editMode) return;
     const newComps = [...(capability['incorporates-components'] || [])];
     newComps.splice(index, 1);
     handleChange('incorporates-components', newComps);
   };
 
-  const getComponentTitle = (uuid) => {
-    const comp = components.find(c => c.uuid === uuid);
+  const getComponentTitle = (uuid: string) => {
+    const comp = (components as any[]).find((c: any) => c.uuid === uuid);
     return comp ? comp.title : uuid;
   };
 
-  const incorporatedUuids = (capability['incorporates-components'] || []).map(c => c['component-uuid']);
-  const availableComponents = components.filter(c => !incorporatedUuids.includes(c.uuid));
+  const incorporatedUuids = (capability['incorporates-components'] || []).map((c: any) => c['component-uuid']);
+  const availableComponents = (components as any[]).filter((c: any) => !incorporatedUuids.includes(c.uuid));
 
   const addControlImplementation = () => {
     if (!editMode) return;
@@ -180,7 +194,7 @@ export default function CapabilityEditor({ capability, components = [], onUpdate
           <PropsEditor 
             properties={capability.props || []} 
             onChange={(props) => handleChange('props', props)}
-            editMode={editMode}
+            isEditing={editMode}
           />
         </Accordion>
 

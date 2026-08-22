@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from './SharedComponents.module.css';
 import { DebouncedInput } from './DebouncedInput';
+import { useConfirm } from '@hooks/useConfirm';
 
 /**
  * Increment the minor segment of a semver-style version string.
@@ -22,32 +23,47 @@ function nextMinorVersion(version) {
 /**
  * Slide-over Version Drawer.
  */
+export interface VersionDrawerProps {
+  versions?: any[];
+  currentVersion?: string | null;
+  onSwitch?: (version: string) => void;
+  onDelete?: (version: string) => void;
+  onSave?: (version: string, remarks: string) => Promise<any> | void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  isEditing?: boolean;
+}
+
 export function VersionDrawer({
   versions = [],
   currentVersion = null,
-  onSwitch,
+  onSwitch = () => {},
   onDelete,
   onSave,
   isOpen = false,
-  onClose,
+  onClose = () => {},
   isEditing = false
-}) {
+}: VersionDrawerProps) {
+  const { confirm } = useConfirm();
   const [versionNum, setVersionNum] = useState('');
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Auto-increment: pre-fill version number when drawer opens
+  // Auto-suggest next minor version when opened
   useEffect(() => {
-    if (isOpen && currentVersion) {
-      setVersionNum(nextMinorVersion(currentVersion));
+    if (isOpen) {
+      const latest = versions[0];
+      const latestVer = typeof latest === 'string' ? latest : latest?.version;
+      setVersionNum(nextMinorVersion(latestVer));
+      setRemarks('');
       setError('');
     }
-  }, [isOpen, currentVersion]);
+  }, [isOpen, versions]);
 
   if (!isOpen) return null;
 
-  const handleSave = async (e) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!versionNum.trim()) {
       setError('Version number cannot be empty.');
@@ -56,11 +72,14 @@ export function VersionDrawer({
     setError('');
     setSaving(true);
     try {
-      await onSave(versionNum.trim(), remarks.trim());
+      if (onSave) {
+        await onSave(versionNum.trim(), remarks.trim());
+      }
       setVersionNum('');
       setRemarks('');
-    } catch (err) {
-      setError(err.message || 'Save failed.');
+      if (onClose) onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Save failed.');
     } finally {
       setSaving(false);
     }
@@ -109,11 +128,11 @@ export function VersionDrawer({
         </div>
 
         {/* Save Version Form — visible when onSave handler is provided or in edit mode */}
-        {(onSave || isEditing || versions.some(v => v.is_draft || (typeof v.version === 'string' && v.version.endsWith('-draft')))) && (
+        {(onSave || isEditing || versions.some((v: any) => v?.is_draft || (typeof v?.version === 'string' && v.version.endsWith('-draft')))) && (
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid var(--color-border)' }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: 'var(--color-success)', fontWeight: 'bold' }}>🚀 Publish New Version</h4>
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: 'var(--color-text)', fontWeight: 'bold' }}>Publish New Version</h4>
             
-            {error && <div style={{ color: 'var(--color-danger)', fontSize: '12px' }}>⚠️ {error}</div>}
+            {error && <div style={{ color: 'var(--color-danger)', fontSize: '12px' }}>{error}</div>}
 
             <div>
               <label style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Version (e.g. 1.0.0)</label>
@@ -129,12 +148,11 @@ export function VersionDrawer({
             </div>
 
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Remarks / Release Notes</label>
-              <input
-                type="text"
+              <label style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Remarks / Change Log</label>
+              <DebouncedInput
                 value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder="e.g. Initial release"
+                onChange={setRemarks}
+                placeholder="What changed in this version?"
                 className="form-input"
                 style={{ width: '100%', height: '30px', fontSize: '12px' }}
                 disabled={saving}
@@ -144,10 +162,10 @@ export function VersionDrawer({
             <button
               type="submit"
               className={styles['btn-primary']}
-              style={{ width: '100%', padding: '8px', fontSize: '13px', marginTop: '4px', background: 'var(--color-success)', borderColor: 'var(--color-success)', color: '#fff' }}
+              style={{ width: '100%', padding: '8px', fontSize: '13px', marginTop: '4px', background: 'var(--color-primary)', borderColor: 'var(--color-primary)', color: '#fff' }}
               disabled={saving}
             >
-              {saving ? 'Publishing...' : '🚀 Publish Version'}
+              {saving ? 'Publishing...' : 'Publish Version'}
             </button>
           </form>
         )}
@@ -158,7 +176,7 @@ export function VersionDrawer({
           {versions.length === 0 ? (
             <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: '13px', margin: 0 }}>No versions available.</p>
           ) : (
-            versions.map((v) => {
+            versions.map((v: any) => {
               const isActive = v.is_active || v.version === currentVersion;
               return (
                 <div
@@ -213,9 +231,15 @@ export function VersionDrawer({
                         className={styles['btn-delete']}
                         style={{ padding: '2px 6px', fontSize: '11px', flexShrink: 0 }}
                         title="Delete version"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          if (window.confirm(`Are you sure you want to delete version ${v.version}?`)) {
+                          const confirmed = await confirm({
+                            title: 'Delete Version',
+                            message: `Are you sure you want to delete version ${v.version}?`,
+                            confirmLabel: 'Delete',
+                            variant: 'danger',
+                          });
+                          if (confirmed) {
                             onDelete(v.version);
                           }
                         }}
@@ -239,3 +263,5 @@ export function VersionDrawer({
     </div>
   );
 }
+
+export default VersionDrawer;

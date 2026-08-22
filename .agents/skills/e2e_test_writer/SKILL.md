@@ -1,200 +1,298 @@
 ---
 name: e2e_test_writer
 description: >
-  AI-assisted Playwright E2E test generation for the Reposol OSCAL Management application.
-  Uses Chrome DevTools MCP to explore the running UI, identify selectors and page structure,
-  then generates deterministic Playwright test files (.spec.ts) that follow project conventions,
-  ensuring 100% field-level verification and complete use-case coverage based on user stories.
+  AI-assisted Playwright E2E test generation, repair, and execution for the Reposol OSCAL Management application.
+  Operates in 3 modes: 'generate' (write new tests using MCP UI exploration), 'repair' (fix broken selectors),
+  and 'verify' (run existing tests). Tests verify UI behavior only — no backend schema checks.
   Triggers on: write E2E test, extend E2E tests, add E2E coverage, test end-to-end,
-  generate playwright test, e2e test for, browser test for.
+  generate playwright test, e2e test for, browser test for, repair E2E, fix E2E tests,
+  run E2E tests, verify E2E, check E2E.
 ---
 
 # E2E Test Writer Skill
 
-This skill generates **deterministic, high-coverage Playwright E2E tests** for the Reposol OSCAL Security Management application.
-It uses Chrome DevTools MCP for **UI exploration only** — the output is always a standard Playwright `.spec.ts` file that runs cleanly in CI/CD without any AI dependency.
+This skill manages **deterministic Playwright E2E tests** for the Reposol OSCAL Security Management application.
+It operates in **3 distinct modes** depending on what the user needs.
 
 > [!IMPORTANT]
-> **Primary Objective**: Tests are not just surface-level "smoke checks". They must exhaustively verify **every field, form validation, edge case, and state persistence** defined in the [User Stories](../../../documentation/user_stories/) (`step0` through `step8`) to actively surface bugs and regressions.
+> **E2E tests verify the browser UI only.** Whether the backend OSCAL JSON schema is correct is tested by Pytest backend tests (`reposol/backend/tests/`). E2E tests must NOT duplicate that — they test what the user sees and clicks.
 
 ---
 
-## When This Skill Applies
+## Automatic Step Detection via Git Diff
 
-Trigger this skill when you are asked to:
-- Write an E2E test for a feature, form, or user story
-- Extend existing E2E tests with new test cases or edge cases
-- Add comprehensive browser-based test coverage for a UI flow
-- Generate Playwright tests from acceptance criteria in `documentation/user_stories/`
-- Verify bug fixes or end-to-end user journeys in the browser
+When the user does NOT specify which Step/Feature to target, **automatically detect affected steps** by analyzing recent code changes:
 
-This skill does **NOT** apply to:
-- Backend unit/integration tests (use Pytest directly)
-- Frontend unit/component tests (use Vitest directly)
-- Running existing tests without modification (use `npm test` or `npx playwright test`)
-- Non-testing tasks
+```powershell
+# Run this to identify which frontend components changed:
+git diff --name-only HEAD~1 -- reposol/frontend/src/
+```
 
----
+Map changed files to affected E2E test files:
 
-## Prerequisites
+| Changed path contains... | Affected test file |
+|---|---|
+| `components/catalog/` or `pages/Catalog` | `step1-catalog-builder.spec.ts` |
+| `components/profile/` or `pages/Profile` | `step2-profile-tailoring.spec.ts` |
+| `components/component-definition/` | `step3-component-inventory.spec.ts` |
+| `components/ssp/` or `pages/Ssp` | `step4-ssp-builder.spec.ts` |
+| `components/assessment-plan/` | `step5-assessment-plan.spec.ts` |
+| `components/assessment-results/` | `step6-assessment-results.spec.ts` |
+| `components/poam/` | `step7-poam.spec.ts` |
+| `components/mapping/` | `step8-control-mapping.spec.ts` |
+| `components/shared/` or `components/document/` | **All step files** (shared components affect everything) |
+| `components/dashboard/` | `smoke.spec.ts` + dashboard tests |
 
-The E2E test infrastructure is located at:
-- **E2E directory**: `reposol/e2e/`
-- **Test specs**: `reposol/e2e/tests/` (organized by step/feature, e.g., `step1-catalog-builder.spec.ts`, `catalog/`, `profile/`)
-- **Fixtures**: `reposol/e2e/fixtures/base.ts`
-- **API helpers**: `reposol/e2e/helpers/api-setup.ts`
-- **Config**: `reposol/e2e/playwright.config.ts`
-- **User Stories**: `documentation/user_stories/step0_global_requirements.md` through `step8_control_mapping.md`
-
-The application must be running for exploration:
-- Backend: Port 1000 (FastAPI, `darkspell` conda environment)
-- Frontend: Port 5173 (Vite dev server)
+If the user says *"run E2E tests"* or *"repair E2E tests"* without specifying a step, use this mapping to determine which tests to run/repair. If shared components changed, run all tests.
 
 ---
 
-## Standard Workflow (6 Phases)
+## Mode Detection
 
-### Phase 1: Input & User Story Analysis 📋
+Determine the correct mode from the user's request:
 
-1. **Read the target User Story**: Open the relevant story in `documentation/user_stories/` (e.g. `step1_catalog_builder.md`, `step2_profile_tailoring.md`, etc.).
-2. **Extract ALL testable acceptance criteria & fields**:
-   - List every input field, dropdown, toggle, modal, and action button specified.
-   - Note required fields, format rules, default values, and error conditions.
-3. **Determine the test location & mapping**:
-   - Match existing specs in `reposol/e2e/tests/` (e.g., `step1-catalog-builder.spec.ts` or subdirectories like `tests/catalog/`).
-   - Group tests by feature and user story section.
+| User says... | Mode | What happens |
+|---|---|---|
+| "Write E2E tests for Step 3" | **generate** | Read user story, explore UI via MCP, write new test cases |
+| "Add E2E coverage for the export feature" | **generate** | Same as above, scoped to a specific feature |
+| "Step 2 tests are failing, fix them" | **repair** | Read error output, explore UI via MCP, fix broken selectors |
+| "Repair the catalog E2E tests" | **repair** | Same as above |
+| "Run the E2E tests for profiles" | **verify** | Execute `npx playwright test` and report results |
+| "Check if E2E tests pass" | **verify** | Same as above |
+| "Run E2E tests" (no step specified) | **verify** | Auto-detect affected steps via git diff, then run those |
 
-### Phase 2: UI Exploration via MCP 🔍
+---
 
-Use Chrome DevTools MCP to explore the live application:
+## Infrastructure Reference
 
-1. **Navigate to the page**:
-   ```
-   Use navigate_page to go to http://localhost:5173
-   ```
-2. **Take DOM / Accessibility snapshots**:
-   ```
-   Use take_snapshot to inspect the actual ARIA tree and form elements
-   ```
-3. **Identify stable, accessible locators** in priority order:
+```
+reposol/e2e/
+├── playwright.config.ts          ← Auto-starts Backend (:1000) + Frontend (:1001)
+├── fixtures/base.ts              ← Provides `apiSetup` fixture (test data via API + auto-cleanup)
+├── helpers/
+│   ├── api-setup.ts              ← Creates Catalogs, Profiles, SSPs, etc. via API
+│   ├── profile-helpers.ts        ← Navigation, tab selection, structuring mode helpers
+│   └── dnd-helper.ts             ← HTML5 Drag-and-Drop simulation
+└── tests/
+    ├── step1-catalog-builder.spec.ts
+    ├── step2-profile-tailoring.spec.ts
+    ├── step3-component-inventory.spec.ts
+    ├── step4-ssp-builder.spec.ts
+    ├── step5-assessment-plan.spec.ts
+    ├── step6-assessment-results.spec.ts
+    ├── step7-poam.spec.ts
+    ├── step8-control-mapping.spec.ts
+    └── smoke.spec.ts
+```
+
+User Stories: `documentation/user_stories/step0_global_requirements.md` through `step8_control_mapping.md`
+
+Environment: Always use `darkspell` conda environment.
+
+---
+
+## Mode 1: `generate` — Write New Tests
+
+**When:** User built a new feature and needs tests for it.
+
+### Workflow
+
+#### Step 1: Scope — What needs new tests?
+
+1. Read the user's request to identify the target Step/Feature (e.g., "Step 2 Profile Tailoring" or "the new Export button").
+2. Read the relevant **User Story** in `documentation/user_stories/`.
+3. Check the **existing test file** (e.g., `tests/step2-profile-tailoring.spec.ts`):
+   - What test cases already exist? **Do not rewrite or duplicate them.**
+   - What acceptance criteria from the user story are NOT yet covered?
+4. List the **new test cases** to write.
+
+#### Step 2: Explore — What does the real UI look like?
+
+Use Chrome DevTools MCP to inspect the **running application**:
+
+1. Navigate to the relevant page via `navigate_page`.
+2. **Primary: Accessibility Tree snapshot** via `take_snapshot` — fast, cheap, gives exact element roles/labels/IDs.
+3. **Secondary: Screenshot analysis** via `take_screenshot` — use when you need to verify visual layout, check if elements are positioned correctly, or when the Accessibility Tree alone is ambiguous (e.g., complex drag-and-drop areas, overlapping modals).
+4. **Interactive exploration** via `click`, `fill`, `hover` — click through the real UI to understand dynamic flows (modals that open, dropdowns that populate, tabs that reveal content).
+5. Identify stable locators in priority order:
    - `getByRole('button', { name: 'Save' })`
    - `getByLabel('Title')`
    - `getByText('Access Control')`
    - `getByPlaceholder('Search...')`
-   - `getByTestId('control-tree')` (fallback)
-4. **Map out complete user interaction flows**:
-   - Triggers for modal popups, step transitions, dynamic field renders.
-   - Validation triggers (onBlur, onSubmit, input changes).
-   - Server response handling and toast/alert feedback elements.
+   - `locator('[data-testid="..."]')` (fallback)
+   - `locator('[data-param-id="..."]')` or `locator('[data-dnd-id="..."]')` (for specific OSCAL elements)
+6. Map out the interaction flow: What to click, what to fill, what appears.
 
-### Phase 3: Infrastructure & Helper Verification 📚
+#### Step 3: Write — Add new test cases
 
-1. **Check existing test specs** in `reposol/e2e/tests/` to prevent duplicate coverage and align style.
-2. **Inspect fixtures** in `reposol/e2e/fixtures/base.ts`.
-3. **Inspect API setup helper** in `reposol/e2e/helpers/api-setup.ts`:
-   - Use `apiSetup` methods (`createCatalog()`, `createProfile()`, etc.) to quickly seed preconditions.
-   - If testing a new document type or state, **extend `api-setup.ts` first** with clean helper methods.
+Write new `test(...)` blocks into the existing spec file (or create a new file if no spec exists for this Step).
 
-### Phase 4: Test Generation (Exhaustive Quality Standard) ✍️
+**Rules:**
+- Import from `'../fixtures/base'` (provides `test`, `expect`, `apiSetup`)
+- Use `apiSetup` in `test.beforeEach` for precondition data (fast, no UI clicks for setup)
+- Use **UI actions** only for the feature being tested
+- **ZERO `if (await ...)` conditionals** — assert everything strictly
+- **Always F5-reload** after saves: `await page.reload()` + re-assert values
+- **Never change production code** to make a test pass
 
-Write or extend the Playwright test file following these strict coverage rules:
-
-#### Mandatory Coverage Standard:
-1. **Full Form Field Verification**:
-   - Test **EVERY** field in a form (inputs, textareas, selects, checkboxes, switches, datepickers).
-   - Test initial default values/state.
-   - Modify each field and submit/save.
-   - Verify UI updates immediately.
-   - **Reload page / re-fetch** to confirm end-to-end persistence in database/backend.
-2. **Field Validation & Error Testing**:
-   - Submit empty/invalid values to test required-field validation messages.
-   - Test character limits, boundary values, and invalid formats.
-   - Confirm submit buttons are disabled/blocked or error alerts appear as specified in user stories.
-3. **User Action & State Transitions**:
-   - Test cancel/close buttons (changes discarded).
-   - Test delete/archive confirmations.
-   - Test step-by-step wizard progressions.
-4. **API-First Preconditions**:
-   - Use `apiSetup` in `test.beforeEach` to prepare document state, avoiding unnecessary UI setup clicks for unrelated prerequisites.
-   - Use UI actions only for the explicit functionality being tested.
-
-#### Code Conventions & Template
+**Template:**
 
 ```typescript
-import { test, expect } from '../../fixtures/base';
+import { test, expect } from '../fixtures/base';
 
-test.describe('Catalog Builder - Complete Field & Validation Verification', () => {
-  let catalogId: string;
+test.describe('Feature Name - UI Verification', () => {
 
-  test.beforeEach(async ({ apiSetup }) => {
-    // Fast API precondition setup
-    const cat = await apiSetup.createCatalog({ title: 'Test Catalog Base' });
-    catalogId = cat.id;
-  });
+  test('user can do X, see feedback, and persist after reload', async ({ page, apiSetup }) => {
+    // ARRANGE: Create test data via API
+    const catUuid = await apiSetup.createCatalog({ title: 'Test Catalog' });
 
-  test('user can edit all metadata fields, trigger validations, and persist changes', async ({ page }) => {
-    await page.goto(`/catalog/${catalogId}`);
-
-    // 1. Check initial defaults
-    await expect(page.getByLabel('Title')).toHaveValue('Test Catalog Base');
-
-    // 2. Test Field Validations (Negative path)
-    await page.getByLabel('Title').clear();
+    // ACT: Navigate and interact via UI
+    await page.goto(`/catalogs/${catUuid}?edit=true&w=${apiSetup.workspaceId}`);
+    await page.getByLabel('Title').fill('Updated Title');
     await page.getByRole('button', { name: /save/i }).click();
-    await expect(page.getByText(/title is required/i)).toBeVisible();
 
-    // 3. Test Full Field Updates (Positive path)
-    await page.getByLabel('Title').fill('Updated Catalog Title');
-    await page.getByLabel('Version').fill('2.0.0');
-    await page.getByLabel('Description').fill('Detailed description covering all field requirements.');
+    // ASSERT: Immediate UI feedback
+    await expect(page.getByText('Updated Title')).toBeVisible();
 
-    // 4. Save and Verify Immediate Feedback
-    await page.getByRole('button', { name: /save/i }).click();
-    await expect(page.getByText(/saved successfully/i)).toBeVisible();
-
-    // 5. Reload and Verify Persistence
+    // ASSERT: F5 Reload Persistence
     await page.reload();
-    await expect(page.getByLabel('Title')).toHaveValue('Updated Catalog Title');
-    await expect(page.getByLabel('Version')).toHaveValue('2.0.0');
-    await expect(page.getByLabel('Description')).toHaveValue('Detailed description covering all field requirements.');
+    await expect(page.getByLabel('Title')).toHaveValue('Updated Title');
   });
 });
 ```
 
-### Phase 5: Test Execution & Validation ✅
+#### Step 4: Run & Fix
 
-1. **Run in Headed Mode** from `reposol/e2e/`:
+1. Run tests in headless mode:
    ```powershell
-   npx playwright test tests/<path>/<file>.spec.ts --headed
+   conda run -n darkspell npx playwright test tests/<file>.spec.ts
    ```
-2. **Analyze & Fix Failures**:
-   - If selectors fail, re-explore via DevTools MCP.
-   - Fix flaky assertions by using auto-waiting locators (`toBeVisible`, `toHaveValue`).
-   - **Never use `page.waitForTimeout()`** — always wait for explicit DOM or network conditions.
-3. **Run in Headless Mode**:
+2. If a selector fails → re-explore via MCP `take_snapshot` → fix the **test selector** (not the production code).
+3. Repeat until 100% green.
+4. Run once more to confirm stability.
+
+#### Step 5: Report
+
+- List new test cases written
+- Confirm pass/fail results
+- Note any application bugs discovered during exploration
+
+---
+
+## Mode 2: `repair` — Fix Broken Tests
+
+**When:** Tests are failing after a UI refactoring (changed labels, moved elements, new DOM structure).
+
+### Workflow
+
+#### Step 1: Diagnose — What exactly is broken?
+
+1. Run the failing tests:
    ```powershell
-   npx playwright test tests/<path>/<file>.spec.ts
+   conda run -n darkspell npx playwright test tests/<file>.spec.ts
    ```
-   Ensure 100% pass rate in headless execution.
+2. Read the error output. For each failure, note:
+   - Which test case failed
+   - Which line number
+   - Which selector couldn't find the element
+   - The error screenshot (in `test-results/`)
 
-### Phase 6: Reporting & Documentation 📄
+#### Step 2: Explore — What does the UI look like now?
 
-1. Link created/modified spec files: e.g. [`step1-catalog-builder.spec.ts`](../../../reposol/e2e/tests/step1-catalog-builder.spec.ts).
-2. Detail the exact use cases, fields, and edge cases tested.
-3. Note any newly discovered application bugs or regressions found during testing.
+1. Navigate to the affected page via `navigate_page`.
+2. Take an Accessibility Tree snapshot via `take_snapshot`.
+3. Find the **correct new selector** for each broken locator.
+
+#### Step 3: Fix — Update only the broken selectors
+
+- **Do NOT rewrite the entire test file.**
+- **Do NOT change production code.**
+- Change only the specific locator strings that no longer match the DOM.
+
+Example:
+```diff
+- const titleInput = page.getByLabel('Document Title');
++ const titleInput = page.locator('#create-doc-title');
+```
+
+#### Step 4: Re-run & Confirm
+
+1. Run the tests again.
+2. Confirm all previously failing tests now pass.
+3. Confirm no other tests broke.
+
+---
+
+## Mode 3: `verify` — Run Existing Tests
+
+**When:** User wants to check if tests pass after a code change. No test writing needed.
+
+### Workflow
+
+1. **If no specific step is mentioned**, auto-detect affected steps via git diff (see "Automatic Step Detection" above).
+
+2. Run tests **headless** (default — no browser window):
+   ```powershell
+   # Auto-detected steps or all tests
+   conda run -n darkspell npx playwright test
+
+   # Specific step
+   conda run -n darkspell npx playwright test tests/step2-profile-tailoring.spec.ts
+
+   # Only if user explicitly asks for headed:
+   conda run -n darkspell npx playwright test tests/step2-profile-tailoring.spec.ts --headed
+   ```
+
+3. Report the results:
+   - Number of passed/failed tests
+   - For failures: Which test, which line, which selector, and the error screenshot path
+
+4. **Do NOT automatically fix tests.** Ask the user whether they want to switch to `repair` mode.
+
+---
+
+## 2 Strict Rules (All Modes)
+
+### Rule 1: No `if`-Conditionals
+
+```typescript
+// ❌ FORBIDDEN — hides bugs silently:
+if (await button.isVisible()) {
+  await button.click();
+}
+
+// ✅ CORRECT — surfaces bugs immediately:
+await expect(button).toBeVisible();
+await button.click();
+```
+
+### Rule 2: Always F5-Reload Persistence
+
+```typescript
+// After every save/modification:
+await page.reload();
+await expect(page.getByLabel('Title')).toHaveValue('Updated Title');
+```
+
+### Additional: Never Change Production Code
+
+If a test fails because a selector doesn't match, fix the **test**, not the component.
+Explore the real UI via `take_snapshot` to find the correct selector.
 
 ---
 
 ## Test Quality Checklist
 
-Before finalizing any test:
+Before finalizing any test (applies to `generate` and `repair` modes):
+
 - [ ] Mapped 1:1 to acceptance criteria in `documentation/user_stories/`
-- [ ] Explored UI structure using Chrome DevTools MCP
-- [ ] Every form field tested (inputs, selects, toggles, textareas)
-- [ ] Field validations tested (empty values, invalid formats, boundary conditions)
-- [ ] Save & Reload persistence verified
-- [ ] Cancellation & rollback states verified
+- [ ] Explored UI structure using Chrome DevTools MCP (`take_snapshot`)
+- [ ] **ZERO `if (await ...)` conditionals** in test assertions
+- [ ] Every form field, dropdown, and toggle from the user story tested
+- [ ] Immediate UI feedback verified (badges, toasts, error highlights)
+- [ ] `await page.reload()` persistence verified for every saved value
 - [ ] API setup used for preconditions (`apiSetup`), UI used for target feature
 - [ ] Accessible locators used (`getByRole`, `getByLabel`, `getByText`)
 - [ ] Web-first auto-waiting assertions used (no `waitForTimeout`)
-- [ ] Verified green in both `--headed` and headless modes
+- [ ] **No production code changes** made to accommodate tests
+- [ ] Verified green in headless mode

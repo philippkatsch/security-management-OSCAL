@@ -177,7 +177,34 @@ async def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[
         cat_uuid = _catalog_uuid_from_href(href)
         if not cat_uuid:
             continue
-        if await document_repository.document_exists("catalogs", cat_uuid, workspace_id=workspace_id):
+        if await document_repository.document_exists("profiles", cat_uuid, workspace_id=workspace_id):
+            found_any_catalog = True
+            try:
+                from app.services.resolution_service import resolve_profile
+                resolved_prof = await resolve_profile(workspace_id, cat_uuid)
+                def collect_ctrls(ctrl_list):
+                    for c in ctrl_list:
+                        if isinstance(c, dict) and "id" in c:
+                            valid_control_ids.add(c["id"].lower())
+                            if "controls" in c and isinstance(c["controls"], list):
+                                collect_ctrls(c["controls"])
+
+                if "controls" in resolved_prof and isinstance(resolved_prof["controls"], list):
+                    collect_ctrls(resolved_prof["controls"])
+
+                def collect_groups(grp_list):
+                    for g in grp_list:
+                        if isinstance(g, dict):
+                            if "controls" in g and isinstance(g["controls"], list):
+                                collect_ctrls(g["controls"])
+                            if "groups" in g and isinstance(g["groups"], list):
+                                collect_groups(g["groups"])
+
+                if "groups" in resolved_prof and isinstance(resolved_prof["groups"], list):
+                    collect_groups(resolved_prof["groups"])
+            except Exception as e:
+                logger.warning("Failed to read profile %s for alter pruning: %s", cat_uuid, str(e))
+        elif await document_repository.document_exists("catalogs", cat_uuid, workspace_id=workspace_id):
             found_any_catalog = True
             try:
                 cat_doc, _ = await document_repository.get_document("catalogs", cat_uuid, workspace_id=workspace_id)

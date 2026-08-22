@@ -1,7 +1,7 @@
 # DD-019: Mapping Visualization & Gap Analysis Strategy
 
-**Status:** Accepted — Sankey deferred  
-**Date:** 2026-07-27 (updated 2026-08-09)  
+**Status:** Accepted  
+**Date:** 2026-07-27 (updated 2026-08-13)  
 **Applies to:** Stage 8 (Mapping Collection)
 
 ---
@@ -95,10 +95,36 @@ A dedicated **Gap Analysis** panel provides coverage metrics and unmapped contro
 - **Unmapped controls** are derived by comparing the full control list from the resolved `source-resource` / `target-resource` against the `map[].sources[].id-ref` and `map[].targets[].id-ref` values.
 - If `source-gap-summary` or `target-gap-summary` assemblies exist in the OSCAL document, they are pre-populated from those. Otherwise, the system calculates them dynamically.
 
-### ~~4. Optional Sankey / Flow Diagram~~ — Deferred
+### 4. Sankey Flow Diagram Integration (Dual / Toggle View)
 
-> [!NOTE]
-> **Deferred (2026-08-09):** The Sankey flow diagram has been deferred from the current scope. The Matrix View (Section 1) combined with the Gap Analysis panel (Section 3) provides sufficient visualization for control mapping workflows. If a Sankey view is needed later, use `d3-sankey` rather than a custom SVG/Canvas implementation to minimize development and maintenance effort.
+The mapping visualization provides an interactive **dual-view toggle** between Matrix View and **Sankey Flow Diagram**:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ View Mode: [ Matrix View ]  [ Sankey Flow View ]                       │
+├────────────────────────────────────────────────────────────────────────┤
+│ SOURCE (NIST 800-53)      RELATIONSHIP FLOWS      TARGET (ISO 27001)   │
+│ ┌────────────┐                                  ┌────────────┐       │
+│ │ PE-1       ├─────────────────────────────────►│ A.11.1     │       │
+│ ├────────────┤    (equal-to: 🟣 Purple)         ├────────────┤       │
+│ │ AC-2       ├───────────┐                      │ A.9.2.1    │       │
+│ ├────────────┤           └─────────────────────►├────────────┤       │
+│ │ AC-3       ├─────────────────────────────────►│ A.9.4.2    │       │
+│ ├────────────┤  (intersects-with: 🟡 Yellow)     └────────────┘       │
+│ │ Unmapped   │                                  ┌────────────┐       │
+│ │ (PE-2...)  ├─── ✕ (Red Dashed Link)           │ Unmapped   │       │
+│ └────────────┘                                  │ (A.18.1..) │       │
+│                                                 └────────────┘       │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+**Sankey Architecture & Interactions:**
+- **Layout Topology:** 3-column structural layout — Source controls on the left column, Target controls on the right column, and central SVG Bézier curve flow links connecting corresponding controls.
+- **Bézier Path Calculation:** Curved flow links calculated via React SVG cubic Bézier paths.
+- **Color-Coded Relationship Flows:** Flow paths color-coded according to the relationship palette defined in Section 2 (`equal-to`: purple, `equivalent-to`: green, `subset-of`: blue, `superset-of`: orange, `intersects-with`: yellow, `no-relationship`: red) using `STATUS_CONFIG['mapping-relationship']`.
+- **Unmapped Control Gap Sections:** Unmapped source and target controls are rendered in dedicated bottom gap blocks (or distinct muted nodes with dashed strokes) showing visual flow termination.
+- **Interactive Highlighting & Detail Tooltips:** Hovering over a control node or flow link highlights all associated connections, dims non-selected links, and displays a floating detail card with Source Control ID, Target Control ID, Relationship type, Confidence score, Rationale, and Remarks.
+- **Pure React SVG Implementation:** Built as a self-contained, lightweight React SVG component (`SankeyDiagram.tsx`) without external heavy graphing dependencies (avoiding D3 package bloat), guaranteeing fast initial rendering, CSS variable theme compatibility, and seamless Vitest integration.
 
 ### 5. Confidence & Coverage Display
 
@@ -143,6 +169,6 @@ Since `mapping` and `map` can override provenance-level `method`, `matching-rati
 
 - The Matrix View provides a scalable, interactive primary editor for control mappings.
 - Gap Analysis is auto-calculated from resolved source/target catalogs — no manual gap tracking needed.
-- ~~Sankey diagrams offer stakeholder-friendly high-level visualization without replacing the detailed matrix.~~ *(deferred)*
+- Sankey flow diagram provides a high-level topological visualization of framework mapping flows alongside the fine-grained Matrix View via a seamless view toggle.
 - Qualifier and confidence annotations surface relationship nuances directly in the editor.
 - All visualization is client-side rendered using SVG — no server-side rendering required.

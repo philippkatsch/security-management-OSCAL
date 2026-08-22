@@ -1,0 +1,317 @@
+/* ─── LoadingSpinner & WorkspaceSkeleton Styles ──────────────── */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface, #161b22) 0%,
+    var(--color-surface-2, #1c2333) 50%,
+    var(--color-surface, #161b22) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* ─── Full Workspace Skeleton ────────────────────────────────── */
+.workspace-skeleton {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--color-bg, #0d1117);
+  overflow: hidden;
+}
+
+/* Top Toolbar Skeleton */
+.skeleton-toolbar {
+  height: 56px;
+  background: var(--color-surface, #161b22);
+  border-bottom: 1px solid var(--color-border, #30363d);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.skeleton-btn-sm {
+  width: 72px;
+  height: 30px;
+}
+
+.skeleton-badge {
+  width: 90px;
+  height: 24px;
+  border-radius: 9999px;
+}
+
+.skeleton-title {
+  width: 220px;
+  height: 22px;
+}
+
+.skeleton-pill {
+  width: 120px;
+  height: 32px;
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* Body Split */
+.skeleton-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebar Skeleton */
+.skeleton-sidebar {
+  width: 280px;
+  background: var(--color-surface, #161b22);
+  border-right: 1px solid var(--color-border, #30363d);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.skeleton-search {
+  width: 100%;
+  height: 34px;
+  border-radius: var(--radius-sm, 6px);
+}
+
+.skeleton-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.skeleton-nav-item {
+  height: 28px;
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* Main Content Skeleton */
+.skeleton-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg, #0d1117);
+  overflow: hidden;
+}
+
+.skeleton-tabs {
+  height: 44px;
+  background: var(--color-surface, #161b22);
+  border-bottom: 1px solid var(--color-border, #30363d);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+
+.skeleton-tab {
+  width: 100px;
+  height: 26px;
+}
+
+.skeleton-content-area {
+  flex: 1;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.skeleton-banner {
+  height: 110px;
+  width: 100%;
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--color-border-subtle, #21262d);
+}
+
+.skeleton-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.skeleton-metric-card {
+  height: 80px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--color-border-subtle, #21262d);
+}
+
+.skeleton-card {
+  height: 240px;
+  width: 100%;
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--color-border-subtle, #21262d);
+}
+
+.skeleton-status-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-muted, #7d8590);
+  font-size: 13px;
+  margin-top: 8px;
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.skeleton-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent, #388bfd);
+  box-shadow: 0 0 8px var(--color-accent, #388bfd);
+}
+
+/* ─── Table Skeleton ─────────────────────────────────────────── */
+.table-skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 0;
+}
+
+.table-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--color-surface, #161b22);
+  border: 1px solid var(--color-border, #30363d);
+  border-radius: var(--radius-md, 10px);
+}
+
+.table-skeleton-cell {
+  height: 20px;
+}
+
+/* ─── Card List Skeleton (Recent Activity / Feeds) ───────────── */
+.list-skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.list-skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--color-surface, #161b22);
+  border: 1px solid var(--color-border, #30363d);
+  border-radius: var(--radius-md, 10px);
+}
+
+.list-skeleton-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.list-skeleton-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+/* ─── Centered Glowing Spinner Variant ───────────────────────── */
+.spinner-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  min-height: 260px;
+  width: 100%;
+  padding: 2rem;
+  gap: 16px;
+  background: transparent;
+}
+
+.spinner-ring {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--color-surface-3, #212936);
+  border-top-color: var(--color-accent, #388bfd);
+  box-shadow: 0 0 16px var(--color-accent-glow, rgba(56, 139, 253, 0.25));
+  animation: spin 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.spinner-ring-sm {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+.spinner-ring-lg {
+  width: 52px;
+  height: 52px;
+  border-width: 4px;
+}
+
+.spinner-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted, #7d8590);
+  letter-spacing: 0.2px;
+}
+
+.spinner-subtext {
+  font-size: 12px;
+  color: var(--color-text-subtle, #484f58);
+}

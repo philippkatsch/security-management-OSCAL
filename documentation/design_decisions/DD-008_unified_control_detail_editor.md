@@ -1,68 +1,9 @@
-# DD-008: Unified Control Detail Editor Component (`ControlDetailView`)
-
-**Superseded by DD-030**: The `ControlDetailView` (and its subsequent split into `CatalogControlEditor` / `ProfileControlOverlay`) has been completely replaced by the `UnifiedControlEditor` architecture documented in [DD-030](DD-030_unified_control_editor.md).
+# DD-008: Unified Control Detail Editor
 
 ## Status: Superseded
 ## Date: 2026-07-19
-## Decision Makers: Development Team
 
-> **Parent Decision:** This DD is an implementation deep-dive of [DD-004 §6: Cross-Domain Visual Consistency](DD-004_editor_ux_patterns.md). DD-004 defines the overall editor UX patterns; this DD specifies the `ControlDetailView` component architecture in detail.
+> **This design decision has been superseded by [DD-030: Unified Control Editor](DD-030_unified_control_editor.md).**
+>
+> The original `ControlDetailView` dual-mode component was replaced with the polymorphic `UnifiedControlEditor` and Stage Adapter Pattern. See DD-030 for the current architecture.
 
-## Context
-In Reposol, controls and subcontrols (enhancements) need to be viewed and edited in both the Catalog Builder (direct document mutation) and the Profile Tailoring editor (OSCAL-compliant alterations). Previously, these two views used duplicate rendering logic (`ControlDetail.jsx` and `ProfileDetailPanel.jsx`), causing visual inconsistencies, high maintenance overhead, and bugs in profile tailoring.
-
-To solve this, we unified the detail panel into a single component: `ControlDetailView.jsx`. Since this is a central component, its architectural design, modes, and tailoring logic must be clearly documented.
-
-## Decisions
-
-> **Scope:** This design decision applies exclusively to the **Catalog Builder (Step 1)** and **Profile Tailoring (Step 2)** editors. For Steps 3-8, which use fundamentally different entity-based editing paradigms, see [DD-021](DD-021_entity_list_detail_editor_pattern.md). When Steps 3-8 need to display control information (e.g., SSP implemented requirements referencing a baseline control, or AP objectives referencing control statements), they render a **read-only** `ControlReferenceCard` that shows the resolved control text without edit capabilities.
-
-### 1. Dual-Mode Architecture (Catalog vs. Profile)
-The `ControlDetailView` component behaves as a polymorphic editor based on the `mode` prop:
-- **`mode="catalog"` (Direct Mutation):**
-  - Used when editing a Catalog.
-  - Direct CRUD changes are dispatched to `onControlChange` (e.g., editing IDs, renaming titles, adding/deleting statements, editing parameters).
-- **`mode="profile"` (OSCAL Alterations):**
-  - Used when editing a Profile.
-  - Controls are rendered using the resolved state, but modifications are serialized into the profile's `modify.alters` (for props, parts, links) and `modify.set-parameters` (for parameters) via `onProfileChange`.
-- **`EnhancementsAccordion` Polymorphism:**
-  - The `EnhancementsAccordion` component supports inline sub-control expansion in both Catalog (`mode="catalog"`) and Profile (`mode="profile"`) modes. In Profile mode, sub-control statements use `ProseWithParams` for caret-relative parameter insertion, and parameter overrides are mapped to `modify.set-parameters` referencing the sub-control's parameter ID.
-
-### 2. State Mapping & Resolution for Profile Editing
-Because the resolution engine (`resolveProfileSync`) filters out deleted items and resolves parameter overrides, the editor needs to reconstruct the edit-state to maintain visual traceability:
-- **Properties (Tags):**
-  - The editor retrieves original properties from `originalControl.props`.
-  - Properties that are deleted are resolved by checking `alter.removes[].by-name`.
-  - In Edit Mode, deleted properties are rendered with `opacity: 0.6` and `text-decoration: line-through` in the `PropsEditor`, with a `↺` restore button.
-  - In View Mode and resolved preview, they are completely omitted.
-- **Prose Parts (Statements/Guidance):**
-  - The editor maps `originalControl.parts` to allow inline text editing.
-  - Original statements removed via `alter.removes[].by-id` are rendered struck through with a `↺ Restore` action.
-  - Newly added supplemental statements (defined in `alter.adds[]` at `ending`, `starting`, `before`, or `after` positions) are injected into the rendering tree and decorated with an `[Added]` badge.
-  - Newly added statements allow custom name/type selection (dropdown) and custom ID configuration (text input).
-
-### 3. Adapters & Callbacks Pattern
-To keep the component reusable:
-- Direct UI actions (like `PropsEditor` changes, links editing, parameter overrides) call unified handlers (`handlePropsChange`, `handleLinksChange`, `handleProseChange`).
-- These handlers use the `mode` prop to determine whether to call `onControlChange` (catalog mode) or update the profile's alters via `updateAlter` and call `onProfileChange` (profile mode).
-- Custom sub-component rendering (like inline enhancements in profiles) is injected via function callbacks (`renderEnhancementContent`).
-- Sub-control prose text edits in Profile mode map to `modify.alters` on the sub-control ID, and parameter overrides map to `modify.set-parameters`.
-
-### 4. Read-Only ControlReferenceCard for Steps 3-8
-- `ControlReferenceCard.jsx` in `components/shared/editors/` renders resolved control ID, title, and statement text as read-only
-- Used by SSP (Step 4) above `by-component` narrative editors
-- Used by AP (Step 5) above objectives-and-methods editors
-- Used by AR (Step 6) in finding `target` displays
-- Does NOT support `mode` switching — it is always read-only
-- Reuses `ReadOnlyParts` and `ControlHeader` from ControlDetailView for visual consistency
-
-## Cross-References
-- DD-004
-- DD-017
-- DD-020
-- DD-021
-
-## Consequences
-- **Zero Visual Regression:** Catalogs and Profiles render controls using identical CSS styling (`section-container`, `header-card`, `badge`) and layout spacing.
-- **Strict Compliance:** All profile edits are validated against the standard OSCAL rules for alters (e.g., adding tags as `adds`, deleting tags as `removes`, and preventing direct renaming of original statement IDs).
-- **Maintainability:** Layout adjustments, typography, or new metadata fields for controls only need to be implemented once in `ControlDetailView.jsx`.

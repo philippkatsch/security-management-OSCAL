@@ -64,7 +64,7 @@ export function useDocument(stage: OscalStage, documentId: string) {
       const targetDoc = documentToSave || docRef.current || doc;
       if (!targetDoc) throw new Error('No document to save');
       const cleaned = cleanEmptyArrays(targetDoc);
-      const result = await mutation.mutateAsync({ docId: documentId, data: cleaned });
+      const result = (await mutation.mutateAsync({ docId: documentId, data: cleaned as any })) as any as OscalDocument;
       updateDoc(result);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -81,11 +81,13 @@ export function useDocument(stage: OscalStage, documentId: string) {
       const targetDoc = documentToValidate || docRef.current || doc;
       if (!targetDoc) throw new Error('No document to validate');
       const result = await validationMutation.mutateAsync(targetDoc);
-      const mappedResult: ValidationResult = { ...result, valid: result.status === 'valid' };
+      const anyResult = result as any;
+      const mappedResult: ValidationResult = { ...result, valid: anyResult?.status === 'valid' || result.valid };
       setValidationResult(mappedResult);
       return mappedResult;
-    } catch (err: Error | unknown) {
-      const failedResult: ValidationResult = { valid: false, errors: err.errors || [err.message] };
+    } catch (err: unknown) {
+      const anyErr = err as any;
+      const failedResult: ValidationResult = { valid: false, errors: anyErr?.errors || [anyErr?.message || String(err)] };
       setValidationResult(failedResult);
       return failedResult;
     }

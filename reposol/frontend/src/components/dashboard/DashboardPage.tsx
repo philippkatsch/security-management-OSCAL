@@ -7,6 +7,7 @@ import { useAtom } from 'jotai';
 import { documentCountsAtom, recentDocsAtom } from '@stores/documentAtoms';
 import { fetchRecentDocuments } from '@lib/api';
 import { apiClient } from '@lib/api-client';
+import { CardListSkeleton } from '@components/shared/ui/LoadingSpinner';
 
 const WORKFLOW_STEPS = [
   { stage: 'catalogs', label: 'Catalog', icon: '📖', desc: 'Control definitions' },
@@ -66,12 +67,12 @@ export const DashboardPage = () => {
     return newCounts;
   };
 
-  const { data: countsData } = useQuery({
+  const { data: countsData, isLoading: countsLoading } = useQuery({
     queryKey: ['document-counts'],
     queryFn: fetchAllCounts,
   });
 
-  const { data: recentData } = useQuery({
+  const { data: recentData, isLoading: recentLoading } = useQuery({
     queryKey: ['recent-documents'],
     queryFn: fetchRecentDocuments,
   });
@@ -95,7 +96,7 @@ export const DashboardPage = () => {
       </div>
 
       <div className={styles['section-title']}>OSCAL Lifecycle Pipeline</div>
-      <div className="workflow-pipeline">
+      <div className={styles['workflow-pipeline']}>
         {WORKFLOW_STEPS.map((step, i) => {
           const count = counts[step.stage as keyof typeof counts] || 0;
           const prevCount = i > 0 ? (counts[WORKFLOW_STEPS[i - 1].stage as keyof typeof counts] || 0) : 0;
@@ -104,9 +105,9 @@ export const DashboardPage = () => {
           const isGlowing = hasDocs || isReady;
           
           return (
-            <div className="workflow-step-wrapper" key={step.stage}>
+            <div className={styles['workflow-step-wrapper']} key={step.stage}>
               <div
-                className={`workflow-step ${hasDocs ? 'has-docs' : ''}`}
+                className={`${styles['workflow-step']} ${hasDocs ? styles['has-docs'] : ''}`}
                 style={{
                   boxShadow: isGlowing ? '0 0 15px rgba(99, 102, 241, 0.4)' : 'none',
                   borderColor: isGlowing ? 'rgba(99, 102, 241, 0.6)' : undefined
@@ -114,18 +115,20 @@ export const DashboardPage = () => {
                 onClick={() => navigate('/' + step.stage)}
                 title={`${step.label}: ${count} documents${step.isDev ? ' (Under Active Development)' : ''}`}
               >
-                <span className="workflow-icon">{step.icon}</span>
-                <span className="workflow-label">{step.label}</span>
-                <span className="workflow-count">{count}</span>
-                <span className="workflow-desc">{step.desc}</span>
+                <span className={styles['workflow-icon']}>{step.icon}</span>
+                <span className={styles['workflow-label']}>{step.label}</span>
+                <span className={styles['workflow-count']}>
+                  {countsLoading ? '…' : count}
+                </span>
+                <span className={styles['workflow-desc']}>{step.desc}</span>
                 {step.isDev && (
-                  <span className="workflow-dev-badge" title="Under Active Development">
+                  <span className={styles['workflow-dev-badge']} title="Under Active Development">
                     🚧 In Dev
                   </span>
                 )}
               </div>
               {i < WORKFLOW_STEPS.length - 1 && (
-                <span className="workflow-arrow" style={{ color: count > 0 ? 'var(--color-primary)' : 'var(--color-border)' }}>→</span>
+                <span className={styles['workflow-arrow']} style={{ color: count > 0 ? 'var(--color-primary)' : 'var(--color-border)' }}>→</span>
               )}
             </div>
           );
@@ -170,7 +173,9 @@ export const DashboardPage = () => {
 
         <div className={styles['dashboard-col']}>
           <div className={styles['section-title']}>Recent Activity</div>
-          {recentDocs.length === 0 ? (
+          {recentLoading ? (
+            <CardListSkeleton items={4} />
+          ) : recentDocs.length === 0 ? (
             <div className={sharedStyles['empty-state']} style={{ padding: '32px' }}>
               <p>No recent documents found. Import or create your first document!</p>
             </div>

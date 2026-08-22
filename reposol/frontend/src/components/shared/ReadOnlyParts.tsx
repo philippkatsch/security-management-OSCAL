@@ -17,11 +17,20 @@ export const getAutoLabel = (index, depth) => {
   return `•`;
 };
 
-export const ReadOnlyParts = ({
+export interface ReadOnlyPartsProps {
+  parts?: any[];
+  renderProse?: (txt: any) => any;
+  modifiedPartIds?: string[];
+  onResetPart?: (partId: string) => void;
+  isEditing?: boolean;
+  depth?: number;
+}
+
+export const ReadOnlyParts: React.FC<ReadOnlyPartsProps> = ({
   parts,
-  renderProse = (txt) => txt,
+  renderProse = (txt: any) => txt,
   modifiedPartIds = [],
-  onResetPart = undefined,
+  onResetPart,
   isEditing = false,
   depth = 0
 }) => {
@@ -29,7 +38,7 @@ export const ReadOnlyParts = ({
 
   // Filter out assessment method and objective parts from the main statement list.
   // In view mode (isEditing === false), also filter out parts that have been removed.
-  const displayParts = parts.filter(p => {
+  const displayParts = parts.filter((p: any) => {
     const name = p.name?.toLowerCase();
     const isExcludedType = name === 'objective' || name === 'assessment-method' || name === 'examine' || name === 'interview' || name === 'test';
     if (isExcludedType) return false;
@@ -41,12 +50,12 @@ export const ReadOnlyParts = ({
 
   return (
     <>
-      {displayParts.map((p, idx) => {
+      {displayParts.map((p: any, idx: number) => {
         const isModified = modifiedPartIds?.includes(p.id);
         const subparts = p.parts || [];
         const isTopLevel = depth === 0;
 
-        const iconMap = {
+        const iconMap: Record<string, string> = {
           statement: '☵',
           guidance: '📖',
           guideline: '📖',
@@ -57,7 +66,7 @@ export const ReadOnlyParts = ({
 
         // If top-level, render as a card
         if (isTopLevel) {
-          const cardStyle = {
+          const cardStyle: React.CSSProperties = {
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
             borderLeft: `4px solid ${p.name?.toLowerCase() === 'statement' ? 'var(--color-primary)' : 'var(--color-accent, var(--color-primary))'}`,
@@ -113,7 +122,7 @@ export const ReadOnlyParts = ({
         // If nested list item, render with left vertical border and label
         const label = getAutoLabel(idx, depth);
 
-        const itemStyle = {
+        const itemStyle: React.CSSProperties = {
           display: 'flex',
           gap: '12px',
           marginBottom: '10px',
@@ -122,14 +131,14 @@ export const ReadOnlyParts = ({
           opacity: p.isRemoved ? 0.6 : 1
         };
 
-        const verticalLineStyle = {
+        const verticalLineStyle: React.CSSProperties = {
           borderLeft: '2px solid var(--color-primary-light, var(--color-primary))',
           opacity: 0.5,
           marginRight: '2px',
           flexShrink: 0
         };
 
-        const proseStyle = {
+        const proseStyle: React.CSSProperties = {
           fontSize: '14px',
           lineHeight: '1.6',
           color: 'var(--color-text)',

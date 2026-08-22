@@ -26,8 +26,8 @@ export function POAMItemsEditor({ item, onSave, onClose, readOnly, doc }) {
     return p ? p.value : '';
   };
   
-  const handleRelatedMultiSelect = (field, entityList, e) => {
-    const selectedOptions = Array.from(e.target.selectedOptions).map(o => o.value);
+  const handleRelatedMultiSelect = (field: string, entityList: any[], e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(e.target.selectedOptions).map((o: any) => o.value);
     const updated = selectedOptions.map(uuid => {
       if (field === 'related-findings') return { 'finding-uuid': uuid };
       if (field === 'related-risks') return { 'risk-uuid': uuid };

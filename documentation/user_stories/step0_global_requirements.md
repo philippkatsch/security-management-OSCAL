@@ -89,16 +89,18 @@ Each step of the security lifecycle is described in detail in a separate file:
 > **so that** I can seamlessly import official security control frameworks and compliance baselines into Reposol without encountering broken remote URLs.
 - [ ] Upload dialog for files in JSON, XML, and YAML formats.
 - [ ] Automatic format detection and conversion into the internal JSON format.
-- [ ] **Pre-bundled OSCAL Content Registry Sources:** The import registry modal includes official, pre-configured raw JSON endpoints matching the official OSCAL Content Registry repository (`usnistgov/oscal-content` and BSI). Non-working/broken remote endpoints (e.g. HTTP 404 URLs for NIST SP 800-171, NIST CSF 1.1, and legacy FedRAMP profiles) are excluded from `KNOWN_SOURCES` so that only valid, importing endpoints are offered in the UI.
-- [ ] **Uniform Publisher Badge Styling:** All source publisher badges (NIST, BSI, FedRAMP, etc.) in the Import Wizard registry list use a single uniform standard blue badge style (`#1a7fd4`), eliminating publisher-specific color mapping.
-- [ ] **Official Schema Validation:** The imported document is strictly validated against the official NIST OSCAL JSON schemas stored locally under `reposol/backend/app/schemas/`.
-- [ ] **Error Mapping:** In case of a failed import, a detailed error message with the exact JSON path and error description is returned according to the strategy defined in [DD-002](../design_decisions/DD-002_oscal_validation_strategy.md).
+- [ ] **Pre-bundled OSCAL Content Registry Sources:** The import registry modal includes official, pre-configured raw JSON endpoints matching the official OSCAL Content Registry repository. Non-working/broken remote endpoints are excluded so that only valid, importing endpoints are offered in the UI.
+- [ ] **Uniform Publisher Badge Styling:** All source publisher badges in the Import Wizard registry list use a uniform standard style, eliminating publisher-specific mapping.
+- [ ] **Official Schema Validation:** The imported document is strictly validated against the official NIST OSCAL JSON schemas stored locally.
+- [ ] **Error Mapping:** In case of a failed import, a detailed error message with the exact JSON path and error description is returned.
 
 ### US 0.4: OSCAL Export to Different Formats
 > **As a** compliance officer (Alice)  
-> **I want to** download any OSCAL document as JSON, XML, or YAML,  
-> **so that** I can share documents with external auditors, partners, or tools in their preferred format.
-- [ ] Download button with format selection (JSON, XML, YAML) in the document view.
+> **I want to** download any OSCAL document as JSON, XML, or YAML via a dedicated format export selection modal (`ExportModal`),  
+> **so that** I can share documents with external auditors, partners, or tools in their preferred format without legacy browser prompts.
+- [ ] Format selection UI utilizes a standardized accessible modal (`ExportModal`) offering JSON, YAML, and XML options with format descriptions instead of legacy `window.prompt`.
+- [ ] Triggering export executes backend `/api/export/{stage}/{doc_id}?format={fmt}&w={wsId}` download with appropriate content disposition headers.
+- [ ] Export failures or serialization errors display non-blocking `toast.error()` notifications without crashing the UI.
 - [ ] Exported documents are 100% schema-compliant with the respective official NIST OSCAL schema.
 - [ ] Filename contains document title and version number.
 
@@ -129,27 +131,28 @@ Each step of the security lifecycle is described in detail in a separate file:
 
 ### US 0.7: Reference Integrity Check and Advanced Deletion
 > **As a** compliance officer (Alice)  
-> **I want to** be automatically warned when import references between OSCAL documents are broken, and warned when deleting a document if it is still being referenced,  
-> **so that** I can ensure the consistency of my document landscape.
+> **I want to** be automatically warned when import references between OSCAL documents are broken, and prompted via accessible confirmation dialogs (`useConfirm`) when deleting a document or resolving reference conflicts,  
+> **so that** I can ensure the consistency of my document landscape without native browser confirmation popups.
 - [ ] Automatic check of all `import-*` references (such as `imports` in profiles) for the existence of the target documents.
 - [ ] Visual warning (yellow banner at the top of the Profile Viewer) if an imported resource (catalog or profile) is missing from the system or if a reference is broken.
-- [ ] If a document that is referenced by other documents is to be deleted, the frontend intercepts the backend's 409 message and opens a detailed confirmation dialog.
-- [ ] The confirmation dialog lists all referencing documents and offers the user a "Force Delete" button (Force Delete via API with `?force=true`) as well as a cancel button.
+- [ ] Document deletion triggers a standard `useConfirm()` modal confirmation dialog instead of native `window.confirm()`.
+- [ ] If a document referenced by downstream documents is marked for deletion, the frontend catches backend 409 Conflict responses and presents a force-delete dialog via `useConfirm()`.
+- [ ] The 409 conflict confirmation dialog lists referencing documents and provides a "Force Delete" action button (executing API call with `?force=true`) and a cancel button.
 
 ### US 0.8: Single Active Draft Lifecycle & Header Version Dropdown
 > **As a** Compliance Officer (Alice)  
 > **I want to** maintain exactly one active working draft per document, browse historical published versions in Read-Only View mode, and seamlessly transition into Edit mode to work on the active draft or create a draft from a selected version,  
 > **so that** version browsing is effortless, no duplicate drafts accumulate, and editing always targets a clean single working copy until explicitly published.
-> *See also: [DD-004](../design_decisions/DD-004_editor_ux_patterns.md), [DD-023](../design_decisions/DD-023_document_lifecycle_state_machine.md)*
-- [ ] **Single Active Draft Rule:** Each document (Catalog, Profile, SSP, etc.) has at most one active working draft (`<uuid>_draft.json`).
-- [ ] **Unified Header Version Selector (`VersionDropdown`):** Replaces the separate status dropdown and right-side version history drawer with a single header dropdown.
-- [ ] **Version Inspection in View Mode:** In Read-Only View mode (`👁️ View`), the user can freely select and inspect any published version snapshot (`v1.0.0`, `v0.9.0`) or switch to view the active `📝 Draft`.
-- [ ] **View to Edit Mode Transition:** Clicking `✏️ Edit`:
-    - If an active draft already exists, the editor seamlessly loads that active `📝 Draft`.
-    - If no active draft exists, the editor creates a new working `📝 Draft` initialized from whichever version the user is currently viewing.
-- [ ] **Automatic Draft Indicator:** Whenever active uncommitted changes exist, the header dropdown badge automatically displays **`📝 Draft`**.
-- [ ] **Delete Draft Action (`🗑️ Delete Draft`):** Inside the `VersionDropdown` menu item for the active draft (replacing the "Working copy" badge), a dedicated **Delete Draft** button allows the user to discard/delete the active working draft (`<uuid>_draft.json`), reverting the document view back to the last published active version and clearing the draft state.
-- [ ] **Explicit Publishing:** Editing continues on `📝 Draft` until the user explicitly clicks `🚀 Publish Version`, which snapshots the draft into a formal release (e.g. `v1.1.0`), clears the temporary draft file, and updates the header badge to `v1.1.0`.
+> *See also: [DD-004](../design_decisions/DD-004_editor_ux_patterns.md)*
+- [ ] **Single Active Draft Rule:** Each document has at most one active working draft.
+- [ ] **Unified Header Version Selector:** Replaces separate dropdowns with a single header dropdown.
+- [ ] **Version Inspection:** In Read-Only View mode, users can view any published version snapshot or switch to the active draft.
+- [ ] **Mode Transition:** Switching to edit mode either loads the active draft or creates a new one from the currently viewed version.
+- [ ] **Draft Indicator:** Indicates when active uncommitted changes exist.
+- [ ] **Dirty-Aware Navigation:** Warns users about unsaved changes when navigating away.
+- [ ] **Delete Draft:** Allows discarding the active working draft to revert back to the last published active version.
+- [ ] **Explicit Publishing:** Editing targets the active draft until explicitly published into a formal release.
+
 
 ### US 0.9: OSCAL Revision History in Document
 > **As a** user (Alice / Bob)  
@@ -160,15 +163,25 @@ Each step of the security lifecycle is described in detail in a separate file:
 - [ ] **Sorting:** Revisions are displayed in reverse chronological order (newest first), as prescribed by the OSCAL standard.
 - [ ] Distinction from file versioning: The revision history is a JSON-internal concept and complements filesystem-based versioning (US 0.15). Both concepts are independent.
 
-### US 0.10: Automatic Scrolling and Expansion for the Selected Element in the Sidebar and JSON Editor
-> **As a** user (Alice / Bob)  
-> **I want to** select a control or a group in the sidebar and have it automatically scroll into view, and when switching the mode to the Raw JSON Editor, have the corresponding position of the element focused and scrolled into view,  
-> **so that** I always keep my orientation in large catalogs and profiles, regardless of whether I am in the reading view (Viewer), editing mode (Edit Mode), or the Raw JSON Editor.
-- [ ] **Automatic Scrolling in Sidebar:** In both the reading view (Viewer) and editing mode (Edit Mode) of catalogs and profiles, the currently selected element (control or group) in the sidebar is automatically smoothly scrolled into the visible area (`scrollIntoView`) if it is not fully visible.
-- [ ] **Automatic Expansion:** When an element is loaded or selected (e.g., by clicking, after loading the page, through search matches, or when switching modes), all parent groups and the element itself in the sidebar are automatically expanded (`expanded`) if they are currently collapsed.
-- [ ] **Manual Collapse of Selected Elements:** The user can manually collapse the selected element (and any of its parent groups) at any time by clicking the expand/collapse arrow icon. The selection state itself must not force the element to remain expanded or override manual collapse actions.
-- [ ] **Synchronization with JSON Editor:** When switching to Raw JSON Editor mode (while an element is selected), the corresponding line of the element in the JSON text field (e.g., using `"id": "control-id"`) is automatically focused, the selection is set to the ID line, and the text field is scrolled to center on this position.
-- [ ] The functionality is robust, does not lead to disruptive jumping during normal sidebar interaction, and is controlled via useEffect hooks.
+### US 0.10: Visual → JSON Source Scroll & Highlight Synchronization
+> **As a** compliance officer or auditor (Alice / Bob)  
+> **I want to** have the JSON Source view automatically scroll to and highlight the JSON region corresponding to the element I was last viewing or editing in the Visual view when I switch tabs,  
+> **so that** I can seamlessly cross-reference the visual representation with the underlying OSCAL JSON structure without manually searching through potentially thousands of lines.
+> *See also: [DD-004 §1 Dual-Mode Editor](../design_decisions/DD-004_editor_ux_patterns.md), [US 0.11](###US-0.11)*
+- [ ] **Automatic Scroll on Tab Switch:** When the user switches from any Visual tab (e.g., Components, Control Implementation, Tasks, Items) to the JSON Source tab, the JSON editor MUST scroll to and highlight the JSON region corresponding to the currently selected element.
+- [ ] **Element ID Matching:** The scroll target is determined by searching for the selected element's `"id"` field in the serialized JSON using the existing `performScroll()` mechanism in `JsonEditor` (Monaco `findMatches` + `revealLineInCenter`).
+- [ ] **Universal Across All OSCAL Document Types:** This behavior MUST be consistent across all 8 OSCAL lifecycle stages:
+    - Stage 1 — Catalog (`CatalogPage`): Scroll to selected control or group via `tree.selectedId`.
+    - Stage 2 — Profile (`ProfilePage`): Scroll to selected control via `selectedControlId`. *(Already implemented.)*
+    - Stage 3 — Component Definition (`ComponentPage`): Scroll to selected component, capability, control implementation, or requirement.
+    - Stage 4 — System Security Plan (`SSPPage`): Scroll to selected control (via `tree.selectedId`), component, inventory item, or user.
+    - Stage 5 — Assessment Plan (`APPage`): Scroll to selected task, activity, or term.
+    - Stage 6 — Assessment Results (`ARPage`): Scroll to selected result or finding.
+    - Stage 7 — POA&M (`POAMPage`): Scroll to selected POA&M item, observation, or risk.
+    - Stage 8 — Mapping Collection (`MappingPage`): Scroll to selected mapping or map entry.
+- [ ] **Priority Selection Logic:** When a page tracks multiple selection states (e.g., `selectedComponent` and `selectedRequirement`), the most specific (deepest) non-null selection SHOULD be used as the `highlightId`.
+- [ ] **Reverse Sync (JSON → Visual):** When the user switches from the JSON Source tab to any Visual tab, the Visual view SHOULD select the element corresponding to the cursor position in the JSON editor. The cursor-to-entity mapping uses a backward bracket-counting scan from the cursor line to find the nearest containing object's `"id"`, `"uuid"`, or `"control-id"` field.
+- [ ] **Read-Only and Edit Mode:** The scroll synchronization MUST work in both read-only view mode and edit mode.
 
 ### US 0.11: Virtualized JSON Editor for High-Performance Mode Switching on Large Documents
 > **As a** compliance officer (Alice)  
@@ -179,23 +192,21 @@ Each step of the security lifecycle is described in detail in a separate file:
 - [ ] **No Keystroke Lag:** Typing in the JSON editor must be absolutely lag-free by ensuring that state synchronizations to the parent container do not trigger blocking re-renderings on every keystroke.
 - [ ] **Preservation of Features:** The automatic scroll and highlight synchronization (US 0.10) as well as live validation must remain fully functional and align with the API of the new editor.
 
-### US 0.12: Under Development Indicator Badges for Uncompleted OSCAL Stages
-> **As a** Compliance Officer or Auditor (Alice / Bob)  
-> **I want to** see a visual indicator (construction site symbol 🚧 / "Under Development" badge) on the OSCAL lifecycle elements whose specialized editors/viewers are still in development (Component Definitions, SSP, Assessment Plans, Assessment Results, POA&M, Control Mappings),  
-> **so that** it is immediately transparent which OSCAL stages are already fully implemented (Catalogs, Profiles) and which are still under active development.
-- [ ] **Dashboard Pipeline Cards:** The pipeline steps in the OSCAL Lifecycle Pipeline Dashboard for `Component Definitions`, `SSP`, `Assessment Plans`, `Assessment Results`, `POA&M`, and `Control Mappings` show a clear 🚧 construction site symbol as well as a yellow/discrete `In Dev` badge on the card.
-- [ ] **Sidebar Navigation:** In the navigation (`Navigation.tsx`), a subtle 🚧 construction site symbol is displayed next to the incomplete work stages in the label or as a badge, including an understandable tooltip ("Under Active Development").
-- [ ] **Stage Header Warning Banner:** When opening a work stage whose specialized editor is not yet finished (Components, SSPs, Assessment Plans, Assessment Results, POA&Ms, Control Mappings), an informative warning banner is displayed at the top of the screen ("🚧 This OSCAL editor is currently under development. Basic JSON editing is available.").
-
 ### US 0.13: Master Templates Admin Mode & Automatic User Workspace Seeding
 > **As a** system administrator / maintainer (Philipp)  
-> **I want to** manage and edit the master templates (Catalogs & Profiles) in `reposol/data/workspaces/default/` directly via a special mode (`?w=default`, `?w=master`, or `?w=templates`) – **exclusively in local operation (`localhost`)**,  
-> **so that** all normal users are automatically presented with my latest master templates in their own anonymous workspace upon their first launch, while legacy folders (`data/templates/`, `data/catalogs/`) are eliminated.
-- [ ] **Master Template Single Store (`data/workspaces/default/`):** Master templates are consolidated under `reposol/data/workspaces/default/`. The legacy folders `reposol/data/templates/` and `reposol/data/catalogs/` are deprecated and removed.
-- [ ] **Standard Users (Normal Mode):** New user sessions (`session-xyz`) automatically receive a local copy of all master templates from `data/workspaces/default/` into their own isolated workspace upon creation. All edits, modifications, and deletions affect only their own workspace.
-- [ ] **Localhost-Admin Guard:** The master template write mode (`?w=default` / `?w=master` / `?w=templates`) is **strictly limited to requests from `localhost` / `127.0.0.1`**. On public live demo deployments (Fly.io), write access to the `default` / `master` workspace is blocked with HTTP 403 Forbidden.
-- [ ] **Master Persistence (Local):** Save and delete operations in master mode on `localhost` act directly on `reposol/data/workspaces/default/catalogs/` and `reposol/data/workspaces/default/profiles/`.
-- [ ] **UI Indicator:** In the UI, a clear notice/badge is displayed in master mode (`👑 Master Templates Mode (Local Admin)`) to prevent accidental overwriting of templates.
+> **I want to** manage and edit the master templates (Catalogs & Profiles) in `reposol/data/workspaces/default/` via a backend-controlled feature flag (`ALLOW_MASTER_EDIT` environment variable) and an in-app sidebar toggle — **exclusively in local operation (`localhost`)** — without any URL parameter hacks,  
+> **so that** all normal users are automatically presented with my latest master templates in their own anonymous workspace upon their first launch, while the master workspace is invisible and inaccessible on production deployments.
+> *See also: [DD-015](../design_decisions/DD-015_anonymous_workspace_isolation_and_containerized_deployment.md)*
+- [x] **Master Template Single Store (`data/workspaces/default/`):** Master templates are consolidated under `reposol/data/workspaces/default/`. The legacy folders `reposol/data/templates/` and `reposol/data/catalogs/` are deprecated and removed.
+- [x] **Standard Users (Normal Mode):** New user sessions (`session-xyz`) automatically receive a local copy of all master templates from `data/workspaces/default/` into their own isolated workspace upon creation. All edits, modifications, and deletions affect only their own workspace.
+- [x] **Backend Feature Flag (`ALLOW_MASTER_EDIT`):** Master Template Mode is **exclusively activated via the backend environment variable `ALLOW_MASTER_EDIT=true`**. There are no URL parameters (`?w=master`, `?w=templates`) for this purpose — these reserved workspace IDs are completely blocked from URL-based activation in both the frontend and backend.
+- [x] **Backend Config Endpoint (`GET /api/config`):** The frontend fetches `GET /api/config` on startup, which returns `{ "masterEditEnabled": true/false }` based on the env var. This is the single source of truth for whether master editing is available.
+- [x] **Frontend Sidebar Toggle:** When `masterEditEnabled` is `true`, a `👑 Master Templates` toggle button appears in the navigation sidebar footer. Clicking it activates Master Template Mode (with a confirmation dialog). Clicking `Exit ✕` deactivates the mode.
+- [x] **Localhost Guard (Defense-in-Depth):** Even with `ALLOW_MASTER_EDIT=true`, the backend's `require_write_permission()` additionally restricts write access to protected workspace IDs to requests from `localhost` / `127.0.0.1`.
+- [x] **Production Safety:** On public deployments (Fly.io), `ALLOW_MASTER_EDIT` is never set, so the toggle is invisible and the master workspace is inaccessible.
+- [x] **Master Persistence (Local):** Save and delete operations in master mode on `localhost` act directly on `reposol/data/workspaces/default/catalogs/` and `reposol/data/workspaces/default/profiles/`.
+- [x] **UI Indicator:** In the UI, a prominent `👑 Master Templates` badge with a purple gradient is displayed in master mode to prevent accidental overwriting of templates.
+
 
 ### US 0.14: Standard Pattern – Simplified Creation (Inner View)
 > **As a** user (Alice / Bob)  
@@ -263,14 +274,6 @@ Each step of the security lifecycle is described in detail in a separate file:
 - [ ] **Backend Draft Management:** Backend draft storage uses the `_draft.json` file extension for temporary drafts.
 - [ ] **Advanced OSCAL Fields (Advanced):** Rarely used schema fields such as `property.uuid`, `property.group`, `link.media-type`, `link.resource-fragment`, `part.ns`, and `part.class` are offered in the edit masks as an expandable Advanced section, ensuring the schema is fully covered without cluttering the standard view.
 
-### US 0.19: Cleanup of Empty OSCAL Arrays on Saving and Exporting
-> **As a** compliance officer (Alice)  
-> **I want to** have empty arrays like `parts` or `params` automatically cleaned up (removed) when saving documents and drafts,  
-> **so that** the documents are always compliant with the official OSCAL schemas and no schema validation errors occur due to empty lists (`minItems: 1`).
-- [ ] When saving a document (draft or release), empty arrays for `parts`, `params`, and other optional lists are recursively removed from the JSON object.
-- [ ] Both the Catalog Editor and the Profile Builder apply this cleanup.
-- [ ] Existing drafts in `reposol/data` are automatically corrected after being loaded and subsequently saved.
-
 ### US 0.20: Detailed Address Data and External Identifiers in the Metadata Editor
 > **As a** compliance officer (Alice)  
 > **I want to** manage postal addresses (including street, city, postal code, country), external identifiers, and location associations for parties and locations in the metadata editor,  
@@ -288,39 +291,15 @@ Each step of the security lifecycle is described in detail in a separate file:
 
 ### US 0.22: Sidebar-Centric Navigation and Dashboard Overview for Catalog and Profile Editors
 > **As a** Compliance Officer (Alice) / Auditor (Bob)  
-> **I want to** navigate to the main document areas (Overview, Metadata, Tags/Properties, and Back Matter) directly via the left sidebar and see a clear dashboard as a document overview,  
+> **I want to** navigate to the main document areas directly via the left sidebar and see a clear dashboard as a document overview,  
 > **so that** the navigation matches the official NIST OSCAL Catalog Viewer and I can grasp the most important statistics of the document at a glance.
 > *See also: [DD-004](../design_decisions/DD-004_editor_ux_patterns.md)*
-- [ ] **Sidebar Menu Items:** In the left sidebar of catalogs and profiles, the following navigation items are permanently available at the top:
-    - [ ] `🏠 Overview` (navigates to the dashboard)
-    - [ ] `ⓘ Metadata` (navigates directly to the metadata editor)
-    - [ ] `🏷️ Declared Properties` (navigates directly to global property management)
-- [ ] **Back Matter at the Bottom:** At the bottom of the sidebar (below the control hierarchy), there is a permanent navigation item:
-    - [ ] `📖 Back Matter` (navigates to the management of back-matter resources)
-- [ ] **Dashboard Overview:** The overview page (when `Overview` is selected) shows:
-    - [ ] Title of the document as the main heading (large and prominent).
-    - [ ] A row with metadata (Version, OSCAL Version, Published Date, Last Modified Date).
-    - [ ] Five info cards with key metrics:
-        - [ ] `Control Families` (Number of main control groups)
-        - [ ] `Total Controls` (Total number of all controls, calculated recursively)
-        - [ ] `Active Controls` (Number of active controls, i.e., without `status` = `withdrawn`)
-        - [ ] `Withdrawn` (Number of deprecated controls with `status` = `withdrawn` in `props`)
-        - [ ] `Back Matter Resources` (Number of resources in the back matter)
-    - [ ] A `CONTROL FAMILIES` section below, listing all main groups of the catalog with their respective control count (e.g., `2 controls`).
+- [ ] **Sidebar Menu Items:** In the left sidebar of catalogs and profiles, main navigation items (Overview, Metadata, Declared Properties, Back Matter) are permanently available.
+- [ ] **Dashboard Overview:** The overview page shows document title, metadata, key metrics cards (Control Families, Total Controls, Active Controls, Withdrawn, Back Matter Resources), and a section listing all main groups.
 - [ ] **No Top Tabs:** The previous tabs above the main area are replaced by the sidebar navigation.
-- [ ] **Synchronicity with Edit Mode:** The sidebar navigation works in both read and edit modes, displaying the corresponding form or view for the selected section.
-- [ ] **Group Overview (GroupEditor):** When a control group (folder) is selected, the right area shows:
-    - [ ] Breadcrumbs: `Overview / [Group Title]`.
-    - [ ] Group title with folder icon: `📁 [Group Title]`.
-    - [ ] Four metric cards: `Family ID`, `Controls` (direct count), `Sub-groups` (number of direct subfolders), `Total (incl. enhancements)` (recursive total count of all controls in this group).
-    - [ ] A `SUB-GROUPS` section with a list of all direct subgroups (including folder icon, title, and control count) and interactive click navigation.
-    - [ ] A `CONTROLS` section with a list of all direct controls and interactive click navigation.
-- [ ] **Control Detail View (UnifiedControlEditor):** When a control is selected, the right area shows:
-    - [ ] Breadcrumbs: `Overview / [Path of Parent Groups...] / [Control Title]`.
-    - [ ] Control title with hexagon icon: `⬡ [Control Title]`.
-    - [ ] Subline with Control ID and Class badge (if defined).
-    - [ ] Individual cards with a colored left border for `Statement` (list icon `☵`, blue border) and `Guidance` (book icon `📖`, accent border).
-    - [ ] A `PROPERTIES` section at the bottom of the detail view, rendering properties as rounded pills (in read mode).
+- [ ] **Synchronicity with Edit Mode:** The sidebar navigation works in both read and edit modes.
+- [ ] **Group Overview:** When a control group is selected, the right area shows breadcrumbs, title, key metric cards, and lists of direct subgroups and controls with interactive navigation.
+- [ ] **Control Detail View:** When a control is selected, the right area shows breadcrumbs, title, ID, class, and separate sections for Statement, Guidance, and Properties.
 
 ### US 0.23: Caret-relative Autocomplete for Inline Parameter Insertion in Textareas (System-wide Context)
 > **As a** Compliance Officer (Alice) / Lead Assessor (Bob)  
@@ -349,27 +328,18 @@ Each step of the security lifecycle is described in detail in a separate file:
 - [ ] **Profile Alter Removal Remarks (`alter.remove.remarks`):** The `ModifyPanel.tsx` component supports remarks for removed statement/property objects in profiles.
 - [ ] **Schema Conformity:** All added/edited fields remain 100% valid against the official NIST OSCAL JSON schemas in the backend.
 
-### US 0.25: Session-Isolated Anonymous Workspaces & Docker Containerized Deployment
+### US 0.25: Session-Isolated Anonymous Workspaces & Containerized Deployment
 > **As a** public demo user or open-source self-hoster (Alice / Bob)  
-> **I want to** use Reposol online in the browser without forced registration and be able to edit documents, with my data remaining isolated in a separate anonymous workspace and the entire system operable as a lean Docker container (e.g., on Fly.io),  
-> **so that** multiple online testers do not overwrite each other's documents and the system is 100% future-proofed for later user accounts (SaaS).
+> **I want to** use Reposol online in the browser without forced registration and be able to edit documents, with my data remaining isolated in a separate anonymous workspace and the entire system operable as a lean container (e.g., on Fly.io),  
+> **so that** multiple online testers do not overwrite each other's documents and the system is future-proofed for later user accounts (SaaS).
 > *See also: [DD-015](../design_decisions/DD-015_anonymous_workspace_isolation_and_containerized_deployment.md)*
-- [ ] **Anonymous Session Workspace ID:** Upon the first visit, the frontend automatically generates a session ID (`session-{uuid}`) in `localStorage` and sends it in the `X-Workspace-ID` HTTP header with all API requests.
-- [ ] **Frontend Workspace Integration:** Frontend components (`App.tsx`, `CatalogPage.tsx`, `ProfilePage.tsx`, `SSPPage.tsx`, `MappingPage.tsx`, `ImportWizard.tsx`) use `authFetch` / `getWorkspaceId()` from `lib/api.ts` for all API requests (`/api/documents/...`, `/api/import/...`, `/api/validate/...`), so that the `X-Workspace-ID` header is consistently transmitted in all requests in Master Template Mode (`?w=master`) and in anonymous session workspaces.
-- [ ] **Backend Workspace ID Extraction:** Backend `get_ws_id(request)` in `routes.py` & `import_routes.py` extracts the `?w=` query parameter in addition to `workspace_id` and `workspace` from headers/query parameters.
-- [ ] **Isolated File Storage in the Backend:** The backend saves documents under `reposol/data/workspaces/{workspace_id}/{stage}/` when a workspace ID is provided, and otherwise falls back to the default folder `reposol/data/workspaces/default/{stage}/`.
-- [ ] **Unified Multi-Stage Dockerfile & Security:** A `Dockerfile` in the root directory builds the frontend (`npm run build`) and runs the FastAPI backend. In Stage 2, a dedicated non-root system group and user `reposol` are created, file permissions under `/app` are set to `reposol:reposol`, master templates are copied from `reposol/data/workspaces/default` to `/app/templates_seed`, and the container is run under `USER reposol`.
-- [ ] **Fly.io Deployment & Persistent Volume:** A `fly.toml` file binds a Fly volume (`oscal_data`) to `/app/data` (`[mounts] source = "oscal_data"`, `destination = "/app/data"`), so that saved workspaces (`/app/data/workspaces/*`) are permanently preserved during container restarts and new deployments.
-- [ ] **Master Templates Auto-Synchronization on Deployment:** In the `Dockerfile`, master templates are copied to a dedicated seed directory (`/app/templates_seed`). When the backend starts (`storage.py`), the master templates in `/app/data/workspaces/default/` are automatically updated/synchronized from `/app/templates_seed/` to always provide the latest default templates upon new deployments, without affecting user workspaces or custom data.
-- [ ] **Root .dockerignore & Master Templates Inclusion:** A `.dockerignore` file in the root directory excludes `.git`, `.agents`, `node_modules`, `dist`, `reposol/data/workspaces/session-*`, `reposol/data/uploads/*`, `*.md` and `__pycache__` from the Docker context, while allowing `reposol/data/workspaces/default` through for the image build.
-
-### US 0.26: Responsive Navigation Sidebar Collapse & Footer Action Hiding
-> **As a** Compliance Officer (Alice) / Auditor (Bob)  
-> **I want to** have distracting/distorted action buttons like "Share Workspace Link" and notice badges automatically hidden when the left main navigation is collapsed,  
-> **so that** the collapsed sidebar remains lean, tidy, and free of broken line breaks.
-- [ ] **Automatic Hiding in Footer on Collapsed Status:** When the main navigation is collapsed (`isCollapsed === true` or `.navigation-sidebar.collapsed`), the "Share Workspace Link" button (`btn-secondary` in `.nav-footer`) as well as the Master Templates badge in the sidebar are completely hidden (`display: none`).
-- [ ] **Clean Icon Rendering:** In the collapsed state, only the minimalist system status indicator (green `env-dot` for the Conda environment status) remains in the sidebar footer.
-- [ ] **Full Function in Expanded State:** When the sidebar is expanded (`isCollapsed === false`), the "Share Workspace Link" button and any Master Templates notices are displayed in full width with normal layout.
+- [ ] **Anonymous Session Workspace ID:** Upon the first visit, the frontend automatically generates a session ID in `localStorage` and sends it in a header with all API requests.
+- [ ] **Frontend Workspace Integration:** Frontend components transmit the workspace ID. Reserved workspace IDs are blocked from URL parameter activation.
+- [ ] **Backend Workspace ID Extraction:** Backend extracts the workspace ID from the header or query parameters.
+- [ ] **Isolated File Storage in the Backend:** The backend saves documents under isolated workspace directories, falling back to a default folder if none is provided.
+- [ ] **Unified Multi-Stage Containerization:** A unified configuration builds the frontend and runs the backend with restricted permissions and isolated users.
+- [ ] **Deployment & Persistent Volume:** Deployment configuration ensures saved workspaces are permanently preserved during container restarts.
+- [ ] **Master Templates Auto-Synchronization on Deployment:** Master templates are synchronized on deployment to provide the latest default templates without affecting user workspaces.
 
 ### US 0.27: Shared Dashboard & Analytics Components
 > **As a** Frontend Developer and System Architect (Philipp)  
@@ -381,34 +351,6 @@ Each step of the security lifecycle is described in detail in a separate file:
     *   The components comply with the API contracts (props) defined in DD-022.
     *   No external frameworks like TailwindCSS or charting libraries are used.
 
-### US 0.28: Prominent Development & Local Data Backup Notice Banner
-> **As a** user (Alice / Bob)  
-> **I want to** see a clear, high-visibility warning banner in the application frontend stating that the application is currently under active development and recommending that data be downloaded and saved locally for permanent retention,  
-> **so that** I am immediately aware of potential data loss risks during development and know how to preserve my work locally.
-- [ ] **High-Visibility Banner Placement:** A prominent, styled warning banner is rendered globally in the top header/navigation container of the frontend application layout.
-- [ ] **Clear Warning & Guidance Message:** The banner explicitly communicates that the system is currently in active development ("In Development / Development Mode") and strongly recommends downloading and backing up files locally to prevent data loss.
-- [ ] **Modern Dark Theme Aesthetic:** The banner uses a sleek amber/yellow badge indicator (`⚠️ IN DEVELOPMENT`), high contrast readable text, glassmorphic dark amber background with subtle glowing borders, and an optional close/dismiss button or sticky display.
-
-### US 0.29: E2E Test Workspace Cleanup & Clean State Guarantee
-> **As a** developer running E2E tests  
-> **I want to** have each test run leave the backend data directory in a clean state with zero leftover workspace folders or orphaned documents,  
-> **so that** tests are fully isolated, deterministic, and do not pollute the filesystem across repeated runs.
-*   **Acceptance Criteria:**
-    - [ ] **Backend Workspace Delete Endpoint:** A `DELETE /api/workspaces/{workspace_id}` endpoint exists that deletes the entire workspace directory (all stages, all documents, all versions) in a single call, protected against deleting the `default`/`master`/`templates` workspace.
-    - [ ] **Fixture-Level Workspace Cleanup:** The `ApiSetup.cleanup()` method in the E2E fixture calls the workspace delete endpoint instead of deleting documents one by one, ensuring that UI-created documents are also cleaned up.
-    - [ ] **Global Teardown Safety Net:** A Playwright `globalTeardown` script runs after all tests and removes any leftover test workspace directories (UUID-named folders) from `data/workspaces/`, skipping the `default` workspace.
-    - [ ] **Backend Unit Test Coverage:** A Pytest unit test verifies that the workspace delete endpoint correctly removes a workspace directory and returns 404 for non-existent workspaces, and returns 400 for protected workspace IDs.
-    - [ ] **No Regression:** Existing E2E tests continue to pass without modification (the base fixture transparently upgrades to workspace-level cleanup).
-
-### US 0.30: Clean Domain-Driven Component Architecture & Test Coverage
-> **As a** developer and maintainer  
-> **I want to** have the frontend codebase strictly consist of modular, domain-driven page components (`CatalogPage`, `ProfilePage`, `SSPPage`, `MappingPage`, etc.) with comprehensive unit test coverage,  
-> **so that** the application is clean, maintainable, performant, and completely free of monolithic legacy code.
-*   **Acceptance Criteria:**
-    - [ ] **Modular Domain Architecture:** The frontend strictly uses domain-driven page and editor components under `src/components/` with no legacy monolith components present in the codebase.
-    - [ ] **Domain Test Suite:** All frontend tests in `src/tests/` target the active domain components (`CatalogPage`, `ProfilePage`, `SSPPage`, `MappingPage`, etc.).
-    - [ ] **Clean Test Execution:** All Vitest unit tests (`npm test`) pass cleanly with 100% success.
-
 ### US 0.31: Atomic Storage Persistence, File Locking & Backend Layer Separation
 > **As a** backend developer and system architect  
 > **I want to** ensure document writes in `storage.py` are atomic (`.tmp` + `os.replace`), protected by inter-process file locks, and organized with clear layer separation (`routes` -> `services` -> `repositories`) without function-level lazy imports,  
@@ -419,3 +361,4 @@ Each step of the security lifecycle is described in detail in a separate file:
     - [ ] **Clean Layer Separation:** Storage operations are encapsulated in `repositories/`, business transformations in `services/`, and API handlers in `routes.py`.
     - [ ] **No Function-Level Lazy Imports:** Circular module imports are resolved through clean layer direction (`routes -> services -> repositories`), eliminating lazy import functions.
     - [ ] **Pytest Verification:** All Pytest backend tests in `reposol/backend/tests/` pass 100%.
+

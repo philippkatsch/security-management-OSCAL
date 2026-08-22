@@ -1,5 +1,6 @@
 import { TaskEditor } from '@components/shared/entity/TaskEditor';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import { toast } from 'react-hot-toast';
 import styles from './APPage.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
 
@@ -26,8 +27,16 @@ const generateUUID = () => {
 
 import { TermsAndConditionsEditor } from '@components/shared/assessment/TermsAndConditionsEditor';
 import { ActivityEditor } from '@components/shared/assessment/ActivityEditor';
-export function APPage({ apId, initialIsEditing, onClose }) {
-  const lifecycle = useDocumentLifecycle('assessment-plans', 'assessment-plan', apId, initialIsEditing);
+export interface APPageProps {
+  apId?: string;
+  initialIsEditing?: boolean;
+  initialEditMode?: boolean;
+  onClose?: () => void;
+}
+
+export function APPage({ apId = '', initialIsEditing = false, initialEditMode, onClose }: APPageProps) {
+  const isEdit = initialIsEditing || initialEditMode || false;
+  const lifecycle = useDocumentLifecycle('assessment-plans', 'assessment-plan', apId, isEdit);
   const {
     activeDoc,
     setDoc,
@@ -37,13 +46,17 @@ export function APPage({ apId, initialIsEditing, onClose }) {
 
   const [activeTab, setActiveTab] = useState('overview');
 
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [selectedActivity, setSelectedActivity] = useState(null);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [selectedComponent, setSelectedComponent] = useState(null);
-  const [selectedInventory, setSelectedInventory] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedPlatform, setSelectedPlatform] = useState(null);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedActivity, setSelectedActivity] = useState<any>(null);
+  const [selectedSubject, setSelectedSubject] = useState<any>(null);
+  const [selectedComponent, setSelectedComponent] = useState<any>(null);
+  const [selectedInventory, setSelectedInventory] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<any>(null);
+  const jsonEditorRef = useRef<any>(null);
+
+  const [editingSspHref, setEditingSspHref] = useState(false);
+  const [sspHrefValue, setSspHrefValue] = useState('');
 
   const ap = activeDoc?.['assessment-plan'];
 
@@ -145,15 +158,15 @@ export function APPage({ apId, initialIsEditing, onClose }) {
   };
 
   const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'reviewed-controls', label: 'Reviewed Controls' },
-    { id: 'activities-tasks', label: 'Activities & Tasks' },
-    { id: 'local-definitions', label: 'Local Definitions' },
-    { id: 'assessment-subjects', label: 'Assessment Subjects' },
-    { id: 'assessment-assets', label: 'Assessment Assets' },
-    { id: 'terms-and-conditions', label: 'Terms & Conditions' },
-    { id: 'metadata', label: 'Metadata' },
-    { id: 'json', label: 'JSON Source' }
+    { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'reviewed-controls', label: 'Reviewed Controls', icon: '🛡️' },
+    { id: 'activities-tasks', label: 'Activity Tasks', icon: '📋' },
+    { id: 'local-definitions', label: 'Local Definitions', icon: '📦' },
+    { id: 'assessment-subjects', label: 'Subjects Scope', icon: '🎯' },
+    { id: 'assessment-assets', label: 'Assessment Assets', icon: '🏷️' },
+    { id: 'terms-and-conditions', label: 'Terms & Conditions', icon: '📜' },
+    { id: 'metadata', label: 'Metadata', icon: 'ℹ️' },
+    { id: 'json', label: 'JSON Editor', icon: '⚡' },
   ];
 
   return (
@@ -164,7 +177,20 @@ export function APPage({ apId, initialIsEditing, onClose }) {
       title={ap?.metadata?.title || 'Untitled Assessment Plan'}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(newTab) => {
+        if (activeTab === 'json' && newTab !== 'json' && ap) {
+          const entityId = jsonEditorRef.current?.getCursorEntityId?.();
+          if (entityId) {
+            const task = (ap.tasks || []).find((t: any) => t.uuid === entityId);
+            if (task) setSelectedTask(task);
+            else {
+              const activity = (ap?.['local-definitions']?.activities || []).find((a: any) => a.uuid === entityId);
+              if (activity) setSelectedActivity(activity);
+            }
+          }
+        }
+        setActiveTab(newTab);
+      }}
       onClose={onClose}
     >
       {ap?.['import-ssp'] && (
@@ -173,12 +199,29 @@ export function APPage({ apId, initialIsEditing, onClose }) {
             <strong>Referenced SSP:</strong> {ap['import-ssp'].href}
           </div>
           {isEditing && (
-            <button className={styles['btn-edit-ssp']} onClick={() => {
-              const newHref = window.prompt('Enter new SSP href:', ap['import-ssp'].href);
-              if (newHref) {
-                handleUpdateAP({ ...ap, 'import-ssp': { ...ap['import-ssp'], href: newHref } });
-              }
-            }}>Edit Reference</button>
+            editingSspHref ? (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={sspHrefValue}
+                  onChange={(e) => setSspHrefValue(e.target.value)}
+                  style={{ padding: '4px 8px', fontSize: '13px', borderRadius: '4px', border: '1px solid #45475a', background: '#181825', color: '#cdd6f4' }}
+                />
+                <button className={styles['btn-edit-ssp']} onClick={() => {
+                  if (sspHrefValue.trim()) {
+                    handleUpdateAP({ ...ap, 'import-ssp': { ...ap['import-ssp'], href: sspHrefValue.trim() } });
+                    toast.success('SSP reference updated');
+                  }
+                  setEditingSspHref(false);
+                }}>Save</button>
+                <button type="button" onClick={() => setEditingSspHref(false)} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            ) : (
+              <button className={styles['btn-edit-ssp']} onClick={() => {
+                setSspHrefValue(ap['import-ssp'].href || '');
+                setEditingSspHref(true);
+              }}>Edit Reference</button>
+            )
           )}
         </div>
       )}
@@ -207,14 +250,14 @@ export function APPage({ apId, initialIsEditing, onClose }) {
               <div className={sharedStyles['empty-state']}>No controls selected for review.</div>
             ) : (
               reviewedControls.map((selection, i) => (
-                <div key={i} className={styles['control-selection-card']}>
+                <div key={selection.uuid || selection['control-id'] || `rev-${i}`} className={styles['control-selection-card']}>
                   <h4>Selection {i + 1}</h4>
                   {selection['include-all'] ? (
                     <p>Includes all controls from SSP</p>
                   ) : (
                     <div className={styles['control-tags']}>
                       {(selection['include-controls'] || []).map((c, j) => (
-                        <span key={j} className={styles['control-tag']}>{c['control-id']}</span>
+                        <span key={c['control-id'] || c.uuid || `ctrl-${j}`} className={styles['control-tag']}>{c['control-id']}</span>
                       ))}
                     </div>
                   )}
@@ -227,14 +270,14 @@ export function APPage({ apId, initialIsEditing, onClose }) {
               <div className={sharedStyles['empty-state']}>No objective selections defined.</div>
             ) : (
               objectiveSelections.map((selection, i) => (
-                <div key={i} className={styles['control-selection-card']}>
+                <div key={selection.uuid || `obj-sel-${i}`} className={styles['control-selection-card']}>
                   <h4>Objective Selection {i + 1}</h4>
                   {selection['include-all'] ? (
                     <p>Includes all control objectives</p>
                   ) : (
                     <div className={styles['control-tags']}>
                       {(selection['include-objectives'] || []).map((o, j) => (
-                        <span key={j} className={styles['control-tag']}>{o['objective-id']}</span>
+                        <span key={o['objective-id'] || o.uuid || `obj-${j}`} className={styles['control-tag']}>{o['objective-id']}</span>
                       ))}
                     </div>
                   )}
@@ -248,12 +291,12 @@ export function APPage({ apId, initialIsEditing, onClose }) {
                 <div className={sharedStyles['empty-state']}>No objectives and methods defined.</div>
               ) : (
                 (ap['local-definitions']['objectives-and-methods']).map((obj, i) => (
-                  <div key={obj.uuid || i} className={styles['objective-card']}>
+                  <div key={obj.uuid || obj['control-id'] || `om-${i}`} className={styles['objective-card']}>
                     <h4>Control: {obj['control-id']}</h4>
                     <p>{obj.description}</p>
                     <div className={styles['objective-parts']}>
                       {(obj.parts || []).map((p, j) => (
-                        <div key={j} className={styles['objective-part']}>
+                        <div key={p.uuid || p.name || `part-${j}`} className={styles['objective-part']}>
                           <strong>{p.name}:</strong> {p.prose || (p.parts && p.parts.length > 0 ? 'Has sub-parts' : '')}
                         </div>
                       ))}
@@ -381,11 +424,7 @@ export function APPage({ apId, initialIsEditing, onClose }) {
             <h2 className={styles['ap-section-title']}>Metadata</h2>
             <StandardMetadataTab 
               document={activeDoc['assessment-plan']} 
-              onChange={(updated) => {
-                const newDoc = { ...activeDoc };
-                newDoc['assessment-plan'] = updated;
-                handleUpdate(newDoc);
-              }} 
+              onChange={handleUpdateAP} 
             />
           </div>
         )}
@@ -393,9 +432,11 @@ export function APPage({ apId, initialIsEditing, onClose }) {
         {activeTab === 'json' && (
           <div className={styles['tab-pane']}>
             <JsonEditor
+              ref={jsonEditorRef}
               value={activeDoc}
               onChange={(nextDoc) => { setDoc(nextDoc); pushUndoRedoState(nextDoc); }}
               readOnly={!isEditing}
+              highlightId={selectedTask?.uuid || selectedActivity?.uuid || selectedSubject?.uuid || selectedComponent?.uuid || null}
             />
           </div>
         )}
@@ -429,6 +470,7 @@ export function APPage({ apId, initialIsEditing, onClose }) {
 
       {selectedSubject && (
         <EntityDetailPanel
+          isOpen={Boolean(selectedSubject)}
           title="Subject Details"
           entity={selectedSubject}
           onClose={() => setSelectedSubject(null)}
@@ -438,6 +480,7 @@ export function APPage({ apId, initialIsEditing, onClose }) {
 
       {selectedComponent && (
         <EntityDetailPanel
+          isOpen={Boolean(selectedComponent)}
           title="Component Details"
           entity={selectedComponent}
           onClose={() => setSelectedComponent(null)}
@@ -447,6 +490,7 @@ export function APPage({ apId, initialIsEditing, onClose }) {
 
       {selectedInventory && (
         <EntityDetailPanel
+          isOpen={Boolean(selectedInventory)}
           title="Inventory Item Details"
           entity={selectedInventory}
           onClose={() => setSelectedInventory(null)}
@@ -456,6 +500,7 @@ export function APPage({ apId, initialIsEditing, onClose }) {
 
       {selectedUser && (
         <EntityDetailPanel
+          isOpen={Boolean(selectedUser)}
           title="User Details"
           entity={selectedUser}
           onClose={() => setSelectedUser(null)}
@@ -465,6 +510,7 @@ export function APPage({ apId, initialIsEditing, onClose }) {
 
       {selectedPlatform && (
         <EntityDetailPanel
+          isOpen={Boolean(selectedPlatform)}
           title="Assessment Platform Details"
           entity={selectedPlatform}
           onClose={() => setSelectedPlatform(null)}

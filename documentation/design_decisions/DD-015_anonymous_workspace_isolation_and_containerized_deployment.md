@@ -37,13 +37,15 @@ In `reposol/backend/app/main.py`:
 - `.dockerignore` excludes temporary user session workspaces (`reposol/data/workspaces/session-*`) and uploads (`reposol/data/uploads/*`) while explicitly including master templates (`reposol/data/workspaces/default`) so they are available in remote container deployments.
 
 
-### 5. Master Templates Admin Mode & Localhost Guard (`?w=default` / `?w=master` / `?w=templates`)
-- When `workspace_id` is set to `"default"`, `"master"`, or `"templates"` (via URL parameter `?w=default` / `?w=master` / `?w=templates`), `storage.py` routes to `reposol/data/workspaces/default/`.
-- **Localhost Guard**: Modification of Master Templates in `default` / `master` mode is **strictly restricted to requests originating from `localhost` / `127.0.0.1`** (or when `ALLOW_MASTER_EDIT=true` environment variable is set).
-- On public deployments (such as Fly.io), any attempt to modify or delete documents in the `default` / `master` workspace is rejected with `403 Forbidden` to guarantee master template immutability online.
-- When accessed locally on `localhost`, saves and deletions write directly to `reposol/data/workspaces/default/catalogs/` and `reposol/data/workspaces/default/profiles/`.
-- Future user sessions (`session-xyz`) will automatically receive the newly edited master templates upon initial creation.
-- The UI displays a `👑 Master Templates Mode (Local Admin)` indicator badge in the header/navigation bar to notify the maintainer that they are modifying global seed templates locally.
+### 5. Master Templates Admin Mode — Backend-Driven Feature Flag (`ALLOW_MASTER_EDIT`)
+- Master Template editing is **exclusively controlled by the backend environment variable `ALLOW_MASTER_EDIT`**. There are no URL parameters (`?w=master`, `?w=templates`) for this purpose — these reserved workspace IDs are blocked from URL-based activation in both the frontend (`getWorkspaceId()` rejects them) and backend (`get_workspace_id()` ignores them when the env var is not set).
+- **Backend Config Endpoint (`GET /api/config`)**: On startup, the frontend fetches `GET /api/config` which returns `{ "masterEditEnabled": true/false }` based on the `ALLOW_MASTER_EDIT` env var. This is the single source of truth for whether master editing is available.
+- **Frontend Sidebar Toggle**: When `masterEditEnabled` is `true`, a `👑 Master Templates` toggle button appears in the navigation sidebar footer. Clicking it activates Master Template Mode (with a confirmation dialog). All API calls then use `X-Workspace-ID: default` to target the master workspace. Clicking `Exit ✕` deactivates the mode and reloads the page.
+- **Localhost Guard (Defense-in-Depth)**: Even with `ALLOW_MASTER_EDIT=true`, the backend's `require_write_permission()` additionally restricts write access to protected workspace IDs (`default`, `master`, `templates`) to requests originating from `localhost` / `127.0.0.1` unless the env var explicitly overrides this check.
+- **Production Safety**: On public deployments (e.g., Fly.io), `ALLOW_MASTER_EDIT` is never set, so the master mode toggle does not appear in the UI, and any attempt to write to the default workspace is rejected with `403 Forbidden`.
+- **No localStorage Persistence**: The master/templates workspace IDs are never stored in `localStorage`. Navigating away or reloading the page without the toggle exits master mode automatically.
+- The UI displays a prominent `👑 Master Templates` badge with a purple gradient when master mode is active.
+
 
 
 ## Consequences

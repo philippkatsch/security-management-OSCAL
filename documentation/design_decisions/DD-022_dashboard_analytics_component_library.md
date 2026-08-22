@@ -37,8 +37,8 @@ All dashboard components live in `components/shared/dashboard/`. Each component 
   onClick={() => navigate('/...')}    // optional click handler for drill-down
 />
 ```
-- Glassmorphic card styling (semi-transparent background, subtle backdrop-blur, border radius 12px)
-- Hover lift effect (`transform: translateY(-2px)`, `box-shadow` increase)
+- Glassmorphic card styling (semi-transparent background)
+- Hover lift effect
 - Responsive: min-width 200px, max-width 300px in grid context
 
 ### 3. ProgressBar API

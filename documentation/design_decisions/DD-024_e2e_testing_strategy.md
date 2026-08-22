@@ -129,6 +129,33 @@ The cleanup architecture is organized in **three tiers**:
 - Any remaining test workspace directories are deleted via `fs.rmSync(path, { recursive: true, force: true })`.
 - This catches workspaces from crashed test runs or tests that don't use the base fixture.
 
+
+### 9. 2-Phase E2E Architecture & Deterministic Test Design
+
+E2E tests verify the **browser UI only** — whether the user can click, type, and see the expected result. OSCAL schema validation is handled separately by Pytest backend tests (`reposol/backend/tests/`). E2E tests must NOT duplicate backend validation concerns.
+
+**2-Phase Architecture:**
+- **Phase 1 (Test Authoring)**: The AI agent explores the running UI via Chrome DevTools MCP (Accessibility Tree snapshots, not screenshots — 95% cheaper), identifies real selectors, and generates deterministic Playwright `.spec.ts` files. This happens once per feature.
+- **Phase 2 (Test Execution)**: Playwright runs the generated tests natively at zero token cost, unlimited times (every commit, CI/CD, pre-merge). No LLM is involved at runtime.
+
+**2 Strict Rules:**
+
+1. **Rule 1: No `if`-Conditionals (Zero-Skip Policy)**:
+   - Tests MUST NOT wrap UI assertions or interaction blocks in `if (await locator.isVisible())`.
+   - All locators MUST use assertive expectations (`await expect(locator).toBeVisible()`). If an element is missing, the test must immediately fail to surface the bug.
+
+2. **Rule 2: Always F5-Reload Persistence Check**:
+   - After saving or modifying fields, perform `await page.reload()` and re-assert that all inputs, tree nodes, and modified states persist identically.
+   - This catches bugs where the UI looks correct but nothing was actually saved to the backend.
+
+**Additional Rules:**
+
+3. **Never change production code to make tests pass**:
+   - If a test fails because a selector doesn't match the real DOM, fix the **test selector** by re-exploring the UI via DevTools MCP. Do not modify production components to accommodate test expectations.
+
+4. **Deterministic HTML5 Drag-and-Drop Testing**:
+   - Complex browser drag-and-drop interactions (e.g. dragging controls from Control Pool to Custom Groups, or dropping into Drag-to-Trash) use standardized helper functions (`helpers/dnd-helper.ts`) dispatching synthetic HTML5 `DragEvent` payloads with `dataTransfer.setData`.
+
 ---
 
 ## Consequences
@@ -137,6 +164,8 @@ The cleanup architecture is organized in **three tiers**:
 - **Positive**: Playwright codegen reduces manual test writing effort significantly
 - **Positive**: AI skill enables rapid test generation from user stories
 - **Positive**: Clear naming eliminates confusion between API-level and browser-level E2E tests
+- **Positive**: 100% elimination of manual regression testing through F5-reload persistence checks
+- **Positive**: Zero ongoing LLM token cost — tests execute natively via Playwright
 - **Negative**: E2E tests are slower than unit/integration tests (~60s vs ~5s)
 - **Negative**: Playwright adds a Node.js dependency to the test infrastructure
-- **Negative**: Browser tests can be flakier than API tests (mitigated by Playwright's auto-waiting)
+- **Negative**: Browser tests can be flakier than API tests (mitigated by Playwright's auto-waiting and deterministic DND helpers)
