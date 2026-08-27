@@ -57,15 +57,16 @@ export async function navigateToProfile(
   throw lastError;
 }
 
-export async function selectSidebarTab(page: Page, tabName: 'Overview' | 'Metadata' | 'Properties' | 'Parameters' | 'Imports' | 'Baseline Diff' | 'Back Matter') {
+export async function selectSidebarTab(page: Page, tabName: 'Overview' | 'Metadata' | 'Properties' | 'Parameters' | 'Imports' | 'Back Matter' | 'Baseline Diff' | 'diff') {
   const testIdMap: Record<string, string> = {
     'Overview': 'profile-sidebar-overview',
     'Metadata': 'profile-sidebar-metadata',
     'Properties': 'profile-sidebar-properties',
     'Parameters': 'profile-sidebar-parameters',
     'Imports': 'profile-sidebar-imports',
+    'Back Matter': 'profile-sidebar-backmatter',
     'Baseline Diff': 'profile-sidebar-diff',
-    'Back Matter': 'profile-sidebar-backmatter'
+    'diff': 'profile-sidebar-diff'
   };
 
   const testId = testIdMap[tabName];
@@ -89,7 +90,7 @@ export async function switchStructuringMode(page: Page, mode: 'as-is' | 'custom'
     }
   }
 
-  const modeSelect = page.locator('select').filter({ hasText: /as-is|custom|flat/i }).first();
+  const modeSelect = page.getByTestId('structuring-mode-select');
   await expect(modeSelect).toBeVisible({ timeout: 15000 });
   await modeSelect.selectOption(mode);
 }

@@ -62,7 +62,11 @@ export function GroupEditor({
   onSelectControl = undefined,
   mode = 'catalog',
   profile = {},
-  onProfileChange = () => {}
+  onProfileChange = () => {},
+  onDeleteGroup = undefined,
+  onAddSubgroup = undefined,
+  onUnassignControl = undefined,
+  onOrderChange = undefined
 }: any) {
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditing = isEditingProp !== undefined ? isEditingProp : globalEditMode;
@@ -119,8 +123,11 @@ export function GroupEditor({
   const props = group.props || [];
   const links = group.links || [];
   const parts = group.parts || [];
-  const subgroups = (group.groups || []).filter((g: any) => isEditing || !isItemWithdrawn(g));
-  const controls = (group.controls || []).filter((c: any) => isEditing || !isItemWithdrawn(c));
+  // In profile mode, ALWAYS filter out withdrawn controls (catalog-level concept, not tailorable).
+  // In catalog mode, show withdrawn in edit mode (so user can restore them).
+  const showWithdrawnItems = mode !== 'profile' && isEditing;
+  const subgroups = (group.groups || []).filter((g: any) => showWithdrawnItems || !isItemWithdrawn(g));
+  const controls = (group.controls || []).filter((c: any) => showWithdrawnItems || !isItemWithdrawn(c));
   const setParams = profile?.modify?.['set-parameters'] || [];
 
   const directControlsCount = controls.length;
@@ -187,10 +194,35 @@ export function GroupEditor({
                 {group.title || 'Untitled Group'}
               </h2>
             )}
+            {isEditing && (mode === 'profile' || onDeleteGroup) && (
+              <button
+                type="button"
+                data-testid="delete-group-btn"
+                onClick={() => onDeleteGroup ? onDeleteGroup(group.id) : null}
+                style={{
+                  marginLeft: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  fontSize: '13px',
+                  color: 'var(--color-danger, #ef4444)',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--radius-sm, 4px)',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+                title="Delete custom group"
+              >
+                <span>🗑️</span>
+                <span>Delete Group</span>
+              </button>
+            )}
           </div>
           
           {isEditing ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
               <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>ID:</span>
               <DebouncedInput
                 value={group.id || ''}
@@ -205,6 +237,38 @@ export function GroupEditor({
                 className={styles['form-input-plain']}
                 style={{ width: '120px', fontSize: '12px', color: 'var(--color-text-muted)', padding: '2px 6px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
               />
+
+              {mode === 'profile' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: '600' }}>Order:</span>
+                  <select
+                    data-testid="group-order-select"
+                    value={group['insert-controls']?.[0]?.order || 'keep'}
+                    onChange={(e) => {
+                      const newOrder = e.target.value as 'keep' | 'ascending' | 'descending';
+                      if (onOrderChange) {
+                        onOrderChange(newOrder);
+                      } else {
+                        const ics = group['insert-controls'] ? [...group['insert-controls']] : [{ 'include-controls': [{ 'with-ids': [] }] }];
+                        ics[0] = { ...ics[0], order: newOrder };
+                        handleFieldChange('insert-controls', ics);
+                      }
+                    }}
+                    style={{
+                      fontSize: '12px',
+                      padding: '3px 8px',
+                      background: 'var(--color-surface-2)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '4px',
+                      color: 'var(--color-text)'
+                    }}
+                  >
+                    <option value="keep">Catalog / Insertion Order</option>
+                    <option value="ascending">Alphanumeric Ascending</option>
+                    <option value="descending">Alphanumeric Descending</option>
+                  </select>
+                </div>
+              )}
             </div>
           ) : (
             props.length > 0 && (
@@ -251,41 +315,71 @@ export function GroupEditor({
       )}
 
       {/* Sub-groups Card */}
-      {subgroups.length > 0 && (
+      {(subgroups.length > 0 || (isEditing && (mode === 'profile' || onAddSubgroup))) && (
         <div style={{ flexShrink: 0, marginTop: '16px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-            Sub-groups
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-muted)', margin: 0 }}>
+              Sub-groups ({subgroupsCount})
+            </h3>
+            {isEditing && (
+              <button
+                type="button"
+                data-testid="add-subgroup-btn"
+                onClick={() => onAddSubgroup ? onAddSubgroup(group.id) : null}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 10px',
+                  fontSize: '12px',
+                  background: 'var(--color-surface-2)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm, 4px)',
+                  color: 'var(--color-text)',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>➕</span>
+                <span>Add Sub-group</span>
+              </button>
+            )}
+          </div>
           <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-surface)', overflow: 'hidden' }}>
-            {subgroups.map((sub, idx) => {
-              const count = countControlsInGroup(sub);
-              return (
-                <div 
-                  key={sub.id} 
-                  onClick={() => onSelectGroup?.(sub.id)}
-                  className="sidebar-item-like"
-                  style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    padding: '16px 20px', 
-                    cursor: onSelectGroup ? 'pointer' : 'default',
-                    borderBottom: idx < subgroups.length - 1 ? '1px solid var(--color-border)' : 'none',
-                    transition: 'background-color 0.15s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '16px' }}>📁</span>
-                    <strong style={{ fontSize: '14px', color: 'var(--color-text)' }}>
-                      {sub.title || sub.id}
-                    </strong>
+            {subgroups.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic', fontSize: '13px' }}>
+                No sub-groups. Click "Add Sub-group" to create one.
+              </div>
+            ) : (
+              subgroups.map((sub, idx) => {
+                const count = countControlsInGroup(sub);
+                return (
+                  <div 
+                    key={sub.id} 
+                    onClick={() => onSelectGroup?.(sub.id)}
+                    className="sidebar-item-like"
+                    style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      padding: '16px 20px', 
+                      cursor: onSelectGroup ? 'pointer' : 'default',
+                      borderBottom: idx < subgroups.length - 1 ? '1px solid var(--color-border)' : 'none',
+                      transition: 'background-color 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '16px' }}>📁</span>
+                      <strong style={{ fontSize: '14px', color: 'var(--color-text)' }}>
+                        {sub.title || sub.id}
+                      </strong>
+                    </div>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+                      {count} {count === 1 ? 'control' : 'controls'}
+                    </span>
                   </div>
-                  <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                    {count} {count === 1 ? 'control' : 'controls'}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -301,30 +395,82 @@ export function GroupEditor({
               No controls directly under this group.
             </div>
           ) : (
-            controls.map((ctrl, idx) => (
-              <div 
-                key={ctrl.id} 
-                onClick={() => onSelectControl?.(ctrl.id)}
-                className="sidebar-item-like"
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  padding: '16px 20px', 
-                  cursor: onSelectControl ? 'pointer' : 'default',
-                  borderBottom: idx < controls.length - 1 ? '1px solid var(--color-border)' : 'none',
-                  transition: 'background-color 0.15s ease'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: 'var(--color-primary)', fontSize: '16px' }}>⬡</span>
-                  <strong style={{ fontSize: '14px', color: 'var(--color-text)' }}>
-                    <span style={{ color: 'var(--color-text-muted)', marginRight: '8px', fontWeight: '500' }}>{ctrl.id}</span>
-                    {ctrl.title}
-                  </strong>
+            controls.map((ctrl, idx) => {
+              const itemWithdrawn = isItemWithdrawn(ctrl);
+              return (
+                <div 
+                  key={ctrl.id} 
+                  onClick={() => onSelectControl?.(ctrl.id)}
+                  className="sidebar-item-like"
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '16px 20px', 
+                    cursor: onSelectControl ? 'pointer' : 'default',
+                    borderBottom: idx < controls.length - 1 ? '1px solid var(--color-border)' : 'none',
+                    transition: 'background-color 0.15s ease',
+                    opacity: itemWithdrawn ? 0.65 : 1
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ color: itemWithdrawn ? 'var(--color-text-muted)' : 'var(--color-primary)', fontSize: '16px' }}>⬡</span>
+                    <strong style={{ fontSize: '14px', color: 'var(--color-text)', textDecoration: itemWithdrawn ? 'line-through' : 'none' }}>
+                      <span style={{ color: 'var(--color-text-muted)', marginRight: '8px', fontWeight: '500' }}>{ctrl.id}</span>
+                      {ctrl.title}
+                    </strong>
+                    {itemWithdrawn && (
+                      <span style={{
+                        fontSize: '11px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        color: '#ef4444',
+                        fontWeight: '600'
+                      }}>
+                        Withdrawn
+                      </span>
+                    )}
+                  </div>
+
+                  {isEditing && (mode === 'profile' || onUnassignControl) && (
+                    <button
+                      type="button"
+                      data-testid={`remove-control-btn-${ctrl.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onUnassignControl) {
+                          onUnassignControl(ctrl.id, group.id);
+                        } else {
+                          const ics = (group['insert-controls'] || []).map((ic: any) => ({
+                            ...ic,
+                            'include-controls': (ic['include-controls'] || []).map((inc: any) => ({
+                              ...inc,
+                              'with-ids': (inc['with-ids'] || []).filter((id: string) => id.toLowerCase() !== ctrl.id.toLowerCase())
+                            }))
+                          }));
+                          const updatedControls = (group.controls || []).filter((c: any) => c.id !== ctrl.id);
+                          onChange({ ...group, controls: updatedControls, 'insert-controls': ics });
+                        }
+                      }}
+                      style={{
+                        marginLeft: 'auto',
+                        background: 'transparent',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '4px',
+                        color: '#ef4444',
+                        fontSize: '12px',
+                        padding: '2px 8px',
+                        cursor: 'pointer'
+                      }}
+                      title="Remove from group"
+                    >
+                      ❌ Remove
+                    </button>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

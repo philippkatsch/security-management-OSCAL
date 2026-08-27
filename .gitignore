@@ -24,6 +24,11 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Databases & Runtime Auth
+*.db
+*.sqlite
+*.sqlite3
+
 # OSCAL-Pages and reference repos
 /oscal-reference/
 

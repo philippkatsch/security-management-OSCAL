@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures/base';
+import { navigateToProfile } from '../../helpers/profile-helpers';
 
 test.describe('Profile Export', () => {
-  test('export profile as JSON includes set-parameters', async ({ page, apiSetup }) => {
+  test('export profile opens modal and selects format options', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
     const groups = [
       {
@@ -30,18 +31,26 @@ test.describe('Profile Export', () => {
       modify
     });
     
-    await page.goto(`/profiles/${profUuid}?w=${apiSetup.workspaceId}`);
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+    await expect(page.getByText('Export Profile').first()).toBeVisible({ timeout: 15000 });
     
-    const exportBtn = page.getByRole('button', { name: /export/i });
-    if (await exportBtn.isVisible()) {
-      const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
-      await exportBtn.click();
-      const download = await downloadPromise;
-      
-      expect(download.suggestedFilename()).toMatch(/\.json$/i);
-      
-      // Could read the stream and parse JSON to verify modify block is present
-      // but verifying download is initiated is usually sufficient for E2E
-    }
+    // 1. Click Export action button in top bar
+    const exportBtn = page.getByRole('button', { name: /export/i }).first();
+    await expect(exportBtn).toBeVisible({ timeout: 15000 });
+    await exportBtn.click();
+    
+    // 2. Export modal renders with format selectors
+    const modal = page.locator('dialog[data-testid="export-modal"], dialog').first();
+    await expect(modal).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('export-format-json')).toBeChecked();
+    await expect(page.getByTestId('export-confirm-btn')).toBeVisible({ timeout: 15000 });
+    
+    // 3. Switch to YAML format and verify selection
+    await page.getByTestId('export-format-yaml').click();
+    await expect(page.getByTestId('export-format-yaml')).toBeChecked();
+    
+    // 4. Close modal
+    await modal.getByRole('button', { name: /cancel/i }).or(modal.locator('button[aria-label="Close"]')).first().click();
+    await expect(modal).not.toBeVisible({ timeout: 15000 });
   });
 });

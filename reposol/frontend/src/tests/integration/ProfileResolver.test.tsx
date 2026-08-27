@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   applyModify,
   resolveProfileSync,
@@ -7,6 +10,8 @@ import {
   filterGroups,
   fetchImportedCatalogs
 } from '@lib/profile';
+import { useProfileResolution } from '../../hooks/useProfileResolution';
+import * as apiModule from '../../lib/api';
 
 describe('ProfileResolver Engine & applyModify Unit Tests', () => {
   // ---------------------------------------------------------------------------
@@ -281,7 +286,7 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
   // ---------------------------------------------------------------------------
   describe('resolveProfileSync()', () => {
     const validUuid = '11111111-2222-3333-4444-555555555555';
-    let mockCache;
+    let mockCache: Map<string, any>;
 
     beforeEach(() => {
       mockCache = new Map();
@@ -346,10 +351,10 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       expect(catalog).toBeDefined();
       expect(catalog.controls.length).toBe(3);
 
-      const ac1Ctrl = catalog.controls.find(c => c.id === 'ac-1');
+      const ac1Ctrl = catalog.controls.find((c: any) => c.id === 'ac-1');
       expect(ac1Ctrl.params[0].values).toEqual(['Profile Override 60 days']);
 
-      const ac2Ctrl = catalog.controls.find(c => c.id === 'ac-2');
+      const ac2Ctrl = catalog.controls.find((c: any) => c.id === 'ac-2');
       expect(ac2Ctrl.params[0].values).toEqual(['Default Roles']);
     });
 
@@ -373,7 +378,7 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       const controls = resolved.catalog.controls;
 
       expect(controls.length).toBe(2);
-      expect(controls.map(c => c.id)).toEqual(['ac-1', 'ia-5']);
+      expect(controls.map((c: any) => c.id)).toEqual(['ac-1', 'ia-5']);
     });
 
     it('filters controls using include-controls glob patterns', () => {
@@ -396,7 +401,7 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       const controls = resolved.catalog.controls;
 
       expect(controls.length).toBe(2);
-      expect(controls.map(c => c.id)).toEqual(['ac-1', 'ac-2']);
+      expect(controls.map((c: any) => c.id)).toEqual(['ac-1', 'ac-2']);
     });
 
     it('marks excluded controls as isControlInactive when keepAll is true', () => {
@@ -421,10 +426,10 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       // With keepAll=true, all 3 controls are retained
       expect(controls.length).toBe(3);
 
-      const ac1 = controls.find(c => c.id === 'ac-1');
+      const ac1 = controls.find((c: any) => c.id === 'ac-1');
       expect(ac1.isControlInactive).toBe(false);
 
-      const ac2 = controls.find(c => c.id === 'ac-2');
+      const ac2 = controls.find((c: any) => c.id === 'ac-2');
       expect(ac2.isControlInactive).toBe(true);
     });
 
@@ -443,7 +448,7 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       expect(resolved.catalog.groups).toBeUndefined();
     });
 
-    it('resolves profile with merge.custom group configuration', () => {
+    it('resolves profile with merge.custom group configuration and nested groups', () => {
       const profileDoc = {
         profile: {
           uuid: '22222222-3333-4444-5555-666666666666',
@@ -456,7 +461,16 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
                   id: 'access-mgmt',
                   title: 'Access Management Group',
                   'insert-controls': [
-                    { 'include-controls': [{ 'with-ids': ['ac-1', 'ac-2'] }], order: 'ascending' }
+                    { 'include-controls': [{ 'with-ids': ['ac-1'] }], order: 'ascending' }
+                  ],
+                  groups: [
+                    {
+                      id: 'sub-access-mgmt',
+                      title: 'Sub Access Group',
+                      'insert-controls': [
+                        { 'include-controls': [{ 'with-ids': ['ac-2'] }], order: 'ascending' }
+                      ]
+                    }
                   ]
                 }
               ]
@@ -468,7 +482,10 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       const resolved = resolveProfileSync(profileDoc, mockCache);
       expect(resolved.catalog.groups).toBeDefined();
       expect(resolved.catalog.groups[0].title).toBe('Access Management Group');
-      expect(resolved.catalog.groups[0].controls.map(c => c.id)).toEqual(['ac-1', 'ac-2']);
+      expect(resolved.catalog.groups[0].controls.map((c: any) => c.id)).toEqual(['ac-1']);
+      expect(resolved.catalog.groups[0].groups).toBeDefined();
+      expect(resolved.catalog.groups[0].groups[0].title).toBe('Sub Access Group');
+      expect(resolved.catalog.groups[0].groups[0].controls.map((c: any) => c.id)).toEqual(['ac-2']);
     });
   });
 
@@ -609,6 +626,262 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
 
       expect(cache.has(customUuid)).toBe(true);
       expect(cache.get(customUuid).data.catalog.controls[0].id).toBe('custom-1');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 6. useProfileResolution Hook Integration Tests (Debounce, Abort, Preview)
+  // ---------------------------------------------------------------------------
+  describe('useProfileResolution Hook - Live Resolution & Cancellation Mechanics', () => {
+    let queryClient: QueryClient;
+
+    const createWrapper = () => {
+      queryClient = new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+          },
+        },
+      });
+      return ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      );
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.restoreAllMocks();
+    });
+
+    afterEach(() => {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    });
+
+    it('debounces rapid previewResolve calls and executes only 1 fetch after 500ms', async () => {
+      const mockAuthFetch = vi.spyOn(apiModule, 'authFetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          controls: [{ id: 'ac-1', title: 'Access Control' }],
+          groups: [],
+          all_controls: [{ id: 'ac-1' }],
+          all_groups: [],
+          conflicts: null,
+          source_catalog_id: 'cat-1',
+          source_catalog_title: 'NIST Catalog'
+        })
+      } as any);
+
+      const { result } = renderHook(() => useProfileResolution(), {
+        wrapper: createWrapper(),
+      });
+
+      const profileDoc1 = { profile: { uuid: 'p-1', metadata: { title: 'Doc 1' } } };
+      const profileDoc2 = { profile: { uuid: 'p-1', metadata: { title: 'Doc 2' } } };
+      const profileDoc3 = { profile: { uuid: 'p-1', metadata: { title: 'Doc 3' } } };
+
+      act(() => {
+        result.current.previewResolve(profileDoc1);
+      });
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      act(() => {
+        result.current.previewResolve(profileDoc2);
+      });
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      act(() => {
+        result.current.previewResolve(profileDoc3);
+      });
+
+      // No API call should have been made yet (only 400ms total elapsed since reset)
+      expect(mockAuthFetch).not.toHaveBeenCalled();
+
+      // Advance by full 500ms to trigger the third call
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(mockAuthFetch).toHaveBeenCalledTimes(1);
+      expect(mockAuthFetch).toHaveBeenCalledWith(
+        '/api/resolve/profile/preview',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ profile: profileDoc3.profile })
+        })
+      );
+
+      expect(result.current.resolvedCatalog).toBeDefined();
+      expect(result.current.resolvedCatalog.uuid).toBe('p-1');
+      expect(result.current.resolvedCatalog.controls).toHaveLength(1);
+      expect(result.current.resolving).toBe(false);
+    });
+
+    it('cancels superseded in-flight requests with AbortController without updating state', async () => {
+      let abortedSignals: boolean[] = [];
+
+      const mockAuthFetch = vi.spyOn(apiModule, 'authFetch').mockImplementation(async (_url, options: any) => {
+        const signal = options?.signal as AbortSignal;
+        // Delay response to simulate in-flight request
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(resolve, 1000);
+          if (signal) {
+            signal.addEventListener('abort', () => {
+              clearTimeout(timer);
+              abortedSignals.push(signal.aborted);
+              const err = new Error('The user aborted a request.');
+              err.name = 'AbortError';
+              reject(err);
+            });
+          }
+        });
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            controls: [{ id: 'latest-ctrl' }],
+            groups: [],
+            all_controls: [],
+            all_groups: []
+          })
+        } as any;
+      });
+
+      const { result } = renderHook(() => useProfileResolution(), {
+        wrapper: createWrapper(),
+      });
+
+      // Trigger first preview
+      act(() => {
+        result.current.previewResolve({ profile: { uuid: 'p-initial' } });
+      });
+
+      // Advance timer to launch first request
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(mockAuthFetch).toHaveBeenCalledTimes(1);
+
+      // Trigger second preview before first completes
+      act(() => {
+        result.current.previewResolve({ profile: { uuid: 'p-second' } });
+      });
+
+      // Advance timer to trigger second request (which aborts first)
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(mockAuthFetch).toHaveBeenCalledTimes(2);
+      expect(abortedSignals).toContain(true);
+      // AbortError is ignored gracefully and does not populate error state
+      expect(result.current.error).toBeNull();
+    });
+
+    it('handles HTTP error responses gracefully by setting error state', async () => {
+      vi.spyOn(apiModule, 'authFetch').mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: async () => ({ detail: 'Custom group ID conflict detected' })
+      } as any);
+
+      const { result } = renderHook(() => useProfileResolution(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.previewResolve({ profile: { uuid: 'p-err' } });
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(result.current.error).toContain('Custom group ID conflict detected');
+      expect(result.current.resolving).toBe(false);
+    });
+
+    it('clearCache resets resolvedCatalog, conflicts, clears timer, and aborts in-flight request', async () => {
+      let aborted = false;
+      vi.spyOn(apiModule, 'authFetch').mockImplementation(async (_url, options: any) => {
+        options?.signal?.addEventListener('abort', () => {
+          aborted = true;
+        });
+        return new Promise(() => {}); // never resolves
+      });
+
+      const { result } = renderHook(() => useProfileResolution(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.previewResolve({ profile: { uuid: 'p-clear' } });
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      act(() => {
+        result.current.clearCache();
+      });
+
+      expect(result.current.resolvedCatalog).toBeNull();
+      expect(result.current.conflicts).toBeNull();
+      expect(aborted).toBe(true);
+    });
+
+    it('handles both wrapped { profile: ... } and direct profile objects in previewResolve', async () => {
+      const mockAuthFetch = vi.spyOn(apiModule, 'authFetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          controls: [{ id: 'ac-1' }],
+          groups: [],
+          all_controls: [{ id: 'ac-1' }],
+          all_groups: []
+        })
+      } as any);
+
+      const { result } = renderHook(() => useProfileResolution(), {
+        wrapper: createWrapper(),
+      });
+
+      // Pass raw profile object directly
+      const rawProfile = { uuid: 'p-raw', metadata: { title: 'Raw Profile' } };
+      act(() => {
+        result.current.previewResolve(rawProfile);
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(mockAuthFetch).toHaveBeenCalledTimes(1);
+      expect(result.current.resolvedCatalog?.uuid).toBe('p-raw');
+    });
+
+    it('unmount cleans up active timer and aborts pending controller', () => {
+      const { result, unmount } = renderHook(() => useProfileResolution(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.previewResolve({ profile: { uuid: 'p-unmount' } });
+      });
+
+      unmount();
+
+      // Advancing timer after unmount does not crash or fire unexpected state updates
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
     });
   });
 });

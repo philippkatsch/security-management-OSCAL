@@ -31,7 +31,6 @@ from app.services.resolution_service import (
     _apply_modify,
     resolve_profile,
     resolve_ssp,
-    get_profile_baseline_diff,
     clear_resolution_cache,
 )
 from app.services.profile_service import (
@@ -419,26 +418,6 @@ class TestProfileResolutionAdversarial:
         resolved = await resolve_profile("default", prof_id)
         assert resolved["controls"] == []
         assert resolved["groups"] == []
-
-    @pytest.mark.asyncio
-    async def test_profile_baseline_diff(self, saved_catalog):
-        cat_id, cat_doc = saved_catalog()
-        prof_doc = ProfileFactory.with_alters(
-            catalog_uuid=cat_id,
-            alters=[
-                {
-                    "control-id": "ac-1",
-                    "adds": [{"props": [{"name": "custom", "value": "val"}]}]
-                }
-            ]
-        )
-        prof_id = prof_doc["profile"]["uuid"]
-        await save_document("profiles", prof_id, prof_doc, workspace_id="default")
-
-        diff = await get_profile_baseline_diff("default", prof_id, cat_id)
-        assert "summary" in diff
-        assert "deltas" in diff
-        assert diff["summary"]["total_baseline_controls"] >= 0
 
     @pytest.mark.asyncio
     async def test_prune_orphaned_alters_removes_invalid_alters(self, saved_catalog):

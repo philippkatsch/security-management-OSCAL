@@ -9,7 +9,9 @@ import {
   removeGroup,
   moveNode,
   withdrawControl,
-  restoreControl
+  restoreControl,
+  withdrawAllControlsInGroup,
+  restoreAllControlsInGroup
 } from '@lib/document-actions/catalog-actions';
 import { DocumentPageLayout } from '../layout/DocumentPageLayout';
 import { GroupEditor } from '@components/shared/GroupEditor';
@@ -289,6 +291,14 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
     dispatch(restoreControl(controlId));
   };
 
+  const handleWithdrawAllInGroup = (groupId: string) => {
+    dispatch(withdrawAllControlsInGroup(groupId));
+  };
+
+  const handleRestoreAllInGroup = (groupId: string) => {
+    dispatch(restoreAllControlsInGroup(groupId));
+  };
+
   const handleMoveNode = (nodeId: string, targetParentId: string | null, targetIndex?: number) => {
     dispatch(moveNode(nodeId, targetParentId, targetIndex));
   };
@@ -399,6 +409,8 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
           onDeleteNode={handleDeleteNode}
           onWithdrawNode={handleWithdrawNode}
           onRestoreNode={handleRestoreNode}
+          onWithdrawAllInGroup={handleWithdrawAllInGroup}
+          onRestoreAllInGroup={handleRestoreAllInGroup}
         />
       }
     >

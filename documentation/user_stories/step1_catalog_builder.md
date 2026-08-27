@@ -205,14 +205,16 @@
 
 ### US 1.19: Control Withdrawal & Deprecation Workflow
 > **As a** Framework Developer (Alice)  
-> **I want to** mark controls as "withdrawn" and automatically generate forwarding links to the replacing controls,  
+> **I want to** mark controls or whole groups of controls as "withdrawn" and automatically generate forwarding links to the replacing controls,  
 > **so that** catalog evolutions (e.g., NIST SP 800-53 Rev 4 → Rev 5) are mapped correctly and comprehensibly.
 *   **Acceptance Criteria:**
     *   **Withdrawal Action:** In the context menu or detail editor of a control, there is an action "⛔ Withdraw Control" that sets a property `prop name="status" value="withdrawn"`.
-    *   **Replacement Link:** When withdrawing, the user is prompted to select the replacing control. The system automatically generates a `link rel="incorporated-into" href="#<replacement-control-id>"` on the withdrawn control.
+    *   **Group Bulk Withdrawal Action:** In the context menu (`•••` or right-click) of a group in Edit Mode, there is an action "⛔ Withdraw all Controls" that recursively sets `prop name="status" value="withdrawn"` on all constituent controls and sub-controls in that group and its subgroups.
+    *   **Replacement Link:** When withdrawing a single control, the user is prompted to select the replacing control. The system automatically generates a `link rel="incorporated-into" href="#<replacement-control-id>"` on the withdrawn control.
     *   **Visual Marking & Edit vs. View Mode:** In Editor Mode (`✏️ Edit`), withdrawn controls are displayed grayed out in the sidebar tree and detail editor with a strikethrough title, a red `Withdrawn` badge, and a "Restore Control" button for visual traceability. In View Mode (`👁️ View`), withdrawn controls and withdrawn groups are completely hidden from the sidebar navigation tree and group lists, keeping the read-only view clean.
     *   **Parameter Freeze:** In Edit Mode, the parameters of withdrawn controls are displayed as read-only.
     *   **Restore Action:** In Edit Mode, withdrawn controls can be restored to active status via a "Restore Control" button. In View Mode, this restoration button is hidden.
+    *   **Group Bulk Restore Action:** In the context menu (`•••` or right-click) of a group in Edit Mode, there is an action "↩ Restore all Controls" that recursively removes `status: withdrawn` from all constituent controls and sub-controls in that group and its subgroups.
     *   **Dashboard Metric:** The Withdrawn count on the overview page (US 0.13) correctly reflects all `status: withdrawn` controls.
 
 ### US 1.20: Real-Time Sidebar Search, Quick Filtering & Tree Navigation

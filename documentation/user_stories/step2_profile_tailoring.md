@@ -17,15 +17,20 @@
     *   **Direct Redirection:** After clicking "Create Document," the profile is initialized in the backend and the user is redirected immediately to the editing view (`/profile/{uuid}?edit=true`) of this new document.
     *   **In-place Configuration:** All further settings (imported catalogs, structuring, other metadata) are performed directly in this inner view.
 
-### US 2.2: Live Tailoring via Sidebar Checkboxes (Inclusion & Exclusion)
+### US 2.2: Live Tailoring via Single-Surface Workbench Tree & Sidebar (Inclusion & Exclusion)
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
-> **I want to** select and deselect controls directly in the left sidebar,  
-> **so that** I can define the profile's inclusion and exclusion rules directly within the navigation structure.
+> **I want to** configure imported sources, select/deselect controls, and tailor baseline rules directly within a single, unified Workbench Tree without sub-tab switching or modal dialogs,  
+> **so that** I can manage source imports, inclusion/exclusion tailoring, and group structures seamlessly in one continuous view.
 *   **Acceptance Criteria:**
-    *   **Active by Default:** When a catalog is imported, all of its controls are active by default and selected in the sidebar checklist.
-    *   **Visual Feedback upon Deselection (Exclusion):** If a control is deselected in the sidebar, it is immediately visually represented as inactive (grayed out).
+    *   **Unified Single-Surface Workbench:** The Sources panel eliminates separate sub-tabs (`Import Sources` vs `Control Pool & Assignment`) in favor of a single, continuous workbench where imported catalogs, their hierarchy, inclusion controls, and custom group assignments coexist directly.
+    *   **Direct Catalog Node Controls:** Each imported source catalog node in the tree displays its title, version, active/assigned controls badge, inclusion toggle (`Include All` vs `Include Specific`), structure clone action (`📥 Import Full Structure`), and removal action (`🗑️ Remove Source`).
+    *   **Active by Default:** When a catalog is imported, all of its controls are active by default and selected in the source tree and sidebar.
+    *   **No Modal Popups:** Control selection, inclusion, and exclusion tailoring take place directly in the central Source Catalog Hierarchy Tree and sidebar without requiring separate popup modal dialogs (`ControlSelectionDialog`).
+    *   **Visual Feedback upon Deselection (Exclusion):** If a control is deselected or excluded, it is immediately visually represented as inactive (grayed out) with an exclusion indicator.
     *   **Live Update of Profile Rules:** Selecting or deselecting a control automatically adds or removes the corresponding inclusion or exclusion rule in the background, without requiring a page reload.
     *   **Include Sub-Controls (`with-child-controls`):** For each imported catalog, the GUI provides a toggle "Automatically include sub-controls" (`with-child-controls` = `yes`/`no`). The default value is `yes`. If `no` is selected, sub-controls (enhancements) must be activated individually.
+    *   **Profile-Specific Actions (No Withdraw):** In profile mode, context menus and batch actions offer "Exclude from Profile" (maps to `exclude-controls` or removal from `include-controls.with-ids`) instead of catalog-level "Withdraw Control" or "Delete Control". OSCAL profiles do not have a withdraw concept — exclusion from the import is the correct OSCAL-compliant equivalent. The reverse action "Include in Profile" adds the control to `include-controls.with-ids`.
+    *   **Exclusion Always Wins (NIST Spec):** If a control matches both an inclusion and an exclusion directive, it MUST be excluded per the NIST OSCAL specification. The UI must reflect this precedence rule.
 
 ### US 2.3: Global Parameter Assignments (`set-parameters`)
 > *References DD-012*
@@ -76,20 +81,54 @@
     *   Display of the resolved profile in a live preview (according to the chosen grouping directive).
     *   **Double Validation:** Both the profile document itself (against the Profile schema) and the resolved profile (against the Catalog schema) are strictly validated against the official NIST OSCAL JSON schemas stored locally in the backend.
 
-### US 2.7: High-Level Restructuring and Grouping (Merge Phase) in the GUI
+### US 2.7: Custom Group Hierarchy, Dual-Surface Control Assignment, and Merge Phase Restructuring
+> *References DD-028, DD-029, DD-034, DD-035*  
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
-> **I want to** define the profile's merge directive, sort imported controls into self-created groups, and enrich these groups with custom metadata and text,  
-> **so that** the final baseline follows a tailored, company-internal structure.
+> **I want to** configure the profile's `custom` merge directive, build custom hierarchical group structures with arbitrary nesting, and flexibly assign imported controls via dual-surface drag-and-drop (sidebar tree and visual pool grid),  
+> **so that** the final tailored baseline perfectly matches organizational domains, compliance policies, and governance structures while remaining 100% NIST OSCAL v1.1.2 compliant.
+
 *   **Acceptance Criteria:**
-    *   **Selection of the Merge Directive:** The user can choose between `as-is`, `flat`, and `custom` in the GUI. When saving, `merge` contains exclusively the chosen directive.
-    *   **Creation of Custom Groups:** When `custom` is selected, the user can create, edit, and delete new groups with ID and title.
-    *   **Nesting of Groups:** The GUI allows hierarchical nesting of groups.
-    *   **Sorting Controls & Folders:** The user can move imported controls as well as entire categories/folders from the control pool into a custom group. Assignment is exclusive.
-    *   **Insert Controls and Sorting:** Within each custom group, `insert-controls` can be used to specify which controls are included. The sorting order can be configured.
-    *   **Include-All in Groups:** `insert-controls` supports `include-all`, `include-controls`, and `exclude-controls`.
-    *   **Group Metadata & Texts:** For each created group, class attributes, custom properties/tags, reference links, parameters, and description texts can be defined.
-    *   **Round-tripping:** The configured `custom` structure is correctly saved in the Profile JSON.
-    *   **Resolution & Preview:** The Resolved Catalog in the live preview reflects the configured group structure and its group metadata.
+    *   **Merge Directive Selection (`as-is` | `flat` | `custom`):**
+        *   The user can switch between `as-is`, `flat`, and `custom` merge directives in the GUI.
+        *   Persisted Profile JSON contains exclusively the selected merge directive object under `profile.merge`.
+    *   **Custom Group Creation & Arbitrary Nesting:**
+        *   When `merge.custom` is active in Edit Mode, the user can create new top-level custom groups via a `➕ Add Custom Group` button in the sidebar footer and MergeConfigurator.
+        *   Users can create nested sub-groups (`group.groups[]`) to arbitrary depth via the sidebar context menu (`📁 Add Sub-Group`) or Group Editor.
+        *   Groups support unique `id`, `title`, `class`, `props`, `links`, `parts`, and `params`.
+    *   **Inline Group Renaming & ID Editing:**
+        *   Custom group titles and IDs can be edited inline directly within the sidebar tree node (with keyboard commit on `Enter`/`Blur` and cancel on `Escape`).
+        *   Changes are synchronized bidirectionally in real-time with `GroupEditor.tsx` and the pure document action layer (`profile-actions.ts`).
+    *   **Sidebar Navigation Tree Drag-and-Drop Surface:**
+        *   Users can drag unassigned controls directly from the `"📥 Unassigned Controls"` virtual node into any custom group node in the sidebar tree.
+        *   Users can drag assigned controls between different custom groups in the tree to reassign them.
+        *   Tree drag indicators visually distinguish `before`, `inside`, and `after` drop positioning with clear hover states.
+    *   **Main View Unified Hierarchy Mapper Surface (No Sub-Tabs):**
+        *   In `SourcesPanel.tsx`, the interface operates as a unified single-surface workbench displaying the **Source Catalog Hierarchy Tree** (Source Catalog → Families/Groups → Controls) directly below the top import/merge configuration bar.
+        *   Provides instant live search and filtering (by keyword, source catalog, assignment status: `All` | `Assigned` | `Unassigned`).
+        *   Displays assignment badges on each control node (`✓ Assigned → [Group Name]` vs `📥 Unassigned`).
+        *   Supports family-level bulk assignment (`Assign All in Group to...`) and multi-select checkboxes across controls with a sticky batch action bar (`N controls selected → Assign to... / Unassign`).
+        *   Source nodes can be dragged directly onto target custom group drop zones in the left sidebar tree.
+    *   **Virtual "📥 Unassigned Controls" Lifecycle & Schema Cleanliness:**
+        *   When `merge.custom` is active in Edit Mode and unassigned imported controls exist, the sidebar tree displays a collapsible virtual section `"📥 Unassigned Controls (N)"` containing all unassigned controls.
+        *   The unassigned node is a pure UI helper: it is dynamically computed from the difference between active imported controls and controls assigned to `merge.custom.groups`.
+        *   The unassigned node is **strictly excluded** from persisted Profile JSON, schema validation payloads, and resolved export documents (zero schema pollution).
+        *   The virtual node is hidden in View / Read-Only mode and when the unassigned count is 0.
+    *   **Control Unassignment & Removal Flow:**
+        *   Right-clicking an assigned control in the sidebar tree or clicking its delete icon provides a "Remove from Group" action that unassigns the control and returns it to the unassigned pool.
+        *   Dragging an assigned control onto the `"📥 Unassigned Controls"` container removes it from its custom group's `with-ids` list.
+    *   **Custom Group Deletion with Safe Reassignment:**
+        *   Deleting a custom group prompts a confirmation modal offering two reassignment choices:
+            1. Return all contained controls to the Unassigned Controls pool.
+            2. Reassign all contained controls to the parent group (if nested) or a selected target group.
+    *   **Strict NIST OSCAL v1.1.2 Profile Serialization:**
+        *   Assigned controls are persisted strictly as `profile.merge.custom.groups[].insert-controls[].include-controls[].with-ids`.
+        *   Order configuration (`order: 'keep' | 'ascending' | 'descending'`) is preserved and serialized per group.
+        *   Empty arrays and transient UI properties are stripped before document validation and disk persistence.
+    *   **Live Resolution Synchronization & Preview:**
+        *   In-memory modifications trigger debounced (500ms) live preview requests to `POST /api/resolve/profile/preview`.
+        *   The live preview control tree updates without page reload, rendering the resolved hierarchy and metadata.
+        *   Backend resolution engine (`resolution_service.py`) resolves custom hierarchies case-insensitively and detects orphaned control references or cyclic group dependencies.
+
 
 ### US 2.8: Parameter Selection Rules, Validations, and Constraints (select & choice) in the GUI
 > *References DD-012*
@@ -274,13 +313,30 @@
     *   **Profile Selection in Import Dropdown:** In the `Add Import:` dropdown, existing profiles can be selected in addition to catalogs.
     *   **Cascading Resolution:** The Profile Resolution Engine recursively resolves profile imports and applies all cascaded `alters`, `set-parameters`, and `select-control` rules.
 
-### US 2.31: Visual Baseline Comparison & Diff Viewer (Profile vs. Base Catalog)
+### US 2.32: Live Resolution Preview & Modify Conflict Detection
+> *References DD-028, extends US 2.6*
 > **As a** Compliance Officer (Alice)  
-> **I want to** be able to call up a visual comparison (diff view) between the tailored profile and the imported base catalogs,  
-> **so that** I can check and approve all added, modified, overridden, and excluded controls at a glance.
+> **I want to** see the resolved control tree update live as I edit imports, exclusions, and modifications in the profile — including instant warnings when my modifications target controls that are no longer imported,  
+> **so that** I can immediately understand the impact of every change and catch orphaned modifications before saving.
 *   **Acceptance Criteria:**
-    *   **Diff View:** A "🔍 Baseline Diff" tab in the profile editor compares the profile with the base catalogs.
-    *   **Visual Highlighting:** Additions (green), deviations/modifications (blue), parameter overrides (yellow), and exclusions (red) are clearly listed.
+    *   **Live Preview from Unsaved State:** The resolution engine resolves the in-memory (unsaved) profile document, not the saved-to-disk version. Tree updates within 500ms of the last edit.
+    *   **Backend Preview Endpoint:** A `POST /api/resolve/profile/preview` endpoint accepts the inline profile JSON and returns the resolved catalog plus a conflict report.
+    *   **Conflict Detection (Orphaned Alters):** If `modify.alters[].control-id` references a control that is not present in the resolved import set, the conflict report flags it as an orphaned alter. Per NIST OSCAL spec, orphaned alters are inoperative (not errors) — they are silently ignored during resolution but the UI displays a warning.
+    *   **Conflict Detection (Orphaned Parameters):** If `modify.set-parameters[].param-id` references a parameter that does not exist in the resolved control set, the conflict report flags it.
+    *   **Conflict Banner:** A warning banner appears when conflicts are detected, showing the count and offering a "Review" action.
+    *   **Alter Sleep & Reawaken:** If a control is temporarily excluded from imports but its alter still exists in `modify.alters`, the alter becomes inoperative. If the control is re-imported, the alter reawakens and applies again — no user action required.
+    *   **Auto-Prune on Save:** When saving the profile, orphaned alters and set-parameters are automatically pruned (removed from the document) with a log message for audit trail.
+
+### US 2.33: Profile Tree Visual Annotations (Modified & Orphaned Controls)
+> *References DD-030*
+> **As a** Compliance Officer (Alice)  
+> **I want to** see visual annotations in the sidebar control tree indicating which controls have been modified (via alters) and which modifications are orphaned (targeting non-imported controls),  
+> **so that** I can quickly identify the tailoring status of each control at a glance.
+*   **Acceptance Criteria:**
+    *   **Modified Control Indicator:** Controls that have active `modify.alters` entries are annotated with a yellow dot (🟡) in the sidebar tree.
+    *   **Orphaned Control Indicator:** Controls referenced by `modify.alters` but not present in the resolved import set are annotated with an orange dot (🔶) in the sidebar tree.
+    *   **No Indicator for Unmodified Controls:** Controls imported as-is (no alters) show no additional indicator.
+    *   **Profile-Only Feature:** These annotations are only shown in profile mode, not in catalog or SSP mode.
 
 ---
 
@@ -291,7 +347,11 @@
     *   She overrides parameter values (e.g., password length).
     *   She adds text at the beginning of the statement of `ac-2` and removes an invalid reference (alters).
     *   She defines local custom controls (e.g., `corp-sec-1`).
-3.  **Restructuring (Tab 3):** In the third tab, Alice switches the merge directive to `custom`, creates a new group *"Corporate Access Policy"*, and assigns `ac-2` and `corp-sec-1` exclusively to this group.
+3.  **Restructuring & Control Pool Assignment (Tab 3 & Sidebar Tree):** In the restructuring phase, Alice switches the merge directive to `custom`.
+    *   She clicks `➕ Add Custom Group` in the sidebar footer to create *"Corporate Access Policy"* (`id: "corp-access"`).
+    *   In the sidebar tree, she sees the virtual `"📥 Unassigned Controls (142)"` node at the bottom. She drags `ac-1` and `ac-2` directly into *"Corporate Access Policy"*.
+    *   Switching to the **Control Pool** tab in the main view, Alice searches for `"incident"`, selects multiple controls, and drags them onto her newly created *"Incident Response Operations"* sub-group.
+    *   The live resolution preview instantly reflects the new hierarchy within 500ms, while the unassigned count updates to `"📥 Unassigned Controls (138)"`.
 4.  **Profile Resolution & Export:** She clicks **Resolve Profile**. The system generates the live preview of the resolved profile. Alice validates the document and exports it.
 
 ---
@@ -307,9 +367,12 @@
   - **Adds:** Adding parts, props, or parameters at `starting`, `ending`, `before`, and `after` positions (US 2.4).
   - **Removes:** Deletion of specific child elements of imported controls using selectors (e.g., `by-id`, `by-name`) (US 2.4).
 - **Local Controls:** Definition of company-specific controls in a managed OSCAL catalog that is regularly imported by the profile (US 2.5).
-- **Merge Directives and Grouping (Merge Phase):**
-  - Selection of directive (`as-is`, `flat`, `custom`).
-  - Graphical editor for defining groups, subgroups, and assigning imported controls (US 2.7).
+- **Merge Directives and Custom Group Hierarchy (Merge Phase):**
+  - Selection of merge directive (`as-is`, `flat`, `custom`) with strict OSCAL JSON persistence (US 2.7).
+  - Pure document actions layer (`profile-actions.ts`) managing group CRUD, arbitrary nesting, and control assignments per DD-029 and DD-035.
+  - Dual-surface control assignment: interactive drag-and-drop in the sidebar navigation tree and full visual card grid in the Control Pool tab (US 2.7).
+  - Virtual `"📥 Unassigned Controls"` node dynamically computed and isolated from stored JSON (US 2.7).
+  - Inline group title and ID renaming in tree nodes with bidirectional `GroupEditor` synchronization (US 2.7).
 - **Profile Resolution Engine:** Algorithm for resolving all imports, modifications, and custom groupings to display the profile as a structured, readable catalog (preview & validation) (US 2.6).
 - **Parameter Constraints:** Defining selection constraints (`select` and `choice`) for parameters (US 2.8).
 - **Pattern-based Filtering:** Support for wildcard patterns (`matching`) when importing controls (US 2.9).
@@ -329,7 +392,7 @@
 - [ ] US 2.4: Context-Aware Modification Tab — Inline Editing of Control Text with Transparent OSCAL Mapping
 - [ ] US 2.5: Local Custom Controls via Managed Catalog Import (OSCAL-compliant)
 - [ ] US 2.6: Profile Resolution Engine & Preview
-- [ ] US 2.7: High-Level Restructuring and Grouping (Merge Phase) in the GUI
+- [ ] US 2.7: Custom Group Hierarchy, Dual-Surface Control Assignment, and Merge Phase Restructuring
 - [ ] US 2.8: Parameter Selection Rules, Validations, and Constraints (select & choice) in the GUI
 - [ ] US 2.9: Dynamic Filtering via Pattern Matching (matching) in the GUI
 - [ ] US 2.10: Assignment of Global Roles and Responsibilities (responsible-parties) in Metadata
@@ -346,4 +409,5 @@
 - [ ] US 2.26: Object-Bound Targeted Modification Reverting & Pruning (Control, Group & Text Scope)
 - [ ] US 2.28: Profile Statement & Sub-item Addition (Streamlined UX & Engine Resolution)
 - [ ] US 2.30: Cascading Profile Imports (Profile from Profiles)
-- [ ] US 2.31: Visual Baseline Comparison & Diff Viewer (Profile vs. Base Catalog)
+- [ ] US 2.32: Live Resolution Preview & Modify Conflict Detection
+- [ ] US 2.33: Profile Tree Visual Annotations (Modified & Orphaned Controls)

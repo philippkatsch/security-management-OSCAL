@@ -27,6 +27,7 @@ const navSections = [
       }
     ]
   },
+
   {
     title: 'Design & Tailor',
     items: [
@@ -190,6 +191,7 @@ export const Navigation = () => {
         }
       }
     }
+
     
     const parts = path.split('/');
     if (parts.length > 1) {

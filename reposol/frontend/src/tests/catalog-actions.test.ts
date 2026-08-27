@@ -6,7 +6,9 @@ import {
   removeGroup,
   moveNode,
   withdrawControl,
-  restoreControl
+  restoreControl,
+  withdrawAllControlsInGroup,
+  restoreAllControlsInGroup
 } from '../lib/document-actions/catalog-actions';
 
 describe('Catalog Actions', () => {
@@ -112,5 +114,33 @@ describe('Catalog Actions', () => {
 
     const ac1Restored = restoredDoc.catalog.groups[0].controls[0];
     expect(ac1Restored.props.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(false);
+  });
+
+  it('withdraws and restores all controls in a group recursively', () => {
+    const doc = createBaseCatalog();
+    const withdrawAllAct = withdrawAllControlsInGroup('ac');
+    const withdrawnDoc = produce(doc, (draft) => { withdrawAllAct.apply(draft); });
+
+    const acGroup = withdrawnDoc.catalog.groups[0];
+    const ac1 = acGroup.controls[0];
+    const ac2 = acGroup.controls[1];
+    const acSub1 = acGroup.groups[0].controls[0];
+
+    expect(ac1.props.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(true);
+    expect(ac2.props.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(true);
+    expect(acSub1.props.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(true);
+
+    // Other group should remain unaffected
+    const at1 = withdrawnDoc.catalog.groups[1].controls[0];
+    expect(at1.props?.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBeFalsy();
+
+    // Now restore all controls in group 'ac'
+    const restoreAllAct = restoreAllControlsInGroup('ac');
+    const restoredDoc = produce(withdrawnDoc, (draft) => { restoreAllAct.apply(draft); });
+
+    const acGroupRestored = restoredDoc.catalog.groups[0];
+    expect(acGroupRestored.controls[0].props?.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(false);
+    expect(acGroupRestored.controls[1].props?.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(false);
+    expect(acGroupRestored.groups[0].controls[0].props?.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(false);
   });
 });

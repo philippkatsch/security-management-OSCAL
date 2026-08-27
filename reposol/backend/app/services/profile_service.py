@@ -136,7 +136,10 @@ async def preprocess_profile_for_saving(
         elif "custom" in merge:
             merge.pop("as-is", None)
             merge.pop("flat", None)
-            if isinstance(custom, dict) and not custom.get("groups"):
+            has_custom_content = isinstance(custom, dict) and (
+                bool(custom.get("groups")) or bool(custom.get("insert-controls"))
+            )
+            if not has_custom_content:
                 merge.pop("custom", None)
                 merge["as-is"] = True
         else:
@@ -146,108 +149,89 @@ async def preprocess_profile_for_saving(
             
     await prune_orphaned_alters(profile, workspace_id)
     document = remove_empty_arrays(document)
+    
+    # Final check: if merge is present and merge.custom became empty dict after removing empty arrays
+    if "profile" in document and "merge" in document["profile"]:
+        p_merge = document["profile"]["merge"]
+        if isinstance(p_merge, dict) and "custom" in p_merge:
+            p_custom = p_merge["custom"]
+            if not p_custom or (not p_custom.get("groups") and not p_custom.get("insert-controls")):
+                p_merge.pop("custom", None)
+                p_merge["as-is"] = True
+
     return document
 
 
-async def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] = None) -> None:
-    """Removes alters from profile.modify.alters if their control-id is not present in any imported catalog."""
+async def prune_orphaned_modifications(profile: Dict[str, Any], workspace_id: Optional[str] = None) -> None:
+    """
+    Prunes orphaned modify directives (alters + set-parameters) from a profile
+    before saving. Uses the resolution pipeline to get the ACTUAL resolved control
+    and parameter sets (respecting import filters), then removes any modify entries
+    that target controls/params not in the resolved set.
+
+    Per NIST OSCAL spec: orphaned alters are inoperative — we remove them on save
+    to keep the document clean.
+    """
     modify = profile.get("modify")
-    if not modify or "alters" not in modify or not isinstance(modify.get("alters"), list):
+    if not modify:
         return
 
     imports = profile.get("imports", [])
     if not imports:
+        # No imports → all modifications are orphaned
         modify.pop("alters", None)
+        modify.pop("set-parameters", None)
         if not modify:
             profile.pop("modify", None)
         return
 
-    valid_control_ids = set()
-    # 1. Include local-controls if present
-    for ctrl in profile.get("local-controls", []):
-        if isinstance(ctrl, dict) and "id" in ctrl:
-            valid_control_ids.add(ctrl["id"].lower())
+    # Use the resolution pipeline to get the actual resolved set
+    try:
+        from app.services.resolution_service import (
+            resolve_profile_inline, _collect_all_control_ids, _collect_all_param_ids
+        )
+        resolved = await resolve_profile_inline(workspace_id, profile)
+        valid_control_ids = _collect_all_control_ids(resolved)
+        valid_param_ids = _collect_all_param_ids(resolved)
+    except Exception as e:
+        logger.warning("Failed to resolve profile for modification pruning: %s", str(e))
+        return  # Don't prune if resolution fails — safety first
 
-    # 2. Collect controls from all imported catalogs
-    found_any_catalog = False
-    for imp in imports:
-        if not isinstance(imp, dict):
-            continue
-        href = imp.get("href", "")
-        cat_uuid = _catalog_uuid_from_href(href)
-        if not cat_uuid:
-            continue
-        if await document_repository.document_exists("profiles", cat_uuid, workspace_id=workspace_id):
-            found_any_catalog = True
-            try:
-                from app.services.resolution_service import resolve_profile
-                resolved_prof = await resolve_profile(workspace_id, cat_uuid)
-                def collect_ctrls(ctrl_list):
-                    for c in ctrl_list:
-                        if isinstance(c, dict) and "id" in c:
-                            valid_control_ids.add(c["id"].lower())
-                            if "controls" in c and isinstance(c["controls"], list):
-                                collect_ctrls(c["controls"])
+    pruned_count = 0
 
-                if "controls" in resolved_prof and isinstance(resolved_prof["controls"], list):
-                    collect_ctrls(resolved_prof["controls"])
+    # 1. Prune orphaned alters (alters targeting controls not in the resolved baseline)
+    alters = modify.get("alters")
+    if isinstance(alters, list):
+        new_alters = []
+        for alt in alters:
+            if isinstance(alt, dict) and alt.get("control-id"):
+                if alt["control-id"].lower() in valid_control_ids:
+                    new_alters.append(alt)
+                else:
+                    pruned_count += 1
+                    logger.info("Pruned orphaned alter for control: %s", alt["control-id"])
+            else:
+                new_alters.append(alt)
+        if new_alters:
+            modify["alters"] = new_alters
+        else:
+            modify.pop("alters", None)
 
-                def collect_groups(grp_list):
-                    for g in grp_list:
-                        if isinstance(g, dict):
-                            if "controls" in g and isinstance(g["controls"], list):
-                                collect_ctrls(g["controls"])
-                            if "groups" in g and isinstance(g["groups"], list):
-                                collect_groups(g["groups"])
-
-                if "groups" in resolved_prof and isinstance(resolved_prof["groups"], list):
-                    collect_groups(resolved_prof["groups"])
-            except Exception as e:
-                logger.warning("Failed to read profile %s for alter pruning: %s", cat_uuid, str(e))
-        elif await document_repository.document_exists("catalogs", cat_uuid, workspace_id=workspace_id):
-            found_any_catalog = True
-            try:
-                cat_doc, _ = await document_repository.get_document("catalogs", cat_uuid, workspace_id=workspace_id)
-                cat_obj = cat_doc.get("catalog", {})
-
-                def collect_ctrls(ctrl_list):
-                    for c in ctrl_list:
-                        if isinstance(c, dict) and "id" in c:
-                            valid_control_ids.add(c["id"].lower())
-                            if "controls" in c and isinstance(c["controls"], list):
-                                collect_ctrls(c["controls"])
-
-                if "controls" in cat_obj and isinstance(cat_obj["controls"], list):
-                    collect_ctrls(cat_obj["controls"])
-
-                def collect_groups(grp_list):
-                    for g in grp_list:
-                        if isinstance(g, dict):
-                            if "controls" in g and isinstance(g["controls"], list):
-                                collect_ctrls(g["controls"])
-                            if "groups" in g and isinstance(g["groups"], list):
-                                collect_groups(g["groups"])
-
-                if "groups" in cat_obj and isinstance(cat_obj["groups"], list):
-                    collect_groups(cat_obj["groups"])
-            except Exception as e:
-                logger.warning("Failed to read catalog %s for alter pruning: %s", cat_uuid, str(e))
-
-    if not found_any_catalog and not profile.get("local-controls"):
-        # If no imported catalog file exists locally yet, avoid wiping alters prematurely
-        return
-
-    new_alters = [
-        alt for alt in modify["alters"]
-        if isinstance(alt, dict) and alt.get("control-id") and alt.get("control-id").lower() in valid_control_ids
-    ]
-
-    if new_alters:
-        modify["alters"] = new_alters
-    else:
-        modify.pop("alters", None)
-        if not modify:
+    # Clean up empty modify section if no keys remain
+    if not modify or (not modify.get("alters") and not modify.get("set-parameters")):
+        remaining_keys = [k for k in modify.keys() if k not in ("alters", "set-parameters")]
+        if not remaining_keys:
             profile.pop("modify", None)
+
+    if pruned_count > 0:
+        logger.info("Pruned %d orphaned alter(s) from profile", pruned_count)
+
+
+# Legacy alias for backward compatibility
+async def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[str] = None) -> None:
+    """Legacy alias — delegates to prune_orphaned_modifications."""
+    return await prune_orphaned_modifications(profile, workspace_id)
+
 
 
 def preprocess_catalog_for_saving(document: Dict[str, Any]) -> Dict[str, Any]:

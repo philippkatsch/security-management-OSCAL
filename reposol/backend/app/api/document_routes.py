@@ -144,7 +144,9 @@ async def export_doc(stage: str, doc_id: str, format: str = "json", ws_id: str =
 
     root_key = STAGE_ROOT_KEYS[normalized]
     title = doc.get(root_key, {}).get("metadata", {}).get("title", "document")
-    safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in title).strip().replace(" ", "_")
+    safe_title = "".join(c if (c.isascii() and c.isalnum()) or c in " -_" else "" for c in title).strip().replace(" ", "_")
+    if not safe_title:
+        safe_title = "document"
     
     format_lower = format.lower()
     if format_lower == "yaml":

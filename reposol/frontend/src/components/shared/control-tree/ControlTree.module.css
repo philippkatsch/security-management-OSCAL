@@ -79,6 +79,15 @@
   text-decoration: line-through;
 }
 
+.nodeRow.excluded {
+  opacity: 0.45;
+  color: var(--color-text-muted);
+}
+
+.nodeRow.excluded:hover {
+  opacity: 0.75;
+}
+
 .toggleIcon {
   width: 16px;
   display: inline-flex;
@@ -287,5 +296,26 @@
 
 .draggingNode {
   opacity: 0.35 !important;
+}
+
+.virtualUnassignedNode {
+  background-color: var(--color-surface-2);
+  border-top: 1px dashed var(--color-border);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.virtualUnassignedNode:hover {
+  background-color: var(--color-surface-3);
+}
+
+.virtualUnassignedBadge {
+  background: var(--color-surface-3);
+  color: var(--color-accent);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-left: auto;
 }
 

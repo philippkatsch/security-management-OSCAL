@@ -10,8 +10,16 @@ export interface TreeContextMenuProps {
   onAddGroup?: (parentGroupId: string | null) => void;
   onAddControl?: (parentGroupId: string | null) => void;
   onDeleteNode?: (nodeId: string, nodeType: 'group' | 'control') => void;
+  onRenameNode?: (nodeId: string) => void;
   onWithdrawNode?: (controlId: string) => void;
   onRestoreNode?: (controlId: string) => void;
+  onWithdrawAllInGroup?: (groupId: string) => void;
+  onRestoreAllInGroup?: (groupId: string) => void;
+  // Profile mode: Exclude/Include from baseline (maps to import directives)
+  onExcludeFromBaseline?: (controlId: string) => void;
+  onIncludeInBaseline?: (controlId: string) => void;
+  isExcludedFromBaseline?: boolean;
+  onUnassignControl?: (controlId: string, sourceGroupId?: string | null) => void;
 }
 
 export const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
@@ -22,8 +30,15 @@ export const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
   onAddGroup,
   onAddControl,
   onDeleteNode,
+  onRenameNode,
   onWithdrawNode,
-  onRestoreNode
+  onRestoreNode,
+  onWithdrawAllInGroup,
+  onRestoreAllInGroup,
+  onExcludeFromBaseline,
+  onIncludeInBaseline,
+  isExcludedFromBaseline,
+  onUnassignControl
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +69,7 @@ export const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
   const adjustedX = Math.min(x, window.innerWidth - menuWidth - 10);
   const adjustedY = Math.min(y, window.innerHeight - menuHeight - 10);
 
+  const isVirtualUnassigned = node.id === '__unassigned__' || node.class === 'virtual-unassigned';
   const isGroup = node.type === 'group';
 
   return (
@@ -63,7 +79,7 @@ export const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
       style={{ left: `${adjustedX}px`, top: `${adjustedY}px` }}
       onClick={(e) => e.stopPropagation()}
     >
-      {isGroup && onAddControl && (
+      {isGroup && !isVirtualUnassigned && onAddControl && (
         <button
           className={styles.contextMenuItem}
           onClick={() => {
@@ -76,8 +92,9 @@ export const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
         </button>
       )}
 
-      {isGroup && onAddGroup && (
+      {isGroup && !isVirtualUnassigned && onAddGroup && (
         <button
+          data-testid="context-menu-add-subgroup"
           className={styles.contextMenuItem}
           onClick={() => {
             onAddGroup(node.id);
@@ -86,6 +103,46 @@ export const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
         >
           <span>📁</span>
           <span>Add Sub-Group</span>
+        </button>
+      )}
+
+      {isGroup && !isVirtualUnassigned && onRenameNode && (
+        <button
+          data-testid="context-menu-rename-group"
+          className={styles.contextMenuItem}
+          onClick={() => {
+            onRenameNode(node.id);
+            onClose();
+          }}
+        >
+          <span>✏️</span>
+          <span>Rename Group</span>
+        </button>
+      )}
+
+      {isGroup && !isVirtualUnassigned && onRestoreAllInGroup && (
+        <button
+          className={styles.contextMenuItem}
+          onClick={() => {
+            onRestoreAllInGroup(node.id);
+            onClose();
+          }}
+        >
+          <span>↩</span>
+          <span>Restore all Controls</span>
+        </button>
+      )}
+
+      {isGroup && !isVirtualUnassigned && onWithdrawAllInGroup && (
+        <button
+          className={styles.contextMenuItem}
+          onClick={() => {
+            onWithdrawAllInGroup(node.id);
+            onClose();
+          }}
+        >
+          <span>⛔</span>
+          <span>Withdraw all Controls</span>
         </button>
       )}
 
@@ -128,10 +185,53 @@ export const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
         </button>
       )}
 
-      {onDeleteNode && <div className={styles.contextMenuDivider} />}
-
-      {onDeleteNode && (
+      {/* Control removal action (unassign) in custom group mode */}
+      {!isGroup && onUnassignControl && node.parentId && node.parentId !== '__unassigned__' && (
         <button
+          data-testid="context-menu-unassign-control"
+          className={styles.contextMenuItem}
+          onClick={() => {
+            onUnassignControl(node.id, node.parentId);
+            onClose();
+          }}
+        >
+          <span>📥</span>
+          <span>Remove from Group</span>
+        </button>
+      )}
+
+      {/* Profile mode: Exclude/Include from Profile (US 2.2) */}
+      {!isGroup && onExcludeFromBaseline && !isExcludedFromBaseline && (
+        <button
+          className={styles.contextMenuItem}
+          onClick={() => {
+            onExcludeFromBaseline(node.id);
+            onClose();
+          }}
+        >
+          <span>❌</span>
+          <span>Exclude from Profile</span>
+        </button>
+      )}
+
+      {!isGroup && onIncludeInBaseline && isExcludedFromBaseline && (
+        <button
+          className={styles.contextMenuItem}
+          onClick={() => {
+            onIncludeInBaseline(node.id);
+            onClose();
+          }}
+        >
+          <span>✅</span>
+          <span>Include in Profile</span>
+        </button>
+      )}
+
+      {onDeleteNode && !isVirtualUnassigned && (!onExcludeFromBaseline || isGroup) && <div className={styles.contextMenuDivider} />}
+
+      {onDeleteNode && !isVirtualUnassigned && (!onExcludeFromBaseline || isGroup) && (
+        <button
+          data-testid={isGroup ? 'context-menu-delete-group' : 'context-menu-delete-control'}
           className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
           onClick={() => {
             onDeleteNode(node.id, isGroup ? 'group' : 'control');
@@ -145,3 +245,5 @@ export const TreeContextMenu: React.FC<TreeContextMenuProps> = ({
     </div>
   );
 };
+
+

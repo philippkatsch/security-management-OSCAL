@@ -28,6 +28,8 @@ The primary language of this repository is English. All code, comments, document
 ## 6. Project Context References
 Before starting any significant work, familiarize yourself with these key project documents:
 - **Project Vision & Goals:** [GOAL.md](../documentation/GOAL.md)
+- **Project Architecture & Milestones:** [PROJECT.md](../PROJECT.md)
+- **Test Readiness & Verification:** [TEST_READY.md](../TEST_READY.md)
 - **Design Decisions Index:** [design_decisions/](../documentation/design_decisions/) — Read ALL files before proposing architectural changes.
 - **User Stories Index:** [user_stories/](../documentation/user_stories/) — Steps 0–8 covering the full OSCAL lifecycle.
 - **Public README:** [README.md](../README.md) — Quick start, tech stack, and live demo link.

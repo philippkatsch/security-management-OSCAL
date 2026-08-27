@@ -21,6 +21,7 @@ export function ControlHeader({
   showClass = true,
   typeBadge,
   control,
+  stage,
   onSelectControl,
   onRestoreControl,
   onChange,
@@ -122,6 +123,72 @@ export function ControlHeader({
     </div>
   ) : null;
 
+  const renderStageBadge = () => {
+    if (stage === 'profile') {
+      return (
+        <span
+          className="badge"
+          title="Profile Tailoring Mode: Edits are stored non-destructively as OSCAL alters and parameter overrides."
+          style={{
+            background: 'rgba(245, 158, 11, 0.15)',
+            color: '#fbbf24',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: '12px',
+            fontSize: '11px',
+            padding: '2px 8px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <span>⚙️ Profile Baseline</span>
+          <a
+            href="/knowledge-base"
+            target="_blank"
+            rel="noreferrer"
+            title="Open OSCAL Knowledge Base Guide"
+            style={{ color: '#fbbf24', textDecoration: 'none', marginLeft: '2px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            ℹ️
+          </a>
+        </span>
+      );
+    }
+    if (stage === 'catalog') {
+      return (
+        <span
+          className="badge"
+          title="Catalog Authoring Mode: Edits directly mutate the authoritative catalog definition."
+          style={{
+            background: 'rgba(59, 130, 246, 0.15)',
+            color: '#60a5fa',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            borderRadius: '12px',
+            fontSize: '11px',
+            padding: '2px 8px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <span>📖 Catalog Source</span>
+          <a
+            href="/knowledge-base"
+            target="_blank"
+            rel="noreferrer"
+            title="Open OSCAL Knowledge Base Guide"
+            style={{ color: '#60a5fa', textDecoration: 'none', marginLeft: '2px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            ℹ️
+          </a>
+        </span>
+      );
+    }
+    return null;
+  };
+
   if (isEditing) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
@@ -148,7 +215,7 @@ export function ControlHeader({
           />
         </div>
 
-        {/* Sub-row: ID and Class */}
+        {/* Sub-row: ID, Class, TypeBadge, and StageBadge */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 'bold' }}>ID:</span>
@@ -197,6 +264,8 @@ export function ControlHeader({
               {typeBadge}
             </span>
           )}
+
+          {renderStageBadge()}
         </div>
       </div>
     );
@@ -212,7 +281,7 @@ export function ControlHeader({
           {title || 'Untitled Control'}
         </h1>
       </div>
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
         <strong style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{id}</strong>
         {showClass && controlClass && (
           <span className="badge" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border-subtle)', borderRadius: '12px', fontSize: '11px', padding: '2px 8px' }}>
@@ -224,7 +293,9 @@ export function ControlHeader({
             {typeBadge}
           </span>
         )}
+        {renderStageBadge()}
       </div>
     </div>
   );
 }
+

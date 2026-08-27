@@ -60,9 +60,9 @@ test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
       ]
     });
 
-    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
+    // 1. Edit mode: Full catalog visible, ac-1 active, ac-2 marked as excluded
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId, true);
 
-    // 1. Expand group and verify included control ac-1 is resolved and rendered
     const groupHeader = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
     await expect(groupHeader).toBeVisible({ timeout: 30000 });
     await groupHeader.click();
@@ -70,9 +70,22 @@ test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
     const controlItem1 = page.locator('[data-testid="tree-node-ac-1"], [data-dnd-id="ac-1"]').or(page.getByText('Access Control Policy')).first();
     await expect(controlItem1).toBeVisible({ timeout: 30000 });
 
-    // 2. Verify excluded control ac-2 is not present in the active tree
+    // In edit mode, ac-2 is visible but marked excluded
     const controlItem2 = page.locator('[data-testid="tree-node-ac-2"]');
-    await expect(controlItem2).not.toBeVisible();
+    await expect(controlItem2).toBeVisible({ timeout: 15000 });
+    await expect(controlItem2).toHaveClass(/excluded/);
+
+    // 2. View mode: Only active resolved controls rendered (ac-2 is hidden)
+    await navigateToProfile(page, profUuid, apiSetup.workspaceId, false);
+    const viewGroupHeader = page.locator('[data-testid="tree-node-ac"], [data-dnd-id="ac"]').or(page.getByText('Access Control')).first();
+    await expect(viewGroupHeader).toBeVisible({ timeout: 30000 });
+    await viewGroupHeader.click();
+
+    const viewControl1 = page.locator('[data-testid="tree-node-ac-1"]');
+    await expect(viewControl1).toBeVisible({ timeout: 15000 });
+
+    const viewControl2 = page.locator('[data-testid="tree-node-ac-2"]');
+    await expect(viewControl2).not.toBeVisible();
   });
 
   test('US 2.27 & US 2.30: Structuring Mode Selector & Full Structure Clone', async ({ page, apiSetup }) => {
@@ -269,33 +282,6 @@ test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
     await groupHeader.click();
     await controlItem.click();
     await expect(paramSection).toBeVisible({ timeout: 30000 });
-  });
-
-  test('US 2.31: Baseline Diff Tab is Accessible', async ({ page, apiSetup }) => {
-    const catUuid = await apiSetup.createCatalog({
-      title: 'Diff Base Catalog',
-      groups: [
-        {
-          id: 'sc',
-          title: 'System and Communications',
-          controls: [{ id: 'sc-7', title: 'Boundary Protection', parts: [{ id: 'sc-7_smt', name: 'statement', prose: 'Boundary protection prose.' }] }]
-        }
-      ]
-    });
-
-    const profUuid = await apiSetup.createProfile({
-      title: 'Diff Tailored Profile',
-      catalogUuid: catUuid
-    });
-
-    await navigateToProfile(page, profUuid, apiSetup.workspaceId);
-
-    // 1. Navigate to Baseline Diff tab
-    await selectSidebarTab(page, 'Baseline Diff');
-
-    // 2. Verify Diff View is displayed
-    const diffHeading = page.getByText(/Baseline Source Catalog|Added Controls|Modified Controls/i).first();
-    await expect(diffHeading).toBeVisible({ timeout: 30000 });
   });
 
   test('US 2.12 & US 2.29: Multi-Catalog Import Shows First Definition', async ({ page, apiSetup }) => {

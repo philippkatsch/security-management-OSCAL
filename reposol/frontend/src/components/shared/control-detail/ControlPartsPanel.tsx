@@ -1,7 +1,19 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styles from './ControlDetail.module.css';
 import { PartsEditor } from '../PartsEditor';
 import { ReadOnlyParts } from '../ReadOnlyParts';
+
+const PROFILE_PART_NAMES = [
+  'statement',
+  'guidance',
+  'discussion',
+  'information',
+  'overview',
+  'item',
+  'objective',
+  'example',
+  'custom'
+];
 
 export interface ControlPartsPanelProps {
   mode?: any;
@@ -37,6 +49,21 @@ export function ControlPartsPanel({
   infoTooltip,
   controlId: _controlId
 }: ControlPartsPanelProps) {
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showAddMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowAddMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAddMenu]);
+
   return (
     <div className={styles['section-container']}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
@@ -70,24 +97,80 @@ export function ControlPartsPanel({
               />
             </div>
           )}
-          <button
-            type="button"
-            onClick={handleAddProfilePartAtEnd}
-            style={{
-              marginTop: '12px',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--color-accent-hover)',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: '4px 0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-          >
-            ➕ Add Statement
-          </button>
+          {handleAddProfilePartAtEnd && (
+            <div style={{ position: 'relative', marginTop: '12px' }} ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setShowAddMenu(prev => !prev)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-accent-hover)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  padding: '4px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                ➕ Add Part {showAddMenu ? '▲' : '▼'}
+              </button>
+              {showAddMenu && (
+                <div style={{
+                  position: 'absolute',
+                  left: 0,
+                  bottom: '100%',
+                  marginBottom: '4px',
+                  background: 'var(--color-surface, #1e1e2e)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  zIndex: 50,
+                  minWidth: '180px',
+                  padding: '4px 0',
+                  maxHeight: '260px',
+                  overflowY: 'auto'
+                }}>
+                  {PROFILE_PART_NAMES.map(name => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        handleAddProfilePartAtEnd(name);
+                        setShowAddMenu(false);
+                      }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--color-text)',
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        transition: 'background 0.12s'
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface-hover, rgba(255,255,255,0.08))')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {name === 'statement' ? '☵ Statement' :
+                       name === 'guidance' ? '📖 Guidance' :
+                       name === 'discussion' ? '💬 Discussion' :
+                       name === 'information' ? 'ℹ️ Information' :
+                       name === 'overview' ? '📋 Overview' :
+                       name === 'item' ? '• Item' :
+                       name === 'objective' ? '🎯 Objective' :
+                       name === 'example' ? '💡 Example' :
+                       name === 'custom' ? '⚙️ Custom' :
+                       `📄 ${name.charAt(0).toUpperCase() + name.slice(1)}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div>
@@ -98,8 +181,8 @@ export function ControlPartsPanel({
               <ReadOnlyParts
                 parts={parts}
                 renderProse={renderProseToReact}
-                modifiedPartIds={mode === 'profile' ? getModifiedPartIds() : undefined}
-                onResetPart={mode === 'profile' ? handleResetProse : undefined}
+                modifiedPartIds={mode === 'profile' && getModifiedPartIds ? getModifiedPartIds() : undefined}
+                onResetPart={mode === 'profile' && isEditing ? handleResetProse : undefined}
                 isEditing={isEditing}
               />
             </div>

@@ -12,10 +12,32 @@ import { GroupEditor } from '@components/shared/GroupEditor';
 import { ValidationFeedback } from '@components/shared/ValidationFeedback';
 import { JsonEditor } from '@components/shared/JsonEditor';
 import { ConfirmDialog } from '@components/shared/ConfirmDialog';
-import { ProfileBaselineDiffView } from './ProfileBaselineDiffView';
 import { ExportModal } from '@components/shared/ui/ExportModal';
 import { LoadingSpinner } from '@components/shared/ui/LoadingSpinner';
+import { ConflictBanner } from './ConflictBanner';
 import { toast } from 'react-hot-toast';
+import { DeleteCustomGroupDialog } from './DeleteCustomGroupDialog';
+import {
+  addCustomGroup,
+  renameCustomGroup,
+  deleteCustomGroup,
+  moveCustomGroup,
+  assignControlToCustomGroup,
+  assignMultipleControlsToCustomGroup,
+  removeControlFromCustomGroup,
+  removeMultipleControlsFromCustomGroup,
+  reorderControlsInCustomGroup,
+  importCustomGroupBranch,
+  applyAddCustomGroup,
+  applyRenameCustomGroup,
+  applyDeleteCustomGroup,
+  applyMoveCustomGroup,
+  applyAssignControlToCustomGroup,
+  applyAssignMultipleControlsToCustomGroup,
+  applyRemoveControlFromCustomGroup,
+  applyRemoveMultipleControlsFromCustomGroup,
+  applyReorderControlsInCustomGroup
+} from '@lib/document-actions/profile-actions';
 
 
 const getAncestors = (targetId, root) => {
@@ -113,8 +135,8 @@ export function ProfilePage({
   const [activeSidebarView, setActiveSidebarView] = useState<string | null>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const [jsonText, setJsonText] = useState('');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<any | null>(null);
   const { data: catalogsData } = useDocumentListQuery('catalogs');
   const { data: profilesData } = useDocumentListQuery('profiles');
   const availableCatalogs = useMemo(() => catalogsData || [], [catalogsData]);
@@ -143,8 +165,9 @@ export function ProfilePage({
     resolving,
     error: resolutionError,
     resolve,
-    clearCache,
-    catalogCache
+    previewResolve,
+    conflicts,
+    clearCache
   } = useProfileResolution();
 
   // Auto-expand parent groups and the selected item itself when selection changes
@@ -170,12 +193,12 @@ export function ProfilePage({
     }
   }, [selectedControlId, selectedGroupId, resolvedCatalog]);
 
-  // Run resolution engine on document change
+  // Run resolution engine on document change (live preview from unsaved state)
   useEffect(() => {
-    if (activeDoc && typeof resolve === 'function') {
-      resolve(activeDoc);
+    if (activeDoc && typeof previewResolve === 'function') {
+      previewResolve(activeDoc);
     }
-  }, [activeDoc, resolve]);
+  }, [activeDoc, previewResolve]);
 
 
 
@@ -208,24 +231,6 @@ export function ProfilePage({
     pushUndoRedoState(updated);
   };
 
-  const handleToggleEditMode = (mode: string) => {
-    if (mode === 'json') {
-      setJsonText(JSON.stringify(activeDoc, null, 2));
-    } else {
-      // Reverse sync: select control at cursor when switching to visual
-      const entityId = jsonEditorRef.current?.getCursorEntityId?.();
-      if (entityId) setSelectedControlId(entityId);
-      try {
-        const parsed = JSON.parse(jsonText);
-        handleDocChange(parsed);
-      } catch (err: any) {
-        toast.error(`JSON syntax error: Cannot switch to visual view. ${err?.message || 'Syntax Error'}`);
-        return;
-      }
-    }
-    setEditMode(mode);
-  };
-
   const handleBackWithNavigation = () => {
     handleBack(onClose);
   };
@@ -236,44 +241,118 @@ export function ProfilePage({
 
   // --- Toggle Control Selection Callback in tailoring (US 2.2, 2.14) ---
   const handleToggleControlSelection = (controlId: string, isChecked: boolean) => {
-    const profileData: any = activeDoc.profile || {};
+    if (!controlId) return;
+    const profileData: any = activeDoc?.profile || {};
     const imports = profileData.imports || [];
     if (imports.length === 0) return;
 
-    // Standard baseline selection changes the first catalog import's settings
-    const idx = 0;
-    const item = { ...imports[idx] };
+    // Deep clone the imports to prevent in-place mutation of React state
+    const updatedImports = JSON.parse(JSON.stringify(imports));
 
+    // Dynamically locate which import contains this control
+    const findImportIndex = (): number => {
+      const cid = controlId.toLowerCase();
+
+      // 1. Check if any import explicitly includes or excludes this control
+      for (let i = 0; i < updatedImports.length; i++) {
+        const imp = updatedImports[i];
+        const incList = (imp['include-controls'] || []).flatMap((ic: any) => ic['with-ids'] || []);
+        const excList = (imp['exclude-controls'] || []).flatMap((ec: any) => typeof ec === 'string' ? [ec] : (ec?.['with-ids'] || []));
+        if (incList.some((id: string) => id.toLowerCase() === cid) || excList.some((id: string) => id.toLowerCase() === cid)) {
+          return i;
+        }
+      }
+
+      // 2. Prefix / Family heuristic: Check if other controls sharing the same prefix exist in an import
+      const prefix = cid.split(/[-_.]/)[0]; // e.g. 'gv' from 'gv.oc-04' or 'ac' from 'ac-1'
+      if (prefix) {
+        for (let i = 0; i < updatedImports.length; i++) {
+          const imp = updatedImports[i];
+          const incList = (imp['include-controls'] || []).flatMap((ic: any) => ic['with-ids'] || []);
+          const excList = (imp['exclude-controls'] || []).flatMap((ec: any) => typeof ec === 'string' ? [ec] : (ec?.['with-ids'] || []));
+          if (incList.some((id: string) => id.toLowerCase().startsWith(prefix)) ||
+              excList.some((id: string) => id.toLowerCase().startsWith(prefix))) {
+            return i;
+          }
+        }
+      }
+
+      // 3. If including a control, check if any import is currently configured with include-controls
+      if (isChecked) {
+        for (let i = 0; i < updatedImports.length; i++) {
+          if (Array.isArray(updatedImports[i]['include-controls'])) {
+            return i;
+          }
+        }
+      }
+
+      return 0;
+    };
+
+    const idx = findImportIndex();
+    const item = updatedImports[idx];
     const isIncludeAll = item['include-all'] !== undefined;
 
     if (isIncludeAll) {
-      // Toggle exclusion rule (exclude-controls)
-      let excludes = item['exclude-controls']?.[0]?.['with-ids'] || [];
-      if (isChecked) {
-        // Remove from excludes
-        excludes = excludes.filter(id => id !== controlId);
-      } else {
-        // Add to excludes
-        if (!excludes.includes(controlId)) {
-          excludes.push(controlId);
+      // Collect all current excluded IDs across all exclude-controls entries
+      let existingExcludes: string[] = [];
+      if (Array.isArray(item['exclude-controls'])) {
+        for (const exc of item['exclude-controls']) {
+          if (typeof exc === 'string') {
+            existingExcludes.push(exc);
+          } else if (exc && Array.isArray(exc['with-ids'])) {
+            existingExcludes.push(...exc['with-ids']);
+          }
         }
       }
-      item['exclude-controls'] = excludes.length > 0 ? [{ 'with-ids': excludes }] : undefined;
-      if (!item['exclude-controls']) delete item['exclude-controls'];
+
+      if (isChecked) {
+        // Include in profile: remove from excludes (case-insensitive)
+        existingExcludes = existingExcludes.filter(
+          id => id.toLowerCase() !== controlId.toLowerCase()
+        );
+      } else {
+        // Exclude from profile: add to excludes (case-insensitive check)
+        const alreadyExcluded = existingExcludes.some(
+          id => id.toLowerCase() === controlId.toLowerCase()
+        );
+        if (!alreadyExcluded) {
+          existingExcludes.push(controlId);
+        }
+      }
+
+      if (existingExcludes.length > 0) {
+        item['exclude-controls'] = [{ 'with-ids': existingExcludes }];
+      } else {
+        delete item['exclude-controls'];
+      }
     } else {
-      // Toggle inclusion rule (include-controls)
-      let includes = item['include-controls']?.[0]?.['with-ids'] || [];
+      // Include specific controls mode
+      let existingIncludes: string[] = [];
+      if (Array.isArray(item['include-controls'])) {
+        for (const inc of item['include-controls']) {
+          if (inc && Array.isArray(inc['with-ids'])) {
+            existingIncludes.push(...inc['with-ids']);
+          }
+        }
+      }
+
       if (isChecked) {
-        if (!includes.includes(controlId)) {
-          includes.push(controlId);
+        const alreadyIncluded = existingIncludes.some(
+          id => id.toLowerCase() === controlId.toLowerCase()
+        );
+        if (!alreadyIncluded) {
+          existingIncludes.push(controlId);
         }
       } else {
-        includes = includes.filter(id => id !== controlId);
+        existingIncludes = existingIncludes.filter(
+          id => id.toLowerCase() !== controlId.toLowerCase()
+        );
       }
-      item['include-controls'] = [{ 'with-ids': includes }];
+
+      item['include-controls'] = [{ 'with-ids': existingIncludes }];
     }
 
-    const updatedImports = imports.map((imp, i) => i === idx ? item : imp);
     handleDocChange({
       ...activeDoc,
       profile: { ...profileData, imports: updatedImports }
@@ -378,45 +457,58 @@ export function ProfilePage({
         const found = traverse(g);
         if (found) return found;
       }
+      // Check all_controls and all_groups for unassigned controls
+      for (let c of resolvedCatalog.all_controls || []) {
+        const found = traverse(c);
+        if (found) return found;
+      }
+      for (let g of resolvedCatalog.all_groups || []) {
+        const found = traverse(g);
+        if (found) return found;
+      }
     }
     // Fallback to imported catalogs cache so component never unmounts during re-resolution
     return findOriginalControl(selectedControlId);
   };
 
   // Find the original (unmodified) control from imported catalogs for diff/reset
-  const findOriginalControl = (controlId) => {
-    if (!controlId || !catalogCache) return null;
-    const traverse = (item) => {
-      if (item.id === controlId) return item;
+  const findOriginalControl = (controlId: string) => {
+    if (!resolvedCatalog || !controlId) return null;
+    let targetId = controlId.toLowerCase();
+
+    // If controlId is an overridden ID, find the original catalog control ID from alters
+    const alterWithIdOverride = profileData?.modify?.alters?.find((a: any) =>
+      a.adds?.some((add: any) =>
+        add.props?.some((p: any) => p.name === 'id-override' && p.value?.toLowerCase() === targetId)
+      )
+    );
+    if (alterWithIdOverride && alterWithIdOverride['control-id']) {
+      targetId = alterWithIdOverride['control-id'].toLowerCase();
+    }
+    const traverse = (item: any): any => {
+      if (!item) return null;
+      if (item.id && item.id.toLowerCase() === targetId) return item;
       if (item.controls) {
-        for (let c of item.controls) {
+        for (const c of item.controls) {
           const found = traverse(c);
           if (found) return found;
         }
       }
       if (item.groups) {
-        for (let g of item.groups) {
+        for (const g of item.groups) {
           const found = traverse(g);
           if (found) return found;
         }
       }
       return null;
     };
-    // Search through all cached catalogs
-    if (catalogCache && typeof (catalogCache as any)[Symbol.iterator] === 'function') {
-      for (const [, entry] of catalogCache) {
-        const catData = entry?.data || entry;
-        const catalog = catData?.catalog || catData;
-        if (!catalog) continue;
-        for (let c of catalog.controls || []) {
-          const found = traverse(c);
-          if (found) return found;
-        }
-        for (let g of catalog.groups || []) {
-          const found = traverse(g);
-          if (found) return found;
-        }
-      }
+    for (const c of resolvedCatalog.all_controls || []) {
+      const found = traverse(c);
+      if (found) return found;
+    }
+    for (const g of resolvedCatalog.all_groups || []) {
+      const found = traverse(g);
+      if (found) return found;
     }
     return null;
   };
@@ -474,13 +566,203 @@ export function ProfilePage({
     });
   };
 
+  const dispatchAction = useCallback((action: any) => {
+    if (!activeDoc?.profile) return;
+
+    if (typeof action?.apply === 'function') {
+      const clonedDoc = JSON.parse(JSON.stringify(activeDoc));
+      action.apply(clonedDoc);
+      handleDocChange(clonedDoc);
+      return;
+    }
+
+    const cloned = JSON.parse(JSON.stringify(activeDoc.profile));
+    const draft = { profile: cloned };
+    let changed = false;
+
+    switch (action.type) {
+      case 'profile/addCustomGroup':
+      case 'ADD_CUSTOM_GROUP':
+        changed = Boolean(applyAddCustomGroup(draft, action.payload));
+        break;
+      case 'profile/renameCustomGroup':
+      case 'RENAME_CUSTOM_GROUP':
+        changed = Boolean(applyRenameCustomGroup(draft, action.payload));
+        break;
+      case 'profile/deleteCustomGroup':
+      case 'DELETE_CUSTOM_GROUP':
+        changed = Boolean(applyDeleteCustomGroup(draft, action.payload));
+        break;
+      case 'profile/moveCustomGroup':
+      case 'MOVE_CUSTOM_GROUP':
+        changed = Boolean(applyMoveCustomGroup(draft, action.payload));
+        break;
+      case 'profile/assignControlToCustomGroup':
+      case 'ASSIGN_CONTROL_TO_CUSTOM_GROUP':
+        changed = Boolean(applyAssignControlToCustomGroup(draft, action.payload));
+        break;
+      case 'profile/assignMultipleControlsToCustomGroup':
+      case 'ASSIGN_MULTIPLE_CONTROLS_TO_CUSTOM_GROUP':
+        changed = Boolean(applyAssignMultipleControlsToCustomGroup(draft, action.payload));
+        break;
+      case 'profile/removeControlFromCustomGroup':
+      case 'REMOVE_CONTROL_FROM_CUSTOM_GROUP':
+        changed = Boolean(applyRemoveControlFromCustomGroup(draft, action.payload));
+        break;
+      case 'profile/removeMultipleControlsFromCustomGroup':
+      case 'REMOVE_MULTIPLE_CONTROLS_FROM_CUSTOM_GROUP':
+        changed = Boolean(applyRemoveMultipleControlsFromCustomGroup(draft, action.payload));
+        break;
+      case 'profile/reorderControlsInCustomGroup':
+      case 'REORDER_CONTROLS_IN_CUSTOM_GROUP':
+        changed = Boolean(applyReorderControlsInCustomGroup(draft, action.payload));
+        break;
+      default:
+        break;
+    }
+    if (changed) {
+      handleDocChange({ ...activeDoc, profile: draft.profile });
+    }
+  }, [activeDoc, handleDocChange]);
+
+  const handleAddCustomGroup = useCallback((parentGroupId?: string | null) => {
+    const title = parentGroupId ? 'New Sub-Group' : 'New Custom Group';
+    dispatchAction(addCustomGroup({
+      title,
+      parentGroupId: parentGroupId || null
+    }));
+  }, [dispatchAction]);
+
+  const handleRenameCustomGroup = useCallback((groupId: string, newTitle: string, newId?: string) => {
+    dispatchAction(renameCustomGroup({
+      groupId,
+      title: newTitle,
+      newId
+    }));
+  }, [dispatchAction]);
+
+  const handleRequestDeleteGroup = useCallback((groupId?: string) => {
+    const gid = groupId || selectedGroupId;
+    if (!gid) return;
+    const grp = findGroupById(gid, resolvedCatalog?.groups || []) ||
+      findGroupById(gid, (activeDoc?.profile as any)?.merge?.custom?.groups || []);
+    if (grp) {
+      setGroupToDelete(grp);
+    } else {
+      setGroupToDelete({ id: gid, title: gid });
+    }
+  }, [selectedGroupId, resolvedCatalog, activeDoc]);
+
+  const handleConfirmDeleteGroup = useCallback((options: { deleteChildren: boolean; reassignToGroupId: string | null }) => {
+    if (!groupToDelete) return;
+    dispatchAction(deleteCustomGroup({
+      groupId: groupToDelete.id,
+      deleteChildren: options.deleteChildren,
+      reassignToGroupId: options.reassignToGroupId
+    }));
+    if (selectedGroupId === groupToDelete.id) {
+      setSelectedGroupId(null);
+      setActiveSidebarView('overview');
+    }
+    setGroupToDelete(null);
+  }, [groupToDelete, dispatchAction, selectedGroupId]);
+
+  const handleMoveNode = useCallback((nodeId: string, targetParentId: string | null, targetIndex?: number) => {
+    if (nodeId === '__unassigned__') return;
+    if (nodeId.startsWith('{') && nodeId.includes('"catalog-group-structure"')) {
+      try {
+        const parsed = JSON.parse(nodeId);
+        if (parsed.type === 'catalog-group-structure' && parsed.group) {
+          dispatchAction(importCustomGroupBranch({
+            group: parsed.group,
+            targetParentId: (targetParentId === '__unassigned__' ? null : targetParentId),
+            targetIndex
+          }));
+          toast.success(`Imported group "${parsed.group.title || parsed.group.id}" into Custom Groups.`);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to import group branch', err);
+      }
+    }
+    if (nodeId.startsWith('{') && nodeId.includes('"batch-controls"')) {
+      try {
+        const parsed = JSON.parse(nodeId);
+        if (parsed.type === 'batch-controls' && Array.isArray(parsed.controlIds)) {
+          if (targetParentId === '__unassigned__') {
+            dispatchAction(removeMultipleControlsFromCustomGroup({ controlIds: parsed.controlIds }));
+          } else {
+            dispatchAction(assignMultipleControlsToCustomGroup({ controlIds: parsed.controlIds, targetGroupId: targetParentId }));
+          }
+          return;
+        }
+      } catch {
+        // fallback
+      }
+    }
+    const isGroup = Boolean(findGroupById(nodeId, resolvedCatalog?.groups || []) ||
+      findGroupById(nodeId, (activeDoc?.profile as any)?.merge?.custom?.groups || []));
+    if (isGroup) {
+      if (targetParentId === '__unassigned__') return;
+      dispatchAction(moveCustomGroup({
+        sourceGroupId: nodeId,
+        targetGroupId: targetParentId,
+        targetIndex
+      }));
+    } else {
+      if (targetParentId === '__unassigned__') {
+        dispatchAction(removeControlFromCustomGroup({
+          controlId: nodeId
+        }));
+      } else {
+        dispatchAction(assignControlToCustomGroup({
+          controlId: nodeId,
+          targetGroupId: targetParentId,
+          targetIndex
+        }));
+      }
+    }
+  }, [dispatchAction, resolvedCatalog, activeDoc]);
+
+  const handleUnassignControl = useCallback((controlId: string, groupId: string) => {
+    dispatchAction(removeControlFromCustomGroup({
+      controlId,
+      sourceGroupId: groupId
+    }));
+  }, [dispatchAction]);
+
+  const handleOrderChange = useCallback((order: 'keep' | 'ascending' | 'descending') => {
+    if (!selectedGroupId) return;
+    dispatchAction(reorderControlsInCustomGroup({
+      groupId: selectedGroupId,
+      order
+    }));
+  }, [selectedGroupId, dispatchAction]);
+
+  const availableTargetGroups = useMemo(() => {
+    const groups: Array<{ id: string; title: string; depth?: number }> = [];
+    const collect = (list: any[], depth = 0) => {
+      for (const g of list || []) {
+        if (g.id) {
+          groups.push({ id: g.id, title: g.title || g.id, depth });
+        }
+        if (g.groups) collect(g.groups, depth + 1);
+      }
+    };
+    const customGroups = (activeDoc?.profile as any)?.merge?.custom?.groups || resolvedCatalog?.groups || [];
+    collect(customGroups);
+    return groups;
+  }, [activeDoc?.profile, resolvedCatalog?.groups]);
+
   if (loading && !activeDoc) return <LoadingSpinner variant="skeleton" message="Loading Profile..." />;
   if (error) return <div style={{ padding: '20px', color: 'var(--color-danger)' }}>Error: {error}</div>;
   if (!doc) return <div style={{ padding: '20px' }}>No document loaded.</div>;
 
   const profileData: any = activeDoc.profile || {};
   const selectedControl = getSelectedControlDetails();
-  const selectedGroup = selectedGroupId ? findGroupById(selectedGroupId, resolvedCatalog?.groups || []) : null;
+  const selectedGroup = selectedGroupId 
+    ? (findGroupById(selectedGroupId, resolvedCatalog?.groups || []) || findGroupById(selectedGroupId, profileData?.merge?.custom?.groups || [])) 
+    : null;
 
   const selectedControlIds = getSelectedControlIds();
   const { summary: usedTagsSummary, allKeys: scannedKeys } = getUsedTagsSummary();
@@ -493,7 +775,7 @@ export function ProfilePage({
     <ProfileSidebar
       resolvedCatalog={resolvedCatalog || {}}
       profile={profileData}
-      catalogCache={catalogCache}
+      conflicts={conflicts}
       selectedControlId={selectedControlId}
       selectedGroupId={selectedGroupId}
       activeSidebarView={activeSidebarView}
@@ -529,14 +811,16 @@ export function ProfilePage({
         setSelectedGroupId(null);
         setActiveSidebarView('imports');
       }}
-      onSelectDiff={() => {
-        setSelectedControlId(null);
-        setSelectedGroupId(null);
-        setActiveSidebarView('diff');
-      }}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
       isEditing={isEditing}
+      onExcludeFromBaseline={(controlId: string) => handleToggleControlSelection(controlId, false)}
+      onIncludeInBaseline={(controlId: string) => handleToggleControlSelection(controlId, true)}
+      dispatch={dispatchAction}
+      onAddCustomGroup={handleAddCustomGroup}
+      onRenameCustomGroup={handleRenameCustomGroup}
+      onDeleteCustomGroup={handleRequestDeleteGroup}
+      onMoveNode={handleMoveNode}
       expandedGroups={expandedGroups}
       onToggleGroup={(id, bulkState) => {
         if (id === null && bulkState !== undefined) {
@@ -610,33 +894,127 @@ export function ProfilePage({
         </div>
       )}
 
+      {/* Conflict banner for orphaned modifications (US 2.32) */}
+      {conflicts?.has_conflicts && (
+        <div style={{ padding: '0 20px' }}>
+          <ConflictBanner
+            conflicts={conflicts}
+            isEditing={isEditing}
+            onRemoveOrphans={() => {
+              // Remove orphaned alters, params, and custom group assignments from the profile document in-place
+              const profileData: any = activeDoc?.profile || {};
+              const updatedProfile = { ...profileData };
+
+              const orphanedControlIds = new Set(
+                (conflicts.orphaned_alters || []).map(a => (a['control-id'] || '').toLowerCase())
+              );
+              const orphanedParamIds = new Set(
+                (conflicts.orphaned_params || []).map(p => (p['param-id'] || '').toLowerCase())
+              );
+              const orphanedCustomControlIds = new Set(
+                (conflicts.orphaned_custom_refs || []).map(c => (c['control-id'] || '').toLowerCase())
+              );
+
+              // 1. Clean modify directives
+              if (profileData.modify) {
+                const updatedModify = { ...profileData.modify };
+
+                // Remove orphaned alters
+                if (Array.isArray(updatedModify.alters) && orphanedControlIds.size > 0) {
+                  updatedModify.alters = updatedModify.alters.filter(
+                    (a: any) => !orphanedControlIds.has((a['control-id'] || '').toLowerCase())
+                  );
+                  if (updatedModify.alters.length === 0) delete updatedModify.alters;
+                }
+
+                // Remove orphaned set-parameters
+                if (Array.isArray(updatedModify['set-parameters']) && orphanedParamIds.size > 0) {
+                  updatedModify['set-parameters'] = updatedModify['set-parameters'].filter(
+                    (p: any) => !orphanedParamIds.has((p['param-id'] || '').toLowerCase())
+                  );
+                  if (updatedModify['set-parameters'].length === 0) delete updatedModify['set-parameters'];
+                }
+
+                if (Object.keys(updatedModify).length > 0) {
+                  updatedProfile.modify = updatedModify;
+                } else {
+                  delete updatedProfile.modify;
+                }
+              }
+
+              // 2. Clean custom group assignments in merge.custom
+              if (profileData.merge?.custom && orphanedCustomControlIds.size > 0) {
+                const updatedMerge = JSON.parse(JSON.stringify(profileData.merge));
+
+                const cleanInsertControls = (insertControlsList: any[]) => {
+                  if (!Array.isArray(insertControlsList)) return;
+                  for (const ic of insertControlsList) {
+                    if (Array.isArray(ic['include-controls'])) {
+                      for (const inc of ic['include-controls']) {
+                        if (Array.isArray(inc['with-ids'])) {
+                          inc['with-ids'] = inc['with-ids'].filter(
+                            (id: string) => !orphanedCustomControlIds.has((id || '').toLowerCase())
+                          );
+                        }
+                      }
+                    }
+                  }
+                };
+
+                const cleanGroup = (group: any) => {
+                  if (!group) return;
+                  if (Array.isArray(group['insert-controls'])) {
+                    cleanInsertControls(group['insert-controls']);
+                  }
+                  if (Array.isArray(group.groups)) {
+                    for (const subG of group.groups) {
+                      cleanGroup(subG);
+                    }
+                  }
+                };
+
+                if (Array.isArray(updatedMerge.custom.groups)) {
+                  for (const g of updatedMerge.custom.groups) {
+                    cleanGroup(g);
+                  }
+                }
+                if (Array.isArray(updatedMerge.custom['insert-controls'])) {
+                  cleanInsertControls(updatedMerge.custom['insert-controls']);
+                }
+
+                updatedProfile.merge = updatedMerge;
+              }
+
+              handleDocChange({
+                ...activeDoc,
+                profile: updatedProfile
+              });
+            }}
+          />
+        </div>
+      )}
+
       {/* Main workspace content */}
       {editMode === 'json' ? (
         <div style={{ flex: 1, padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <JsonEditor
             ref={jsonEditorRef}
-            value={jsonText}
-            onChange={setJsonText}
-            highlightId={selectedControlId}
-            onValidate={async (text) => {
-              try {
-                const parsed = JSON.parse(text);
-                await validate(parsed);
-              } catch (err: any) {
-                toast.error(`JSON syntax error: ${err.message}`);
-              }
-            }}
+            value={activeDoc}
+            onChange={handleDocChange}
+            onValidate={validate}
+            readOnly={!isEditing}
+            highlightId={selectedControlId || selectedGroupId}
           />
         </div>
       ) : (
-        <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
+        <div style={{ flex: 1, height: '100%', overflow: 'hidden', padding: '0 20px' }}>
           {selectedControlId && selectedControl ? (
             <UnifiedControlEditor
               control={selectedControl}
               stage="profile"
               isEditing={isEditing}
               allUsedPropKeys={allUsedPropKeys}
-              originalControl={findOriginalControl(selectedControlId)}
+              originalControl={findOriginalControl(selectedControlId) ?? undefined}
               profile={profileData}
               catalog={resolvedCatalog}
               onProfileChange={(updatedProfile: any) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
@@ -657,12 +1035,10 @@ export function ProfilePage({
               mode="profile"
               profile={profileData}
               onProfileChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
-            />
-          ) : activeSidebarView === 'diff' ? (
-            <ProfileBaselineDiffView
-              profileId={profileId}
-              profileDoc={profileData}
-              availableCatalogs={availableCatalogs}
+              onDeleteGroup={handleRequestDeleteGroup}
+              onAddSubgroup={handleAddCustomGroup}
+              onUnassignControl={handleUnassignControl}
+              onOrderChange={handleOrderChange}
             />
           ) : (
             <DocumentOverview
@@ -675,7 +1051,7 @@ export function ProfilePage({
               resolvedCatalog={resolvedCatalog}
               availableCatalogs={availableCatalogs}
               availableProfiles={availableProfiles}
-              catalogCache={catalogCache}
+              conflicts={conflicts}
               SourcesPanel={SourcesPanel}
               activeView={activeSidebarView}
               onSelectGroup={handleSelectGroup}
@@ -694,6 +1070,14 @@ export function ProfilePage({
         docTitle={docTitle || activeDoc?.['profile']?.metadata?.title || 'Profile'}
         stage="profiles"
         onClose={() => setShowExportModal(false)}
+      />
+
+      <DeleteCustomGroupDialog
+        isOpen={Boolean(groupToDelete)}
+        group={groupToDelete}
+        availableTargetGroups={availableTargetGroups}
+        onConfirm={handleConfirmDeleteGroup}
+        onCancel={() => setGroupToDelete(null)}
       />
     </DocumentPageLayout>
   );

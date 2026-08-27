@@ -26,7 +26,7 @@ Every feature from the Survey phase is enumerated below with its assigned milest
 | 13| Custom Local Control Creation | Add Top-level Group prompt, adding custom control groups in profile merge | M2 | step2_profile_tailoring.md |
 | 14| Parameter Choice Dropdowns | Single/multi parameter choice select, inherit catalog default, custom freitext, reset | M2 | step2_profile_tailoring.md |
 | 15| Drag-to-Trash Target (🗑️) | Drop target [data-dnd-id="trash"] with red hover glow, group/control delete | M2 | step2_profile_tailoring.md |
-| 16| Baseline Diff Viewer (🔍) | Baseline statistics box, visual diff badges (Added, Modified, Removed, Overridden) | M2 | step2_profile_tailoring.md |
+| 16| Baseline Statistics & Badges | Baseline statistics box, visual alter badges (Added, Modified, Removed, Overridden) | M2 | step2_profile_tailoring.md |
 | 17| Sub-Item Addition (➕ Sub-item) | Adding sub-parts under statement (position: ending) and top-level statements | M2 | step2_profile_tailoring.md |
 | 18| Wildcard Pattern Matching | Profile match pattern wildcards for control selection (e.g., ac-*, sc-?) | M2 | step2_profile_tailoring.md |
 | 19| Merge Combine Directives | Multi-catalog conflict resolution (merge.combine) and resolution engine execution | M2 | step2_profile_tailoring.md |

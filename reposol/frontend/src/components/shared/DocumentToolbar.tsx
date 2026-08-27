@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styles from './SharedComponents.module.css';
 import VersionDropdown from './version/VersionDropdown';
+import { StageHelpModal } from './ui/StageHelpModal';
 
 /**
  * Badge color mapping for all OSCAL document types.
@@ -132,6 +133,9 @@ export function DocumentToolbar({
   // ── Normalize: version display ──
   const activeVersion = activeVersionStr || (versions as any[]).find(v => v.is_active)?.version || '1.0.0';
 
+  // ── Guide Modal State ──
+  const [showGuideModal, setShowGuideModal] = useState(false);
+
   return (
     <div
       className="document-toolbar"
@@ -261,6 +265,18 @@ export function DocumentToolbar({
           </span>
         )}
 
+        {/* Guide Button */}
+        <button
+          type="button"
+          className={styles['btn-secondary']}
+          onClick={() => setShowGuideModal(true)}
+          data-testid="document-guide-btn"
+          title={`View ${badgeLabel} guide & documentation`}
+          style={{ padding: '6px 12px', fontSize: '13px' }}
+        >
+          💡 Guide
+        </button>
+
         {/* Export Button */}
         {onExport && (
           <button
@@ -334,6 +350,14 @@ export function DocumentToolbar({
           </div>
         )}
       </div>
+
+      {showGuideModal && (
+        <StageHelpModal
+          isOpen={showGuideModal}
+          stage={resolvedMode}
+          onClose={() => setShowGuideModal(false)}
+        />
+      )}
     </div>
   );
 }

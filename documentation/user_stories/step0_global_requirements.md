@@ -46,7 +46,7 @@ Each step of the security lifecycle is described in detail in a separate file:
 1. **[Step 1: Catalog Builder (Catalog Editor)](step1_catalog_builder.md)**
    - Creation of basic security catalogs with groups, controls, sub-controls, multi-level parameters, parameter constraint live test validation, multi-format import (JSON, XML, YAML), schema-compliant export, control withdrawal/deprecation workflow, functional `label`/`sort-id` display, and part-level metadata editing.
 2. **[Step 2: Profile Tailoring (Profile Editor)](step2_profile_tailoring.md)**
-   - Merging multiple catalogs/profiles, modifying specifications (`alters`, `set-parameters`), custom restructuring, multi-catalog conflict resolution (`merge.combine`), cascading profile imports, and visual baseline diff viewer.
+   - Merging multiple catalogs/profiles, modifying specifications (`alters`, `set-parameters`), custom restructuring, multi-catalog conflict resolution (`merge.combine`), and cascading profile imports.
 3. **[Step 3: Component Definition (Component Inventory)](step3_component_inventory.md)**
    - Structured capture of IT assets (software, services, policies) including properties such as Common Criteria EAL certifications and system-wide product capabilities.
 4. **[Step 4: SSP Builder (System Security Plan)](step4_ssp_builder.md)**
@@ -361,4 +361,38 @@ Each step of the security lifecycle is described in detail in a separate file:
     - [ ] **Clean Layer Separation:** Storage operations are encapsulated in `repositories/`, business transformations in `services/`, and API handlers in `routes.py`.
     - [ ] **No Function-Level Lazy Imports:** Circular module imports are resolved through clean layer direction (`routes -> services -> repositories`), eliminating lazy import functions.
     - [ ] **Pytest Verification:** All Pytest backend tests in `reposol/backend/tests/` pass 100%.
+
+### US 0.32: Interactive Master-Detail OSCAL Knowledge Base Portal
+> **As a** compliance officer, security architect, or auditor (Alice / Bob)  
+> **I want to** access a dedicated in-app Master-Detail Knowledge Base (`/knowledge-base` and `/guide`) with category-grouped navigation, deep-dive documentation across all 8 OSCAL stages (Catalogs, Profiles, Component Definitions, SSPs, Assessment Plans, Assessment Results, POA&Ms, Control Mappings), operational phase breakdowns, NIST OSCAL JSON directives, Reposol feature guides, real-time search/filtering, and URL parameter deep-linking,  
+> **so that** I understand the complete OSCAL multi-stage architecture, know what happens under the hood when authoring, tailoring, implementing, or auditing controls, and navigate seamlessly across all compliance lifecycle steps.
+*   **Acceptance Criteria:**
+    - [ ] **Dedicated Portal Subpage:** Accessible at `/knowledge-base` (and `/guide`) and linked directly in the primary navigation sidebar under a "Help & Resources" section with icon 📚.
+    - [ ] **Master Navigation Rail:** Left stage navigation rail with category groupings (Global Reference, Design & Baseline, Implementation, Assessment & Audit, Cross-Framework), stage step numbers (Steps 1–8), stage icons, and active state highlights.
+    - [ ] **URL State Synchronization & Deep-Linking:** Browser query parameters (`?view=overview|stage|matrix|flow`, `?stage=catalogs|profiles|...`, `?q=search-term`) synchronize bi-directionally with UI state, supporting browser back/forward history and direct link sharing.
+    - [ ] **Global Mental Model & Lifecycle Overview:** Visual side-by-side comparison contrasting mutation models (Direct Data Mutation vs. Non-Destructive Overlay vs. Architecture Inventory vs. System Implementation vs. Audit Planning vs. Findings Ledger vs. Remediation vs. Crosswalk) along with the full 8-step lifecycle flow roadmap.
+    - [ ] **Cross-Stage Action Comparison Matrix:** Searchable matrix detailing tree and editor actions across stages:
+        - Control removal: Catalog `delete` vs. Profile `exclude-controls`
+        - Control withdrawal: Catalog `status: withdrawn` vs. Profile import exclusion
+        - Control addition: Catalog `push` vs. Profile `include-controls`
+        - Text edit: Catalog `parts.prose` mutation vs. Profile `modify.alters` overlay vs. SSP implementation
+        - Parameter assignment: Catalog `params.values` vs. Profile `modify.set-parameters` vs. SSP parameter overrides
+        - Group structuring: Catalog `groups[]` vs. Profile `merge` (`as-is` / `flat` / `custom`)
+    - [ ] **Profile 3-Phase Resolution Deep-Dive:** Dedicated interactive flow detailing `1. Import` (inclusions/exclusions) ➔ `2. Merge` (structuring modes) ➔ `3. Modify` (`modify.alters` & `modify.set-parameters`).
+    - [ ] **8 Dedicated Stage Deep-Dive Views:** Complete, specialized guides for all 8 OSCAL stages:
+        - **Step 1: Catalogs** (`catalog` - Direct authoring, statements, parameters, withdrawal workflow).
+        - **Step 2: Profiles** (`profile` - Non-destructive tailoring, 3-phase resolution, alters/params).
+        - **Step 3: Component Definitions** (`component-definition` - 11 OSCAL component types, capabilities, protocols).
+        - **Step 4: SSPs** (`system-security-plan` - System boundary, FIPS-199 impact, component allocation, parameter cascades).
+        - **Step 5: Assessment Plans** (`assessment-plan` - Audit scope, reviewed controls, subjects, assets, task schedules).
+        - **Step 6: Assessment Results** (`assessment-results` - Findings ledger, satisfied/not-satisfied states, CVSS risk scoring).
+        - **Step 7: POA&Ms** (`plan-of-action-and-milestones` - Remediation lifecycle, AR finding import, milestones, deviation tracking).
+        - **Step 8: Control Mappings** (`mapping-collection` - Crosswalks, 6 relationship tokens, confidence scoring, Sankey & Matrix diagrams).
+    - [ ] **Sequential Operational Phases per Stage:** Detailed multi-phase breakdown for each of the 8 stages explaining sequential authoring, resolution, and audit execution steps.
+    - [ ] **NIST OSCAL 1.1.0/1.2.2 Directives & JSON Schemas:** Validated code snippets and JSON directive examples representing official NIST OSCAL syntax.
+    - [ ] **Reposol UI Capabilities & Feature Guides:** Comprehensive guide to Reposol web capabilities (tree controls, dual-mode visual/JSON sync, context menus, diff mode, export formats).
+    - [ ] **Real-Time Cross-Portal Search:** Live search input instantly filtering stage guides, operational phase cards, JSON directives, and action items.
+    - [ ] **Non-Destructive Tailoring Semantics & Badging:** Mode indicators (`📖 Catalog Source (Direct Mutation)`, `⚙️ Profile Baseline (Non-Destructive)`), visual alteration badges (`[Altered]`, `[Parameter Override]`, `[Withdrawn]`, `[Excluded]`), sleeping alters preservation upon control re-inclusion, and cascading parameter resolution.
+
+
 

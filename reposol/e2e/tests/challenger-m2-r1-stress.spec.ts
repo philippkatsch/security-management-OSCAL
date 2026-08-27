@@ -53,7 +53,7 @@ test.describe('Challenger M2 R1 — Empirical Stress Harness (Feature 15 & Featu
     }
   });
 
-  test('F16 Stress: Baseline Diff Statistics & Badges (Added, Modified, Removed, Overridden)', async ({ page, apiSetup }) => {
+  test('F16 Stress: Baseline Statistics & Alter Badges (Added, Modified, Removed, Overridden)', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
     const catUuid = await apiSetup.createCatalog({
       title: 'F16 Baseline Stress Catalog',

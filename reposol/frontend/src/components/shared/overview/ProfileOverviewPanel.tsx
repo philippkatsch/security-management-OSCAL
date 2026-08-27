@@ -79,9 +79,9 @@ export function ProfileOverviewPanel({ document, resolvedCatalog, stats = { tota
         </div>
         <div className={styles['metric-card']} style={metricCardStyle}>
           <span className="metric-value" style={{ fontSize: '32px', fontWeight: '800', color: 'var(--color-text-muted)' }}>
-            {stats.withdrawn}
+            {resolvedCatalog?.excluded_control_ids?.length || 0}
           </span>
-          <span className="metric-label" style={metricLabelStyle}>Withdrawn</span>
+          <span className="metric-label" style={metricLabelStyle}>Excluded</span>
         </div>
         <div className={styles['metric-card']} style={metricCardStyle}>
           <span className="metric-value" style={{ fontSize: '32px', fontWeight: '800', color: 'var(--color-text)' }}>

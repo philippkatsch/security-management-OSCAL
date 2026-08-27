@@ -67,7 +67,7 @@ export function DocumentOverview({
   resolvedCatalog = null,
   availableCatalogs = [],
   availableProfiles = [],
-  catalogCache = null,
+  conflicts = null,
   SourcesPanel = null,
   onNavigateToProperties
 }: any) {
@@ -254,7 +254,7 @@ export function DocumentOverview({
         {currentTab === 'overview' && mode === 'catalog' && <CatalogOverviewPanel document={document} stats={stats} onSelectGroup={onSelectGroup} />}
         {currentTab === 'overview' && mode === 'profile' && <ProfileOverviewPanel document={document} resolvedCatalog={resolvedCatalog} stats={stats} onSelectGroup={onSelectGroup} />}
         {currentTab === 'imports' && mode === 'profile' && (
-          <ActiveSourcesPanel profile={document} onChange={onChange} isEditing={isEditingState} isEditingState={isEditingState} availableCatalogs={availableCatalogs} availableProfiles={availableProfiles} catalogCache={catalogCache} resolvedCatalog={resolvedCatalog} />
+          <ActiveSourcesPanel profile={document} onChange={onChange} isEditing={isEditingState} isEditingState={isEditingState} availableCatalogs={availableCatalogs} availableProfiles={availableProfiles} conflicts={conflicts} resolvedCatalog={resolvedCatalog} />
         )}
         {currentTab === 'metadata' && <DocumentOverviewMetadata mode={mode} document={document} isEditingState={isEditingState} baselineStats={baselineStats} onChange={onChange} onNavigateToProperties={onNavigateToProperties || (() => setActiveTab('properties'))} />}
         {currentTab === 'properties' && (

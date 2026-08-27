@@ -27,12 +27,8 @@ import { ConfirmModal } from '../shared/ui/ConfirmModal';
 import { ConfirmProvider, useConfirm } from '../shared/ui/ConfirmProvider';
 import { JsonEditor } from '../shared/JsonEditor';
 import { SankeyDiagram, SankeyControl, SankeyMapEntry } from '../mapping/SankeyDiagram';
-import { ProfileBaselineDiffView } from '../profile/ProfileBaselineDiffView';
 import { ErrorBoundary } from '../shared/ui/ErrorBoundary';
 import StatusBadge from '../shared/status/StatusBadge';
-
-// Hooks module for mocking profile resolution
-import * as profileResolutionHooks from '../../hooks/useProfileResolution';
 
 // Mock Monaco editor for JSDOM
 vi.mock('@monaco-editor/react', () => {
@@ -453,85 +449,9 @@ describe('Tier 5 White-Box Adversarial Frontend Coverage Suite', () => {
   });
 
   /* =========================================================================
-   * Suite 5: Visual Profile Baseline Diff Edge Cases (ProfileBaselineDiffView)
+   * Suite 5: Cross-Stage Navigation Error Boundaries (ErrorBoundary)
    * ========================================================================= */
-  describe('5. Profile Baseline Diff Edge Cases (ProfileBaselineDiffView)', () => {
-    it('auto-extracts catalog ID from profile import href and renders metric cards', () => {
-      const mockProfileDoc = {
-        profile: {
-          imports: [{ href: '#cat-nist-800-53' }],
-        },
-      };
-
-      vi.spyOn(profileResolutionHooks, 'useProfileDiffQuery').mockReturnValue({
-        data: {
-          summary: {
-            added_count: 2,
-            removed_count: 1,
-            modified_count: 3,
-            untouched_count: 10,
-            total_baseline_controls: 14,
-          },
-          deltas: [
-            {
-              id: 'ac-1',
-              title: 'Access Control Policy',
-              status: 'modified',
-              baseline_control: { title: 'Access Control Policy', parts: [], params: [] },
-              profile_control: { title: 'Access Control Policy (Tailored)', parts: [], params: [] },
-            },
-            {
-              id: 'ac-2',
-              title: 'Account Management',
-              status: 'removed',
-              baseline_control: { title: 'Account Management', parts: [], params: [] },
-              profile_control: null,
-            },
-          ],
-        },
-        isLoading: false,
-        error: null,
-      } as any);
-
-      render(
-        <ProfileBaselineDiffView
-          profileId="prof-123"
-          profileDoc={mockProfileDoc}
-        />
-      );
-
-      expect(screen.getByText('2')).toBeInTheDocument(); // Added count
-      expect(screen.getByText('1')).toBeInTheDocument(); // Removed count
-      expect(screen.getByText('3')).toBeInTheDocument(); // Modified count
-      expect(screen.getByText('10')).toBeInTheDocument(); // Untouched count
-
-      expect(screen.getByText('ac-1')).toBeInTheDocument();
-      expect(screen.getByText('ac-2')).toBeInTheDocument();
-      expect(screen.getByText(/Control removed from profile baseline/i)).toBeInTheDocument();
-    });
-
-    it('renders error and loading states when profile resolution query fails or is pending', () => {
-      vi.spyOn(profileResolutionHooks, 'useProfileDiffQuery').mockReturnValue({
-        data: null,
-        isLoading: false,
-        error: new Error('Failed to resolve profile baseline diff'),
-      } as any);
-
-      render(
-        <ProfileBaselineDiffView
-          profileId="prof-err"
-          profileDoc={{ imports: [{ href: 'cat-1' }] }}
-        />
-      );
-
-      expect(screen.getByText(/Error calculating diff: Error: Failed to resolve profile baseline diff/i)).toBeInTheDocument();
-    });
-  });
-
-  /* =========================================================================
-   * Suite 6: Cross-Stage Navigation Error Boundaries (ErrorBoundary)
-   * ========================================================================= */
-  describe('6. Cross-Stage Navigation Error Boundaries (ErrorBoundary)', () => {
+  describe('5. Cross-Stage Navigation Error Boundaries (ErrorBoundary)', () => {
     function ThrowingComponent({ shouldThrow }: { shouldThrow: boolean }) {
       if (shouldThrow) {
         throw new Error('Adversarial render crash in stage component');

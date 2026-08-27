@@ -27,17 +27,18 @@ All reference material is located in `oscal-reference/` at the repository root.
 
 | Directory | Contents | Use When |
 |-----------|----------|----------|
-| `Grundschutz-Plus-Plus-Tools/ED23-Baustein-komponenten/` | Production OSCAL component definitions (BSI IT-Grundschutz Edition 2023) | Referencing real-world component definition structures |
-| `Grundschutz-Plus-Plus-Tools/beispiel-kataloge/` | Pre-built OSCAL catalogs for testing | Loading sample catalog data for development/testing |
-| `Grundschutz-Plus-Plus-Tools/hilfsdateien/` | Control mappings, DSGVO/KRITIS/C5-2026 catalogs | Cross-referencing framework mappings |
-| `Grundschutz-Plus-Plus-Tools/zielobjektkategorien/` | OSCAL profiles and components by target object type | Studying profile/component patterns by category |
+| `Grundschutz-Plus-Plus-Tools/ED23-Baustein-profile/` | Production OSCAL profiles (BSI IT-Grundschutz Edition 2023) | Referencing real-world profile structures and requirements |
+| `Grundschutz-Plus-Plus-Tools/kataloge/` | Official C5-2026 and C3A OSCAL catalogs | Loading standard security control catalogs |
+| `Grundschutz-Plus-Plus-Tools/beispiel-kataloge/` | Pre-built OSCAL catalogs for testing (DSGVO, KRITIS) | Loading sample catalog data for development/testing |
+| `Grundschutz-Plus-Plus-Tools/hilfsdateien/` | Control mappings, JSON schemas, requirements | Cross-referencing framework mappings and requirements |
+| `Grundschutz-Plus-Plus-Tools/Zielobjektkategorien/` | OSCAL profiles categorized by target object type (process & regular) | Studying profile patterns by category |
 | `Grundschutz-Plus-Plus-Tools/One-Page-Apps/` | Browser-based OSCAL workflow tools (SSP editor, Assessment Plan/Results, POA&M, Viewer) | Understanding OSCAL lifecycle workflow patterns as reference implementations |
 
 ## 2. Search Strategies
 
 - **Schema field lookup:** Use `grep_search` in `oscal-reference/OSCAL/src/` for metaschema field definitions.
 - **Model structure:** Use `list_dir` on `oscal-reference/OSCAL/src/metaschema/` to discover model files.
-- **Sample data:** Use `list_dir` on `oscal-reference/Grundschutz-Plus-Plus-Tools/beispiel-kataloge/` or `ED23-Baustein-komponenten/`.
+- **Sample data:** Use `list_dir` on `oscal-reference/Grundschutz-Plus-Plus-Tools/beispiel-kataloge/`, `kataloge/`, or `ED23-Baustein-profile/DE/`.
 - **Specific model lookup:** Search for model keywords: `catalog`, `profile`, `ssp`, `component-definition`, `assessment-plan`, `assessment-results`, `plan-of-action-and-milestones`, `mapping-collection`.
 
 ## 3. Purpose

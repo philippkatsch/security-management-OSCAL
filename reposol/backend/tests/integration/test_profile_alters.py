@@ -150,3 +150,74 @@ class TestProfileAlters:
         assert len(stored_alters) == 1
         assert stored_alters[0]["control-id"] == "ac-1"
 
+    def test_alterations_persistence_roundtrip_and_resolve(self, client, isolated_data_dir):
+        """Save a complex profile with alters, load from DB, then resolve; verify full fidelity."""
+        cat_doc = CatalogFactory.with_controls(title="Base Catalog Full")
+        cat_uuid = cat_doc["catalog"]["uuid"]
+        client.post("/api/documents/catalogs", json=cat_doc)
+
+        alters = [
+            {
+                "control-id": "ac-1",
+                "removes": [{"by-id": "ac-1_smt.b"}],
+                "adds": [
+                    {
+                        "position": "starting",
+                        "parts": [{"id": "ac-1_smt_prefix", "name": "statement", "prose": "Enterprise Rule."}]
+                    },
+                    {
+                        "position": "ending",
+                        "props": [{"name": "compliance-level", "value": "high"}]
+                    }
+                ]
+            },
+            {
+                "control-id": "ac-2",
+                "adds": [
+                    {
+                        "position": "after",
+                        "by-id": "ac-2_smt",
+                        "parts": [{"id": "ac-2_extra", "name": "guidance", "prose": "Extra account guidance."}]
+                    }
+                ]
+            }
+        ]
+
+        prof_doc = ProfileFactory.with_alters(catalog_uuid=cat_uuid, alters=alters, title="Persistence Test Profile")
+        prof_uuid = prof_doc["profile"]["uuid"]
+
+        # 1. Save profile
+        res_save = client.post("/api/documents/profiles", json=prof_doc)
+        assert res_save.status_code == 201
+
+        # 2. Get profile document (verifying postprocess_profile_for_loading)
+        res_get = client.get(f"/api/documents/profiles/{prof_uuid}")
+        assert res_get.status_code == 200
+        get_data = res_get.json()
+        loaded_alters = get_data["profile"]["modify"]["alters"]
+        assert len(loaded_alters) == 2
+        assert {a["control-id"] for a in loaded_alters} == {"ac-1", "ac-2"}
+
+        # 3. Resolve profile (verifying resolution_service)
+        res_res = client.get(f"/api/resolve/profile/{prof_uuid}")
+        assert res_res.status_code == 200
+        res_data = res_res.json()
+        assert res_data["alterations_applied"] == 2
+
+        all_ctrls = list(res_data.get("controls", []))
+        for g in res_data.get("groups", []):
+            all_ctrls.extend(g.get("controls", []))
+        ctrl_map = {c["id"]: c for c in all_ctrls}
+        ac1 = ctrl_map["ac-1"]
+        ac2 = ctrl_map["ac-2"]
+
+        # ac-1 checks: prefix part added at start, ac-1_smt.b removed, compliance-level prop added
+        assert ac1["parts"][0]["id"] == "ac-1_smt_prefix"
+        smt_children = ac1["parts"][1].get("parts", [])
+        assert "ac-1_smt.b" not in [p["id"] for p in smt_children]
+        assert any(p["name"] == "compliance-level" and p["value"] == "high" for p in ac1.get("props", []))
+
+        # ac-2 checks: ac-2_extra part present
+        assert any(p["id"] == "ac-2_extra" for p in ac2["parts"])
+
+

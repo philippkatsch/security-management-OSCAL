@@ -19,12 +19,23 @@ export interface ControlTreeNode {
   label?: string;
 }
 
+export interface TreeVisibilityFilter {
+  showActive: boolean;
+  showExcluded: boolean;
+  showWithdrawn: boolean;
+  showUnassigned?: boolean;
+}
+
 export interface UseControlTreeOptions {
   groups?: Group[];
   controls?: Control[];
   initialSelectedId?: string;
   onSelect?: (controlId: string | null) => void;
   showWithdrawn?: boolean;
+  excludedControlIds?: Set<string>;
+  initialVisibilityFilter?: TreeVisibilityFilter;
+  visibilityFilter?: TreeVisibilityFilter;
+  onVisibilityFilterChange?: (filter: TreeVisibilityFilter) => void;
 }
 
 export interface UseControlTreeReturn {
@@ -44,10 +55,12 @@ export interface UseControlTreeReturn {
   collapseAll: () => void;
   expandToNode: (id: string) => void; // Expand all ancestors
   
-  // Search
+  // Search & Visibility Filter
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  filteredNodes: ControlTreeNode[]; // Nodes matching search
+  visibilityFilter: TreeVisibilityFilter;
+  setVisibilityFilter: React.Dispatch<React.SetStateAction<TreeVisibilityFilter>>;
+  filteredNodes: ControlTreeNode[]; // Nodes matching search and visibility filter
   
   // Ancestors
   getAncestors: (id: string) => string[];
@@ -120,7 +133,7 @@ const buildTree = (
 };
 
 export function useControlTree(options: UseControlTreeOptions): UseControlTreeReturn {
-  const { groups = [], controls = [], initialSelectedId = null, onSelect, showWithdrawn = false } = options;
+  const { groups = [], controls = [], initialSelectedId = null, onSelect, showWithdrawn = false, excludedControlIds, initialVisibilityFilter } = options;
   
   const flatList = useMemo(() => {
     const groupNodes = buildTree(groups, null, 0, 'group');
@@ -135,6 +148,25 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [internalVisibilityFilter, setInternalVisibilityFilter] = useState<TreeVisibilityFilter>(
+    initialVisibilityFilter || {
+      showActive: true,
+      showExcluded: true,
+      showWithdrawn: Boolean(showWithdrawn),
+      showUnassigned: Boolean(initialVisibilityFilter?.showUnassigned)
+    }
+  );
+
+  const visibilityFilter = options.visibilityFilter || internalVisibilityFilter;
+  const setVisibilityFilter = options.onVisibilityFilterChange
+    ? (val: React.SetStateAction<TreeVisibilityFilter>) => {
+        if (typeof val === 'function') {
+          options.onVisibilityFilterChange!(val(visibilityFilter));
+        } else {
+          options.onVisibilityFilterChange!(val);
+        }
+      }
+    : (setInternalVisibilityFilter as React.Dispatch<React.SetStateAction<TreeVisibilityFilter>>);
   
   const select = useCallback((id: string | null) => {
     setSelectedId(id);
@@ -191,15 +223,27 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
   }, [flatList, getAncestors]);
 
   const filteredNodes = useMemo(() => {
-    if (!searchQuery.trim() && showWithdrawn) return flatList;
-    
     const query = searchQuery.toLowerCase();
+    const excludedIds = excludedControlIds;
+    
+    const nodeMatchesVisibility = (node: ControlTreeNode): boolean => {
+      if (node.type === 'group') return true;
+      if (node.withdrawn) {
+        return visibilityFilter.showWithdrawn;
+      }
+      const isExcluded = Boolean(excludedIds && excludedIds.has(node.id.toLowerCase()));
+      if (isExcluded) {
+        return visibilityFilter.showExcluded;
+      }
+      return visibilityFilter.showActive;
+    };
     
     // First find matching nodes
     const matchingIds = new Set<string>();
     
     for (const node of flatList) {
-        if (!showWithdrawn && isNodeOrAncestorWithdrawn(node)) continue;
+        if (isNodeOrAncestorWithdrawn(node) && !visibilityFilter.showWithdrawn) continue;
+        if (!nodeMatchesVisibility(node)) continue;
         
         if (!query || 
             (node.id && node.id.toLowerCase().includes(query)) ||
@@ -210,7 +254,7 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
             // Ensure ancestors are included so we can show them in the tree
             getAncestors(node.id).forEach(a => {
               const ancestorNode = flatList.find(n => n.id === a);
-              if (showWithdrawn || !ancestorNode?.withdrawn) {
+              if (visibilityFilter.showWithdrawn || !ancestorNode?.withdrawn) {
                 matchingIds.add(a);
               }
             });
@@ -218,7 +262,7 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
     }
     
     return flatList.filter(n => matchingIds.has(n.id));
-  }, [flatList, searchQuery, showWithdrawn, getAncestors, isNodeOrAncestorWithdrawn]);
+  }, [flatList, searchQuery, visibilityFilter, excludedControlIds, getAncestors, isNodeOrAncestorWithdrawn]);
   
   const selectedNode = flatList.find(n => n.id === selectedId) || null;
   const breadcrumbs = selectedId ? getAncestors(selectedId).map(id => flatList.find(n => n.id === id)!).filter(Boolean) : [];
@@ -236,6 +280,8 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
     expandToNode,
     searchQuery,
     setSearchQuery,
+    visibilityFilter,
+    setVisibilityFilter,
     filteredNodes,
     getAncestors,
     breadcrumbs

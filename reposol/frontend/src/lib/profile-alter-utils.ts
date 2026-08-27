@@ -10,15 +10,20 @@ export type RenderablePart = Part & {
   parts?: RenderablePart[];
 };
 
+const idMatches = (id1?: string, id2?: string): boolean => {
+  if (!id1 || !id2) return false;
+  return id1 === id2 || id1.toLowerCase() === id2.toLowerCase();
+};
+
 export const resolveProfilePartsForRendering = (origParts: Part[] | undefined, alter: ProfileAlter | undefined, level = 0): RenderablePart[] => {
   if (!origParts) origParts = [];
   const removes = alter?.removes || [];
   const adds = alter?.adds || [];
   
   let result: RenderablePart[] = origParts.map(p => {
-    const isReplacementRemoves = removes.some((r: Removal) => r['by-id'] === p.id);
+    const isReplacementRemoves = removes.some((r: Removal) => idMatches(r['by-id'], p.id));
     const replacementAdd = isReplacementRemoves
-      ? adds.find((a: Addition) => a['by-id'] === p.id && a.position === 'after' && a.parts?.some((pt: Part) => pt.id === p.id))
+      ? adds.find((a: Addition) => idMatches(a['by-id'], p.id) && a.position === 'after' && a.parts && a.parts.length > 0)
       : null;
     
     const isReplaced = !!replacementAdd;
@@ -43,33 +48,37 @@ export const resolveProfilePartsForRendering = (origParts: Part[] | undefined, a
     if (!add.parts) return;
     
     add.parts.forEach((newPart: Part) => {
-      const isReplacement = origParts!.some((op: Part) => op.id === add['by-id'] && removes.some((r: Removal) => r['by-id'] === op.id) && add.position === 'after' && newPart.id === op.id);
+      const isReplacement = Boolean(
+        add['by-id'] && 
+        add.position === 'after' && 
+        removes.some((r: Removal) => idMatches(r['by-id'], add['by-id']))
+      );
       if (isReplacement) return;
 
       if (add['by-id']) {
         if (add.position === 'before') {
-          const targetIdx = result.findIndex(p => p.id === add['by-id'] || p.originalId === add['by-id']);
-          if (targetIdx >= 0 && !result.some(p => p.id === newPart.id)) {
+          const targetIdx = result.findIndex(p => idMatches(p.id, add['by-id']) || idMatches(p.originalId, add['by-id']));
+          if (targetIdx >= 0 && !result.some(p => idMatches(p.id, newPart.id))) {
             result.splice(targetIdx, 0, { ...newPart, isAdded: true } as RenderablePart);
           }
         } else if (add.position === 'after') {
-          const targetIdx = result.findIndex(p => p.id === add['by-id'] || p.originalId === add['by-id']);
-          if (targetIdx >= 0 && !result.some(p => p.id === newPart.id)) {
+          const targetIdx = result.findIndex(p => idMatches(p.id, add['by-id']) || idMatches(p.originalId, add['by-id']));
+          if (targetIdx >= 0 && !result.some(p => idMatches(p.id, newPart.id))) {
             result.splice(targetIdx + 1, 0, { ...newPart, isAdded: true } as RenderablePart);
           }
         } else if (add.position === 'starting') {
-          const parent = result.find(p => p.id === add['by-id'] || p.originalId === add['by-id']);
+          const parent = result.find(p => idMatches(p.id, add['by-id']) || idMatches(p.originalId, add['by-id']));
           if (parent) {
             if (!parent.parts) parent.parts = [];
-            if (!parent.parts.some((sp: Part) => sp.id === newPart.id)) {
+            if (!parent.parts.some((sp: Part) => idMatches(sp.id, newPart.id))) {
               parent.parts.unshift({ ...newPart, isAdded: true } as RenderablePart);
             }
           }
         } else if (add.position === 'ending') {
-          const parent = result.find(p => p.id === add['by-id'] || p.originalId === add['by-id']);
+          const parent = result.find(p => idMatches(p.id, add['by-id']) || idMatches(p.originalId, add['by-id']));
           if (parent) {
             if (!parent.parts) parent.parts = [];
-            if (!parent.parts.some((sp: Part) => sp.id === newPart.id)) {
+            if (!parent.parts.some((sp: Part) => idMatches(sp.id, newPart.id))) {
               parent.parts.push({ ...newPart, isAdded: true } as RenderablePart);
             }
           }
@@ -77,11 +86,11 @@ export const resolveProfilePartsForRendering = (origParts: Part[] | undefined, a
       } else {
         if (level === 0) {
           if (add.position === 'starting') {
-            if (!result.some(p => p.id === newPart.id)) {
+            if (!result.some(p => idMatches(p.id, newPart.id))) {
               result.unshift({ ...newPart, isAdded: true } as RenderablePart);
             }
           } else if (add.position === 'ending') {
-            if (!result.some(p => p.id === newPart.id)) {
+            if (!result.some(p => idMatches(p.id, newPart.id))) {
               result.push({ ...newPart, isAdded: true } as RenderablePart);
             }
           }
@@ -101,7 +110,9 @@ export const updateAlter = (
 ) => {
   const modify = profile?.modify ? { ...profile.modify } : {};
   const alters = modify.alters ? [...modify.alters] : [];
-  const alterIdx = alters.findIndex((a: ProfileAlter) => a['control-id'] === controlId);
+  const alterIdx = alters.findIndex((a: ProfileAlter) => 
+    a['control-id'] === controlId || (a['control-id'] && controlId && a['control-id'].toLowerCase() === controlId.toLowerCase())
+  );
 
   let currentAlter = alterIdx >= 0 ? { ...alters[alterIdx] } : { 'control-id': controlId };
   currentAlter = updateFn(currentAlter);
@@ -131,7 +142,9 @@ export const updateAlter = (
 };
 
 export const getAlterForControl = (profile: Profile | undefined, controlId: string): ProfileAlter | undefined => {
-  return (profile?.modify?.alters || []).find((a: ProfileAlter) => a['control-id'] === controlId);
+  return (profile?.modify?.alters || []).find((a: ProfileAlter) => 
+    a['control-id'] === controlId || (a['control-id'] && controlId && a['control-id'].toLowerCase() === controlId.toLowerCase())
+  );
 };
 
 export const getModifiedPartIds = (profile: Profile | undefined, controlId: string): string[] => {
@@ -139,7 +152,7 @@ export const getModifiedPartIds = (profile: Profile | undefined, controlId: stri
   if (!alter) return [];
   const ids: string[] = [];
   (alter.removes || []).forEach((r: Removal) => {
-    if (r['by-id'] && alter.adds?.some((a: Addition) => a['by-id'] === r['by-id'])) {
+    if (r['by-id'] && alter.adds?.some((a: Addition) => idMatches(a['by-id'], r['by-id']))) {
       ids.push(r['by-id']);
     }
   });

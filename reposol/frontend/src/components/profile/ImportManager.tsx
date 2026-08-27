@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './ProfilePage.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
 import { toast } from 'react-hot-toast';
-import { ControlSelectionDialog } from './ControlSelectionDialog';
+import { fetchDocument } from '@lib/api';
 
 export interface ImportManagerProps {
   imports?: any[];
@@ -11,6 +11,7 @@ export interface ImportManagerProps {
   availableProfiles?: any[];
   isEditing?: boolean;
   onCopyStructure?: (href: string, mode?: string) => void;
+  onNavigateToPool?: () => void;
   mergeMode?: string;
   onMergeModeChange?: (mode: string) => void;
   combineMethod?: string;
@@ -25,14 +26,50 @@ export function ImportManager({
   availableProfiles = [],
   isEditing = false,
   onCopyStructure,
+  onNavigateToPool,
   mergeMode = 'as-is',
   onMergeModeChange,
   combineMethod = 'use-first',
   onCombineMethodChange,
   catalogCache
 }: ImportManagerProps) {
-  const [controlSelectionDialogOpen, setControlSelectionDialogOpen] = useState(false);
-  const [controlSelectionImportIdx, setControlSelectionImportIdx] = useState<number | null>(null);
+  const [fetchedDocs, setFetchedDocs] = useState<Record<string, any>>({});
+
+  // Auto-fetch full document data for all imported sources to populate controls and counts
+  useEffect(() => {
+    let isMounted = true;
+    imports.forEach(async (imp: any) => {
+      const href = imp?.href || '';
+      const isProfile = href.toLowerCase().includes('profile');
+      const uuidMatch = href.match(/([a-fA-F0-9-]{36})/);
+      const uuid = uuidMatch ? uuidMatch[1] : null;
+      if (!uuid) return;
+
+      const cacheHit = typeof catalogCache?.get === 'function'
+        ? (catalogCache.get(uuid) || catalogCache.get(uuid.toLowerCase()))
+        : (catalogCache?.[uuid] || catalogCache?.[uuid.toLowerCase()]);
+
+      if (cacheHit || fetchedDocs[uuid] || fetchedDocs[uuid.toLowerCase()]) return;
+
+      try {
+        const stage = isProfile ? 'profiles' : 'catalogs';
+        const doc = await fetchDocument(stage, uuid);
+        if (isMounted && doc) {
+          setFetchedDocs(prev => ({
+            ...prev,
+            [uuid]: doc,
+            [uuid.toLowerCase()]: doc
+          }));
+        }
+      } catch {
+        // Ignore fetch errors for remote or invalid hrefs
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [imports, catalogCache, fetchedDocs]);
 
   const handleAddImport = (uuid: string, type: string) => {
     if (!uuid) return;
@@ -86,62 +123,62 @@ export function ImportManager({
     return { type: 'unknown', title: href, icon: '🔗' };
   };
 
+  const getSourceDoc = (href: string) => {
+    const uuidMatch = href?.match(/([a-fA-F0-9-]{36})/);
+    const uuid = uuidMatch ? uuidMatch[1] : null;
+    if (!uuid) return null;
+
+    const fromCache = typeof catalogCache?.get === 'function'
+      ? (catalogCache.get(uuid) || catalogCache.get(uuid.toLowerCase()))
+      : (catalogCache?.[uuid] || catalogCache?.[uuid.toLowerCase()]);
+
+    const data = fromCache || fetchedDocs[uuid] || fetchedDocs[uuid.toLowerCase()];
+    return data?.catalog || data?.profile || data?.data?.catalog || data?.data?.profile || data;
+  };
+
   const getCatalogControlCount = (href: string): number => {
-    const uuid = href?.match(/([a-fA-F0-9-]{36})/)?.[1];
-    if (!uuid || !catalogCache?.[uuid]) return 0;
-    const data = catalogCache[uuid];
-    const cat = data?.catalog || data?.profile || data?.data?.catalog || data?.data?.profile || data;
+    const cat = getSourceDoc(href);
+    if (!cat) return 0;
     let count = 0;
-    const traverse = (items: any[]) => {
-      items?.forEach(item => {
-        if (item.id) count++;
-        traverse(item.controls || []);
-        traverse(item.groups || []);
+    const traverseControls = (controls: any[]) => {
+      controls?.forEach(c => {
+        if (c.id) count++;
+        traverseControls(c.controls || []); // nested sub-controls (enhancements)
       });
     };
-    traverse(cat.controls || []);
-    traverse(cat.groups || []);
+    const traverseGroups = (groups: any[]) => {
+      groups?.forEach(g => {
+        traverseControls(g.controls || []);
+        traverseGroups(g.groups || []);
+      });
+    };
+    traverseControls(cat.controls || []);
+    traverseGroups(cat.groups || []);
     return count;
   };
 
   const getCatalogControls = (href: string): Array<{id: string, title: string}> => {
-    const uuid = href?.match(/([a-fA-F0-9-]{36})/)?.[1];
-    if (!uuid || !catalogCache?.[uuid]) return [];
-    const data = catalogCache[uuid];
-    const cat = data?.catalog || data?.profile || data?.data?.catalog || data?.data?.profile || data;
+    const cat = getSourceDoc(href);
+    if (!cat) return [];
     const list: Array<{id: string, title: string}> = [];
-    const traverse = (items: any[]) => {
-      items?.forEach(item => {
-        if (item.id) list.push({ id: item.id, title: item.title || item.id });
-        traverse(item.controls || []);
-        traverse(item.groups || []);
+    const traverseControls = (controls: any[]) => {
+      controls?.forEach(c => {
+        if (c.id) list.push({ id: c.id, title: c.title || c.id });
+        traverseControls(c.controls || []); // nested sub-controls (enhancements)
       });
     };
-    traverse(cat.controls || []);
-    traverse(cat.groups || []);
+    const traverseGroups = (groups: any[]) => {
+      groups?.forEach(g => {
+        traverseControls(g.controls || []);
+        traverseGroups(g.groups || []);
+      });
+    };
+    traverseControls(cat.controls || []);
+    traverseGroups(cat.groups || []);
     return list;
   };
 
-  const handleSelectionDialogApply = (selectedIds: string[], patterns: string[]) => {
-    if (controlSelectionImportIdx === null) return;
-    const idx = controlSelectionImportIdx;
-    const imp = imports[idx];
-    const newImp = { ...imp };
-    delete newImp['include-all'];
-    
-    const withIds = selectedIds.length > 0 ? selectedIds : undefined;
-    const matching = patterns.length > 0 ? patterns.map(p => ({ pattern: p })) : undefined;
-    
-    newImp['include-controls'] = [
-      {
-        ...(withIds && { 'with-ids': withIds }),
-        ...(matching && { matching })
-      }
-    ];
-    
-    handleUpdateImport(idx, newImp);
-    setControlSelectionDialogOpen(false);
-  };
+
 
   return (
     <div className="import-manager card-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -245,9 +282,9 @@ export function ImportManager({
                 cursor: isEditing ? 'pointer' : 'default'
               }}
             >
-              <option value="as-is">as-is</option>
-              <option value="custom">custom</option>
-              <option value="flat">flat</option>
+              <option value="as-is">as-is (Keep Original Structure)</option>
+              <option value="custom">custom (Define Own Groups)</option>
+              <option value="flat">flat (No Groups, No Nesting)</option>
             </select>
           </div>
 
@@ -279,10 +316,10 @@ export function ImportManager({
           </div>
         </div>
 
-        <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-          {mergeMode === 'as-is' && <span>💡 Controls inherit original catalog folder structure.</span>}
-          {mergeMode === 'custom' && <span>💡 Custom groups enabled. Assign controls in sidebar/pool.</span>}
-          {mergeMode === 'flat' && <span>💡 All controls listed in flat sequence without groups.</span>}
+        <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', lineHeight: '1.5' }}>
+          {mergeMode === 'as-is' && <span>💡 <strong>As-Is:</strong> Controls retain their original catalog group structure. Groups and nesting are preserved exactly as in the source catalog.</span>}
+          {mergeMode === 'custom' && <span>💡 <strong>Custom:</strong> Define your own group structure and assign imported controls to custom groups. Use the Control Pool to drag controls into groups.</span>}
+          {mergeMode === 'flat' && <span>💡 <strong>Flat:</strong> All controls are placed in a single flat list — no groups, no nesting, no enhancements hierarchy. Per OSCAL spec: "unstructured catalogs, with no grouping or nesting of controls."</span>}
         </div>
       </div>
 
@@ -363,36 +400,16 @@ export function ImportManager({
                         onChange={() => {
                           const newImp = { ...imp };
                           delete newImp['include-all'];
-                          newImp['include-controls'] = [{ 'with-ids': [] }];
+                          const allControlIds = getCatalogControls(imp.href).map(c => c.id);
+                          newImp['include-controls'] = [{ 'with-ids': allControlIds }];
                           handleUpdateImport(idx, newImp);
-                          setControlSelectionImportIdx(idx);
-                          setControlSelectionDialogOpen(true);
                         }}
                       />
                       Include Specific Controls
                     </label>
-                    
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isEditing ? 'pointer' : 'default' }}>
-                      <input
-                        type="checkbox"
-                        disabled={!isEditing}
-                        checked={imp['include-controls']?.[0]?.['with-child-controls'] === 'yes' || imp['include-all']?.['with-child-controls'] === 'yes'}
-                        onChange={(e) => {
-                          const newImp = { ...imp };
-                          const val = e.target.checked ? 'yes' : 'no';
-                          if (newImp['include-all']) {
-                            newImp['include-all']['with-child-controls'] = val;
-                          } else if (newImp['include-controls']?.[0]) {
-                            newImp['include-controls'][0]['with-child-controls'] = val;
-                          }
-                          handleUpdateImport(idx, newImp);
-                        }}
-                      />
-                      Include child controls automatically
-                    </label>
                   </div>
                   
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '4px', flexWrap: 'wrap' }}>
                     <span 
                       data-testid={`control-count-${idx}`}
                       style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -405,17 +422,26 @@ export function ImportManager({
                       {includedCount} / {totalControls} Controls active
                     </span>
                     
-                    {!isIncludeAll && isEditing && (
+                    {onNavigateToPool && (
                       <button
                         type="button"
-                        data-testid={`select-controls-btn-${idx}`}
-                        onClick={() => {
-                          setControlSelectionImportIdx(idx);
-                          setControlSelectionDialogOpen(true);
+                        data-testid={`open-tree-workbench-btn-${idx}`}
+                        onClick={onNavigateToPool}
+                        style={{
+                          padding: '3px 10px',
+                          fontSize: '12px',
+                          background: 'var(--color-surface-2)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          color: 'var(--color-primary, #3b82f6)',
+                          fontWeight: 500,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
                         }}
-                        style={{ padding: '4px 10px', fontSize: '12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--color-text)' }}
                       >
-                        🎯 Select Controls...
+                        🌳 Open Central Tree Workbench
                       </button>
                     )}
                   </div>
@@ -447,18 +473,6 @@ export function ImportManager({
             );
           })}
         </div>
-      )}
-
-      {controlSelectionDialogOpen && controlSelectionImportIdx !== null && (
-        <ControlSelectionDialog
-          isOpen={controlSelectionDialogOpen}
-          onClose={() => setControlSelectionDialogOpen(false)}
-          onApply={handleSelectionDialogApply}
-          catalogTitle={getImportInfo(imports[controlSelectionImportIdx]?.href).title}
-          controls={getCatalogControls(imports[controlSelectionImportIdx]?.href)}
-          initialSelectedIds={imports[controlSelectionImportIdx]?.['include-controls']?.[0]?.['with-ids'] || []}
-          initialPatterns={imports[controlSelectionImportIdx]?.['include-controls']?.[0]?.matching?.map((m: any) => m.pattern) || []}
-        />
       )}
     </div>
   );

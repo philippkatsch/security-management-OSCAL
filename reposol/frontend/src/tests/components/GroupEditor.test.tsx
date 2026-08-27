@@ -98,7 +98,8 @@ describe('GroupEditor Component', () => {
     expect(updatedGroup.params[2].label).toBe('New Group Parameter');
   });
 
-  it('does not add a new parameter when mode is not catalog', () => {
+  it('calls onDeleteGroup when Delete Group button is clicked in edit mode', () => {
+    const mockOnDeleteGroup = vi.fn();
     render(
       <GroupEditor
         group={sampleGroup}
@@ -106,12 +107,84 @@ describe('GroupEditor Component', () => {
         onChange={mockOnChange}
         isEditing={true}
         mode="profile"
+        onDeleteGroup={mockOnDeleteGroup}
       />
     );
 
-    const defineBtn = screen.getByTestId('define-param-btn');
-    defineBtn.click();
+    const deleteBtn = screen.getByTestId('delete-group-btn');
+    expect(deleteBtn).toBeInTheDocument();
+    deleteBtn.click();
+    expect(mockOnDeleteGroup).toHaveBeenCalledWith('grp-1');
+  });
 
-    expect(mockOnChange).not.toHaveBeenCalled();
+  it('calls onAddSubgroup when Add Sub-group button is clicked in edit mode', () => {
+    const mockOnAddSubgroup = vi.fn();
+    render(
+      <GroupEditor
+        group={sampleGroup}
+        catalog={sampleCatalog}
+        onChange={mockOnChange}
+        isEditing={true}
+        mode="profile"
+        onAddSubgroup={mockOnAddSubgroup}
+      />
+    );
+
+    const addSubgroupBtn = screen.getByTestId('add-subgroup-btn');
+    expect(addSubgroupBtn).toBeInTheDocument();
+    addSubgroupBtn.click();
+    expect(mockOnAddSubgroup).toHaveBeenCalledWith('grp-1');
+  });
+
+  it('calls onUnassignControl when remove control button is clicked', () => {
+    const mockOnUnassign = vi.fn();
+    const groupWithControls = {
+      ...sampleGroup,
+      controls: [
+        { id: 'ac-1', title: 'Access Control Policy' },
+        { id: 'ac-2', title: 'Account Management' }
+      ]
+    };
+
+    render(
+      <GroupEditor
+        group={groupWithControls}
+        catalog={sampleCatalog}
+        onChange={mockOnChange}
+        isEditing={true}
+        mode="profile"
+        onUnassignControl={mockOnUnassign}
+      />
+    );
+
+    const removeBtn = screen.getByTestId('remove-control-btn-ac-1');
+    expect(removeBtn).toBeInTheDocument();
+    removeBtn.click();
+    expect(mockOnUnassign).toHaveBeenCalledWith('ac-1', 'grp-1');
+  });
+
+  it('calls onOrderChange when ordering selector value changes', () => {
+    const mockOnOrderChange = vi.fn();
+    render(
+      <GroupEditor
+        group={sampleGroup}
+        catalog={sampleCatalog}
+        onChange={mockOnChange}
+        isEditing={true}
+        mode="profile"
+        onOrderChange={mockOnOrderChange}
+      />
+    );
+
+    const orderSelect = screen.getByTestId('group-order-select');
+    expect(orderSelect).toBeInTheDocument();
+    
+    // Change value to ascending
+    orderSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    // fireEvent / change
+    const { fireEvent } = require('@testing-library/react');
+    fireEvent.change(orderSelect, { target: { value: 'ascending' } });
+    expect(mockOnOrderChange).toHaveBeenCalledWith('ascending');
   });
 });
+

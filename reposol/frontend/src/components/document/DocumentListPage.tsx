@@ -9,6 +9,7 @@ import { CreateDocumentDialog } from './CreateDocumentDialog';
 import { useConfirm } from '@hooks/useConfirm';
 import { ExportModal } from '@components/shared/ui/ExportModal';
 import { TableSkeleton } from '@components/shared/ui/LoadingSpinner';
+import { StageHelpModal } from '@components/shared/ui/StageHelpModal';
 import { toast } from 'react-hot-toast';
 
 const ROOT_KEYS: Record<string, string> = {
@@ -55,6 +56,7 @@ export const DocumentListPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [exportDoc, setExportDoc] = useState<{ id: string; title: string } | null>(null);
 
   const safeStage = stage || 'catalogs';
@@ -170,7 +172,16 @@ export const DocumentListPage = () => {
           </h2>
           <span className={styles['stage-meta']}>Manage OSCAL {label} documents.</span>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            type="button"
+            className={sharedStyles['btn-secondary']}
+            onClick={() => setShowHelp(true)}
+            data-testid="stage-help-btn"
+            title={`View ${label} guide & documentation`}
+          >
+            💡 Guide
+          </button>
           <button className={sharedStyles['btn-secondary']} onClick={() => setShowImport(true)}>
             📥 Import {label.replace(/s$/, '')}
           </button>
@@ -327,6 +338,14 @@ export const DocumentListPage = () => {
           docTitle={exportDoc.title}
           stage={safeStage}
           onClose={() => setExportDoc(null)}
+        />
+      )}
+
+      {showHelp && (
+        <StageHelpModal
+          isOpen={showHelp}
+          stage={safeStage}
+          onClose={() => setShowHelp(false)}
         />
       )}
     </div>

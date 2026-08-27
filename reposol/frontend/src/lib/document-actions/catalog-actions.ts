@@ -284,3 +284,66 @@ export function restoreControl(controlId: string) {
       }
     });
 }
+
+function applyToAllControlsInGroup(group: Group, fn: (control: Control) => void) {
+  if (group.controls) {
+    for (const c of group.controls) {
+      fn(c);
+      if (c.controls) {
+        applyToAllSubControls(c, fn);
+      }
+    }
+  }
+  if (group.groups) {
+    for (const subg of group.groups) {
+      applyToAllControlsInGroup(subg, fn);
+    }
+  }
+}
+
+function applyToAllSubControls(control: Control, fn: (control: Control) => void) {
+  if (control.controls) {
+    for (const subc of control.controls) {
+      fn(subc);
+      applyToAllSubControls(subc, fn);
+    }
+  }
+}
+
+export function withdrawAllControlsInGroup(groupId: string) {
+  return createAction('catalog', 'WITHDRAW_ALL_CONTROLS_IN_GROUP', `Withdraw all controls in group ${groupId}`,
+    (draft: any) => {
+      if (!draft.catalog) return;
+      const group = findGroupById(draft.catalog, groupId);
+      if (!group) return;
+
+      applyToAllControlsInGroup(group, (control) => {
+        if (!control.props) control.props = [];
+        const statusProp = control.props.find(p => p.name?.toLowerCase() === 'status');
+        if (statusProp) {
+          statusProp.value = 'withdrawn';
+        } else {
+          control.props.push({ name: 'status', value: 'withdrawn' });
+        }
+      });
+    });
+}
+
+export function restoreAllControlsInGroup(groupId: string) {
+  return createAction('catalog', 'RESTORE_ALL_CONTROLS_IN_GROUP', `Restore all controls in group ${groupId}`,
+    (draft: any) => {
+      if (!draft.catalog) return;
+      const group = findGroupById(draft.catalog, groupId);
+      if (!group) return;
+
+      applyToAllControlsInGroup(group, (control) => {
+        if (control.props) {
+          control.props = control.props.filter(p => !(p.name?.toLowerCase() === 'status' && p.value?.toLowerCase() === 'withdrawn'));
+        }
+        if (control.links) {
+          control.links = control.links.filter(l => l.rel !== 'incorporated-into');
+        }
+      });
+    });
+}
+
