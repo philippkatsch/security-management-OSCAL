@@ -39,10 +39,6 @@ test.describe('Profile Drag and Drop', () => {
     await expect(modeSelect).toBeVisible({ timeout: 15000 });
     await modeSelect.selectOption('custom');
     
-    const poolTabBtn = page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first();
-    await expect(poolTabBtn).toBeVisible({ timeout: 15000 });
-    await poolTabBtn.click();
-    
     await expect(page.getByText(/Control Pool \(Drag & Drop\)/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Policy and Procedures').first()).toBeVisible({ timeout: 15000 });
     
@@ -53,6 +49,6 @@ test.describe('Profile Drag and Drop', () => {
     const modeSelectAfter = page.getByTestId('structuring-mode-select').or(page.locator('select').filter({ hasText: /as-is|custom|flat/i })).first();
     await expect(modeSelectAfter).toBeVisible({ timeout: 15000 });
     await modeSelectAfter.selectOption('custom');
-    await expect(page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Control Pool \(Drag & Drop\)/i).first()).toBeVisible({ timeout: 15000 });
   });
 });

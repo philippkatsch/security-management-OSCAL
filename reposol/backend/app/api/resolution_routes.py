@@ -34,6 +34,7 @@ async def preview_resolve_profile(
         "groups": resolved.get("groups", []),
         "all_controls": resolved.get("all_controls", []),
         "all_groups": resolved.get("all_groups", []),
+        "imported_sources": resolved.get("imported_sources", []),
         "excluded_control_ids": resolved.get("excluded_control_ids", []),
         "source_catalog_id": resolved.get("source_catalog_id"),
         "source_catalog_title": resolved.get("source_catalog_title"),

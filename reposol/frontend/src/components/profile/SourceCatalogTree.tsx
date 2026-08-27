@@ -88,7 +88,6 @@ export function SourceCatalogTree({
   onCombineMethodChange
 }: SourceCatalogTreeProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [catalogFilter, setCatalogFilter] = useState<string>('all');
   const [visibilityFilter, setVisibilityFilter] = useState<TreeVisibilityFilter>({
     showActive: true,
     showExcluded: true,
@@ -112,8 +111,8 @@ export function SourceCatalogTree({
     const processDoc = (imp: any, idx: number, sourceDoc: any, catId: string, catTitle: string, href: string, catVersion?: string) => {
       const catDoc = sourceDoc?.catalog || sourceDoc?.profile || sourceDoc?.data?.catalog || sourceDoc?.data?.profile || sourceDoc;
       
-      const sourceGroups = catDoc?.all_groups || catDoc?.groups || (resolvedCatalog?.all_groups) || [];
-      const sourceControls = catDoc?.all_controls || catDoc?.controls || (resolvedCatalog?.all_controls) || [];
+      const sourceGroups = catDoc?.all_groups || catDoc?.groups || resolvedCatalog?.all_groups || [];
+      const sourceControls = catDoc?.all_controls || catDoc?.controls || resolvedCatalog?.all_controls || [];
 
       const rawControlIds: string[] = [];
       const collectControls = (controlsList?: any[]) => {
@@ -271,75 +270,114 @@ export function SourceCatalogTree({
       const match = href.match(/([a-f0-9-]{36})/i);
       const uuid = match ? match[1]?.toLowerCase() : null;
 
-      let sourceDoc: any = null;
-      let sourceTitle: string | null = null;
-      let sourceVersion: string | null = null;
+      // 1. Check if backend resolution provided per-source isolated tree
+      const backendSource = resolvedCatalog?.imported_sources?.find((s: any) => 
+        (uuid && s.id?.toLowerCase() === uuid) ||
+        s.href === href ||
+        (s.id && href.includes(s.id))
+      ) || resolvedCatalog?.imported_sources?.[idx];
 
-      if (uuid && catalogCache) {
+      let sourceDoc: any = null;
+      let sourceTitle: string | null = backendSource?.title || null;
+      let sourceVersion: string | null = backendSource?.version || null;
+
+      if (backendSource) {
+        sourceDoc = {
+          all_groups: backendSource.all_groups || backendSource.groups,
+          all_controls: backendSource.all_controls || backendSource.controls,
+          groups: backendSource.groups,
+          controls: backendSource.controls,
+          metadata: {
+            title: backendSource.title,
+            version: backendSource.version
+          }
+        };
+      }
+
+      // 2. Fallback to catalogCache if available
+      if (!sourceDoc && uuid && catalogCache) {
         const cacheEntry = typeof catalogCache.get === 'function'
           ? (catalogCache.get(uuid) || catalogCache.get(uuid.toLowerCase()))
           : (catalogCache[uuid] || catalogCache[uuid.toLowerCase()]);
-        sourceDoc = cacheEntry?.data || cacheEntry;
-        const entryDoc = sourceDoc?.catalog || sourceDoc?.profile;
-        if (entryDoc?.metadata?.title) {
-          sourceTitle = entryDoc.metadata.title;
-          sourceVersion = entryDoc.metadata.version;
+        if (cacheEntry) {
+          sourceDoc = cacheEntry?.data || cacheEntry;
+          const entryDoc = sourceDoc?.catalog || sourceDoc?.profile;
+          if (entryDoc?.metadata?.title) {
+            sourceTitle = sourceTitle || entryDoc.metadata.title;
+            sourceVersion = sourceVersion || entryDoc.metadata.version;
+          }
         }
       }
 
+      // 3. Fallback to availableCatalogs list
       if (availableCatalogs.length > 0) {
-        const found = availableCatalogs.find((c: any) => 
-          (uuid && (c.uuid || c.id)?.toLowerCase() === uuid) ||
-          c.href === href ||
-          (c.uuid && href.includes(c.uuid)) ||
-          (c.id && href.includes(c.id)) ||
-          (c.metadata?.title && href.includes(c.metadata.title))
-        );
+        const found = availableCatalogs.find((c: any) => {
+          const catObj = c?.catalog || c;
+          const catId = (catObj.uuid || catObj.id || c.uuid || c.id)?.toLowerCase();
+          const catTitleMeta = catObj.metadata?.title || c.metadata?.title || c.title;
+          return (
+            (uuid && catId === uuid) ||
+            c.href === href ||
+            (catId && href.toLowerCase().includes(catId)) ||
+            (catTitleMeta && href.includes(catTitleMeta))
+          );
+        });
         if (found) {
-          if (!sourceDoc) sourceDoc = found?.catalog || found;
-          sourceTitle = sourceTitle || found?.metadata?.title || found?.title || null;
-          sourceVersion = sourceVersion || found?.metadata?.version || null;
+          const catObj = found?.catalog || found;
+          if (!sourceDoc) sourceDoc = catObj;
+          sourceTitle = sourceTitle || catObj?.metadata?.title || found?.metadata?.title || found?.title || null;
+          sourceVersion = sourceVersion || catObj?.metadata?.version || found?.metadata?.version || null;
         } else if (!sourceDoc && availableCatalogs.length === 1 && imports.length === 1) {
-          sourceDoc = availableCatalogs[0]?.catalog || availableCatalogs[0];
-          sourceTitle = sourceTitle || availableCatalogs[0]?.metadata?.title || availableCatalogs[0]?.title || null;
-          sourceVersion = sourceVersion || availableCatalogs[0]?.metadata?.version || null;
+          const catObj = availableCatalogs[0]?.catalog || availableCatalogs[0];
+          sourceDoc = catObj;
+          sourceTitle = sourceTitle || catObj?.metadata?.title || availableCatalogs[0]?.metadata?.title || availableCatalogs[0]?.title || null;
+          sourceVersion = sourceVersion || catObj?.metadata?.version || availableCatalogs[0]?.metadata?.version || null;
         }
       }
 
+      // 4. Fallback to availableProfiles list
       if (availableProfiles.length > 0) {
-        const found = availableProfiles.find((p: any) => 
-          (uuid && (p.uuid || p.id)?.toLowerCase() === uuid) ||
-          p.href === href ||
-          (p.uuid && href.includes(p.uuid)) ||
-          (p.id && href.includes(p.id)) ||
-          (p.metadata?.title && href.includes(p.metadata.title))
-        );
+        const found = availableProfiles.find((p: any) => {
+          const profObj = p?.profile || p;
+          const profId = (profObj.uuid || profObj.id || p.uuid || p.id)?.toLowerCase();
+          const profTitleMeta = profObj.metadata?.title || p.metadata?.title || p.title;
+          return (
+            (uuid && profId === uuid) ||
+            p.href === href ||
+            (profId && href.toLowerCase().includes(profId)) ||
+            (profTitleMeta && href.includes(profTitleMeta))
+          );
+        });
         if (found) {
-          if (!sourceDoc) sourceDoc = found?.profile || found;
-          sourceTitle = sourceTitle || found?.metadata?.title || found?.title || null;
-          sourceVersion = sourceVersion || found?.metadata?.version || null;
+          const profObj = found?.profile || found;
+          if (!sourceDoc) sourceDoc = profObj;
+          sourceTitle = sourceTitle || profObj?.metadata?.title || found?.metadata?.title || found?.title || null;
+          sourceVersion = sourceVersion || profObj?.metadata?.version || found?.metadata?.version || null;
         } else if (!sourceDoc && availableProfiles.length === 1 && imports.length === 1) {
-          sourceDoc = availableProfiles[0]?.profile || availableProfiles[0];
-          sourceTitle = sourceTitle || availableProfiles[0]?.metadata?.title || availableProfiles[0]?.title || null;
-          sourceVersion = sourceVersion || availableProfiles[0]?.metadata?.version || null;
+          const profObj = availableProfiles[0]?.profile || availableProfiles[0];
+          sourceDoc = profObj;
+          sourceTitle = sourceTitle || profObj?.metadata?.title || availableProfiles[0]?.metadata?.title || availableProfiles[0]?.title || null;
+          sourceVersion = sourceVersion || profObj?.metadata?.version || availableProfiles[0]?.metadata?.version || null;
         }
       }
 
+      // 5. Final fallback to resolvedCatalog
       if (!sourceDoc && resolvedCatalog) {
         sourceDoc = resolvedCatalog;
+        if (!sourceTitle && imports.length === 1) {
+          sourceTitle = resolvedCatalog.source_catalog_title;
+        }
       }
 
       const catDoc = sourceDoc?.catalog || sourceDoc?.profile || sourceDoc?.data?.catalog || sourceDoc?.data?.profile || sourceDoc;
       const profileTitle = profile?.metadata?.title;
       let catTitle = sourceTitle 
-        || (resolvedCatalog?.source_catalog_title && resolvedCatalog.source_catalog_title !== profileTitle ? resolvedCatalog.source_catalog_title : null)
         || (catDoc?.metadata?.title && catDoc.metadata.title !== profileTitle ? catDoc.metadata.title : null)
-        || resolvedCatalog?.source_catalog_title
-        || catDoc?.metadata?.title
+        || (imports.length === 1 && resolvedCatalog?.source_catalog_title && resolvedCatalog.source_catalog_title !== profileTitle ? resolvedCatalog.source_catalog_title : null)
         || (uuid ? `Source (${uuid.slice(0, 8)})` : `Import #${idx + 1}`);
 
       const catVersion = sourceVersion || catDoc?.metadata?.version || (catDoc === resolvedCatalog ? undefined : resolvedCatalog?.metadata?.version);
-      const catId = uuid || resolvedCatalog?.source_catalog_id || `import_${idx}`;
+      const catId = uuid || backendSource?.id || (imports.length === 1 ? resolvedCatalog?.source_catalog_id : null) || `import_${idx}`;
 
       list.push(processDoc(imp, idx, sourceDoc, catId, catTitle, href, catVersion));
     });
@@ -419,7 +457,6 @@ export function SourceCatalogTree({
   const query = searchQuery.trim().toLowerCase();
 
   const controlMatches = (c: TreeControlItem): boolean => {
-    if (catalogFilter !== 'all' && c.catalogId !== catalogFilter) return false;
     if (!query) return true;
     return c.id.toLowerCase().includes(query) ||
            c.title.toLowerCase().includes(query) ||
@@ -429,8 +466,6 @@ export function SourceCatalogTree({
   const isDefaultVisibility = visibilityFilter.showActive && visibilityFilter.showExcluded && !visibilityFilter.showWithdrawn;
 
   const filterControl = (c: TreeControlItem): TreeControlItem | null => {
-    if (catalogFilter !== 'all' && c.catalogId !== catalogFilter) return null;
-
     if (c.isWithdrawn) {
       if (!visibilityFilter.showWithdrawn) return null;
     } else {
@@ -465,7 +500,7 @@ export function SourceCatalogTree({
   };
 
   const filterGroup = (g: TreeGroupItem): TreeGroupItem | null => {
-    if (!query && catalogFilter === 'all' && isDefaultVisibility) {
+    if (!query && isDefaultVisibility) {
       return g;
     }
     const matchingControls = g.controls.map(filterControl).filter(Boolean) as TreeControlItem[];
@@ -485,9 +520,8 @@ export function SourceCatalogTree({
 
   const filteredCatalogs = useMemo(() => {
     return sourceCatalogs
-      .filter(cat => catalogFilter === 'all' || cat.id === catalogFilter)
       .map(cat => {
-        if (!query && catalogFilter === 'all' && isDefaultVisibility) {
+        if (!query && isDefaultVisibility) {
           return cat;
         }
         const filteredGroups = cat.groups.map(filterGroup).filter(Boolean) as TreeGroupItem[];
@@ -504,7 +538,7 @@ export function SourceCatalogTree({
         return null;
       })
       .filter(Boolean) as TreeCatalogItem[];
-  }, [sourceCatalogs, query, catalogFilter, isDefaultVisibility, filterGroup, filterControl]);
+  }, [sourceCatalogs, query, isDefaultVisibility, filterGroup, filterControl]);
 
   // ─── Expand / Collapse State Management ─────────────────────────────────
   const toggleNode = (nodeId: string, defaultExpanded = true) => {
@@ -1428,14 +1462,75 @@ export function SourceCatalogTree({
           gap: '8px'
         }}
       >
-        {/* Row 1: Title & Controls Count */}
+        {/* Row 1: Title & Controls Stats */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <h3 style={{ margin: 0, fontSize: '13.5px', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             🌳 Source Catalog Hierarchy & Control Pool (Drag & Drop)
-            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 'normal' }}>
-              ({treeStats.total} controls total{activeMergeMode === 'custom' ? ` • ${treeStats.assigned}/${treeStats.total} assigned` : ` • ${treeStats.included}/${treeStats.total} active`})
-            </span>
           </h3>
+
+          <div
+            data-testid="pool-stats-strip"
+            style={{
+              display: 'flex',
+              gap: '12px',
+              fontSize: '12px',
+              color: 'var(--color-text-muted)',
+              alignItems: 'center',
+              flexWrap: 'wrap'
+            }}
+          >
+            {activeMergeMode === 'custom' || availableCustomGroups.length > 0 ? (
+              <>
+                <span>Total: <strong style={{ color: 'var(--color-text)' }}>{treeStats.total}</strong></span>
+                <span>Assigned: <strong style={{ color: 'var(--color-success, #22c55e)' }}>{treeStats.assigned}</strong></span>
+                <span>Unassigned: <strong style={{ color: 'var(--color-accent, #f59e0b)' }}>{treeStats.unassigned}</strong></span>
+              </>
+            ) : (
+              <>
+                <span>Total: <strong style={{ color: 'var(--color-text)' }}>{treeStats.total}</strong></span>
+                <span>Active: <strong style={{ color: 'var(--color-success, #22c55e)' }}>{treeStats.included}</strong></span>
+                {treeStats.excluded > 0 ? (
+                  <span>Excluded: <strong style={{ color: 'var(--color-danger, #ef4444)' }}>{treeStats.excluded}</strong></span>
+                ) : (
+                  <span style={{ color: 'var(--color-text-subtle)' }}>(All active)</span>
+                )}
+              </>
+            )}
+
+            {isEditing && activeMergeMode === 'custom' && (
+              <div style={{ display: 'flex', gap: '8px', marginLeft: '4px' }}>
+                <button
+                  type="button"
+                  onClick={handleSelectAllVisible}
+                  style={{
+                    fontSize: '11px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-primary, #3b82f6)',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Select All Visible
+                </button>
+                {selectedControlIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    style={{
+                      fontSize: '11px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--color-text-muted)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Clear Selection ({selectedControlIds.size})
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Row 2: Search Bar with Integrated Small Filter Popover */}
@@ -1458,21 +1553,6 @@ export function SourceCatalogTree({
             />
           </div>
 
-          {sourceCatalogs.length > 1 && (
-            <select
-              data-testid="pool-catalog-filter"
-              value={catalogFilter}
-              onChange={(e) => setCatalogFilter(e.target.value)}
-              className="form-input"
-              style={{ height: '28px', fontSize: '12px', minWidth: '140px', padding: '2px 8px' }}
-            >
-              <option value="all">All Source Catalogs</option>
-              {sourceCatalogs.map((c, idx) => (
-                <option key={`opt_${c.id}_${idx}`} value={c.id}>{c.title}</option>
-              ))}
-            </select>
-          )}
-
           {searchQuery && (
             <button
               type="button"
@@ -1493,76 +1573,6 @@ export function SourceCatalogTree({
             </button>
           )}
         </div>
-      </div>
-
-      {/* ─── Stats Counter Strip ────────────────────────────────────────── */}
-      <div
-        data-testid="pool-stats-strip"
-        style={{
-          display: 'flex',
-          gap: '16px',
-          marginBottom: '10px',
-          padding: '6px 12px',
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border-subtle)',
-          borderRadius: 'var(--radius-md)',
-          fontSize: '12px',
-          color: 'var(--color-text-muted)',
-          alignItems: 'center',
-          flexWrap: 'wrap'
-        }}
-      >
-        {activeMergeMode === 'custom' || availableCustomGroups.length > 0 ? (
-          <>
-            <span>Total: <strong style={{ color: 'var(--color-text)' }}>{treeStats.total}</strong></span>
-            <span>Assigned: <strong style={{ color: 'var(--color-success, #22c55e)' }}>{treeStats.assigned}</strong></span>
-            <span>Unassigned: <strong style={{ color: 'var(--color-accent, #f59e0b)' }}>{treeStats.unassigned}</strong></span>
-          </>
-        ) : (
-          <>
-            <span>Total: <strong style={{ color: 'var(--color-text)' }}>{treeStats.total}</strong></span>
-            <span>Active in Baseline: <strong style={{ color: 'var(--color-success, #22c55e)' }}>{treeStats.included}</strong></span>
-            {treeStats.excluded > 0 ? (
-              <span>Excluded: <strong style={{ color: 'var(--color-danger, #ef4444)' }}>{treeStats.excluded}</strong></span>
-            ) : (
-              <span>(All controls active in baseline)</span>
-            )}
-          </>
-        )}
-
-        {isEditing && activeMergeMode === 'custom' && (
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={handleSelectAllVisible}
-              style={{
-                fontSize: '11px',
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--color-primary, #3b82f6)',
-                cursor: 'pointer',
-                fontWeight: 600
-              }}
-            >
-              Select All Visible
-            </button>
-            {selectedControlIds.size > 0 && (
-              <button
-                type="button"
-                onClick={handleClearSelection}
-                style={{
-                  fontSize: '11px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--color-text-muted)',
-                  cursor: 'pointer'
-                }}
-              >
-                Clear Selection ({selectedControlIds.size})
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ─── Main Scrollable Tree Surface ───────────────────────────────── */}

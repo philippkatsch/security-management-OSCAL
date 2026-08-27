@@ -136,6 +136,14 @@ export function ProfileSidebar({
       for (const aid of assignedIds) {
         ids.delete(aid.toLowerCase());
       }
+      const collectCustomGroupIds = (gList?: any[]) => {
+        if (!gList) return;
+        for (const g of gList) {
+          if (g.id) ids.delete(g.id.toLowerCase());
+          if (g.groups) collectCustomGroupIds(g.groups);
+        }
+      };
+      collectCustomGroupIds((profile as any)?.merge?.custom?.groups);
     }
 
     return ids;

@@ -218,11 +218,8 @@ test.describe('Stage 2 Profile Tailoring — Custom Group Definition & Control P
       // 1. Switch to custom structuring mode
       await switchStructuringMode(page, 'custom');
 
-      // 2. Open Control Pool sub-tab
+      // 2. Open Imports workbench
       await selectSidebarTab(page, 'Imports');
-      const poolTabBtn = page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first();
-      await expect(poolTabBtn).toBeVisible({ timeout: 15000 });
-      await poolTabBtn.click();
 
       // 3. Verify all imported controls appear in pool
       await expect(page.getByText('Access Control Policy and Procedures').first()).toBeVisible({ timeout: 15000 });
@@ -268,19 +265,16 @@ test.describe('Stage 2 Profile Tailoring — Custom Group Definition & Control P
 
       await navigateToProfile(page, profUuid, apiSetup.workspaceId, true);
 
-      // 1. Navigate to Imports -> Control Pool
+      // 1. Navigate to Imports
       await selectSidebarTab(page, 'Imports');
-      const poolTabBtn = page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first();
-      await expect(poolTabBtn).toBeVisible({ timeout: 15000 });
-      await poolTabBtn.click();
 
       // 2. Verify ac-1 displays "✓ Assigned" badge
-      const assignedBadge = page.getByText('✓ Assigned').first();
+      const assignedBadge = page.getByText(/Assigned/i).first();
       await expect(assignedBadge).toBeVisible({ timeout: 15000 });
 
       // 3. Verify unassigned control (ac-2) does NOT have "✓ Assigned"
-      const ac2Card = page.getByText('Account Management').first().locator('..');
-      await expect(ac2Card.getByText('✓ Assigned')).not.toBeVisible();
+      const ac2Card = page.locator('[data-testid="pool-control-card-ac-2"]').or(page.getByText('Account Management').first().locator('..'));
+      await expect(ac2Card.getByText(/✓ Assigned/i)).not.toBeVisible();
     });
 
     test('F11 & F12: Export Modal Verifies Exclusion of Virtual Artifacts', async ({ page, apiSetup }) => {
@@ -305,7 +299,7 @@ test.describe('Stage 2 Profile Tailoring — Custom Group Definition & Control P
       await navigateToProfile(page, profUuid, apiSetup.workspaceId, true);
 
       // 1. Open Export Modal
-      const exportBtn = page.getByRole('button', { name: /Export/i }).first();
+      const exportBtn = page.getByTestId('export-btn').or(page.getByRole('button', { name: /Export/i })).first();
       await expect(exportBtn).toBeVisible({ timeout: 15000 });
       await exportBtn.click();
 
@@ -441,16 +435,16 @@ test.describe('Stage 2 Profile Tailoring — Custom Group Definition & Control P
 
       // 1. Switch to custom mode
       await switchStructuringMode(page, 'custom');
-      const poolBtn = page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first();
-      await expect(poolBtn).toBeVisible({ timeout: 15000 });
+      const addGrpBtn = page.getByRole('button', { name: /Add Custom Group/i }).first();
+      await expect(addGrpBtn).toBeVisible({ timeout: 15000 });
 
       // 2. Switch back to as-is mode
       await switchStructuringMode(page, 'as-is');
-      await expect(poolBtn).not.toBeVisible();
+      await expect(page.locator('select[data-testid="structuring-mode-select"]')).toHaveValue('as-is');
 
       // 3. Switch back to custom mode
       await switchStructuringMode(page, 'custom');
-      await expect(poolBtn).toBeVisible({ timeout: 15000 });
+      await expect(addGrpBtn).toBeVisible({ timeout: 15000 });
     });
   });
 

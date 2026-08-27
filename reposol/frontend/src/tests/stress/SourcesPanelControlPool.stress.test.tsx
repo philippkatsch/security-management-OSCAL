@@ -150,7 +150,27 @@ describe('Adversarial Stress Suite: SourcesPanel Control Pool & DnD', () => {
         all_controls: [...cat1Controls, ...cat2Controls],
         all_groups: [],
         groups: [],
-        controls: []
+        controls: [],
+        imported_sources: [
+          {
+            href: 'nist.json',
+            id: 'cat-nist',
+            title: 'NIST SP 800-53',
+            controls: cat1Controls,
+            all_controls: cat1Controls,
+            groups: [],
+            all_groups: []
+          },
+          {
+            href: 'iso.json',
+            id: 'cat-iso',
+            title: 'ISO/IEC 27001',
+            controls: cat2Controls,
+            all_controls: cat2Controls,
+            groups: [],
+            all_groups: []
+          }
+        ]
       };
 
       const profile = {
@@ -171,12 +191,10 @@ describe('Adversarial Stress Suite: SourcesPanel Control Pool & DnD', () => {
         />
       );
 
-      fireEvent.click(screen.getByTestId('control-pool-tab-btn'));
-
-      // Due to SourcesPanel line 234: `catalogId: catId` (where catId is resolvedCatalog.source_catalog_id),
-      // all controls get catalogId="cat-unified-root" rather than their respective source catalogId.
-      const catalogFilter = screen.queryByTestId('pool-catalog-filter');
-      expect(catalogFilter).toBeInTheDocument();
+      const searchInput = screen.getByTestId('pool-search-input');
+      expect(searchInput).toBeInTheDocument();
+      const statsStrip = screen.getByTestId('pool-stats-strip');
+      expect(statsStrip).toHaveTextContent('Total: 4');
     });
 
     it('correctly handles empty or degenerate control list without throwing errors', () => {

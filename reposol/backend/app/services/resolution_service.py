@@ -684,6 +684,8 @@ async def _run_resolution_pipeline(
     source_catalog_ids = set()
     source_catalog_titles = []
 
+    imported_sources = []
+
     # === Phase 1: Import ===
     for imp in profile.get("imports", []):
         href = imp.get("href")
@@ -695,21 +697,30 @@ async def _run_resolution_pipeline(
         is_profile = await document_exists("profiles", cat_uuid, workspace_id=workspace_id)
         if is_profile:
             prof_res = await resolve_profile(workspace_id, cat_uuid, _resolving_stack=_resolving_stack)
+            prof_doc, _ = await get_document("profiles", cat_uuid, workspace_id=workspace_id)
+            prof_meta = prof_doc.get("profile", {}).get("metadata", {})
+            cat_title = prof_meta.get("title", "Profile")
+            cat_version = prof_meta.get("version")
             cat = {"groups": prof_res.get("groups", []), "controls": prof_res.get("controls", [])}
             source_catalog_ids.add(cat_uuid)
-            source_catalog_titles.append("Profile")
+            source_catalog_titles.append(cat_title)
         else:
             try:
                 cat_doc, _ = await get_document("catalogs", cat_uuid, workspace_id=workspace_id)
+                cat_meta = cat_doc.get("catalog", {}).get("metadata", {})
+                cat_title = cat_meta.get("title", "Unknown Catalog")
+                cat_version = cat_meta.get("version")
                 source_catalog_ids.add(cat_uuid)
-                source_catalog_titles.append(cat_doc.get("catalog", {}).get("metadata", {}).get("title", "Unknown Catalog"))
+                source_catalog_titles.append(cat_title)
             except FileNotFoundError:
                 continue
 
             cat = cat_doc.get("catalog", {})
 
-        raw_all_groups.extend(copy.deepcopy(cat.get("groups", [])))
-        raw_all_controls.extend(copy.deepcopy(cat.get("controls", [])))
+        raw_cat_groups = copy.deepcopy(cat.get("groups", []))
+        raw_cat_controls = copy.deepcopy(cat.get("controls", []))
+        raw_all_groups.extend(copy.deepcopy(raw_cat_groups))
+        raw_all_controls.extend(copy.deepcopy(raw_cat_controls))
 
         include_all = imp.get("include-all", None) is not None
         include_controls = imp.get("include-controls", [])
@@ -738,11 +749,23 @@ async def _run_resolution_pipeline(
         withdrawn_ids = _collect_withdrawn_ids(cat)
         excluded_ids |= withdrawn_ids
 
-        filtered_groups = _filter_groups(cat.get("groups", []), include_all, included_ids, include_patterns, excluded_ids, exclude_patterns)
-        filtered_controls = _filter_controls(cat.get("controls", []), include_all, included_ids, include_patterns, excluded_ids, exclude_patterns)
+        filtered_groups = _filter_groups(raw_cat_groups, include_all, included_ids, include_patterns, excluded_ids, exclude_patterns)
+        filtered_controls = _filter_controls(raw_cat_controls, include_all, included_ids, include_patterns, excluded_ids, exclude_patterns)
 
         all_groups.extend(filtered_groups)
         all_controls.extend(filtered_controls)
+
+        imported_sources.append({
+            "href": href,
+            "id": cat_uuid,
+            "title": cat_title,
+            "version": cat_version,
+            "type": "profile" if is_profile else "catalog",
+            "groups": filtered_groups,
+            "controls": filtered_controls,
+            "all_groups": raw_cat_groups,
+            "all_controls": raw_cat_controls
+        })
 
     # === Phase 2: Merge ===
     merge = profile.get("merge", {})
@@ -781,6 +804,7 @@ async def _run_resolution_pipeline(
         "groups": resolved.get("groups", []),
         "all_controls": raw_all_controls,
         "all_groups": raw_all_groups,
+        "imported_sources": imported_sources,
         "excluded_control_ids": sorted(list(excluded_control_ids)),
         "source_catalog_id": list(source_catalog_ids)[0] if source_catalog_ids else None,
         "source_catalog_title": ", ".join(source_catalog_titles),

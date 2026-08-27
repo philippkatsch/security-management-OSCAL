@@ -98,7 +98,20 @@ export function SourcesPanel({
     const uuid = match ? match[1]?.toLowerCase() : null;
 
     let catalog: any = null;
-    if (uuid && catalogCache) {
+
+    const backendSource = resolvedCatalog?.imported_sources?.find((s: any) => 
+      (uuid && s.id?.toLowerCase() === uuid) ||
+      (targetHref && s.href === targetHref) ||
+      (s.id && targetHref?.includes(s.id))
+    );
+    if (backendSource) {
+      catalog = {
+        groups: backendSource.all_groups || backendSource.raw_groups || backendSource.groups || [],
+        controls: backendSource.all_controls || backendSource.raw_controls || backendSource.controls || []
+      };
+    }
+
+    if (!catalog && uuid && catalogCache) {
       const cacheEntry = typeof catalogCache.get === 'function'
         ? (catalogCache.get(uuid) || catalogCache.get(uuid.toLowerCase()))
         : (catalogCache[uuid] || catalogCache[uuid.toLowerCase()]);
@@ -106,19 +119,26 @@ export function SourcesPanel({
       catalog = docData?.catalog || docData?.profile;
     }
     if (!catalog && availableCatalogs && availableCatalogs.length > 0) {
-      const found = availableCatalogs.find((c: any) => 
-        (uuid && (c.uuid || c.id)?.toLowerCase() === uuid) ||
-        (targetHref && c.href === targetHref) ||
-        (c.metadata?.title && targetHref && targetHref.includes(c.metadata.title))
-      );
-      catalog = found?.catalog || found;
+      const found = availableCatalogs.find((c: any) => {
+        const catObj = c?.catalog || c;
+        const catId = (catObj.uuid || catObj.id || c.uuid || c.id)?.toLowerCase();
+        return (uuid && catId === uuid) || (targetHref && c.href === targetHref) || (catId && targetHref?.toLowerCase().includes(catId));
+      });
+      const catObj = found?.catalog || found;
+      if (catObj?.groups || catObj?.controls) {
+        catalog = catObj;
+      }
     }
     if (!catalog && availableProfiles && availableProfiles.length > 0) {
-      const found = availableProfiles.find((p: any) => 
-        (uuid && (p.uuid || p.id)?.toLowerCase() === uuid) ||
-        (targetHref && p.href === targetHref)
-      );
-      catalog = found?.profile || found;
+      const found = availableProfiles.find((p: any) => {
+        const profObj = p?.profile || p;
+        const profId = (profObj.uuid || profObj.id || p.uuid || p.id)?.toLowerCase();
+        return (uuid && profId === uuid) || (targetHref && p.href === targetHref) || (profId && targetHref?.toLowerCase().includes(profId));
+      });
+      const profObj = found?.profile || found;
+      if (profObj?.groups || profObj?.controls) {
+        catalog = profObj;
+      }
     }
     if (!catalog && resolvedCatalog) {
       catalog = resolvedCatalog;
@@ -172,7 +192,9 @@ export function SourcesPanel({
 
     if (catalog.controls && catalog.controls.length > 0 && isAll) {
       const topControlIds = catalog.controls.map((c: any) => c.id);
+      const existingInsert = profile.merge?.custom?.['insert-controls'] || [];
       nextCustom['insert-controls'] = [
+        ...existingInsert,
         {
           'order': 'keep',
           'include-controls': [
@@ -567,10 +589,37 @@ export function SourcesPanel({
               const href = imp?.href || '';
               const match = href.match(/([a-f0-9-]{36})/i);
               const uuid = match ? match[1]?.toLowerCase() : null;
-              const isProfile = href.includes('profile');
-              const foundCat = availableCatalogs.find((c: any) => (uuid && (c.uuid || c.id)?.toLowerCase() === uuid) || (c.href === href) || (c.uuid && href.includes(c.uuid)));
-              const foundProf = availableProfiles.find((p: any) => (uuid && (p.uuid || p.id)?.toLowerCase() === uuid) || (p.href === href) || (p.uuid && href.includes(p.uuid)));
-              const title = foundCat?.metadata?.title || foundCat?.title || foundProf?.metadata?.title || foundProf?.title || (resolvedCatalog?.source_catalog_title && resolvedCatalog.source_catalog_title !== profile?.metadata?.title ? resolvedCatalog.source_catalog_title : null) || (uuid ? `Source (${uuid.slice(0, 8)})` : `Import #${idx + 1}`);
+              const isProfile = href.toLowerCase().includes('profile');
+
+              const backendSource = resolvedCatalog?.imported_sources?.find((s: any) => 
+                (uuid && s.id?.toLowerCase() === uuid) ||
+                s.href === href ||
+                (s.id && href.includes(s.id))
+              ) || resolvedCatalog?.imported_sources?.[idx];
+
+              const foundCat = availableCatalogs.find((c: any) => {
+                const catObj = c?.catalog || c;
+                const catId = (catObj.uuid || catObj.id || c.uuid || c.id)?.toLowerCase();
+                return (uuid && catId === uuid) || c.href === href || (catId && href.toLowerCase().includes(catId));
+              });
+              const catObj = foundCat?.catalog || foundCat;
+
+              const foundProf = availableProfiles.find((p: any) => {
+                const profObj = p?.profile || p;
+                const profId = (profObj.uuid || profObj.id || p.uuid || p.id)?.toLowerCase();
+                return (uuid && profId === uuid) || p.href === href || (profId && href.toLowerCase().includes(profId));
+              });
+              const profObj = foundProf?.profile || foundProf;
+
+              const title = backendSource?.title ||
+                catObj?.metadata?.title ||
+                profObj?.metadata?.title ||
+                foundCat?.metadata?.title ||
+                foundCat?.title ||
+                foundProf?.metadata?.title ||
+                foundProf?.title ||
+                (importsList.length === 1 && resolvedCatalog?.source_catalog_title && resolvedCatalog.source_catalog_title !== profile?.metadata?.title ? resolvedCatalog.source_catalog_title : null) ||
+                (uuid ? `Source (${uuid.slice(0, 8)})` : `Import #${idx + 1}`);
               return (
                 <div
                   key={`src_pill_${idx}`}
