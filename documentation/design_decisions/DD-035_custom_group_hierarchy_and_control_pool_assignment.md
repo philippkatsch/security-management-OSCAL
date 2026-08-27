@@ -112,8 +112,9 @@ Serialization guarantees 100% compliance with NIST OSCAL Profile Schema v1.1.2:
   - Any transient UI properties (such as `_isVirtual`, `expanded`, `isPoolNode`) are stripped before validation and disk persistence.
   - Groups without explicit `insert-controls` or sub-groups are normalized cleanly.
 
-### 6. Bidirectional Resolution Sync & Backend Engine Hardening
+### 6. Bidirectional Resolution Sync, Multi-Source Isolation & Backend Engine Hardening
 
+- **Multi-Source Isolation (`imported_sources`)**: The resolution engine (`resolution_service.py`) and resolution preview route (`/api/resolve/profile/preview`) deliver an `imported_sources` list preserving isolated titles, versions, and original group/control hierarchies for every imported source document. This powers accurate, per-source pills and tree cards in the frontend workbench without string concatenation or fallback collisions.
 - **Live Debounced Sync (500ms)**: Profile changes trigger a debounced update to `POST /api/resolve/profile/preview` via `useProfileResolution`, providing live resolved catalog and control tree updates in under 500ms.
 - **Case-Insensitive Resolution**: Backend `_apply_custom_structure()` in `resolution_service.py` performs case-insensitive normalization on control IDs to prevent casing mismatches between catalog sources and `with-ids` entries.
 - **Sub-group Conflict Detection**: Backend verifies that controls assigned across nested custom groups do not cause cyclic dependencies or duplicate ID collisions. Orphaned custom group control references (referencing excluded or non-existent controls) are flagged in the `conflicts` report (`orphaned_custom_group_refs`).
