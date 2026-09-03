@@ -47,6 +47,8 @@ export function ConfirmModal({
   return (
     <dialog
       ref={dialogRef}
+      role="dialog"
+      data-testid="confirm-dialog"
       className={styles.dialog}
       onCancel={handleCancel}
     >

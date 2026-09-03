@@ -65,11 +65,20 @@ export function DebouncedInput({
     };
   }, []);
 
+  const handleBlur = (e) => {
+    if (pendingValueRef.current !== lastCommittedRef.current) {
+      lastCommittedRef.current = pendingValueRef.current;
+      onChangeRef.current?.(pendingValueRef.current);
+    }
+    props.onBlur?.(e);
+  };
+
   if (multiline) {
     return (
       <textarea
         value={displayValue}
         onChange={(e) => setDisplayValue(e.target.value)}
+        onBlur={handleBlur}
         placeholder={placeholder}
         className={className}
         rows={rows}
@@ -84,6 +93,7 @@ export function DebouncedInput({
       type={type}
       value={displayValue}
       onChange={(e) => setDisplayValue(e.target.value)}
+      onBlur={handleBlur}
       placeholder={placeholder}
       className={className}
       disabled={disabled}

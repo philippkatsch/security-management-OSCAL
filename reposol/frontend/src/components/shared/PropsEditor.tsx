@@ -44,7 +44,7 @@ export function PropsEditor({
       if (i === index) {
         const item = { ...p, [field]: val };
         // Clean up empty optional fields
-        if (field === 'ns' || field === 'class' || field === 'uuid' || field === 'group' || field === 'remarks' || field === 'id') {
+        if (field === 'ns' || field === 'class' || field === 'uuid' || field === 'group' || field === 'remarks') {
           if (!val) delete item[field];
         }
         return item;
@@ -274,7 +274,7 @@ export function PropsEditor({
                 </span>
               )}
 
-              {!readOnly && (
+              {isEditing && (
                 <div
                   className={styles['prop-badge-actions']}
                   style={{
@@ -339,7 +339,7 @@ export function PropsEditor({
               )}
 
               {/* Advanced fields modal/popover (absolute positioned below the badge) */}
-              {showAdvancedIndex[idx] && !readOnly && (
+              {showAdvancedIndex[idx] && isEditing && (
                 <div
                   className="advanced-prop-fields shadow-xl"
                   style={{
@@ -370,11 +370,11 @@ export function PropsEditor({
                     </button>
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>Property ID (id)</label>
+                    <label style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>UUID (uuid)</label>
                     <DebouncedInput
-                      value={p.id || ''}
-                      onChange={(val) => handlePropChange(idx, 'id', val)}
-                      placeholder="prop-id"
+                      value={p.uuid || ''}
+                      onChange={(val) => handlePropChange(idx, 'uuid', val)}
+                      placeholder="auto-generated"
                       className={['form-input', styles['form-input-plain']].filter(Boolean).join(' ')}
                       style={{ fontSize: '12px', width: '100%', padding: '4px 6px', border: '1px solid var(--color-border)' }}
                     />
@@ -446,7 +446,7 @@ export function PropsEditor({
           );
         })}
 
-        {!readOnly && (
+        {isEditing && (
           <button
             type="button"
             onClick={handleAddProp}

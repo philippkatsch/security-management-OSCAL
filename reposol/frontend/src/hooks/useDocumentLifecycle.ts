@@ -56,12 +56,16 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
   const handleToggleEdit = useCallback(async () => {
     if (isEditing) {
       setIsEditing(false);
-      if (window.location.search.includes('edit=true')) {
-        window.history.replaceState(null, '', window.location.pathname);
+      if (window.location.search.includes('edit=')) {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('edit');
+        const newSearch = params.toString() ? `?${params.toString()}` : '';
+        window.history.replaceState(null, '', `${window.location.pathname}${newSearch}`);
       }
       try {
-        if (history.hasUnsavedChanges) {
-          await data.saveDraftTag(history.activeDoc as OscalDocument);
+        const docToSave = (history.activeDoc || data.doc) as OscalDocument;
+        if (docToSave) {
+          await data.saveDraftTag(docToSave);
           await data.loadVersions();
         }
         const reloadedData = await data.reload({ silent: true });
@@ -85,8 +89,10 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
       }
       setInspectedVersion(null);
       setIsEditing(true);
-      if (!window.location.search.includes('edit=true')) {
-        window.history.replaceState(null, '', window.location.pathname + '?edit=true');
+      const params = new URLSearchParams(window.location.search);
+      if (!params.get('edit')) {
+        params.set('edit', 'true');
+        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
       }
     }
   }, [isEditing, history.activeDoc, data, history, inspectedVersion, setIsEditing]);

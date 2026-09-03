@@ -135,14 +135,6 @@ export async function importFromUrl(url: string, validateSchema = true): Promise
   return res.json();
 }
 
-export async function uploadFile(formData: FormData): Promise<ImportResult> {
-  const res = await apiClient(`/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-  return res.json();
-}
-
 export async function importARFindings(poamId: string, arId: string, findingUuids?: string[]): Promise<any> {
   const res = await apiClient(`/documents/poams/${poamId}/import-findings/${arId}`, {
     method: 'POST',

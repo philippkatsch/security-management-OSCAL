@@ -116,7 +116,7 @@ export default function EntityDetailPanel({
   return (
     <>
       <div className={styles['entity-panel-backdrop']} onClick={onClose} />
-      <div className={`entity-panel-slide-out ${isOpen ? styles['open'] : ''} ${className}`}>
+      <div className={`entity-panel-slide-out ${styles['entity-panel-slide-out']} ${isOpen ? styles['open'] : ''} ${className}`}>
         {renderHeader()}
         <div className={styles['entity-panel-content']}>{contentToRender}</div>
       </div>

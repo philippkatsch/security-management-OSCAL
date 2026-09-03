@@ -45,11 +45,12 @@ export default function EntityTable({
   emptyState, 
   addButton, 
   onAdd, 
-  onDelete: _onDelete,
+  onDelete,
   addLabel, 
   className = '' 
 }: EntityTableProps) {
   const rowData = data || [];
+  const hasCheckboxes = Boolean(onSelectionChange || onDelete || (actions && actions.length > 0));
   const finalAddBtn = addButton || (onAdd ? { label: addLabel || '+ Add Item', onClick: onAdd } : null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
@@ -126,9 +127,9 @@ export default function EntityTable({
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      const allIds = new Set(paginatedData.map(row => row.id));
+      const allIds = new Set(paginatedData.map(row => row.uuid || row.id));
       setSelectedRows(allIds);
-      if (onSelectionChange) onSelectionChange(Array.from(allIds));
+      if (onSelectionChange) onSelectionChange(paginatedData);
     } else {
       setSelectedRows(new Set());
       if (onSelectionChange) onSelectionChange([]);
@@ -137,11 +138,12 @@ export default function EntityTable({
 
   const handleSelectRow = (row, e) => {
     e.stopPropagation();
+    const rowKey = row.uuid || row.id;
     const newSelection = new Set(selectedRows);
-    if (newSelection.has(row.id)) {
-      newSelection.delete(row.id);
+    if (newSelection.has(rowKey)) {
+      newSelection.delete(rowKey);
     } else {
-      newSelection.add(row.id);
+      newSelection.add(rowKey);
     }
     setSelectedRows(newSelection);
     if (onSelectionChange) {
@@ -180,7 +182,7 @@ export default function EntityTable({
         <table className={styles['entity-table']}>
           <thead>
             <tr>
-              {onSelectionChange && (
+              {hasCheckboxes && (
                 <th className={styles['checkbox-cell']}>
                   <input 
                     type="checkbox" 
@@ -223,7 +225,7 @@ export default function EntityTable({
           <tbody>
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (onSelectionChange ? 1 : 0)}>
+                <td colSpan={columns.length + (hasCheckboxes ? 1 : 0)}>
                   {emptyState ? (
                     <div className={styles['empty-state']}>
                       {emptyState.icon && <div className={styles['empty-icon']}>{emptyState.icon}</div>}
@@ -249,7 +251,7 @@ export default function EntityTable({
                     onClick={() => onRowClick && onRowClick(row)}
                     className={selectedRows.has(rowKey) ? styles['selected'] : ''}
                   >
-                    {onSelectionChange && (
+                    {hasCheckboxes && (
                       <td className={styles['checkbox-cell']} onClick={e => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
@@ -293,15 +295,26 @@ export default function EntityTable({
         </div>
       )}
 
-      {selectedRows.size > 0 && actions && (
+      {selectedRows.size > 0 && (actions || onDelete) && (
         <BatchActionToolbar 
           selectedCount={selectedRows.size} 
-          actions={actions}
+          actions={actions || (onDelete ? [{
+            label: 'Delete Selected',
+            variant: 'danger',
+            destructive: true,
+            onClick: (rows: any[]) => {
+              const ids = Array.isArray(rows) 
+                ? rows.map(r => r.uuid || r.id).filter(Boolean)
+                : Array.from(selectedRows) as string[];
+              onDelete(ids);
+              setSelectedRows(new Set());
+            }
+          }] : [])}
           onDeselectAll={() => {
             setSelectedRows(new Set());
             if (onSelectionChange) onSelectionChange([]);
           }}
-          selectedRows={data.filter(d => selectedRows.has(d.id))}
+          selectedRows={rowData.filter(d => selectedRows.has(d.uuid || d.id))}
         />
       )}
     </div>

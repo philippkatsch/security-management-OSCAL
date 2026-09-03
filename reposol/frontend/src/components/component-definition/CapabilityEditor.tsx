@@ -3,7 +3,7 @@ import styles from './ComponentPage.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
 import { PropsEditor } from '@components/shared/PropsEditor';
 
-const Accordion = ({ title, children, defaultOpen = false }) => {
+const Accordion = ({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
     <div className={styles['component-editor__section']}>
@@ -43,7 +43,22 @@ export default function CapabilityEditor({
 
   const addIncorporatedComponent = (componentUuid: string) => {
     if (!editMode || !componentUuid) return;
-    const newComps = [...(capability['incorporates-components'] || []), { 'component-uuid': componentUuid }];
+    const targetComp = (components as any[]).find((c: any) => c.uuid === componentUuid);
+    const defaultDescription = targetComp?.description || targetComp?.title || 'Incorporated component';
+    const newComps = [
+      ...(capability['incorporates-components'] || []), 
+      { 
+        'component-uuid': componentUuid,
+        description: defaultDescription
+      }
+    ];
+    handleChange('incorporates-components', newComps);
+  };
+
+  const updateIncorporatedComponent = (index: number, field: string, value: any) => {
+    if (!editMode) return;
+    const newComps = [...(capability['incorporates-components'] || [])];
+    newComps[index] = { ...newComps[index], [field]: value };
     handleChange('incorporates-components', newComps);
   };
 
@@ -102,9 +117,24 @@ export default function CapabilityEditor({
               <p className={styles['empty-state']}>No components linked to this capability</p>
             ) : (
               <ul className={styles['linked-components-list']}>
-                {(capability['incorporates-components'] || []).map((inc, idx) => (
+                {(capability['incorporates-components'] || []).map((inc: any, idx: number) => (
                   <li key={idx} className={styles['linked-component-item']}>
-                    <span>{getComponentTitle(inc['component-uuid'])}</span>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', marginRight: '8px' }}>
+                      <strong>{getComponentTitle(inc['component-uuid'])}</strong>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Description of role in capability"
+                          value={inc.description || ''}
+                          onChange={(e) => updateIncorporatedComponent(idx, 'description', e.target.value)}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                          {inc.description || 'No description provided.'}
+                        </span>
+                      )}
+                    </div>
                     {editMode && (
                       <button className={['btn', 'btn-danger', sharedStyles['btn-sm']].filter(Boolean).join(' ')} onClick={() => removeIncorporatedComponent(idx)}>Remove</button>
                     )}
@@ -136,7 +166,7 @@ export default function CapabilityEditor({
         {/* 3. Control Implementations */}
         <Accordion title="Control Implementations">
           <div className={styles['control-impl-list']}>
-            {(capability['control-implementations'] || []).map((impl, iIdx) => (
+            {(capability['control-implementations'] || []).map((impl: any, iIdx: number) => (
               <div key={iIdx} className={styles['impl-item']}>
                 <div className={styles['form-group']}>
                   <label>Source (Catalog/Profile URI)</label>
@@ -172,7 +202,7 @@ export default function CapabilityEditor({
                   <span className="badge badge-info">{(impl['implemented-requirements'] || []).length} reqs</span>
                 </div>
                 <div className={styles['impl-requirements-table']}>
-                  {(impl['implemented-requirements'] || []).map((req, rIdx) => (
+                  {(impl['implemented-requirements'] || []).map((req: any, rIdx: number) => (
                     <div key={rIdx} className={styles['req-row']}>
                       <div className={styles['req-summary']}>
                         <strong>{req['control-id']}</strong>
@@ -192,9 +222,9 @@ export default function CapabilityEditor({
         {/* 4. Properties */}
         <Accordion title="Properties">
           <PropsEditor 
-            properties={capability.props || []} 
+            props={capability.props || []} 
             onChange={(props) => handleChange('props', props)}
-            isEditing={editMode}
+            readOnly={!editMode}
           />
         </Accordion>
 

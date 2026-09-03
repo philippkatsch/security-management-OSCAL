@@ -44,6 +44,22 @@ export const STAGE_TO_MODEL: Record<string, string> = {
   'control-mappings': 'control-mappings',
 };
 
+export const OSCAL_DEFINED_COMPONENT_TYPES = [
+  'interconnection',
+  'software',
+  'hardware',
+  'service',
+  'policy',
+  'physical',
+  'process-procedure',
+  'plan',
+  'guidance',
+  'standard',
+  'validation'
+] as const;
+
+export type OscalDefinedComponentType = typeof OSCAL_DEFINED_COMPONENT_TYPES[number];
+
 export const STAGE_CONFIG: Record<string, unknown> = {
   catalogs: {
     rootKey: 'catalog',
@@ -76,6 +92,8 @@ export const STAGE_CONFIG: Record<string, unknown> = {
     label: 'Component Definition',
     extraFields: [
       { key: 'components', label: 'Components (JSON array)', type: 'json', placeholder: '[]', required: false },
+      { key: 'capabilities', label: 'Capabilities (JSON array)', type: 'json', placeholder: '[]', required: false },
+      { key: 'import-component-definitions', label: 'Import Component Definitions (JSON array)', type: 'json', placeholder: '[]', required: false },
     ],
   },
   'assessment-plans': {
