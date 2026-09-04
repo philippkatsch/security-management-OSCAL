@@ -136,3 +136,85 @@ class TestProfileBackMatter:
         assert len(final_resources) == 1
         assert final_resources[0]["uuid"] == resource2_uuid
         assert not any(r["uuid"] == resource_uuid for r in final_resources)
+
+    def test_resolve_profile_with_backmatter_resource_import(self, client, isolated_data_dir):
+        """Verify profile resolution resolves imports pointing to back-matter resources with rlinks (R2-02)."""
+        # 1. Create base catalog
+        cat_doc = CatalogFactory.build(
+            controls=[
+                {"id": "ac-1", "title": "Access Control Policy"},
+                {"id": "ac-2", "title": "Account Management"}
+            ]
+        )
+        cat_uuid = cat_doc["catalog"]["uuid"]
+        res_cat = client.post("/api/documents/catalogs", json=cat_doc)
+        assert res_cat.status_code == 201
+
+        # 2. Create profile referencing back-matter resource #<res_uuid>
+        res_uuid = str(uuid.uuid4())
+        prof_doc = ProfileFactory.build(
+            imports=[
+                {
+                    "href": f"#{res_uuid}",
+                    "include-all": {}
+                }
+            ],
+            back_matter={
+                "resources": [
+                    {
+                        "uuid": res_uuid,
+                        "title": "Base Catalog Resource",
+                        "rlinks": [
+                            {
+                                "href": f"../catalogs/{cat_uuid}.json",
+                                "media-type": "application/json"
+                            }
+                        ]
+                    }
+                ]
+            }
+        )
+        prof_uuid = prof_doc["profile"]["uuid"]
+        res_save = client.post("/api/documents/profiles", json=prof_doc)
+        assert res_save.status_code == 201
+
+        # 3. Resolve profile via API
+        res = client.get(f"/api/resolve/profile/{prof_uuid}")
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data["controls"]) == 2
+        assert {c["id"] for c in data["controls"]} == {"ac-1", "ac-2"}
+        assert data["source_catalog_id"] == cat_uuid
+
+    def test_resolve_profile_with_metadata_resource_import(self, client, isolated_data_dir):
+        """Verify profile resolution resolves imports pointing to back-matter resources with API href rlinks (R2-02)."""
+        cat_doc = CatalogFactory.build(
+            controls=[{"id": "ia-1", "title": "Identification Policy"}]
+        )
+        cat_uuid = cat_doc["catalog"]["uuid"]
+        res_cat = client.post("/api/documents/catalogs", json=cat_doc)
+        assert res_cat.status_code == 201
+
+        res_uuid = str(uuid.uuid4())
+        prof_doc = ProfileFactory.build(
+            imports=[{"href": f"#{res_uuid}", "include-all": {}}],
+            back_matter={
+                "resources": [
+                    {
+                        "uuid": res_uuid,
+                        "title": "Back Matter Reference",
+                        "rlinks": [{"href": f"/api/documents/catalogs/{cat_uuid}"}]
+                    }
+                ]
+            }
+        )
+        prof_uuid = prof_doc["profile"]["uuid"]
+        res_save = client.post("/api/documents/profiles", json=prof_doc)
+        assert res_save.status_code == 201
+
+        res = client.get(f"/api/resolve/profile/{prof_uuid}")
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data["controls"]) == 1
+        assert data["controls"][0]["id"] == "ia-1"
+

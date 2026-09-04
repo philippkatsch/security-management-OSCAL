@@ -526,6 +526,231 @@ class ProfileFactory:
         return ProfileFactory.build(doc_id=doc_id, title="Minimal Profile")
 
 
+class SSPFactory:
+    """Factory for generating valid OSCAL System Security Plan (SSP) documents."""
+
+    @staticmethod
+    def build(
+        *,
+        doc_id: Optional[str] = None,
+        title: str = "Test System Security Plan",
+        version: str = "1.0.0",
+        oscal_version: str = "1.1.2",
+        last_modified: str = "2026-07-19T10:00:00Z",
+        import_profile_href: Optional[str] = None,
+        profile_uuid: Optional[str] = None,
+        catalog_uuid: Optional[str] = None,
+        system_characteristics: Optional[Dict[str, Any]] = None,
+        system_implementation: Optional[Dict[str, Any]] = None,
+        control_implementation: Optional[Dict[str, Any]] = None,
+        back_matter: Optional[Dict[str, Any]] = None,
+        metadata_extras: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Build a schema-compliant OSCAL SSP document."""
+        if doc_id is None:
+            doc_id = generate_uuid()
+
+        metadata = {
+            "title": title,
+            "last-modified": last_modified,
+            "version": version,
+            "oscal-version": oscal_version,
+        }
+        if metadata_extras:
+            metadata.update(metadata_extras)
+
+        # Baseline import reference
+        if import_profile_href:
+            import_profile = {"href": import_profile_href}
+        elif profile_uuid:
+            import_profile = {"href": f"../profiles/{profile_uuid}.json"}
+        elif catalog_uuid:
+            import_profile = {"href": f"../catalogs/{catalog_uuid}.json"}
+        else:
+            import_profile = {"href": f"#{generate_uuid()}"}
+
+        # Default system-characteristics
+        if system_characteristics is None:
+            system_characteristics = {
+                "system-ids": [{"id": "sys-01", "identifier-type": "https://fedramp.gov"}],
+                "system-name": "Enterprise Cloud Platform",
+                "description": "Core production information system.",
+                "system-information": {
+                    "information-types": [
+                        {
+                            "uuid": generate_uuid(),
+                            "title": "Customer Financial Information",
+                            "description": "Payment records and sensitive financial transaction logs."
+                        }
+                    ]
+                },
+                "status": {"state": "operational"},
+                "authorization-boundary": {
+                    "description": "Production AWS VPC environment encompassing all app services and database clusters."
+                }
+            }
+
+        # Default system-implementation with this-system root component
+        this_system_uuid = generate_uuid()
+        if system_implementation is None:
+            system_implementation = {
+                "users": [
+                    {
+                        "uuid": generate_uuid(),
+                        "title": "System Administrator",
+                        "role-ids": ["provider"]
+                    }
+                ],
+                "components": [
+                    {
+                        "uuid": this_system_uuid,
+                        "type": "this-system",
+                        "title": "Enterprise Cloud Platform System",
+                        "description": "Overall system boundary root component.",
+                        "status": {"state": "operational"}
+                    }
+                ]
+            }
+
+        # Default control-implementation
+        if control_implementation is None:
+            control_implementation = {
+                "description": "NIST SP 800-53 Rev 5 control implementations for the Enterprise Cloud Platform.",
+                "implemented-requirements": [
+                    {
+                        "uuid": generate_uuid(),
+                        "control-id": "ac-1",
+                        "by-components": [
+                            {
+                                "uuid": generate_uuid(),
+                                "component-uuid": this_system_uuid,
+                                "description": "Access control policies and procedures are maintained and reviewed annually.",
+                                "implementation-status": {"state": "implemented"}
+                            }
+                        ]
+                    }
+                ]
+            }
+
+        ssp: Dict[str, Any] = {
+            "uuid": doc_id,
+            "metadata": metadata,
+            "import-profile": import_profile,
+            "system-characteristics": system_characteristics,
+            "system-implementation": system_implementation,
+            "control-implementation": control_implementation,
+        }
+
+        if back_matter is not None:
+            ssp["back-matter"] = back_matter
+
+        return {"system-security-plan": ssp}
+
+    @staticmethod
+    def minimal(
+        *,
+        doc_id: Optional[str] = None,
+        profile_uuid: Optional[str] = None,
+        catalog_uuid: Optional[str] = None,
+        title: str = "Minimal SSP",
+    ) -> Dict[str, Any]:
+        """Build the absolute minimum valid SSP document."""
+        return SSPFactory.build(
+            doc_id=doc_id,
+            title=title,
+            profile_uuid=profile_uuid,
+            catalog_uuid=catalog_uuid,
+        )
+
+    @staticmethod
+    def with_components(
+        *,
+        doc_id: Optional[str] = None,
+        title: str = "SSP with Components",
+        profile_uuid: Optional[str] = None,
+        catalog_uuid: Optional[str] = None,
+        components: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """Build an SSP with specific system components."""
+        this_system_uuid = generate_uuid()
+        if components is None:
+            components = [
+                {
+                    "uuid": this_system_uuid,
+                    "type": "this-system",
+                    "title": "Enterprise Cloud Platform",
+                    "description": "Root system component",
+                    "status": {"state": "operational"}
+                },
+                {
+                    "uuid": generate_uuid(),
+                    "type": "software",
+                    "title": "PostgreSQL Database Server",
+                    "description": "Primary relational database",
+                    "status": {"state": "operational"}
+                }
+            ]
+        sys_impl = {
+            "users": [
+                {"uuid": generate_uuid(), "title": "Admin", "role-ids": ["provider"]}
+            ],
+            "components": components
+        }
+        return SSPFactory.build(
+            doc_id=doc_id,
+            title=title,
+            profile_uuid=profile_uuid,
+            catalog_uuid=catalog_uuid,
+            system_implementation=sys_impl,
+        )
+
+    @staticmethod
+    def with_parameter_cascade(
+        *,
+        profile_uuid: Optional[str] = None,
+        catalog_uuid: Optional[str] = None,
+        global_params: Optional[List[Dict[str, Any]]] = None,
+        control_params: Optional[List[Dict[str, Any]]] = None,
+        component_params: Optional[List[Dict[str, Any]]] = None,
+        control_id: str = "ac-1",
+        doc_id: Optional[str] = None,
+        title: str = "SSP with Parameter Cascade",
+    ) -> Dict[str, Any]:
+        """Build an SSP configured for 4-tier parameter cascade testing."""
+        this_system_uuid = generate_uuid()
+        by_comp: Dict[str, Any] = {
+            "uuid": generate_uuid(),
+            "component-uuid": this_system_uuid,
+            "description": "Policy is implemented and verified.",
+            "implementation-status": {"state": "implemented"}
+        }
+        if component_params:
+            by_comp["set-parameters"] = component_params
+
+        req: Dict[str, Any] = {
+            "uuid": generate_uuid(),
+            "control-id": control_id,
+            "by-components": [by_comp]
+        }
+        if control_params:
+            req["set-parameters"] = control_params
+
+        ctrl_impl: Dict[str, Any] = {
+            "description": "Control implementations with cascading parameters",
+            "implemented-requirements": [req]
+        }
+        if global_params:
+            ctrl_impl["set-parameters"] = global_params
+
+        return SSPFactory.build(
+            doc_id=doc_id,
+            title=title,
+            profile_uuid=profile_uuid,
+            catalog_uuid=catalog_uuid,
+            control_implementation=ctrl_impl,
+        )
+
+
 class GenericDocumentFactory:
     """Factory for generating valid OSCAL documents of any stage."""
 

@@ -82,7 +82,7 @@ describe('Requirement R3 & R4 Empirical Stress Tests', () => {
       expect(caughtError).toBeNull();
     });
 
-    it('R3-03: [EMPIRICAL BUG] throws TypeError when param.values is explicitly null in view/edit mode', () => {
+    it('R3-03: handles param.values as explicitly null safely in view/edit mode', () => {
       const paramWithNullValues = {
         id: 'prm_null_vals',
         label: 'Null Values Test',
@@ -102,9 +102,9 @@ describe('Requirement R3 & R4 Empirical Stress Tests', () => {
         caughtError = err;
       }
 
-      // Empirical verification: activeValues is assigned null on line 139, causing activeValues[0] to fail on line 142
-      expect(caughtError).not.toBeNull();
-      expect(caughtError.message).toContain("Cannot read properties of null (reading '0')");
+      // Verified fix: Array.isArray guards ensure no crash when param.values is null
+      expect(caughtError).toBeNull();
+      expect(screen.getByText('prm_null_vals')).toBeInTheDocument();
     });
 
     it('R3-04: multiple rapid placeholder insertions on usage and guidelines', async () => {

@@ -46,7 +46,7 @@ export function MergeConfigurator({
   const handleModeChange = (mode: string) => {
     const updatedMerge: Record<string, any> = { combine: merge.combine || { method: 'use-first' } };
     if (mode === 'as-is') {
-      updatedMerge['as-is'] = {};
+      updatedMerge['as-is'] = true;
     } else if (mode === 'flat') {
       updatedMerge.flat = {};
     } else if (mode === 'custom') {

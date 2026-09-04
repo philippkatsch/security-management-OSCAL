@@ -8,7 +8,8 @@ import {
   matchesPattern,
   filterControls,
   filterGroups,
-  fetchImportedCatalogs
+  fetchImportedCatalogs,
+  collectWithdrawnIds
 } from '@lib/profile';
 import { useProfileResolution } from '../../hooks/useProfileResolution';
 import * as apiModule from '../../lib/api';
@@ -279,6 +280,116 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       expect(ctrl.id).toBe('ac-01-tailored');
       expect(ctrl.originalId).toBe('ac-1');
     });
+
+    it('preserves atomically replaced statement without deleting it in removal pass (R2-03)', () => {
+      const catalog = {
+        uuid: '11111111-2222-3333-4444-555555555555',
+        controls: [
+          {
+            id: 'ac-1',
+            title: 'Access Control Policy',
+            parts: [
+              {
+                id: 'ac-1_smt',
+                name: 'statement',
+                prose: 'Original statement prose'
+              },
+              {
+                id: 'ac-1_gbl',
+                name: 'guidance',
+                prose: 'Original guidance'
+              }
+            ]
+          }
+        ]
+      };
+
+      const modify = {
+        alters: [
+          {
+            'control-id': 'ac-1',
+            removes: [
+              { 'by-id': 'ac-1_smt' }
+            ],
+            adds: [
+              {
+                'by-id': 'ac-1_smt',
+                position: 'after',
+                parts: [
+                  {
+                    id: 'ac-1_smt',
+                    name: 'statement',
+                    prose: 'Updated statement prose in-place'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      applyModify(catalog, modify);
+
+      const parts = catalog.controls[0].parts;
+      expect(parts).toHaveLength(2);
+      const smtPart = parts.find((p: any) => p.id === 'ac-1_smt');
+      expect(smtPart).toBeDefined();
+      expect(smtPart.prose).toBe('Updated statement prose in-place');
+    });
+
+    it('does not duplicate non-targeted additions into nested child statements (R2-04)', () => {
+      const catalog = {
+        uuid: '11111111-2222-3333-4444-555555555555',
+        controls: [
+          {
+            id: 'ac-2',
+            title: 'Account Management',
+            parts: [
+              {
+                id: 'ac-2_smt',
+                name: 'statement',
+                prose: 'Statement root',
+                parts: [
+                  { id: 'ac-2_smt.a', name: 'item', prose: 'Item a' },
+                  { id: 'ac-2_smt.b', name: 'item', prose: 'Item b' }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      const modify = {
+        alters: [
+          {
+            'control-id': 'ac-2',
+            adds: [
+              {
+                position: 'ending',
+                parts: [
+                  {
+                    id: 'ac-2_gbl',
+                    name: 'guidance',
+                    prose: 'Top-level added guidance'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      applyModify(catalog, modify);
+
+      const rootParts = catalog.controls[0].parts;
+      expect(rootParts).toHaveLength(2); // ac-2_smt and ac-2_gbl
+      expect(rootParts.map((p: any) => p.id)).toEqual(['ac-2_smt', 'ac-2_gbl']);
+
+      // Child parts under ac-2_smt must NOT contain ac-2_gbl
+      const subParts = rootParts[0].parts;
+      expect(subParts).toHaveLength(2);
+      expect(subParts.map((p: any) => p.id)).toEqual(['ac-2_smt.a', 'ac-2_smt.b']);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -486,6 +597,72 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
       expect(resolved.catalog.groups[0].groups).toBeDefined();
       expect(resolved.catalog.groups[0].groups[0].title).toBe('Sub Access Group');
       expect(resolved.catalog.groups[0].groups[0].controls.map((c: any) => c.id)).toEqual(['ac-2']);
+    });
+
+    it('collectWithdrawnIds collects controls with status or state withdrawn', () => {
+      const catalog = {
+        controls: [
+          { id: 'ac-1', title: 'Active' },
+          { id: 'ac-2', title: 'Deprecated', props: [{ name: 'status', value: 'withdrawn' }] },
+          { id: 'ac-3', title: 'Retired', props: [{ name: 'state', value: 'withdrawn' }] }
+        ],
+        groups: [
+          {
+            id: 'grp-1',
+            controls: [
+              { id: 'au-1', title: 'Active Group Control' },
+              { id: 'au-2', title: 'Withdrawn Group Control', props: [{ name: 'status', value: 'withdrawn' }] }
+            ]
+          }
+        ]
+      };
+
+      const withdrawn = collectWithdrawnIds(catalog);
+      expect(withdrawn.has('ac-2')).toBe(true);
+      expect(withdrawn.has('ac-3')).toBe(true);
+      expect(withdrawn.has('au-2')).toBe(true);
+      expect(withdrawn.has('ac-1')).toBe(false);
+      expect(withdrawn.has('au-1')).toBe(false);
+    });
+
+    it('resolveProfileSync auto-excludes withdrawn controls from imported catalog (R2-06)', () => {
+      const catUuid = '11111111-2222-3333-4444-555555555555';
+      const mockCacheWithdrawn = new Map<string, any>([
+        [
+          catUuid,
+          {
+            type: 'catalog',
+            data: {
+              catalog: {
+                uuid: catUuid,
+                controls: [
+                  { id: 'ac-1', title: 'Active Control' },
+                  { id: 'ac-2', title: 'Withdrawn Control', props: [{ name: 'status', value: 'withdrawn' }] }
+                ]
+              }
+            }
+          }
+        ]
+      ]);
+
+      const profileDoc = {
+        profile: {
+          uuid: '22222222-3333-4444-5555-666666666666',
+          metadata: { title: 'Test Baseline' },
+          imports: [
+            {
+              href: `../catalogs/${catUuid}.json`,
+              'include-all': {}
+            }
+          ]
+        }
+      };
+
+      const { catalog } = resolveProfileSync(profileDoc, mockCacheWithdrawn);
+      const resolvedIds = (catalog.controls || []).map((c: any) => c.id);
+
+      expect(resolvedIds).toContain('ac-1');
+      expect(resolvedIds).not.toContain('ac-2');
     });
   });
 

@@ -2,6 +2,15 @@ import React from 'react';
 import { useControlEditorContext } from '../ControlEditorContext';
 import { PropsEditor } from '@components/shared/PropsEditor';
 import { LinksEditor } from '@components/shared/LinksEditor';
+import { ProseWithParams } from '@components/shared/ProseWithParams';
+import {
+  resolveProfilePartsForRendering,
+  getModifiedPartIds as getModifiedPartIdsUtil,
+  handleOriginalPartFieldChange,
+  getAlterForControl,
+  updateAlter,
+  RenderablePart
+} from '@lib/profile-alter-utils';
 
 const REMOVE_SELECTORS = [
   { value: 'by-id', label: 'ID (by-id)' },
@@ -36,12 +45,35 @@ export function ProfileAdapter({
     });
   };
 
-  // Alter rules helpers
+  // Alter rules helpers (Enforces 1:1 control-to-alter mapping per R1-11)
   const handleUpdateAlterations = (updatedControlAlters: any[]) => {
-    if (!profile || !onProfileChange) return;
+    if (!profile || !onProfileChange || !control?.id) return;
     const currentAlters = profile.modify?.alters || [];
-    const otherAlters = currentAlters.filter((a: any) => a['control-id'] !== control?.id);
-    const newAlters = [...otherAlters, ...updatedControlAlters];
+    const otherAlters = currentAlters.filter(
+      (a: any) => a['control-id']?.toLowerCase() !== control.id.toLowerCase()
+    );
+    
+    // Consolidate all alterations for this control into a single alter object
+    let consolidatedAlter: any = null;
+    if (updatedControlAlters && updatedControlAlters.length > 0) {
+      const mergedAdds: any[] = [];
+      const mergedRemoves: any[] = [];
+      
+      for (const a of updatedControlAlters) {
+        if (Array.isArray(a.adds)) mergedAdds.push(...a.adds);
+        if (Array.isArray(a.removes)) mergedRemoves.push(...a.removes);
+      }
+
+      if (mergedAdds.length > 0 || mergedRemoves.length > 0) {
+        consolidatedAlter = {
+          'control-id': control.id,
+          ...(mergedAdds.length > 0 ? { adds: mergedAdds } : {}),
+          ...(mergedRemoves.length > 0 ? { removes: mergedRemoves } : {})
+        };
+      }
+    }
+    
+    const newAlters = consolidatedAlter ? [...otherAlters, consolidatedAlter] : otherAlters;
     
     const modify = profile.modify ? { ...profile.modify } : {};
     modify.alters = newAlters.length > 0 ? newAlters : undefined;
@@ -54,12 +86,31 @@ export function ProfileAdapter({
   };
 
   const handleAddAlter = () => {
-    const newAlter = {
-      'control-id': control?.id,
-      adds: [],
-      removes: []
-    };
-    handleUpdateAlterations([...alterations, newAlter]);
+    const existingAlter = alterations.find(
+      (a: any) => a['control-id']?.toLowerCase() === control?.id?.toLowerCase()
+    ) || alterations[0];
+
+    if (existingAlter) {
+      // Append a default addition to the existing alter rather than creating a duplicate alter
+      const adds = existingAlter.adds ? [...existingAlter.adds] : [];
+      adds.push({
+        position: 'ending',
+        parts: [{ name: 'statement', prose: 'Custom profile statement addition.' }]
+      });
+      handleUpdateAlterations([{ ...existingAlter, adds }]);
+    } else {
+      const newAlter = {
+        'control-id': control?.id,
+        adds: [
+          {
+            position: 'ending',
+            parts: [{ name: 'statement', prose: 'Custom profile statement addition.' }]
+          }
+        ],
+        removes: []
+      };
+      handleUpdateAlterations([newAlter]);
+    }
   };
 
   const handleRemoveAlter = (index: number) => {
@@ -411,3 +462,203 @@ export function ProfileAdapter({
     </div>
   );
 }
+
+export function useProfileControlAlters({
+  profile,
+  control,
+  originalControl,
+  onProfileChange,
+  allParams
+}: {
+  profile?: any;
+  control?: any;
+  originalControl?: any;
+  onProfileChange?: (p: any) => void;
+  allParams?: any[];
+}) {
+  const controlId = control?.id || '';
+  const origControlId = originalControl?.id || control?.originalId;
+  const targetControlId = origControlId || controlId;
+
+  const profileAlter = React.useMemo(() => {
+    return getAlterForControl(profile, controlId) || (origControlId ? getAlterForControl(profile, origControlId) : undefined);
+  }, [profile, controlId, origControlId]);
+
+  const resolvedParts = React.useMemo(() => {
+    return resolveProfilePartsForRendering(
+      originalControl?.parts || control?.parts,
+      profileAlter
+    );
+  }, [control?.parts, originalControl?.parts, profileAlter]);
+
+  const handleAddProfilePartAtEnd = React.useCallback((partName: string = 'statement') => {
+    if (!profile || !onProfileChange) return;
+    const newPartId = `${targetControlId}_${partName}_${Date.now()}`;
+    updateAlter(profile, targetControlId, (alter) => {
+      const adds = alter.adds ? [...alter.adds] : [];
+      adds.push({
+        position: 'ending',
+        parts: [{ id: newPartId, name: partName, prose: '' }]
+      } as any);
+      return { ...alter, adds };
+    }, onProfileChange);
+  }, [profile, targetControlId, onProfileChange]);
+
+  const profileGetModifiedPartIds = React.useCallback(() => {
+    if (!profile) return [];
+    const ids = getModifiedPartIdsUtil(profile, targetControlId);
+    if (controlId && controlId !== targetControlId) {
+      const overriddenIds = getModifiedPartIdsUtil(profile, controlId);
+      return [...new Set([...ids, ...overriddenIds])];
+    }
+    return ids;
+  }, [profile, targetControlId, controlId]);
+
+  const handleResetProse = React.useCallback((partId: string) => {
+    if (!profile || !onProfileChange) return;
+    updateAlter(profile, targetControlId, (alter) => {
+      let removes = alter.removes ? [...alter.removes] : [];
+      let adds = alter.adds ? [...alter.adds] : [];
+      removes = removes.filter(r => r['by-id'] !== partId);
+      adds = adds.filter(a => !(a['by-id'] === partId && a.position === 'after'));
+      adds = adds.map(a => {
+        if (a.parts) {
+          const filteredParts = a.parts.filter(p => p.id !== partId);
+          if (filteredParts.length === 0) return null;
+          return { ...a, parts: filteredParts };
+        }
+        return a;
+      }).filter(Boolean) as typeof adds;
+      return { ...alter, removes, adds };
+    }, onProfileChange);
+  }, [profile, targetControlId, onProfileChange]);
+
+  const renderEditPart = React.useCallback((part: RenderablePart, _origPart: any, _depth: number, _index: number) => {
+    const isOriginal = !part.isAdded;
+    const partId = part.originalId || part.id;
+    return (
+      <div
+        key={part.id || _index}
+        style={{
+          padding: '14px 16px',
+          background: part.isModified ? 'rgba(245, 158, 11, 0.08)' : part.isAdded ? 'rgba(34, 197, 94, 0.08)' : 'var(--color-surface-2)',
+          border: `1px solid ${part.isModified ? 'rgba(245, 158, 11, 0.35)' : part.isAdded ? 'rgba(34, 197, 94, 0.35)' : 'var(--color-border)'}`,
+          borderLeft: `4px solid ${part.isModified ? '#f59e0b' : part.isAdded ? '#22c55e' : 'var(--color-primary)'}`,
+          borderRadius: '6px',
+          position: 'relative' as const
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)' }}>
+              {part.name === 'statement' ? '☵ Statement' : `📄 ${part.name ? part.name.charAt(0).toUpperCase() + part.name.slice(1) : 'Part'}`}
+            </span>
+            {part.isModified && <span style={{ fontSize: '10px', color: '#fbbf24', background: 'rgba(245,158,11,0.2)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>Modified</span>}
+            {part.isAdded && <span style={{ fontSize: '10px', color: '#22c55e', background: 'rgba(34,197,94,0.2)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>Added</span>}
+          </div>
+          {part.isModified && handleResetProse && (
+            <button
+              type="button"
+              onClick={() => handleResetProse(partId)}
+              title="Clear alter and revert to original catalog baseline"
+              style={{
+                fontSize: '11px',
+                padding: '2px 8px',
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#fbbf24',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              ↩ Revert to Baseline
+            </button>
+          )}
+          {part.isAdded && handleResetProse && (
+            <button
+              type="button"
+              onClick={() => handleResetProse(part.id)}
+              title="Remove added statement"
+              style={{
+                fontSize: '11px',
+                padding: '2px 8px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#f87171',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🗑️ Remove
+            </button>
+          )}
+        </div>
+        <ProseWithParams
+          value={part.prose || ''}
+          onChange={(newValue: string) => {
+            if (isOriginal && profile && onProfileChange) {
+              handleOriginalPartFieldChange(
+                partId, 'prose', newValue,
+                { originalName: part.originalName || part.name, originalProse: part.originalProse ?? part.prose },
+                targetControlId, profile, onProfileChange
+              );
+            } else if (part.isAdded && profile && onProfileChange) {
+              updateAlter(profile, targetControlId, (alter) => {
+                const adds = (alter.adds || []).map(add => {
+                  if (add.parts && add.parts.some(p => p.id === part.id)) {
+                    const updatedParts = add.parts.map(p =>
+                      p.id === part.id ? { ...p, prose: newValue } : p
+                    );
+                    return { ...add, parts: updatedParts };
+                  }
+                  return add;
+                });
+                return { ...alter, adds };
+              }, onProfileChange);
+            }
+          }}
+          params={allParams || []}
+          placeholder="Enter prose text… (supports markdown formatting)"
+          rows={2}
+          style={{
+            fontSize: '13px',
+            width: '100%',
+            minHeight: '65px'
+          }}
+        />
+        {part.isModified && part.originalProse && part.originalProse !== part.prose && (
+          <div style={{
+            marginTop: '8px',
+            padding: '6px 10px',
+            background: 'rgba(245, 158, 11, 0.05)',
+            border: '1px dashed rgba(245, 158, 11, 0.3)',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: 'var(--color-text-muted)',
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '6px'
+          }}>
+            <span style={{ fontWeight: 600, fontSize: '11px', color: '#fbbf24', flexShrink: 0 }}>Baseline:</span>
+            <span style={{ fontStyle: 'italic', textDecoration: 'line-through' }}>{part.originalProse}</span>
+          </div>
+        )}
+      </div>
+    );
+  }, [profile, targetControlId, onProfileChange, handleResetProse, allParams]);
+
+  return {
+    resolvedParts,
+    renderEditPart,
+    handleAddProfilePartAtEnd,
+    profileGetModifiedPartIds,
+    handleResetProse
+  };
+}
+

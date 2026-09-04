@@ -45,7 +45,7 @@ const STAGE_ICONS: Record<string, string> = {
   'control-mappings': '🔗',
 };
 
-const UNDER_DEV_STAGES = ['component-definitions', 'ssps', 'assessment-plans', 'assessment-results', 'poams'];
+const UNDER_DEV_STAGES = ['component-definitions', 'control-mappings', 'ssps', 'assessment-plans', 'assessment-results', 'poams'];
 
 export const DocumentListPage = () => {
   const { stage } = useParams<{ stage: string }>();
@@ -145,7 +145,8 @@ export const DocumentListPage = () => {
     if (savedDoc) {
       const docData = savedDoc[rootKey];
       if (docData && docData.uuid) {
-        navigateWithWs(`/${safeStage}/${docData.uuid}?edit=true`);
+        const viewParam = safeStage === 'profiles' ? '&view=imports' : '';
+        navigateWithWs(`/${safeStage}/${docData.uuid}?edit=true${viewParam}`);
       }
     }
   };

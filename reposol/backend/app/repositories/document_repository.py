@@ -183,12 +183,21 @@ def compute_etag(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()[:16]
 
 @validate_doc_id
-async def get_document(stage: str, doc_id: str, *, workspace_id: Optional[str] = None) -> tuple[Dict[str, Any], str]:
+async def get_document(
+    stage: str,
+    doc_id: str,
+    *,
+    include_draft: bool = False,
+    workspace_id: Optional[str] = None
+) -> tuple[Dict[str, Any], str]:
     """Retrieves details of a specific document from disk."""
     stage_dir = await get_stage_dir(stage, workspace_id)
-    draft_file_path = os.path.abspath(os.path.join(stage_dir, f"{doc_id}{DRAFT_SUFFIX}.json"))
-    if await aiofiles.os.path.exists(draft_file_path):
-        file_path = draft_file_path
+    if include_draft:
+        draft_file_path = os.path.abspath(os.path.join(stage_dir, f"{doc_id}{DRAFT_SUFFIX}.json"))
+        if await aiofiles.os.path.exists(draft_file_path):
+            file_path = draft_file_path
+        else:
+            file_path = os.path.abspath(os.path.join(stage_dir, f"{doc_id}.json"))
     else:
         file_path = os.path.abspath(os.path.join(stage_dir, f"{doc_id}.json"))
 
@@ -196,7 +205,7 @@ async def get_document(stage: str, doc_id: str, *, workspace_id: Optional[str] =
         root_stage_dir = await get_stage_dir(stage, workspace_id=None)
         root_draft = os.path.abspath(os.path.join(root_stage_dir, f"{doc_id}{DRAFT_SUFFIX}.json"))
         root_main = os.path.abspath(os.path.join(root_stage_dir, f"{doc_id}.json"))
-        if await aiofiles.os.path.exists(root_draft):
+        if include_draft and await aiofiles.os.path.exists(root_draft):
             file_path = root_draft
             stage_dir = root_stage_dir
         elif await aiofiles.os.path.exists(root_main):

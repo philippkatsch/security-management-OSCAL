@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import styles from './ProfilePage.module.css';
 import { useDocumentLifecycle } from '@hooks/useDocumentLifecycle';
+import { useDocumentActions } from '@hooks/useDocumentActions';
 import { useDocumentListQuery } from '@hooks/useDocumentQuery';
 import { useProfileResolution } from '@hooks/useProfileResolution';
 import { DocumentPageLayout } from '@components/layout/DocumentPageLayout';
@@ -28,15 +29,12 @@ import {
   removeMultipleControlsFromCustomGroup,
   reorderControlsInCustomGroup,
   importCustomGroupBranch,
-  applyAddCustomGroup,
-  applyRenameCustomGroup,
-  applyDeleteCustomGroup,
-  applyMoveCustomGroup,
-  applyAssignControlToCustomGroup,
-  applyAssignMultipleControlsToCustomGroup,
-  applyRemoveControlFromCustomGroup,
-  applyRemoveMultipleControlsFromCustomGroup,
-  applyReorderControlsInCustomGroup
+  toggleControlInBaseline,
+  updateCustomGroup,
+  renameProfileGlobalProperty,
+  deleteProfileGlobalProperty,
+  removeProfileOrphans,
+  updateProfileDocument
 } from '@lib/document-actions/profile-actions';
 
 
@@ -73,6 +71,7 @@ export interface ProfilePageProps {
   profileId?: string;
   docTitle?: string;
   initialEditMode?: boolean;
+  initialView?: string;
   onClose?: () => void;
 }
 
@@ -80,6 +79,7 @@ export function ProfilePage({
   profileId = '',
   docTitle,
   initialEditMode = false,
+  initialView,
   onClose
 }: ProfilePageProps) {
   // Unified Document Lifecycle Hook
@@ -128,11 +128,12 @@ export function ProfilePage({
     deleteVersionTag,
     loadVersions
   } = lifecycle;
+  const { dispatch } = useDocumentActions(lifecycle);
 
   // 2. Local States
   const [selectedControlId, setSelectedControlId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [activeSidebarView, setActiveSidebarView] = useState<string | null>('overview');
+  const [activeSidebarView, setActiveSidebarView] = useState<string | null>(initialView || 'overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [showExportModal, setShowExportModal] = useState(false);
@@ -218,7 +219,7 @@ export function ProfilePage({
         const migrated = {
           ...p,
           imports: updatedImports,
-          merge: p.merge || { 'as-is': {} }
+          merge: p.merge || { 'as-is': true }
         };
         setDoc({ ...doc, profile: migrated as any });
       }
@@ -242,121 +243,7 @@ export function ProfilePage({
   // --- Toggle Control Selection Callback in tailoring (US 2.2, 2.14) ---
   const handleToggleControlSelection = (controlId: string, isChecked: boolean) => {
     if (!controlId) return;
-    const profileData: any = activeDoc?.profile || {};
-    const imports = profileData.imports || [];
-    if (imports.length === 0) return;
-
-    // Deep clone the imports to prevent in-place mutation of React state
-    const updatedImports = JSON.parse(JSON.stringify(imports));
-
-    // Dynamically locate which import contains this control
-    const findImportIndex = (): number => {
-      const cid = controlId.toLowerCase();
-
-      // 1. Check if any import explicitly includes or excludes this control
-      for (let i = 0; i < updatedImports.length; i++) {
-        const imp = updatedImports[i];
-        const incList = (imp['include-controls'] || []).flatMap((ic: any) => ic['with-ids'] || []);
-        const excList = (imp['exclude-controls'] || []).flatMap((ec: any) => typeof ec === 'string' ? [ec] : (ec?.['with-ids'] || []));
-        if (incList.some((id: string) => id.toLowerCase() === cid) || excList.some((id: string) => id.toLowerCase() === cid)) {
-          return i;
-        }
-      }
-
-      // 2. Prefix / Family heuristic: Check if other controls sharing the same prefix exist in an import
-      const prefix = cid.split(/[-_.]/)[0]; // e.g. 'gv' from 'gv.oc-04' or 'ac' from 'ac-1'
-      if (prefix) {
-        for (let i = 0; i < updatedImports.length; i++) {
-          const imp = updatedImports[i];
-          const incList = (imp['include-controls'] || []).flatMap((ic: any) => ic['with-ids'] || []);
-          const excList = (imp['exclude-controls'] || []).flatMap((ec: any) => typeof ec === 'string' ? [ec] : (ec?.['with-ids'] || []));
-          if (incList.some((id: string) => id.toLowerCase().startsWith(prefix)) ||
-              excList.some((id: string) => id.toLowerCase().startsWith(prefix))) {
-            return i;
-          }
-        }
-      }
-
-      // 3. If including a control, check if any import is currently configured with include-controls
-      if (isChecked) {
-        for (let i = 0; i < updatedImports.length; i++) {
-          if (Array.isArray(updatedImports[i]['include-controls'])) {
-            return i;
-          }
-        }
-      }
-
-      return 0;
-    };
-
-    const idx = findImportIndex();
-    const item = updatedImports[idx];
-    const isIncludeAll = item['include-all'] !== undefined;
-
-    if (isIncludeAll) {
-      // Collect all current excluded IDs across all exclude-controls entries
-      let existingExcludes: string[] = [];
-      if (Array.isArray(item['exclude-controls'])) {
-        for (const exc of item['exclude-controls']) {
-          if (typeof exc === 'string') {
-            existingExcludes.push(exc);
-          } else if (exc && Array.isArray(exc['with-ids'])) {
-            existingExcludes.push(...exc['with-ids']);
-          }
-        }
-      }
-
-      if (isChecked) {
-        // Include in profile: remove from excludes (case-insensitive)
-        existingExcludes = existingExcludes.filter(
-          id => id.toLowerCase() !== controlId.toLowerCase()
-        );
-      } else {
-        // Exclude from profile: add to excludes (case-insensitive check)
-        const alreadyExcluded = existingExcludes.some(
-          id => id.toLowerCase() === controlId.toLowerCase()
-        );
-        if (!alreadyExcluded) {
-          existingExcludes.push(controlId);
-        }
-      }
-
-      if (existingExcludes.length > 0) {
-        item['exclude-controls'] = [{ 'with-ids': existingExcludes }];
-      } else {
-        delete item['exclude-controls'];
-      }
-    } else {
-      // Include specific controls mode
-      let existingIncludes: string[] = [];
-      if (Array.isArray(item['include-controls'])) {
-        for (const inc of item['include-controls']) {
-          if (inc && Array.isArray(inc['with-ids'])) {
-            existingIncludes.push(...inc['with-ids']);
-          }
-        }
-      }
-
-      if (isChecked) {
-        const alreadyIncluded = existingIncludes.some(
-          id => id.toLowerCase() === controlId.toLowerCase()
-        );
-        if (!alreadyIncluded) {
-          existingIncludes.push(controlId);
-        }
-      } else {
-        existingIncludes = existingIncludes.filter(
-          id => id.toLowerCase() !== controlId.toLowerCase()
-        );
-      }
-
-      item['include-controls'] = [{ 'with-ids': existingIncludes }];
-    }
-
-    handleDocChange({
-      ...activeDoc,
-      profile: { ...profileData, imports: updatedImports }
-    });
+    dispatch(toggleControlInBaseline(controlId, isChecked));
   };
 
   // Helper to construct a Set of all currently selected control IDs
@@ -401,31 +288,12 @@ export function ProfilePage({
   // --- Global Property Management (DD-011 Central Hub) ---
   const handleGlobalPropertyRename = (oldName: string, newName: string) => {
     if (!oldName || !newName || oldName === newName) return;
-    const profileData: any = activeDoc.profile || {};
-    const renameInProps = (props: any[]) => {
-      if (!props) return props;
-      return props.map(p => p.name === oldName ? { ...p, name: newName } : p);
-    };
-    let updatedProfile = { ...profileData };
-    if (updatedProfile.metadata?.props) {
-      updatedProfile.metadata = { ...updatedProfile.metadata, props: renameInProps(updatedProfile.metadata.props) };
-    }
-    handleDocChange({ ...activeDoc, profile: updatedProfile });
+    dispatch(renameProfileGlobalProperty(oldName, newName));
   };
 
   const handleGlobalPropertyDelete = (propName: string) => {
     if (!propName) return;
-    const profileData: any = activeDoc.profile || {};
-    const removeFromProps = (props: any[]) => {
-      if (!props) return props;
-      const filtered = props.filter(p => p.name !== propName);
-      return filtered.length > 0 ? filtered : undefined;
-    };
-    let updatedProfile = { ...profileData };
-    if (updatedProfile.metadata?.props) {
-      updatedProfile.metadata = { ...updatedProfile.metadata, props: removeFromProps(updatedProfile.metadata.props) };
-    }
-    handleDocChange({ ...activeDoc, profile: updatedProfile });
+    dispatch(deleteProfileGlobalProperty(propName));
   };
 
   // Render a specific control detail in tailoring panel
@@ -525,105 +393,17 @@ export function ProfilePage({
   };
 
   const handleGroupChange = (updatedGroup: any) => {
-    const profileData: any = activeDoc.profile || {};
-    const currentGroups = profileData.merge?.custom?.groups || [];
-    
-    const updateGroupRecursive = (list: any[]) => {
-      return list.map((g: any) => {
-        if (g.id === selectedGroupId || g.id === updatedGroup.id) {
-          return {
-            ...g,
-            id: updatedGroup.id,
-            title: updatedGroup.title,
-            props: updatedGroup.props,
-            parts: updatedGroup.parts,
-            links: updatedGroup.links
-          };
-        }
-        if (g.groups) {
-          return { ...g, groups: updateGroupRecursive(g.groups) };
-        }
-        return g;
-      });
-    };
-
-    const updatedGroups = updateGroupRecursive(currentGroups);
+    if (selectedGroupId) {
+      dispatch(updateCustomGroup(selectedGroupId, updatedGroup));
+    }
     if (updatedGroup.id && updatedGroup.id !== selectedGroupId) {
       setSelectedGroupId(updatedGroup.id);
     }
-    handleDocChange({
-      ...activeDoc,
-      profile: {
-        ...profileData,
-        merge: {
-          ...profileData.merge,
-          custom: {
-            ...(profileData.merge?.custom || {}),
-            groups: updatedGroups
-          }
-        }
-      }
-    });
   };
 
   const dispatchAction = useCallback((action: any) => {
-    if (!activeDoc?.profile) return;
-
-    if (typeof action?.apply === 'function') {
-      const clonedDoc = JSON.parse(JSON.stringify(activeDoc));
-      action.apply(clonedDoc);
-      handleDocChange(clonedDoc);
-      return;
-    }
-
-    const cloned = JSON.parse(JSON.stringify(activeDoc.profile));
-    const draft = { profile: cloned };
-    let changed = false;
-
-    switch (action.type) {
-      case 'profile/addCustomGroup':
-      case 'ADD_CUSTOM_GROUP':
-        changed = Boolean(applyAddCustomGroup(draft, action.payload));
-        break;
-      case 'profile/renameCustomGroup':
-      case 'RENAME_CUSTOM_GROUP':
-        changed = Boolean(applyRenameCustomGroup(draft, action.payload));
-        break;
-      case 'profile/deleteCustomGroup':
-      case 'DELETE_CUSTOM_GROUP':
-        changed = Boolean(applyDeleteCustomGroup(draft, action.payload));
-        break;
-      case 'profile/moveCustomGroup':
-      case 'MOVE_CUSTOM_GROUP':
-        changed = Boolean(applyMoveCustomGroup(draft, action.payload));
-        break;
-      case 'profile/assignControlToCustomGroup':
-      case 'ASSIGN_CONTROL_TO_CUSTOM_GROUP':
-        changed = Boolean(applyAssignControlToCustomGroup(draft, action.payload));
-        break;
-      case 'profile/assignMultipleControlsToCustomGroup':
-      case 'ASSIGN_MULTIPLE_CONTROLS_TO_CUSTOM_GROUP':
-        changed = Boolean(applyAssignMultipleControlsToCustomGroup(draft, action.payload));
-        break;
-      case 'profile/removeControlFromCustomGroup':
-      case 'REMOVE_CONTROL_FROM_CUSTOM_GROUP':
-        changed = Boolean(applyRemoveControlFromCustomGroup(draft, action.payload));
-        break;
-      case 'profile/removeMultipleControlsFromCustomGroup':
-      case 'REMOVE_MULTIPLE_CONTROLS_FROM_CUSTOM_GROUP':
-        changed = Boolean(applyRemoveMultipleControlsFromCustomGroup(draft, action.payload));
-        break;
-      case 'profile/reorderControlsInCustomGroup':
-      case 'REORDER_CONTROLS_IN_CUSTOM_GROUP':
-        changed = Boolean(applyReorderControlsInCustomGroup(draft, action.payload));
-        break;
-      default:
-        break;
-    }
-    if (changed) {
-      handleDocChange({ ...activeDoc, profile: draft.profile });
-    }
-  }, [activeDoc, handleDocChange]);
+    dispatch(action);
+  }, [dispatch]);
 
   const handleAddCustomGroup = useCallback((parentGroupId?: string | null) => {
     const title = parentGroupId ? 'New Sub-Group' : 'New Custom Group';
@@ -829,7 +609,7 @@ export function ProfilePage({
           setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
         }
       }}
-      onChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
+      onChange={(updatedProfile) => dispatch(updateProfileDocument(updatedProfile))}
     />
   );
 
@@ -901,94 +681,7 @@ export function ProfilePage({
             conflicts={conflicts}
             isEditing={isEditing}
             onRemoveOrphans={() => {
-              // Remove orphaned alters, params, and custom group assignments from the profile document in-place
-              const profileData: any = activeDoc?.profile || {};
-              const updatedProfile = { ...profileData };
-
-              const orphanedControlIds = new Set(
-                (conflicts.orphaned_alters || []).map(a => (a['control-id'] || '').toLowerCase())
-              );
-              const orphanedParamIds = new Set(
-                (conflicts.orphaned_params || []).map(p => (p['param-id'] || '').toLowerCase())
-              );
-              const orphanedCustomControlIds = new Set(
-                (conflicts.orphaned_custom_refs || []).map(c => (c['control-id'] || '').toLowerCase())
-              );
-
-              // 1. Clean modify directives
-              if (profileData.modify) {
-                const updatedModify = { ...profileData.modify };
-
-                // Remove orphaned alters
-                if (Array.isArray(updatedModify.alters) && orphanedControlIds.size > 0) {
-                  updatedModify.alters = updatedModify.alters.filter(
-                    (a: any) => !orphanedControlIds.has((a['control-id'] || '').toLowerCase())
-                  );
-                  if (updatedModify.alters.length === 0) delete updatedModify.alters;
-                }
-
-                // Remove orphaned set-parameters
-                if (Array.isArray(updatedModify['set-parameters']) && orphanedParamIds.size > 0) {
-                  updatedModify['set-parameters'] = updatedModify['set-parameters'].filter(
-                    (p: any) => !orphanedParamIds.has((p['param-id'] || '').toLowerCase())
-                  );
-                  if (updatedModify['set-parameters'].length === 0) delete updatedModify['set-parameters'];
-                }
-
-                if (Object.keys(updatedModify).length > 0) {
-                  updatedProfile.modify = updatedModify;
-                } else {
-                  delete updatedProfile.modify;
-                }
-              }
-
-              // 2. Clean custom group assignments in merge.custom
-              if (profileData.merge?.custom && orphanedCustomControlIds.size > 0) {
-                const updatedMerge = JSON.parse(JSON.stringify(profileData.merge));
-
-                const cleanInsertControls = (insertControlsList: any[]) => {
-                  if (!Array.isArray(insertControlsList)) return;
-                  for (const ic of insertControlsList) {
-                    if (Array.isArray(ic['include-controls'])) {
-                      for (const inc of ic['include-controls']) {
-                        if (Array.isArray(inc['with-ids'])) {
-                          inc['with-ids'] = inc['with-ids'].filter(
-                            (id: string) => !orphanedCustomControlIds.has((id || '').toLowerCase())
-                          );
-                        }
-                      }
-                    }
-                  }
-                };
-
-                const cleanGroup = (group: any) => {
-                  if (!group) return;
-                  if (Array.isArray(group['insert-controls'])) {
-                    cleanInsertControls(group['insert-controls']);
-                  }
-                  if (Array.isArray(group.groups)) {
-                    for (const subG of group.groups) {
-                      cleanGroup(subG);
-                    }
-                  }
-                };
-
-                if (Array.isArray(updatedMerge.custom.groups)) {
-                  for (const g of updatedMerge.custom.groups) {
-                    cleanGroup(g);
-                  }
-                }
-                if (Array.isArray(updatedMerge.custom['insert-controls'])) {
-                  cleanInsertControls(updatedMerge.custom['insert-controls']);
-                }
-
-                updatedProfile.merge = updatedMerge;
-              }
-
-              handleDocChange({
-                ...activeDoc,
-                profile: updatedProfile
-              });
+              dispatch(removeProfileOrphans(conflicts));
             }}
           />
         </div>
@@ -1017,7 +710,7 @@ export function ProfilePage({
               originalControl={findOriginalControl(selectedControlId) ?? undefined}
               profile={profileData}
               catalog={resolvedCatalog}
-              onProfileChange={(updatedProfile: any) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
+              onProfileChange={(updatedProfile: any) => dispatch(updateProfileDocument(updatedProfile))}
               backMatterResources={(profileData['back-matter']?.resources) || []}
               onSelectControl={handleSelectControl}
               onSelectGroup={handleSelectGroup}
@@ -1034,7 +727,7 @@ export function ProfilePage({
               onSelectControl={handleSelectControl}
               mode="profile"
               profile={profileData}
-              onProfileChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
+              onProfileChange={(updatedProfile) => dispatch(updateProfileDocument(updatedProfile))}
               onDeleteGroup={handleRequestDeleteGroup}
               onAddSubgroup={handleAddCustomGroup}
               onUnassignControl={handleUnassignControl}
@@ -1043,7 +736,7 @@ export function ProfilePage({
           ) : (
             <DocumentOverview
               document={profileData}
-              onChange={(updatedProfile) => handleDocChange({ ...activeDoc, profile: updatedProfile })}
+              onChange={(updatedProfile) => dispatch(updateProfileDocument(updatedProfile))}
               isEditing={isEditing}
               allUsedPropKeys={allUsedPropKeys}
               usedTagsSummary={usedTagsSummary}

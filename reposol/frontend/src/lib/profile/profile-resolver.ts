@@ -53,6 +53,53 @@ export function matchesPattern(controlId, patterns) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Collects IDs of all controls with property status=withdrawn or state=withdrawn from a catalog.
+ * These are catalog-level deprecated controls that should be auto-excluded from profiles.
+ *
+ * @param {Object} catalog - OSCAL catalog object
+ * @returns {Set<string>} Set of lowercase control IDs
+ */
+export function collectWithdrawnIds(catalog) {
+  const withdrawn = new Set();
+  if (!catalog) return withdrawn;
+
+  const checkControl = (ctrl) => {
+    const props = ctrl.props || [];
+    for (const p of props) {
+      const name = (p.name || '').toLowerCase();
+      const value = (p.value || '').toLowerCase();
+      if ((name === 'status' || name === 'state') && value === 'withdrawn') {
+        if (ctrl.id) {
+          withdrawn.add(ctrl.id.toLowerCase());
+        }
+        break;
+      }
+    }
+    if (ctrl.controls) {
+      ctrl.controls.forEach(checkControl);
+    }
+  };
+
+  const checkGroup = (grp) => {
+    if (grp.controls) {
+      grp.controls.forEach(checkControl);
+    }
+    if (grp.groups) {
+      grp.groups.forEach(checkGroup);
+    }
+  };
+
+  if (catalog.groups) {
+    catalog.groups.forEach(checkGroup);
+  }
+  if (catalog.controls) {
+    catalog.controls.forEach(checkControl);
+  }
+
+  return withdrawn;
+}
+
+/**
  * Filter an array of controls based on include/exclude rules.
  *
  * When `keepAll` is true, excluded controls are retained but marked with
@@ -185,35 +232,60 @@ export function applyModify(catalog, modify) {
     });
   };
 
-  const applyAltersToParts = (partsList, adds, removes) => {
+  const applyAltersToParts = (partsList, adds, removes, level = 0) => {
     let result = partsList ? [...partsList] : [];
 
-    // Apply adds before removes so a replacement part can be positioned
-    // relative to the original part, then remove that original part.
+    // Track atomic in-place replacements (adds matching by-id with corresponding removes by-id)
+    const replacedIds = new Set();
+    if (adds && removes) {
+      adds.forEach(add => {
+        const byId = (add['by-id'] || add.by_id)?.toLowerCase();
+        if (byId && add.parts) {
+          add.parts.forEach(p => {
+            if (p.id && p.id.toLowerCase() === byId) {
+              const hasMatchingRemove = removes.some(
+                r => (r['by-id'] || r.by_id)?.toLowerCase() === byId
+              );
+              if (hasMatchingRemove) {
+                replacedIds.add(byId);
+              }
+            }
+          });
+        }
+      });
+    }
+
     if (adds) {
       adds.forEach(add => {
+        const byId = (add['by-id'] || add.by_id);
         if (add.parts) {
           add.parts.forEach(newPart => {
             const idx = result.findIndex(p => p.id === newPart.id);
             if (idx >= 0) {
               result[idx] = { ...result[idx], ...newPart };
-            } else {
-              if (add.position === 'starting') {
-                result.unshift(newPart);
-              } else if (add.position === 'before' && add['by-id']) {
-                const targetIdx = result.findIndex(p => p.id === add['by-id']);
-                if (targetIdx >= 0) {
+            } else if (byId) {
+              // Targeted addition by ID
+              const targetIdx = result.findIndex(p => p.id === byId);
+              if (targetIdx >= 0) {
+                if (add.position === 'before') {
                   result.splice(targetIdx, 0, newPart);
+                } else if (add.position === 'starting') {
+                  const target = result[targetIdx];
+                  if (!target.parts) target.parts = [];
+                  target.parts.unshift(newPart);
+                } else if (add.position === 'ending') {
+                  const target = result[targetIdx];
+                  if (!target.parts) target.parts = [];
+                  target.parts.push(newPart);
                 } else {
-                  result.push(newPart);
-                }
-              } else if (add.position === 'after' && add['by-id']) {
-                const targetIdx = result.findIndex(p => p.id === add['by-id']);
-                if (targetIdx >= 0) {
+                  // 'after' or default
                   result.splice(targetIdx + 1, 0, newPart);
-                } else {
-                  result.push(newPart);
                 }
+              }
+            } else if (level === 0) {
+              // Non-targeted addition only at root level (level === 0)
+              if (add.position === 'starting' || add.position === 'before') {
+                result.unshift(newPart);
               } else {
                 result.push(newPart);
               }
@@ -225,8 +297,12 @@ export function applyModify(catalog, modify) {
 
     if (removes) {
       removes.forEach(remove => {
-        if (remove['by-id']) {
-          result = result.filter(p => p.id !== remove['by-id']);
+        const removeById = (remove['by-id'] || remove.by_id)?.toLowerCase();
+        if (removeById) {
+          // Skip removal if this part was atomically replaced in-place
+          if (!replacedIds.has(removeById)) {
+            result = result.filter(p => (p.id || '').toLowerCase() !== removeById);
+          }
         }
         if (remove['by-name']) {
           result = result.filter(p => p.name !== remove['by-name']);
@@ -239,7 +315,7 @@ export function applyModify(catalog, modify) {
       if (p.parts) {
         return {
           ...p,
-          parts: applyAltersToParts(p.parts, adds, removes),
+          parts: applyAltersToParts(p.parts, adds, removes, level + 1),
         };
       }
       return p;
@@ -273,7 +349,7 @@ export function applyModify(catalog, modify) {
       }
 
       if (ctrl.parts) {
-        ctrl.parts = applyAltersToParts(ctrl.parts, alter.adds, alter.removes);
+        ctrl.parts = applyAltersToParts(ctrl.parts, alter.adds, alter.removes, 0);
       }
 
       // Apply non-part additions (props, params, links, controls at control level)
@@ -603,6 +679,10 @@ export function resolveProfileSync(profileDoc: any, cache: Map<string, any>, kee
       const matchingObjs = (ec['matching'] || []).map(m => m.pattern).filter(Boolean);
       return [...directPatterns, ...matchingObjs];
     });
+
+    // Auto-exclude catalog-level withdrawn controls from profiles
+    const withdrawnIds = collectWithdrawnIds(resolvedImportedCatalog);
+    withdrawnIds.forEach(id => excludedIds.add(id));
 
     const withChildControls = imp['with-child-controls'] !== 'no';
 

@@ -186,7 +186,7 @@
 *   **Acceptance Criteria:**
     *   Applies the global versioning pattern **US 0.15** fully (schema validation, version synchronization, error feedback, drawer, read-only history).
     *   **Profile-specific:** The document is validated against the official NIST OSCAL Profile schema.
-    *   **Revision Sync:** Upon saving, `profile.metadata.revisions[]` is automatically updated (in accordance with US 0.7).
+    *   **Revision Sync:** Upon saving, `profile.metadata.revisions[]` is automatically updated (in accordance with US 0.9).
 
 ### US 2.14: Assignment in the Right Pane (Document Overview) & Default Structure in the Sidebar
 

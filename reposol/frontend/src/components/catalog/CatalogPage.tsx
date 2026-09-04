@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDocumentLifecycle } from '@hooks/useDocumentLifecycle';
 import { useDocumentActions } from '@hooks/useDocumentActions';
-import { updateDocumentWith } from '@lib/document-updater';
 import {
   addGroup,
   addControl,
@@ -11,8 +10,14 @@ import {
   withdrawControl,
   restoreControl,
   withdrawAllControlsInGroup,
-  restoreAllControlsInGroup
+  restoreAllControlsInGroup,
+  updateGroup,
+  updateControl,
+  renameCatalogGlobalProperty,
+  deleteCatalogGlobalProperty,
+  updateCatalogDocument
 } from '@lib/document-actions/catalog-actions';
+import { updateMetadata } from '@lib/document-actions/metadata-actions';
 import { DocumentPageLayout } from '../layout/DocumentPageLayout';
 import { GroupEditor } from '@components/shared/GroupEditor';
 import { DocumentOverview } from '@components/shared/DocumentOverview';
@@ -23,6 +28,7 @@ import styles from './CatalogPage.module.css';
 import { useControlTree } from '@hooks/useControlTree';
 import { ControlTree } from '@components/shared/control-tree';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
+import { toast } from 'react-hot-toast';
 
 export interface CatalogPageProps {
   catalogId?: string;
@@ -33,6 +39,7 @@ export interface CatalogPageProps {
 
 export const CatalogPage: React.FC<CatalogPageProps> = ({
   catalogId = '',
+  docTitle,
   initialEditMode = false,
   onClose
 }) => {
@@ -52,6 +59,45 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   const jsonEditorRef = useRef<any>(null);
 
   const catalogData: any = activeDoc?.catalog || {};
+
+  const handleApplyContent = async (importedCatalog: any) => {
+    const incoming = importedCatalog?.catalog || importedCatalog || {};
+    const currentTitle = catalogData.metadata?.title || docTitle || 'Untitled Catalog';
+    const currentUuid = catalogData.uuid || catalogId;
+    const currentVersion = catalogData.metadata?.version || '1.0.0';
+    const currentOscalVersion = catalogData.metadata?.['oscal-version'] || incoming.metadata?.['oscal-version'] || '1.1.2';
+
+    const mergedCatalog: any = {
+      ...incoming,
+      uuid: currentUuid,
+      metadata: {
+        ...(incoming.metadata || {}),
+        title: currentTitle,
+        version: currentVersion,
+        'oscal-version': currentOscalVersion,
+        'last-modified': new Date().toISOString(),
+      }
+    };
+
+    const fullDoc = { catalog: mergedCatalog };
+    setDoc(fullDoc);
+    pushUndoRedoState(fullDoc);
+
+    try {
+      if (lifecycle.save) {
+        await lifecycle.save(fullDoc);
+      }
+      if (lifecycle.resetUndoRedo) {
+        lifecycle.resetUndoRedo(fullDoc);
+      }
+      tree.select(null);
+      setActiveSidebarView('overview');
+      toast.success(`Content loaded into "${currentTitle}" and saved`);
+    } catch (err: any) {
+      toast.error(`Failed to save loaded content: ${err?.message || err}`);
+      throw err;
+    }
+  };
 
   const findControl = (nodeId: string, doc: any): any => {
     const searchControls = (controls: any[] = []): any => {
@@ -92,24 +138,9 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
 
   const handleGroupChange = (updatedGroup: any) => {
     const targetId = tree.selectedId;
-    handleUpdate((draft: any) => {
-      if (!draft.catalog) return;
-      const updateGrp = (groups: any[] = []): boolean => {
-        for (let i = 0; i < groups.length; i++) {
-          if (groups[i].id === targetId || groups[i].id === updatedGroup.id) {
-            groups[i] = updatedGroup;
-            return true;
-          }
-          if (groups[i].groups && updateGrp(groups[i].groups)) {
-            return true;
-          }
-        }
-        return false;
-      };
-      if (draft.catalog.groups) {
-        updateGrp(draft.catalog.groups);
-      }
-    });
+    if (targetId) {
+      dispatch(updateGroup(targetId, updatedGroup));
+    }
 
     if (updatedGroup.id && updatedGroup.id !== targetId) {
       tree.select(updatedGroup.id);
@@ -118,34 +149,9 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
 
   const handleControlChange = (updatedControl: any) => {
     const targetId = tree.selectedId;
-    handleUpdate((draft: any) => {
-      if (!draft.catalog) return;
-      const updateInControls = (controls: any[] = []): boolean => {
-        for (let i = 0; i < controls.length; i++) {
-          if (controls[i].id === targetId || controls[i].id === updatedControl.id) {
-            controls[i] = updatedControl;
-            return true;
-          }
-          if (controls[i].controls && updateInControls(controls[i].controls)) {
-            return true;
-          }
-        }
-        return false;
-      };
-      const updateInGroups = (groups: any[] = []): boolean => {
-        for (let i = 0; i < groups.length; i++) {
-          if (groups[i].controls && updateInControls(groups[i].controls)) {
-            return true;
-          }
-          if (groups[i].groups && updateInGroups(groups[i].groups)) {
-            return true;
-          }
-        }
-        return false;
-      };
-      if (draft.catalog.controls && updateInControls(draft.catalog.controls)) return;
-      if (draft.catalog.groups && updateInGroups(draft.catalog.groups)) return;
-    });
+    if (targetId) {
+      dispatch(updateControl(targetId, updatedControl));
+    }
 
     if (updatedControl.id && updatedControl.id !== targetId) {
       tree.select(updatedControl.id);
@@ -188,11 +194,6 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
     pushUndoRedoState(parsed);
   };
 
-  const handleUpdate = (updater: (draft: any) => void) => {
-    const nextDoc = updateDocumentWith(activeDoc, updater);
-    handleDocChange(nextDoc);
-  };
-
   // Extract property usage across catalog controls and groups
   const getUsedTagsSummary = () => {
     const summary: Record<string, Record<string, number>> = {};
@@ -223,26 +224,12 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
 
   const handleGlobalPropertyRename = (oldName: string, newName: string) => {
     if (!oldName || !newName || oldName === newName) return;
-    handleUpdate((draft: any) => {
-      if (!draft.catalog) return;
-      const renameInProps = (props: any[]) => {
-        if (!props) return props;
-        return props.map((p: any) => p.name === oldName ? { ...p, name: newName } : p);
-      };
-      if (draft.catalog.metadata?.props) {
-        draft.catalog.metadata.props = renameInProps(draft.catalog.metadata.props);
-      }
-    });
+    dispatch(renameCatalogGlobalProperty(oldName, newName));
   };
 
   const handleGlobalPropertyDelete = (propName: string) => {
     if (!propName) return;
-    handleUpdate((draft: any) => {
-      if (!draft.catalog) return;
-      if (draft.catalog.metadata?.props) {
-        draft.catalog.metadata.props = draft.catalog.metadata.props.filter((p: any) => p.name !== propName);
-      }
-    });
+    dispatch(deleteCatalogGlobalProperty(propName));
   };
 
   const handleAddGroup = (parentGroupId: string | null) => {
@@ -374,7 +361,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '18px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>📥</span>
-            <span>Import Catalog</span>
+            <span>Load Template / Content</span>
           </div>
         </div>
       )}
@@ -444,9 +431,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                   <MetadataEditor
                     metadata={catalogData.metadata || {}}
                     onChange={(updatedMeta: any) => {
-                      handleUpdate((draft: any) => {
-                        if (draft.catalog) draft.catalog.metadata = updatedMeta;
-                      });
+                      dispatch(updateMetadata(updatedMeta));
                     }}
                     readOnly={!isEditing}
                     onNavigateToProperties={() => {
@@ -471,11 +456,14 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                     tree.select(null);
                     setActiveSidebarView('properties');
                   }}
+                  onLoadTemplate={() => {
+                    tree.select(null);
+                    setActiveSidebarView('import');
+                  }}
                   onChange={(updatedDoc: any) => {
-                    handleUpdate((draft: any) => {
-                      draft.catalog = { ...draft.catalog, ...updatedDoc };
-                    });
-                  }} 
+                    dispatch(updateCatalogDocument(updatedDoc));
+                  }}
+                  onApplyContent={handleApplyContent}
                 />
               )}
           </div>

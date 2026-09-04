@@ -82,14 +82,14 @@
 > **I want to** view and navigate all POA&M data through an organized table and outline view  
 > **so that** I can quickly find and review specific items, risks, or findings.
 
-### US 7.16: Document Overview & Tags
+### US 7.16: Document Overview & Properties
 > **As a** System Owner / ISSO  
-> **I want to** manage document-level `metadata` and apply contextual tags  
+> **I want to** manage document-level `metadata` and apply contextual properties  
 > **so that** the document is properly identified, categorized, and searchable.
 
 ### US 7.17: In-Card Editing & Draft Persistence
 > **As a** System Owner / ISSO  
-> **I want to** edit POA&M components inline with automatic draft saving  
+> **I want to** edit POA&M components inline with backend draft auto-save (`<uuid>_draft.json`, 30s interval when dirty) in accordance with DD-004  
 > **so that** I can work on complex remediations without losing progress.
 
 ### US 7.18: Integrated Backend Versioning
@@ -133,7 +133,7 @@
   * `remediations` sub-fields: `lifecycle` (`recommendation`, `planned`, `completed`), `type` (`avoid`, `mitigate`, `transfer`, `accept`, `share`, `contingency`, `none`), `required-assets`, `tasks`.
   * `finding` fields: `uuid`, `title`, `description`, `target` (`type`: `statement-id` or `objective-id`, `target-id`, `status`: `satisfied` or `not-satisfied`), `implementation-statement-uuid`, `related-observations`, `related-risks`.
 * **UX Patterns:** Must integrate US 0.14 (Inner View), US 0.15 (Versioning), US 0.16 (Overview & Tags), US 0.17 (In-Card Editing), and US 0.18 (Table & Navigation).
-* **Design Decisions:** Follow DD-002 (OSCAL Validation), DD-004 (Editor UX), DD-007 (Base64 Attachments for back-matter), DD-008 (Unified Editor where applicable), DD-012 (Parameter Override Strategy).
+* **Design Decisions:** Follow DD-002 (OSCAL Validation), DD-004 (Editor UX), DD-007 (Base64 Attachments for back-matter), DD-030 (Unified Control Editor), DD-012 (Parameter Override Strategy).
 
 ---
 
@@ -207,11 +207,11 @@
 - [ ] **US 7.15: POA&M Table & Navigation**
   - [ ] **Table View (US 0.18):** User can view POA&M items, risks, and findings in an organized, navigable table structure.
 
-- [ ] **US 7.16: Document Overview & Tags**
-  - [ ] **Document Overview (US 0.16):** User can manage root `metadata` and contextual tags.
+- [ ] **US 7.16: Document Overview & Properties**
+  - [ ] **Document Overview (US 0.16):** User can manage root `metadata` and contextual properties.
 
 - [ ] **US 7.17: In-Card Editing & Draft Persistence**
-  - [ ] **In-Card Editing (US 0.17):** User can edit details inline with automatic draft saving.
+  - [ ] **In-Card Editing (US 0.17):** User can edit details inline with backend draft auto-save (`<uuid>_draft.json`, 30s interval when dirty) in accordance with DD-004.
 
 - [ ] **US 7.18: Integrated Backend Versioning**
   - [ ] **Versioning (US 0.15):** User can commit the POA&M document as a discrete version in the backend.

@@ -304,3 +304,68 @@ class TestProfileExport:
 
         # Validate strictly against NIST OSCAL Profile Schema
         await validate_document("profiles", exported, check_refs=False)
+
+
+class TestDraftIsolation:
+    """Tests for R6-03: Export and Resolution ignore drafts and load published releases."""
+
+    def test_export_reads_published_document_not_draft(self, client, isolated_data_dir):
+        """Verify GET /api/export/{stage}/{doc_id} exports published release and ignores drafts (R6-03)."""
+        # 1. Create and save published catalog
+        doc = CatalogFactory.build(title="Published Catalog Title", version="1.0.0")
+        cat_uuid = doc["catalog"]["uuid"]
+        client.post("/api/documents/catalogs", json=doc)
+
+        # 2. Save a draft version with modified title
+        draft_doc = copy.deepcopy(doc)
+        draft_doc["catalog"]["metadata"]["title"] = "Draft Leaked Title"
+        draft_doc["catalog"]["metadata"]["version"] = "1.0.1-draft"
+        client.post(f"/api/documents/catalogs/{cat_uuid}/versions?is_draft=true", json=draft_doc)
+
+        # 3. Export document as JSON
+        res_export = client.get(f"/api/export/catalogs/{cat_uuid}?format=json")
+        assert res_export.status_code == 200
+        exported_data = res_export.json()
+
+        # Must contain published title, not draft title
+        assert exported_data["catalog"]["metadata"]["title"] == "Published Catalog Title"
+        assert exported_data["catalog"]["metadata"]["version"] == "1.0.0"
+
+        # 4. Export document as YAML
+        res_yaml = client.get(f"/api/export/catalogs/{cat_uuid}?format=yaml")
+        assert res_yaml.status_code == 200
+        assert "Draft Leaked Title" not in res_yaml.text
+        assert "Published Catalog Title" in res_yaml.text
+
+    def test_resolution_reads_published_catalog_not_draft(self, client, isolated_data_dir):
+        """Verify profile resolution loads published catalog version and ignores draft catalog edits (R6-03)."""
+        # 1. Create and save published catalog with control c-1
+        cat_doc = CatalogFactory.build(
+            controls=[{"id": "c-1", "title": "Published Control"}]
+        )
+        cat_uuid = cat_doc["catalog"]["uuid"]
+        client.post("/api/documents/catalogs", json=cat_doc)
+
+        # 2. Save a draft catalog with modified control title and an added draft control c-2
+        draft_cat = copy.deepcopy(cat_doc)
+        draft_cat["catalog"]["controls"] = [
+            {"id": "c-1", "title": "Draft Modified Control"},
+            {"id": "c-2", "title": "Unpublished Draft Control"}
+        ]
+        client.post(f"/api/documents/catalogs/{cat_uuid}/versions?is_draft=true", json=draft_cat)
+
+        # 3. Create profile importing the catalog
+        prof_doc = ProfileFactory.importing(catalog_uuid=cat_uuid)
+        prof_uuid = prof_doc["profile"]["uuid"]
+        client.post("/api/documents/profiles", json=prof_doc)
+
+        # 4. Resolve profile
+        res = client.get(f"/api/resolve/profile/{prof_uuid}")
+        assert res.status_code == 200
+        resolved = res.json()
+
+        # Resolution must only resolve published control c-1, not unpublished draft controls
+        assert len(resolved["controls"]) == 1
+        assert resolved["controls"][0]["id"] == "c-1"
+        assert resolved["controls"][0]["title"] == "Published Control"
+

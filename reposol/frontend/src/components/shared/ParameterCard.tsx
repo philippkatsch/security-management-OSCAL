@@ -141,12 +141,14 @@ export function ParameterCard({
     onChange({ 'param-id': currentId });
   };
 
-  // Determine active values for display & editing
-  const activeValues = param.values !== undefined 
-    ? param.values 
-    : (mode === 'profile' ? catalogDefaultParam?.values : displayParam.values) || [];
+  // Determine active values for display & editing (defensive against null/undefined)
+  const activeValues: string[] = Array.isArray(param.values)
+    ? param.values
+    : (mode === 'profile'
+        ? (Array.isArray(catalogDefaultParam?.values) ? catalogDefaultParam.values : [])
+        : (Array.isArray(displayParam.values) ? displayParam.values : []));
 
-  const activeValStr = activeValues[0] || '';
+  const activeValStr = activeValues.length > 0 ? String(activeValues[0]) : '';
 
   // Validate regex constraints against active value
   const constraintViolations: string[] = [];
@@ -169,7 +171,7 @@ export function ParameterCard({
 
   // Multi-choice selection toggle helper
   const handleToggleMultiChoice = (choiceItem) => {
-    const currentSet = new Set(param.values || (mode === 'profile' ? catalogDefaultParam?.values : displayParam.values) || []);
+    const currentSet = new Set(activeValues);
     if (currentSet.has(choiceItem)) {
       currentSet.delete(choiceItem);
     } else {
@@ -492,9 +494,9 @@ export function ParameterCard({
                   <label style={{ fontSize: '11px', fontWeight: 'bold', color: activeValues?.length > 0 ? 'var(--color-success, #059669)' : 'var(--color-text-muted)' }}>
                     🎯 Assigned Value <span style={{ fontSize: '9px', background: activeValues?.length > 0 ? 'var(--color-success-subtle, rgba(16, 185, 129, 0.15))' : 'var(--color-surface)', color: activeValues?.length > 0 ? 'var(--color-success, #059669)' : 'var(--color-text-muted)', padding: '1px 4px', borderRadius: '3px', border: activeValues?.length > 0 ? '1px solid var(--color-success, #059669)' : '1px solid var(--color-border)' }}>Core Field</span>
                   </label>
-                  {mode === 'profile' && catalogDefaultParam?.values && (
+                  {mode === 'profile' && Array.isArray(catalogDefaultParam?.values) && catalogDefaultParam.values.length > 0 && (
                     <span style={{ fontSize: '10px', background: 'var(--color-surface)', padding: '1px 5px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                      Default: <strong>{catalogDefaultParam.values.join(', ') || 'none'}</strong>
+                      Default: <strong>{catalogDefaultParam.values.join(', ')}</strong>
                     </span>
                   )}
                 </div>

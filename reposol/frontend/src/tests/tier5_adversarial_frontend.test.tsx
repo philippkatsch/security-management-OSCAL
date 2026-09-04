@@ -11,24 +11,24 @@ import {
   currentStageAtom,
   currentDocIdAtom,
   documentCountsAtom,
-} from '../../stores/documentAtoms';
+} from '../stores/documentAtoms';
 import {
   sidebarOpenAtom,
   editModeAtom,
   activeTabAtom,
   saveStatusAtom,
   globalErrorAtom,
-} from '../../stores/uiAtoms';
-import { workspaceIdAtom } from '../../stores/workspaceAtoms';
+} from '../stores/uiAtoms';
+import { workspaceIdAtom } from '../stores/workspaceAtoms';
 import { getWorkspaceId } from '@lib/api';
 
 // UI & Stage Components
-import { ConfirmModal } from '../shared/ui/ConfirmModal';
-import { ConfirmProvider, useConfirm } from '../shared/ui/ConfirmProvider';
-import { JsonEditor } from '../shared/JsonEditor';
-import { SankeyDiagram, SankeyControl, SankeyMapEntry } from '../mapping/SankeyDiagram';
-import { ErrorBoundary } from '../shared/ui/ErrorBoundary';
-import StatusBadge from '../shared/status/StatusBadge';
+import { ConfirmModal } from '../components/shared/ui/ConfirmModal';
+import { ConfirmProvider, useConfirm } from '../components/shared/ui/ConfirmProvider';
+import { JsonEditor } from '../components/shared/JsonEditor';
+import { SankeyDiagram, SankeyControl, SankeyMapEntry } from '../components/mapping/SankeyDiagram';
+import { ErrorBoundary } from '../components/shared/ui/ErrorBoundary';
+import StatusBadge from '../components/shared/status/StatusBadge';
 
 // Mock Monaco editor for JSDOM
 vi.mock('@monaco-editor/react', () => {

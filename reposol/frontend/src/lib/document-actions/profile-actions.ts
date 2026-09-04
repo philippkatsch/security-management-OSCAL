@@ -1097,3 +1097,250 @@ export function importCustomGroupBranch(
   );
 }
 
+export function toggleControlInBaseline(controlId: string, isChecked: boolean) {
+  return createAction('profile', 'TOGGLE_CONTROL_BASELINE', `${isChecked ? 'Include' : 'Exclude'} control ${controlId} in baseline`,
+    (draft: any) => {
+      const profile = getProfileFromDraft(draft);
+      if (!profile || !controlId) return;
+      const imports = profile.imports || [];
+      if (imports.length === 0) return;
+
+      const findImportIndex = (): number => {
+        const cid = controlId.toLowerCase();
+        for (let i = 0; i < imports.length; i++) {
+          const imp = imports[i];
+          const incList = (imp['include-controls'] || []).flatMap((ic: any) => ic['with-ids'] || []);
+          const excList = (imp['exclude-controls'] || []).flatMap((ec: any) => typeof ec === 'string' ? [ec] : (ec?.['with-ids'] || []));
+          if (incList.some((id: string) => id.toLowerCase() === cid) || excList.some((id: string) => id.toLowerCase() === cid)) {
+            return i;
+          }
+        }
+        const prefix = cid.split(/[-_.]/)[0];
+        if (prefix) {
+          for (let i = 0; i < imports.length; i++) {
+            const imp = imports[i];
+            const incList = (imp['include-controls'] || []).flatMap((ic: any) => ic['with-ids'] || []);
+            const excList = (imp['exclude-controls'] || []).flatMap((ec: any) => typeof ec === 'string' ? [ec] : (ec?.['with-ids'] || []));
+            if (incList.some((id: string) => id.toLowerCase().startsWith(prefix)) ||
+                excList.some((id: string) => id.toLowerCase().startsWith(prefix))) {
+              return i;
+            }
+          }
+        }
+        if (isChecked) {
+          for (let i = 0; i < imports.length; i++) {
+            if (Array.isArray(imports[i]['include-controls'])) {
+              return i;
+            }
+          }
+        }
+        return 0;
+      };
+
+      const idx = findImportIndex();
+      const item = imports[idx];
+      const isIncludeAll = item['include-all'] !== undefined;
+
+      if (isIncludeAll) {
+        let existingExcludes: string[] = [];
+        if (Array.isArray(item['exclude-controls'])) {
+          for (const exc of item['exclude-controls']) {
+            if (typeof exc === 'string') {
+              existingExcludes.push(exc);
+            } else if (exc && Array.isArray(exc['with-ids'])) {
+              existingExcludes.push(...exc['with-ids']);
+            }
+          }
+        }
+
+        if (isChecked) {
+          existingExcludes = existingExcludes.filter(
+            id => id.toLowerCase() !== controlId.toLowerCase()
+          );
+        } else {
+          const alreadyExcluded = existingExcludes.some(
+            id => id.toLowerCase() === controlId.toLowerCase()
+          );
+          if (!alreadyExcluded) {
+            existingExcludes.push(controlId);
+          }
+        }
+
+        if (existingExcludes.length > 0) {
+          item['exclude-controls'] = [{ 'with-ids': existingExcludes }];
+        } else {
+          delete item['exclude-controls'];
+        }
+      } else {
+        let existingIncludes: string[] = [];
+        if (Array.isArray(item['include-controls'])) {
+          for (const inc of item['include-controls']) {
+            if (inc && Array.isArray(inc['with-ids'])) {
+              existingIncludes.push(...inc['with-ids']);
+            }
+          }
+        }
+
+        if (isChecked) {
+          const alreadyIncluded = existingIncludes.some(
+            id => id.toLowerCase() === controlId.toLowerCase()
+          );
+          if (!alreadyIncluded) {
+            existingIncludes.push(controlId);
+          }
+        } else {
+          existingIncludes = existingIncludes.filter(
+            id => id.toLowerCase() !== controlId.toLowerCase()
+          );
+        }
+
+        item['include-controls'] = [{ 'with-ids': existingIncludes }];
+      }
+    });
+}
+
+export function updateCustomGroup(targetGroupId: string, updatedGroup: any) {
+  return createAction('profile', 'UPDATE_CUSTOM_GROUP', `Update custom group ${targetGroupId}`,
+    (draft: any) => {
+      const profile = getProfileFromDraft(draft);
+      if (!profile?.merge?.custom?.groups) return;
+      const updateGroupRecursive = (list: any[]) => {
+        for (let i = 0; i < list.length; i++) {
+          if (list[i].id === targetGroupId || list[i].id === updatedGroup.id) {
+            list[i] = {
+              ...list[i],
+              id: updatedGroup.id,
+              title: updatedGroup.title,
+              props: updatedGroup.props,
+              parts: updatedGroup.parts,
+              links: updatedGroup.links
+            };
+            return;
+          }
+          if (list[i].groups) {
+            updateGroupRecursive(list[i].groups);
+          }
+        }
+      };
+      updateGroupRecursive(profile.merge.custom.groups);
+    });
+}
+
+export function renameProfileGlobalProperty(oldName: string, newName: string) {
+  return createAction('profile', 'RENAME_GLOBAL_PROPERTY', `Rename profile property ${oldName} to ${newName}`,
+    (draft: any) => {
+      if (!oldName || !newName || oldName === newName) return;
+      const profile = getProfileFromDraft(draft);
+      if (!profile?.metadata?.props) return;
+      profile.metadata.props = profile.metadata.props.map((p: any) =>
+        p.name === oldName ? { ...p, name: newName } : p
+      );
+    });
+}
+
+export function deleteProfileGlobalProperty(propName: string) {
+  return createAction('profile', 'DELETE_GLOBAL_PROPERTY', `Delete profile property ${propName}`,
+    (draft: any) => {
+      if (!propName) return;
+      const profile = getProfileFromDraft(draft);
+      if (!profile?.metadata?.props) return;
+      const filtered = profile.metadata.props.filter((p: any) => p.name !== propName);
+      if (filtered.length > 0) {
+        profile.metadata.props = filtered;
+      } else {
+        delete profile.metadata.props;
+      }
+    });
+}
+
+export function removeProfileOrphans(conflicts: {
+  orphaned_alters?: any[];
+  orphaned_params?: any[];
+  orphaned_custom_refs?: any[];
+}) {
+  return createAction('profile', 'REMOVE_ORPHANS', 'Remove orphaned alters, params, and custom group refs',
+    (draft: any) => {
+      const profile = getProfileFromDraft(draft);
+      if (!profile) return;
+      const orphanedControlIds = new Set(
+        (conflicts.orphaned_alters || []).map((a: any) => (a['control-id'] || '').toLowerCase())
+      );
+      const orphanedParamIds = new Set(
+        (conflicts.orphaned_params || []).map((p: any) => (p['param-id'] || '').toLowerCase())
+      );
+      const orphanedCustomControlIds = new Set(
+        (conflicts.orphaned_custom_refs || []).map((c: any) => (c['control-id'] || '').toLowerCase())
+      );
+
+      // Clean modify
+      if (profile.modify) {
+        if (Array.isArray(profile.modify.alters) && orphanedControlIds.size > 0) {
+          profile.modify.alters = profile.modify.alters.filter(
+            (a: any) => !orphanedControlIds.has((a['control-id'] || '').toLowerCase())
+          );
+          if (profile.modify.alters.length === 0) delete profile.modify.alters;
+        }
+        if (Array.isArray(profile.modify['set-parameters']) && orphanedParamIds.size > 0) {
+          profile.modify['set-parameters'] = profile.modify['set-parameters'].filter(
+            (p: any) => !orphanedParamIds.has((p['param-id'] || '').toLowerCase())
+          );
+          if (profile.modify['set-parameters'].length === 0) delete profile.modify['set-parameters'];
+        }
+        if (Object.keys(profile.modify).length === 0) {
+          delete profile.modify;
+        }
+      }
+
+      // Clean custom group references
+      if (profile.merge?.custom && orphanedCustomControlIds.size > 0) {
+        const cleanInsertControls = (insertControlsList: any[]) => {
+          if (!Array.isArray(insertControlsList)) return;
+          for (const ic of insertControlsList) {
+            if (Array.isArray(ic['include-controls'])) {
+              for (const inc of ic['include-controls']) {
+                if (Array.isArray(inc['with-ids'])) {
+                  inc['with-ids'] = inc['with-ids'].filter(
+                    (id: string) => !orphanedCustomControlIds.has((id || '').toLowerCase())
+                  );
+                }
+              }
+            }
+          }
+        };
+
+        const cleanGroup = (group: any) => {
+          if (!group) return;
+          if (Array.isArray(group['insert-controls'])) {
+            cleanInsertControls(group['insert-controls']);
+          }
+          if (Array.isArray(group.groups)) {
+            for (const subG of group.groups) {
+              cleanGroup(subG);
+            }
+          }
+        };
+
+        if (Array.isArray(profile.merge.custom.groups)) {
+          for (const g of profile.merge.custom.groups) {
+            cleanGroup(g);
+          }
+        }
+        if (Array.isArray(profile.merge.custom['insert-controls'])) {
+          cleanInsertControls(profile.merge.custom['insert-controls']);
+        }
+      }
+    });
+}
+
+export function updateProfileDocument(updatedProfile: any) {
+  return createAction('profile', 'UPDATE_PROFILE_DOCUMENT', 'Update profile document',
+    (draft: any) => {
+      if (draft.profile) {
+        draft.profile = { ...draft.profile, ...updatedProfile };
+      } else {
+        Object.assign(draft, updatedProfile);
+      }
+    });
+}
+
+

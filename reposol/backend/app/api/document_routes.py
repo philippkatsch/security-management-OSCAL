@@ -1,5 +1,5 @@
 import json
-from fastapi import APIRouter, HTTPException, Depends, Request, Response, Body
+from fastapi import APIRouter, HTTPException, Depends, Request, Response, Body, Query
 from fastapi.responses import JSONResponse
 from typing import List, Dict, Any, Optional
 from jsonschema import ValidationError
@@ -53,7 +53,7 @@ async def get_doc(stage: str, doc_id: str, response: Response, ws_id: str = Depe
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/api/documents/{stage}")
-async def save_doc(request: Request, stage: str, response: Response, body: Dict[str, Any] = Body(...), ws_id: str = Depends(get_workspace_id)):
+async def save_doc(request: Request, stage: str, response: Response, body: Dict[str, Any] = Body(...), skip_validation: bool = Query(False), ws_id: str = Depends(get_workspace_id)):
     """Save or update a document (checks schema validation and atomic ETag validation)."""
     normalized = normalize_stage(stage)
     
@@ -69,7 +69,7 @@ async def save_doc(request: Request, stage: str, response: Response, body: Dict[
     if_match = request.headers.get("If-Match")
 
     try:
-        saved_doc, new_etag, existed = await save_document(normalized, doc_id, body, workspace_id=ws_id, if_match=if_match)
+        saved_doc, new_etag, existed = await save_document(normalized, doc_id, body, workspace_id=ws_id, if_match=if_match, skip_validation=skip_validation)
         response.status_code = 200 if existed else 201
         response.headers["ETag"] = f'"{new_etag}"'
         
@@ -136,7 +136,7 @@ async def export_doc(stage: str, doc_id: str, format: str = "json", ws_id: str =
     if not is_valid_uuid(doc_id):
         raise HTTPException(status_code=400, detail=f"Invalid UUID format: '{doc_id}'")
     try:
-        doc, _ = await get_document(normalized, doc_id, for_ui=False, workspace_id=ws_id)
+        doc, _ = await get_document(normalized, doc_id, for_ui=False, include_draft=False, workspace_id=ws_id)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Document {doc_id} not found in stage {normalized}")
     except ValueError as e:

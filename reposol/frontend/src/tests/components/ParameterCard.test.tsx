@@ -811,4 +811,147 @@ describe('ParameterCard Component', () => {
       expect(mockOnChangeAlters).toHaveBeenCalled();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 6. Requirement R3-01 Null / Undefined Values Safeguard
+  // ---------------------------------------------------------------------------
+  describe('Requirement R3-01 — Null / Undefined Values Safety', () => {
+    it('renders parameter with explicit null values without crashing in view mode', () => {
+      const param = {
+        id: 'null_param_1',
+        label: 'Null Values Param',
+        values: null
+      };
+
+      expect(() => {
+        render(
+          <ParameterCard
+            param={param}
+            readOnly={false}
+            isExpanded={false}
+            onChange={mockOnChange}
+            onToggleExpand={mockOnToggleExpand}
+          />
+        );
+      }).not.toThrow();
+
+      expect(screen.getByText('null_param_1')).toBeInTheDocument();
+      expect(screen.getByText('Null Values Param')).toBeInTheDocument();
+    });
+
+    it('renders parameter with explicit null values in edit mode without crashing and allows value assignment', async () => {
+      const param = {
+        id: 'null_param_2',
+        label: 'Null Values Edit Param',
+        values: null
+      };
+
+      render(
+        <ParameterCard
+          param={param}
+          readOnly={false}
+          isExpanded={true}
+          onChange={mockOnChange}
+          onToggleExpand={mockOnToggleExpand}
+        />
+      );
+
+      expect(screen.getByDisplayValue('null_param_2')).toBeInTheDocument();
+      const input = screen.getByPlaceholderText('Enter default value(s), comma-separated');
+      expect(input).toBeInTheDocument();
+
+      fireEvent.change(input, { target: { value: 'New Value' } });
+
+      await waitFor(() => {
+        expect(mockOnChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            values: ['New Value']
+          })
+        );
+      });
+    });
+
+    it('falls back to catalog default in profile mode when profile param.values is null', () => {
+      const catalogDefault = {
+        id: 'prm_shared',
+        label: 'Shared Param',
+        values: ['Default Choice']
+      };
+      const profileParam = {
+        'param-id': 'prm_shared',
+        values: null
+      };
+
+      render(
+        <ParameterCard
+          param={profileParam}
+          mode="profile"
+          catalogDefaultParam={catalogDefault}
+          readOnly={false}
+          isExpanded={false}
+          onChange={mockOnChange}
+        />
+      );
+
+      expect(screen.getByText('prm_shared')).toBeInTheDocument();
+      expect(screen.getByText('Default Choice')).toBeInTheDocument();
+    });
+
+    it('does not throw when both param.values and catalogDefaultParam.values are null', () => {
+      const catalogDefault = {
+        id: 'prm_null_default',
+        values: null
+      };
+      const profileParam = {
+        'param-id': 'prm_null_default',
+        values: null
+      };
+
+      expect(() => {
+        render(
+          <ParameterCard
+            param={profileParam}
+            mode="profile"
+            catalogDefaultParam={catalogDefault}
+            readOnly={false}
+            isExpanded={false}
+            onChange={mockOnChange}
+          />
+        );
+      }).not.toThrow();
+
+      expect(screen.getByText('prm_null_default')).toBeInTheDocument();
+    });
+
+    it('handles multi-choice checkbox toggles safely when initial values is null', () => {
+      const param = {
+        id: 'multi_null_prm',
+        select: {
+          'how-many': 'one-or-more',
+          choice: ['Option A', 'Option B']
+        },
+        values: null
+      };
+
+      render(
+        <ParameterCard
+          param={param}
+          readOnly={false}
+          isExpanded={true}
+          onChange={mockOnChange}
+        />
+      );
+
+      const optionACheckbox = screen.getByLabelText('Option A');
+      expect(() => {
+        fireEvent.click(optionACheckbox);
+      }).not.toThrow();
+
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          values: ['Option A']
+        })
+      );
+    });
+  });
 });

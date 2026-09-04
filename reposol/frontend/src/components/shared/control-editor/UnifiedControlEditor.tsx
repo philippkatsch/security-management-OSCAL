@@ -5,18 +5,11 @@ import { ControlPartsPanel } from '../control-detail/ControlPartsPanel';
 import { ControlParametersPanel } from '../control-detail/ControlParametersPanel';
 import { ControlEnhancementsPanel } from '../control-detail/ControlEnhancementsPanel';
 import { ADAPTERS } from './adapters';
+import { useProfileControlAlters } from './adapters/ProfileAdapter';
 import { ControlEditorContext, StageContextType } from './ControlEditorContext';
 import { Control, Result, ImplementedRequirement, ProfileAlter } from '@lib/types/oscal';
 import { ErrorBoundary } from '@components/shared/ui/ErrorBoundary';
 import { ProseWithParams } from '@components/shared/ProseWithParams';
-import {
-  resolveProfilePartsForRendering,
-  getModifiedPartIds as getModifiedPartIdsUtil,
-  handleOriginalPartFieldChange,
-  getAlterForControl,
-  updateAlter,
-  RenderablePart
-} from '@lib/profile-alter-utils';
 
 interface UnifiedControlEditorProps {
   control: Control;
@@ -46,10 +39,13 @@ export function UnifiedControlEditor({
   dispatch,
   isEditing = false,
   catalog,
+  profile: propProfile,
   ...stageProps
 }: UnifiedControlEditorProps) {
   const StageAdapter = ADAPTERS[stage];
   const { onSelectControl, onRestoreControl, allUsedPropKeys } = stageProps as any;
+
+  const profile = propProfile || (stageProps as any)?.profile;
 
   const contextValue = {
     stage,
@@ -58,7 +54,7 @@ export function UnifiedControlEditor({
     dispatch
   };
 
-  // Compile all available parameters for prose resolution
+  // Compile all available parameters for prose resolution (R3-04: overlays profile set-parameters)
   const allParams = React.useMemo(() => {
     const list: any[] = [];
     if (control?.params) {
@@ -74,8 +70,40 @@ export function UnifiedControlEditor({
       }
     };
     if (catalog?.groups) searchGroups(catalog.groups);
+
+    // Profile mode: overlay profile.modify['set-parameters'] onto allParams
+    if (stage === 'profile' && profile?.modify?.['set-parameters']) {
+      const setParams = profile.modify['set-parameters'];
+      if (Array.isArray(setParams)) {
+        setParams.forEach((sp: any) => {
+          const spId = sp['param-id'] || sp.id;
+          if (!spId) return;
+          const existing = list.find((p: any) => (p.id || p['param-id'])?.toLowerCase() === spId.toLowerCase());
+          if (existing) {
+            if (sp.values !== undefined) existing.values = sp.values;
+            if (sp.label !== undefined) existing.label = sp.label;
+            if (sp.usage !== undefined) existing.usage = sp.usage;
+            if (sp.guidelines !== undefined) existing.guidelines = sp.guidelines;
+            if (sp.constraints !== undefined) existing.constraints = sp.constraints;
+            if (sp.select !== undefined) existing.select = sp.select;
+            if (sp.props !== undefined) existing.props = sp.props;
+            if (sp.links !== undefined) existing.links = sp.links;
+            if (sp.class !== undefined) existing.class = sp.class;
+            existing.isOverridden = true;
+          } else {
+            list.push({
+              id: spId,
+              'param-id': spId,
+              ...sp,
+              scope: 'profile'
+            });
+          }
+        });
+      }
+    }
+
     return list;
-  }, [control, catalog]);
+  }, [control, catalog, stage, profile]);
 
   const renderProseToReact = React.useCallback((proseText: string) => {
     if (!proseText) return null;
@@ -170,189 +198,23 @@ export function UnifiedControlEditor({
     });
   };
 
-  // --- Profile-specific statement editing logic ---
-  const profile = (stageProps as any).profile;
+  // Profile stage alterations from ProfileAdapter (DD-030)
   const originalControl = (stageProps as any).originalControl;
   const onProfileChange = (stageProps as any).onProfileChange;
-  const controlId = control?.id || '';
-  const origControlId = originalControl?.id || (control as any)?.originalId;
-  const targetControlId = origControlId || controlId;
 
-  const profileAlter = stage === 'profile' ? (getAlterForControl(profile, controlId) || (origControlId ? getAlterForControl(profile, origControlId) : undefined)) : undefined;
+  const profileAlters = useProfileControlAlters({
+    profile: stage === 'profile' ? profile : undefined,
+    control,
+    originalControl,
+    onProfileChange,
+    allParams
+  });
 
-  // Resolve parts with alter overlays for profile mode
-  const resolvedParts = React.useMemo(() => {
-    if (stage !== 'profile') return control?.parts || [];
-    return resolveProfilePartsForRendering(
-      originalControl?.parts || control?.parts,
-      profileAlter
-    );
-  }, [stage, control?.parts, originalControl?.parts, profileAlter]);
-
-  // Render a single editable part in profile mode (prose editing via alters)
-  const renderEditPart = stage === 'profile' ? (part: RenderablePart, _origPart: any, _depth: number, _index: number) => {
-    const isOriginal = !part.isAdded;
-    const partId = part.originalId || part.id;
-    return (
-      <div
-        key={part.id || _index}
-        style={{
-          padding: '14px 16px',
-          background: part.isModified ? 'rgba(245, 158, 11, 0.08)' : part.isAdded ? 'rgba(34, 197, 94, 0.08)' : 'var(--color-surface-2)',
-          border: `1px solid ${part.isModified ? 'rgba(245, 158, 11, 0.35)' : part.isAdded ? 'rgba(34, 197, 94, 0.35)' : 'var(--color-border)'}`,
-          borderLeft: `4px solid ${part.isModified ? '#f59e0b' : part.isAdded ? '#22c55e' : 'var(--color-primary)'}`,
-          borderRadius: '6px',
-          position: 'relative' as const
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)' }}>
-              {part.name === 'statement' ? '☵ Statement' : `📄 ${part.name ? part.name.charAt(0).toUpperCase() + part.name.slice(1) : 'Part'}`}
-            </span>
-            {part.isModified && <span style={{ fontSize: '10px', color: '#fbbf24', background: 'rgba(245,158,11,0.2)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>Modified</span>}
-            {part.isAdded && <span style={{ fontSize: '10px', color: '#22c55e', background: 'rgba(34,197,94,0.2)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>Added</span>}
-          </div>
-          {part.isModified && handleResetProse && (
-            <button
-              type="button"
-              onClick={() => handleResetProse(partId)}
-              title="Clear alter and revert to original catalog baseline"
-              style={{
-                fontSize: '11px',
-                padding: '2px 8px',
-                background: 'rgba(245, 158, 11, 0.15)',
-                color: '#fbbf24',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              ↩ Revert to Baseline
-            </button>
-          )}
-          {part.isAdded && handleResetProse && (
-            <button
-              type="button"
-              onClick={() => handleResetProse(part.id)}
-              title="Remove added statement"
-              style={{
-                fontSize: '11px',
-                padding: '2px 8px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                color: '#f87171',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              🗑️ Remove
-            </button>
-          )}
-        </div>
-        <ProseWithParams
-          value={part.prose || ''}
-          onChange={(newValue: string) => {
-            if (isOriginal && profile && onProfileChange) {
-              handleOriginalPartFieldChange(
-                partId, 'prose', newValue,
-                { originalName: part.originalName || part.name, originalProse: part.originalProse ?? part.prose },
-                targetControlId, profile, onProfileChange
-              );
-            } else if (part.isAdded && profile && onProfileChange) {
-              updateAlter(profile, targetControlId, (alter) => {
-                const adds = (alter.adds || []).map(add => {
-                  if (add.parts && add.parts.some(p => p.id === part.id)) {
-                    const updatedParts = add.parts.map(p =>
-                      p.id === part.id ? { ...p, prose: newValue } : p
-                    );
-                    return { ...add, parts: updatedParts };
-                  }
-                  return add;
-                });
-                return { ...alter, adds };
-              }, onProfileChange);
-            }
-          }}
-          params={allParams}
-          placeholder="Enter prose text… (supports markdown formatting)"
-          rows={2}
-          style={{
-            fontSize: '13px',
-            width: '100%',
-            minHeight: '65px'
-          }}
-        />
-        {part.isModified && part.originalProse && part.originalProse !== part.prose && (
-          <div style={{
-            marginTop: '8px',
-            padding: '6px 10px',
-            background: 'rgba(245, 158, 11, 0.05)',
-            border: '1px dashed rgba(245, 158, 11, 0.3)',
-            borderRadius: '4px',
-            fontSize: '12px',
-            color: 'var(--color-text-muted)',
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: '6px'
-          }}>
-            <span style={{ fontWeight: 600, fontSize: '11px', color: '#fbbf24', flexShrink: 0 }}>Baseline:</span>
-            <span style={{ fontStyle: 'italic', textDecoration: 'line-through' }}>{part.originalProse}</span>
-          </div>
-        )}
-      </div>
-    );
-  } : undefined;
-
-  // Add new profile part at end (via alter) — accepts part type name
-  const handleAddProfilePartAtEnd = stage === 'profile' && profile && onProfileChange ? (partName: string = 'statement') => {
-    const newPartId = `${targetControlId}_${partName}_${Date.now()}`;
-    updateAlter(profile, targetControlId, (alter) => {
-      const adds = alter.adds ? [...alter.adds] : [];
-      adds.push({
-        position: 'ending',
-        parts: [{ id: newPartId, name: partName, prose: '' }]
-      } as any);
-      return { ...alter, adds };
-    }, onProfileChange);
-  } : undefined;
-
-  // Get modified part IDs for highlighting
-  const profileGetModifiedPartIds = stage === 'profile' && profile
-    ? () => {
-        const ids = getModifiedPartIdsUtil(profile, targetControlId);
-        if (controlId && controlId !== targetControlId) {
-          const overriddenIds = getModifiedPartIdsUtil(profile, controlId);
-          return [...new Set([...ids, ...overriddenIds])];
-        }
-        return ids;
-      }
-    : undefined;
-
-  // Reset prose to original value
-  const handleResetProse = stage === 'profile' && profile && onProfileChange ? (partId: string) => {
-    updateAlter(profile, targetControlId, (alter) => {
-      let removes = alter.removes ? [...alter.removes] : [];
-      let adds = alter.adds ? [...alter.adds] : [];
-      removes = removes.filter(r => r['by-id'] !== partId);
-      adds = adds.filter(a => !(a['by-id'] === partId && a.position === 'after'));
-      adds = adds.map(a => {
-        if (a.parts) {
-          const filteredParts = a.parts.filter(p => p.id !== partId);
-          if (filteredParts.length === 0) return null;
-          return { ...a, parts: filteredParts };
-        }
-        return a;
-      }).filter(Boolean) as typeof adds;
-      return { ...alter, removes, adds };
-    }, onProfileChange);
-  } : undefined;
+  const resolvedParts = stage === 'profile' ? profileAlters.resolvedParts : (control?.parts || []);
+  const renderEditPart = stage === 'profile' ? profileAlters.renderEditPart : undefined;
+  const handleAddProfilePartAtEnd = stage === 'profile' ? profileAlters.handleAddProfilePartAtEnd : undefined;
+  const profileGetModifiedPartIds = stage === 'profile' ? profileAlters.profileGetModifiedPartIds : undefined;
+  const handleResetProse = stage === 'profile' ? profileAlters.handleResetProse : undefined;
 
   return (
     <ErrorBoundary>
@@ -401,14 +263,14 @@ export function UnifiedControlEditor({
               handleFieldChange={(field, val) => onChange?.({ ...control, [field]: val })}
             />
             
-            {/* Profile stage uses inline Modified/Added badges instead of raw alter blocks */}
-            {StageAdapter && stage !== 'profile' && (
+            {StageAdapter && (
               <StageAdapter 
                 control={control} 
                 isEditing={isEditing} 
                 onChange={onChange} 
                 allUsedPropKeys={allUsedPropKeys}
                 catalog={catalog}
+                profile={profile}
                 {...stageProps} 
               />
             )}

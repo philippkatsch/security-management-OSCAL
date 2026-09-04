@@ -96,7 +96,7 @@
 *   **Acceptance Criteria:**
     *   Applies the global versioning pattern **US 0.15** fully (schema validation, version synchronization, error feedback, drawer, read-only history).
     *   **Catalog-specific:** The document is validated against the official NIST OSCAL Catalog schema.
-    *   **Revision Sync:** Upon saving, `catalog.metadata.revisions[]` is automatically updated (in accordance with US 0.7).
+    *   **Revision Sync:** Upon saving, `catalog.metadata.revisions[]` is automatically updated (in accordance with US 0.9).
 
 ### US 1.9: Simplified Catalog Creation & Direct Editing (Inner View)
 > *Implements [US 0.14](step0_global_requirements.md) with catalog-specific additions.*

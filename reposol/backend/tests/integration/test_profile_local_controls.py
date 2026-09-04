@@ -97,3 +97,36 @@ class TestProfileLocalControls:
         assert not os.path.exists(profile_path)
         # The local catalog file should also be cleaned up (unreferenced catalog)
         assert not os.path.exists(catalog_path)
+
+    def test_live_preview_with_unsaved_local_controls(self, client, isolated_data_dir):
+        # Live preview payload with in-memory local-controls before saving to disk
+        preview_payload = {
+            "profile": {
+                "uuid": "44444444-4444-4444-4444-444444444444",
+                "metadata": {"title": "Live Preview Profile", "version": "1.0.0"},
+                "imports": [],
+                "local-controls": [
+                    {
+                        "id": "corp-live-1",
+                        "title": "Unsaved Live Control",
+                        "parts": [
+                            {
+                                "id": "corp-live-1_smt",
+                                "name": "statement",
+                                "prose": "Live in-memory prose test."
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+        res = client.post("/api/resolve/profile/preview", json=preview_payload)
+        assert res.status_code == 200
+        data = res.json()
+
+        ctrl_ids = [c["id"] for c in data["controls"]]
+        assert "corp-live-1" in ctrl_ids
+        assert data["controls"][0]["parts"][0]["prose"] == "Live in-memory prose test."
+        assert "corp-live-1" not in data["excluded_control_ids"]
+

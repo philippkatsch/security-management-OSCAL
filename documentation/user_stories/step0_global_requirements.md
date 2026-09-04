@@ -52,7 +52,7 @@ Each step of the security lifecycle is described in detail in a separate file:
 4. **[Step 4: SSP Builder (System Security Plan)](step4_ssp_builder.md)**
    - Definition of system boundaries, assignment of active components to controls, and fine-tuning of control parameters.
 5. **[Step 5: Assessment Plan Builder (Assessment Plan Editor)](step5_assessment_plan.md)**
-   - Planning the system assessment, defining assessment objectives, assessment subjects, teams, tools, and milestones.
+   - Authoritative planning of system security assessments referencing target SSPs: 6-tab builder architecture, 3D scoping matrix (reviewed controls × assessment subjects × assessment assets), local definitions & procedural activities with evaluation methods (`INTERVIEW`, `EXAMINE`, `TEST`), task scheduling with timing variants & dependency DAG cycle validation, 7 canonical rules-of-engagement terms parts, Base64 embedded back-matter attachments, and schema-compliant export.
 6. **[Step 6: Assessment Results Reporter (Assessment Report Creation)](step6_assessment_results.md)**
    - Documentation of test results, logging, capturing observations, evidence references, vulnerabilities, and final assessment attestation.
 7. **[Step 7: POA&M Tracker (Remediation Plan Editor)](step7_poam.md)**
@@ -391,8 +391,7 @@ Each step of the security lifecycle is described in detail in a separate file:
     - [ ] **Sequential Operational Phases per Stage:** Detailed multi-phase breakdown for each of the 8 stages explaining sequential authoring, resolution, and audit execution steps.
     - [ ] **NIST OSCAL 1.1.0/1.2.2 Directives & JSON Schemas:** Validated code snippets and JSON directive examples representing official NIST OSCAL syntax.
     - [ ] **Reposol UI Capabilities & Feature Guides:** Comprehensive guide to Reposol web capabilities (tree controls, dual-mode visual/JSON sync, context menus, diff mode, export formats).
-    - [ ] **Real-Time Cross-Portal Search:** Live search input instantly filtering stage guides, operational phase cards, JSON directives, and action items.
-    - [ ] **Non-Destructive Tailoring Semantics & Badging:** Mode indicators (`📖 Catalog Source (Direct Mutation)`, `⚙️ Profile Baseline (Non-Destructive)`), visual alteration badges (`[Altered]`, `[Parameter Override]`, `[Withdrawn]`, `[Excluded]`), sleeping alters preservation upon control re-inclusion, and cascading parameter resolution.
+    - [ ] **Non-Destructive Tailoring Semantics & Badging:** Visual alteration badges (`[Altered]`, `[Parameter Override]`, `[Withdrawn]`, `[Excluded]`), sleeping alters preservation upon control re-inclusion, and cascading parameter resolution (header mode indicators `Catalog Source` / `Profile Baseline` removed per user preference to reduce visual clutter).
 
 
 

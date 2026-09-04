@@ -12,6 +12,7 @@ export function MetadataEditor({
   metadata = {},
   onChange,
   readOnly,
+  isEditing: isEditingProp,
   onNavigateToProperties
 }: {
   metadata?: any;
@@ -21,7 +22,7 @@ export function MetadataEditor({
   isEditing?: boolean;
 }) {
   const globalEditMode = useAtomValue(editModeAtom);
-  const isEditing = readOnly !== undefined ? !readOnly : globalEditMode;
+  const isEditing = isEditingProp !== undefined ? isEditingProp : (readOnly !== undefined ? !readOnly : globalEditMode);
   const isReadOnlyState = !isEditing;
   const [expandedSections, setExpandedSections] = useState({
     general: true,

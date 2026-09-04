@@ -38,7 +38,7 @@ def _prune_doc_for_listing(doc: Dict[str, Any], stage: str) -> Dict[str, Any]:
         "uuid": root.get("uuid"),
         "metadata": root.get("metadata", {}),
     }
-    for k in ("id", "type", "href", "remarks", "import-profile", "imports"):
+    for k in ("id", "type", "href", "remarks", "import-profile", "import-ssp", "import-ap", "imports"):
         if k in root:
             summary_root[k] = root[k]
     
@@ -60,9 +60,18 @@ async def list_documents(stage: str, workspace_id: Optional[str] = None) -> List
     return processed_docs
 
 
-async def get_document(stage: str, doc_id: str, *, for_ui: bool = True, workspace_id: Optional[str] = None) -> tuple[Dict[str, Any], str]:
+async def get_document(
+    stage: str,
+    doc_id: str,
+    *,
+    for_ui: bool = True,
+    include_draft: Optional[bool] = None,
+    workspace_id: Optional[str] = None
+) -> tuple[Dict[str, Any], str]:
     """Retrieves a document, applying profile postprocessing if requested for UI."""
-    doc, etag = await repo_get_document(stage, doc_id, workspace_id=workspace_id)
+    if include_draft is None:
+        include_draft = for_ui
+    doc, etag = await repo_get_document(stage, doc_id, include_draft=include_draft, workspace_id=workspace_id)
     if stage == "profiles" and for_ui:
         doc = await postprocess_profile_for_loading(doc, workspace_id)
     return doc, etag

@@ -53,23 +53,7 @@ export function CreateDocumentDialog({
     if (stage === 'catalogs') {
       // Minimal catalog
     } else if (stage === 'profiles') {
-      let catalogUuid = generateUUID();
-      try {
-        const catalogs = await fetchDocuments('catalogs');
-        const firstCat = getFirstDocUuid(catalogs);
-        if (firstCat) catalogUuid = firstCat;
-      } catch (e) {
-        // fallback
-      }
-      newDoc.profile.imports = [
-        {
-          href: `../catalogs/${catalogUuid}.json`,
-          'include-all': {}
-        }
-      ];
-      newDoc.profile.merge = {
-        'as-is': {}
-      };
+      // Minimal profile — user will add imports via the Imports tab
     } else if (stage === 'ssps') {
       let profileUuid = generateUUID();
       try {
@@ -216,7 +200,8 @@ export function CreateDocumentDialog({
     }
 
     try {
-      await saveDocument(stage, newDoc);
+      const skipValidation = stage === 'profiles';
+      await saveDocument(stage, newDoc, { skipValidation });
       onSaved(newDoc);
     } catch (err: any) {
       setError(err.message || 'Creation failed.');

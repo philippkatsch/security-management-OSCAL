@@ -347,3 +347,95 @@ export function restoreAllControlsInGroup(groupId: string) {
     });
 }
 
+export function updateGroup(targetId: string, updatedGroup: any) {
+  return createAction('catalog', 'UPDATE_GROUP', `Update group ${targetId}`,
+    (draft: any) => {
+      if (!draft.catalog) return;
+      const updateGrp = (groups: any[] = []): boolean => {
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].id === targetId || groups[i].id === updatedGroup.id) {
+            groups[i] = { ...groups[i], ...updatedGroup };
+            return true;
+          }
+          if (groups[i].groups && updateGrp(groups[i].groups)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      if (draft.catalog.groups) {
+        updateGrp(draft.catalog.groups);
+      }
+    });
+}
+
+export function updateControl(targetId: string, updatedControl: any) {
+  return createAction('catalog', 'UPDATE_CONTROL', `Update control ${targetId}`,
+    (draft: any) => {
+      if (!draft.catalog) return;
+      const updateInControls = (controls: any[] = []): boolean => {
+        for (let i = 0; i < controls.length; i++) {
+          if (controls[i].id === targetId || controls[i].id === updatedControl.id) {
+            controls[i] = { ...controls[i], ...updatedControl };
+            return true;
+          }
+          if (controls[i].controls && updateInControls(controls[i].controls)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      const updateInGroups = (groups: any[] = []): boolean => {
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].controls && updateInControls(groups[i].controls)) {
+            return true;
+          }
+          if (groups[i].groups && updateInGroups(groups[i].groups)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      if (draft.catalog.controls && updateInControls(draft.catalog.controls)) return;
+      if (draft.catalog.groups && updateInGroups(draft.catalog.groups)) return;
+    });
+}
+
+export function renameCatalogGlobalProperty(oldName: string, newName: string) {
+  return createAction('catalog', 'RENAME_GLOBAL_PROPERTY', `Rename global property ${oldName} to ${newName}`,
+    (draft: any) => {
+      if (!draft.catalog || !oldName || !newName || oldName === newName) return;
+      const renameInProps = (props: any[]) => {
+        if (!props) return props;
+        return props.map((p: any) => p.name === oldName ? { ...p, name: newName } : p);
+      };
+      if (draft.catalog.metadata?.props) {
+        draft.catalog.metadata.props = renameInProps(draft.catalog.metadata.props);
+      }
+    });
+}
+
+export function deleteCatalogGlobalProperty(propName: string) {
+  return createAction('catalog', 'DELETE_GLOBAL_PROPERTY', `Delete global property ${propName}`,
+    (draft: any) => {
+      if (!draft.catalog || !propName) return;
+      if (draft.catalog.metadata?.props) {
+        draft.catalog.metadata.props = draft.catalog.metadata.props.filter((p: any) => p.name !== propName);
+      }
+    });
+}
+
+export function updateCatalogDocument(updatedDoc: any) {
+  return createAction('catalog', 'UPDATE_CATALOG_DOCUMENT', 'Update catalog document',
+    (draft: any) => {
+      if (draft.catalog) {
+        const unwrapped = updatedDoc?.catalog || updatedDoc || {};
+        draft.catalog = {
+          ...unwrapped,
+          uuid: draft.catalog.uuid || unwrapped.uuid,
+        };
+      }
+    });
+}
+
+
