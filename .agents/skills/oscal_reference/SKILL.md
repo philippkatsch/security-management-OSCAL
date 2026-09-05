@@ -23,6 +23,14 @@ All reference material is located in `oscal-reference/` at the repository root.
 | `OSCAL-Pages/` | NIST OSCAL website source (Hugo), user guides, tutorials | Reading specification prose, understanding OSCAL concepts |
 | `OSCAL-Reference/` | Model documentation generator, interactive XML/JSON schema reference | Checking exact field names, cardinality, and constraints |
 
+### BSI Official Repository (Stand der Technik)
+
+| Directory | Contents | Use When |
+|-----------|----------|----------|
+| `Stand-der-Technik-Bibliothek/control_layer/` | Official BSI catalogs (Grundschutz++, Lieferkettensicherheit, Mindeststandard-TLS, Risikomanagement, WLAN) & framework mappings (ISO 27001, ITGS 2023) | Referencing official BSI OSCAL catalogs and cross-framework mappings |
+| `Stand-der-Technik-Bibliothek/implementation_layer/` | Official BSI component definitions and implementation blueprints (AWS, Keycloak, GA-Lotse, Netzarchitektur, Passwortrichtlinie) | Referencing official BSI component definitions and implementation layer artifacts |
+| `Stand-der-Technik-Bibliothek/assessment_layer/` | BSI assessment artifacts and test definitions | Referencing BSI assessment models and evaluation guides |
+
 ### Grundschutz++ Tools & Sample Data
 
 | Directory | Contents | Use When |
@@ -30,9 +38,10 @@ All reference material is located in `oscal-reference/` at the repository root.
 | `Grundschutz-Plus-Plus-Tools/ED23-Baustein-profile/` | Production OSCAL profiles (BSI IT-Grundschutz Edition 2023) | Referencing real-world profile structures and requirements |
 | `Grundschutz-Plus-Plus-Tools/kataloge/` | Official C5-2026 and C3A OSCAL catalogs | Loading standard security control catalogs |
 | `Grundschutz-Plus-Plus-Tools/beispiel-kataloge/` | Pre-built OSCAL catalogs for testing (DSGVO, KRITIS) | Loading sample catalog data for development/testing |
-| `Grundschutz-Plus-Plus-Tools/hilfsdateien/` | Control mappings, JSON schemas, requirements | Cross-referencing framework mappings and requirements |
+| `Grundschutz-Plus-Plus-Tools/hilfsdateien/` | Control mappings, JSON schemas, requirements, gap analysis | Cross-referencing framework mappings and requirements |
 | `Grundschutz-Plus-Plus-Tools/Zielobjektkategorien/` | OSCAL profiles categorized by target object type (process & regular) | Studying profile patterns by category |
-| `Grundschutz-Plus-Plus-Tools/One-Page-Apps/` | Browser-based OSCAL workflow tools (SSP editor, Assessment Plan/Results, POA&M, Viewer) | Understanding OSCAL lifecycle workflow patterns as reference implementations |
+| `Grundschutz-Plus-Plus-Tools/one-page-apps/` | Browser-based OSCAL workflow tools (SSP generator, C5 converter, Assessment Plan/Results, POA&M, Viewer) | Understanding OSCAL lifecycle workflow patterns as reference implementations |
+| `Grundschutz-Plus-Plus-Tools/handbuch/` | Comprehensive Grundschutz++ and OSCAL documentation & manual | Deepening domain knowledge on BSI Grundschutz++ methodologies |
 
 ## 2. Search Strategies
 

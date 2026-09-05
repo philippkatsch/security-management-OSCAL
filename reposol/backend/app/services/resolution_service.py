@@ -4,7 +4,7 @@ import copy
 from typing import Dict, Any, List, Optional, Tuple, Set
 import functools
 
-from app.repositories.document_repository import get_document
+from app.repositories.document_repository import get_document, document_exists
 from app.repositories.document_repository import _catalog_uuid_from_href
 from app.constants import normalize_stage
 
@@ -664,6 +664,73 @@ def _apply_custom_structure(custom_groups, custom_insert_controls, all_controls,
     
     return res_controls, res_groups
 
+def _resolve_resource_href(href: Optional[str], profile: Dict[str, Any]) -> Optional[str]:
+    """
+    Resolves an import href that may be a direct catalog UUID URI or a fragment reference (#resource-id)
+    pointing to a resource in back-matter.resources or metadata.resources with rlinks.
+    """
+    if not href or not isinstance(href, str):
+        return None
+
+    clean_href = href.strip()
+
+    # 1. Fragment reference (#resource-id or #uuid)
+    if clean_href.startswith("#"):
+        resource_id = clean_href[1:].strip().lower()
+        if not resource_id:
+            return None
+
+        # Search in both back-matter.resources and metadata.resources
+        resources = []
+        back_matter = profile.get("back-matter")
+        if isinstance(back_matter, dict):
+            bm_resources = back_matter.get("resources", [])
+            if isinstance(bm_resources, list):
+                resources.extend(bm_resources)
+
+        metadata = profile.get("metadata")
+        if isinstance(metadata, dict):
+            meta_resources = metadata.get("resources", [])
+            if isinstance(meta_resources, list):
+                resources.extend(meta_resources)
+
+        # Match resource by uuid or id
+        matched_resource = None
+        for r in resources:
+            if isinstance(r, dict):
+                r_uuid = str(r.get("uuid", "")).lower()
+                r_id = str(r.get("id", "")).lower()
+                if resource_id in (r_uuid, r_id):
+                    matched_resource = r
+                    break
+
+        if matched_resource:
+            # Check rlinks on matched resource
+            for rlink in matched_resource.get("rlinks", []):
+                if isinstance(rlink, dict):
+                    rlink_href = rlink.get("href", "")
+                    rlink_uuid = _catalog_uuid_from_href(rlink_href)
+                    if rlink_uuid:
+                        return rlink_uuid
+
+            # If no rlink provided a UUID, check if the resource uuid itself is a valid document UUID
+            r_uuid = matched_resource.get("uuid")
+            if r_uuid:
+                uuid_match = _catalog_uuid_from_href(r_uuid)
+                if uuid_match:
+                    return uuid_match
+
+        # If no resource matched in back-matter/metadata, fallback to checking if fragment itself is a UUID
+        fragment_uuid = _catalog_uuid_from_href(resource_id)
+        if fragment_uuid:
+            return fragment_uuid
+
+        return None
+
+    # 2. Direct URI / path with UUID
+    return _catalog_uuid_from_href(clean_href)
+
+
 async def _run_resolution_pipeline(
     workspace_id: str,
     profile: Dict[str, Any],
@@ -689,7 +756,7 @@ async def _run_resolution_pipeline(
     # === Phase 1: Import ===
     for imp in profile.get("imports", []):
         href = imp.get("href")
-        cat_uuid = _catalog_uuid_from_href(href)
+        cat_uuid = _resolve_resource_href(href, profile)
         if not cat_uuid:
             continue
 
@@ -697,7 +764,7 @@ async def _run_resolution_pipeline(
         is_profile = await document_exists("profiles", cat_uuid, workspace_id=workspace_id)
         if is_profile:
             prof_res = await resolve_profile(workspace_id, cat_uuid, _resolving_stack=_resolving_stack)
-            prof_doc, _ = await get_document("profiles", cat_uuid, workspace_id=workspace_id)
+            prof_doc, _ = await get_document("profiles", cat_uuid, include_draft=False, workspace_id=workspace_id)
             prof_meta = prof_doc.get("profile", {}).get("metadata", {})
             cat_title = prof_meta.get("title", "Profile")
             cat_version = prof_meta.get("version")
@@ -706,7 +773,7 @@ async def _run_resolution_pipeline(
             source_catalog_titles.append(cat_title)
         else:
             try:
-                cat_doc, _ = await get_document("catalogs", cat_uuid, workspace_id=workspace_id)
+                cat_doc, _ = await get_document("catalogs", cat_uuid, include_draft=False, workspace_id=workspace_id)
                 cat_meta = cat_doc.get("catalog", {}).get("metadata", {})
                 cat_title = cat_meta.get("title", "Unknown Catalog")
                 cat_version = cat_meta.get("version")
@@ -732,17 +799,30 @@ async def _run_resolution_pipeline(
             for id in inc.get("with-ids", []):
                 included_ids.add(id.lower())
             for match in inc.get("matching", []):
-                if match.get("pattern"):
+                if isinstance(match, dict) and match.get("pattern"):
                     include_patterns.append(match["pattern"])
+                elif isinstance(match, str):
+                    include_patterns.append(match)
+            for pat in inc.get("matching-patterns", []):
+                if pat:
+                    include_patterns.append(pat)
 
         excluded_ids = set()
         exclude_patterns = []
         for exc in exclude_controls:
             if isinstance(exc, str):
                 excluded_ids.add(exc.lower())
-            if isinstance(exc, dict):
+            elif isinstance(exc, dict):
                 for id in exc.get("with-ids", []):
                     excluded_ids.add(id.lower())
+                for match in exc.get("matching", []):
+                    if isinstance(match, dict) and match.get("pattern"):
+                        exclude_patterns.append(match["pattern"])
+                    elif isinstance(match, str):
+                        exclude_patterns.append(match)
+                for pat in exc.get("matching-patterns", []):
+                    if pat:
+                        exclude_patterns.append(pat)
 
         # Auto-exclude catalog-level withdrawn controls from profiles.
         # Withdrawn is a catalog concept (NIST retired the control) — profiles should not inherit them.
@@ -766,6 +846,13 @@ async def _run_resolution_pipeline(
             "all_groups": raw_cat_groups,
             "all_controls": raw_cat_controls
         })
+
+    # Include in-memory local-controls (for live preview resolution before document save)
+    local_controls = profile.get("local-controls", [])
+    if local_controls:
+        raw_local_controls = copy.deepcopy(local_controls)
+        raw_all_controls.extend(copy.deepcopy(raw_local_controls))
+        all_controls.extend(raw_local_controls)
 
     # === Phase 2: Merge ===
     merge = profile.get("merge", {})
@@ -822,7 +909,7 @@ async def resolve_profile(workspace_id: str, profile_id: str, _resolving_stack: 
         raise ValueError("Circular profile reference detected")
     _resolving_stack = _resolving_stack | {profile_id}
 
-    doc, _ = await get_document("profiles", profile_id, workspace_id=workspace_id)
+    doc, _ = await get_document("profiles", profile_id, include_draft=False, workspace_id=workspace_id)
     profile = doc.get("profile", {})
 
     return await _run_resolution_pipeline(workspace_id, profile, _resolving_stack)
@@ -967,25 +1054,257 @@ def detect_modify_conflicts(
         "orphaned_custom_refs": orphaned_custom_refs
     }
 
-async def resolve_ssp(workspace_id: str, ssp_id: str) -> Dict[str, Any]:
-    doc, _ = await get_document("system-security-plans", ssp_id, workspace_id=workspace_id)
-    ssp = doc.get("system-security-plan", {})
-    
+def _substitute_prose_params(text: str, param_values: Dict[str, List[str]]) -> str:
+    """Substitutes parameter placeholders with resolved values in prose."""
+    if not text or not isinstance(text, str):
+        return text
+
+    def repl_mustache(m):
+        pid = m.group(1).strip().lower()
+        for k, v in param_values.items():
+            if k.lower() == pid and v:
+                return ", ".join(str(x) for x in v)
+        return m.group(0)
+
+    def repl_xml(m):
+        pid = m.group(1).strip().lower()
+        for k, v in param_values.items():
+            if k.lower() == pid and v:
+                return ", ".join(str(x) for x in v)
+        return m.group(0)
+
+    res = re.sub(r'\{\{\s*insert:\s*param\s*,\s*([a-zA-Z0-9_\.\-]+)\s*\}\}', repl_mustache, text)
+    res = re.sub(r'<insert\s+type=[\'"]param[\'"]\s+id-ref=[\'"]([a-zA-Z0-9_\.\-]+)[\'"]\s*(?:/>|>\s*</insert>)', repl_xml, res)
+    return res
+
+
+def _substitute_parts_prose(parts: List[Dict[str, Any]], param_values: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    if not parts or not isinstance(parts, list):
+        return parts
+    res = []
+    for p in parts:
+        new_p = copy.deepcopy(p)
+        if "prose" in new_p and isinstance(new_p["prose"], str):
+            new_p["prose"] = _substitute_prose_params(new_p["prose"], param_values)
+        if "parts" in new_p and isinstance(new_p["parts"], list):
+            new_p["parts"] = _substitute_parts_prose(new_p["parts"], param_values)
+        res.append(new_p)
+    return res
+
+
+async def _run_ssp_resolution_pipeline(workspace_id: str, ssp: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Core SSP resolution pipeline:
+    1. Resolves baseline controls from Profile or Catalog (BE-SSP-03)
+    2. Computes 4-tier parameter cascade (BE-SSP-04)
+    3. Resolves prose parameter placeholders ({{ insert: param, id }})
+    4. Annotates implementation statuses and aggregates summary metrics
+    """
     profile_href = ssp.get("import-profile", {}).get("href")
-    profile_id = _catalog_uuid_from_href(profile_href)
-    
+    profile_id = _resolve_resource_href(profile_href, ssp) if profile_href else None
+
+    baseline_type = "none"
+    baseline_title = "No Baseline"
+    raw_controls: List[Dict[str, Any]] = []
+    raw_groups: List[Dict[str, Any]] = []
+    baseline_params: List[Dict[str, Any]] = []
+
     if profile_id:
-        try:
-            resolved_profile = await resolve_profile(workspace_id, profile_id)
-        except Exception:
-            resolved_profile = {"controls": [], "groups": []}
-    else:
-        resolved_profile = {"controls": [], "groups": []}
-        
-    impl_reqs = ssp.get("control-implementation", {}).get("implemented-requirements", [])
-    impl_map = {req.get("control-id", "").lower(): req for req in impl_reqs}
-    
-    # Simple summary counting
+        # Check if profile_id exists as a Profile in current or default workspace
+        is_profile = await document_exists("profiles", profile_id, workspace_id=workspace_id)
+        if not is_profile and workspace_id and workspace_id != "default":
+            is_profile = await document_exists("profiles", profile_id, workspace_id="default")
+
+        if is_profile:
+            try:
+                resolved_profile = await resolve_profile(workspace_id, profile_id)
+                raw_controls = resolved_profile.get("controls", [])
+                raw_groups = resolved_profile.get("groups", [])
+                baseline_params = resolved_profile.get("parameter_overrides", [])
+                baseline_type = "profile"
+                baseline_title = resolved_profile.get("source_catalog_title") or "Imported Profile"
+            except Exception:
+                raw_controls = []
+                raw_groups = []
+        else:
+            # Check if profile_id exists as a Catalog in current or default workspace
+            is_catalog = await document_exists("catalogs", profile_id, workspace_id=workspace_id)
+            if not is_catalog and workspace_id and workspace_id != "default":
+                is_catalog = await document_exists("catalogs", profile_id, workspace_id="default")
+
+            if is_catalog:
+                try:
+                    cat_doc, _ = await get_document("catalogs", profile_id, include_draft=False, workspace_id=workspace_id)
+                    cat = cat_doc.get("catalog", {})
+                    cat_meta = cat.get("metadata", {})
+                    baseline_title = cat_meta.get("title", "Imported Catalog")
+                    baseline_type = "catalog"
+                    raw_controls = copy.deepcopy(cat.get("controls", []))
+                    raw_groups = copy.deepcopy(cat.get("groups", []))
+                    baseline_params = copy.deepcopy(cat.get("params", []))
+                    withdrawn_ids = _collect_withdrawn_ids(cat)
+                    raw_controls = _filter_controls(raw_controls, True, set(), [], withdrawn_ids, [])
+                    raw_groups = _filter_groups(raw_groups, True, set(), [], withdrawn_ids, [])
+                except Exception:
+                    raw_controls = []
+                    raw_groups = []
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 4-Tier Parameter Cascade Hierarchy:
+    # Tier 1: Component Override (by-components[].set-parameters)
+    # Tier 2: Control Override (implemented-requirements[].set-parameters)
+    # Tier 3: SSP Global Default (control-implementation.set-parameters)
+    # Tier 4: Baseline Default (Profile modify.set-parameters / Catalog param.values)
+    # ─────────────────────────────────────────────────────────────────────────────
+
+    # Tier 4: Baseline default parameters
+    baseline_default_params: Dict[str, Dict[str, Any]] = {}
+    for p in baseline_params:
+        pid = p.get("param-id") or p.get("id")
+        if pid:
+            baseline_default_params[pid.lower()] = {
+                "param-id": pid,
+                "values": p.get("values", []),
+                "label": p.get("label"),
+                "remarks": p.get("remarks"),
+                "origin": "baseline-default"
+            }
+
+    def collect_baseline_ctrl_params(ctrls):
+        for c in ctrls:
+            cid = c.get("id", "").lower()
+            for p in c.get("params", []):
+                pid = p.get("id") or p.get("param-id")
+                if pid and pid.lower() not in baseline_default_params:
+                    baseline_default_params[pid.lower()] = {
+                        "param-id": pid,
+                        "control-id": cid,
+                        "values": p.get("values", []),
+                        "label": p.get("label"),
+                        "remarks": p.get("remarks"),
+                        "select": p.get("select"),
+                        "origin": "catalog-default"
+                    }
+            for sub in c.get("controls", []):
+                collect_baseline_ctrl_params([sub])
+
+    def collect_baseline_grp_params(grps):
+        for g in grps:
+            for p in g.get("params", []):
+                pid = p.get("id") or p.get("param-id")
+                if pid and pid.lower() not in baseline_default_params:
+                    baseline_default_params[pid.lower()] = {
+                        "param-id": pid,
+                        "values": p.get("values", []),
+                        "label": p.get("label"),
+                        "remarks": p.get("remarks"),
+                        "origin": "catalog-default"
+                    }
+            if g.get("controls"):
+                collect_baseline_ctrl_params(g["controls"])
+            if g.get("groups"):
+                collect_baseline_grp_params(g["groups"])
+
+    collect_baseline_ctrl_params(raw_controls)
+    collect_baseline_grp_params(raw_groups)
+
+    # Tier 3: SSP Global set-parameters
+    ssp_global_params: Dict[str, Dict[str, Any]] = {}
+    control_impl = ssp.get("control-implementation", {})
+    for sp in control_impl.get("set-parameters", []):
+        pid = sp.get("param-id")
+        if pid:
+            ssp_global_params[pid.lower()] = {
+                "param-id": pid,
+                "values": sp.get("values", []),
+                "remarks": sp.get("remarks"),
+                "origin": "ssp-global"
+            }
+
+    # Tier 2 & Tier 1: Control-Level and Component-Level set-parameters
+    control_level_params: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    component_level_params: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+    impl_reqs = control_impl.get("implemented-requirements", [])
+    impl_map = {req.get("control-id", "").lower(): req for req in impl_reqs if req.get("control-id")}
+
+    for req in impl_reqs:
+        cid = req.get("control-id", "").lower()
+        if not cid:
+            continue
+
+        # Tier 2: Control level set-parameters
+        control_level_params[cid] = {}
+        for sp in req.get("set-parameters", []):
+            pid = sp.get("param-id")
+            if pid:
+                control_level_params[cid][pid.lower()] = {
+                    "param-id": pid,
+                    "control-id": cid,
+                    "values": sp.get("values", []),
+                    "remarks": sp.get("remarks"),
+                    "origin": "control-override"
+                }
+
+        # Tier 1: Component level set-parameters
+        component_level_params[cid] = {}
+        for by_comp in req.get("by-components", []):
+            comp_uuid = by_comp.get("component-uuid", "").lower()
+            for sp in by_comp.get("set-parameters", []):
+                pid = sp.get("param-id")
+                if pid:
+                    component_level_params[cid][f"{comp_uuid}:{pid.lower()}"] = {
+                        "param-id": pid,
+                        "control-id": cid,
+                        "component-uuid": comp_uuid,
+                        "values": sp.get("values", []),
+                        "remarks": sp.get("remarks"),
+                        "origin": "component-override"
+                    }
+
+        for stmt in req.get("statements", []):
+            stmt_id = stmt.get("statement-id", "").lower()
+            for stmt_by_comp in stmt.get("by-components", []):
+                comp_uuid = stmt_by_comp.get("component-uuid", "").lower()
+                for sp in stmt_by_comp.get("set-parameters", []):
+                    pid = sp.get("param-id")
+                    if pid:
+                        component_level_params[cid][f"{comp_uuid}:{stmt_id}:{pid.lower()}"] = {
+                            "param-id": pid,
+                            "control-id": cid,
+                            "statement-id": stmt_id,
+                            "component-uuid": comp_uuid,
+                            "values": sp.get("values", []),
+                            "remarks": sp.get("remarks"),
+                            "origin": "component-override"
+                        }
+
+    def resolve_effective_param_for_control(cid: str, param_id: str) -> Dict[str, Any]:
+        """Resolves effective parameter value following the 4-tier precedence cascade."""
+        pid_l = param_id.lower()
+        cid_l = cid.lower()
+
+        # Tier 2: Control level override
+        if cid_l in control_level_params and pid_l in control_level_params[cid_l]:
+            res = dict(control_level_params[cid_l][pid_l])
+            res["effective_values"] = res.get("values", [])
+            return res
+
+        # Tier 3: SSP Global default
+        if pid_l in ssp_global_params:
+            res = dict(ssp_global_params[pid_l])
+            res["effective_values"] = res.get("values", [])
+            return res
+
+        # Tier 4: Baseline default
+        if pid_l in baseline_default_params:
+            res = dict(baseline_default_params[pid_l])
+            res["effective_values"] = res.get("values", [])
+            return res
+
+        return {"param-id": param_id, "values": [], "effective_values": [], "origin": "none"}
+
+    # Aggregate summary metrics
     summary = {
         "total": 0,
         "implemented": 0,
@@ -993,35 +1312,103 @@ async def resolve_ssp(workspace_id: str, ssp_id: str) -> Dict[str, Any]:
         "planned": 0,
         "not_applicable": 0
     }
-    
+
     def annotate_controls(controls):
         annotated = []
         for c in controls:
             new_c = copy.deepcopy(c)
             summary["total"] += 1
             cid = new_c.get("id", "").lower()
+
+            # Build parameter map for this control for prose substitution and annotation
+            ctrl_param_map = {}
+            resolved_params_list = []
+
+            relevant_pids = set()
+            for p in new_c.get("params", []):
+                pid = p.get("id") or p.get("param-id")
+                if pid:
+                    relevant_pids.add(pid)
+            if cid in control_level_params:
+                for pid_l, p_obj in control_level_params[cid].items():
+                    relevant_pids.add(p_obj.get("param-id", pid_l))
+
+            for pid in relevant_pids:
+                eff = resolve_effective_param_for_control(cid, pid)
+                ctrl_param_map[pid] = eff.get("effective_values", [])
+                resolved_params_list.append(eff)
+
+            # Substitute prose placeholders in parts and prose fields
+            if "parts" in new_c and isinstance(new_c["parts"], list):
+                new_c["parts"] = _substitute_parts_prose(new_c["parts"], ctrl_param_map)
+            if "prose" in new_c and isinstance(new_c["prose"], str):
+                new_c["prose"] = _substitute_prose_params(new_c["prose"], ctrl_param_map)
+
+            # Enrich control params
+            if new_c.get("params"):
+                enriched_params = []
+                for p in new_c["params"]:
+                    new_p = copy.deepcopy(p)
+                    pid = new_p.get("id") or new_p.get("param-id")
+                    if pid:
+                        eff = resolve_effective_param_for_control(cid, pid)
+                        if eff.get("effective_values"):
+                            new_p["values"] = eff["effective_values"]
+                        new_p["origin"] = eff.get("origin")
+                    enriched_params.append(new_p)
+                new_c["params"] = enriched_params
+
+            new_c["resolved_parameters"] = resolved_params_list
+
+            # Implementation status annotation
             if cid in impl_map:
                 req = impl_map[cid]
-                # Default logic for summary (simplified)
-                state = req.get("props", [{}])[0].get("value", "planned") if req.get("props") else "planned"
-                if state == "implemented":
+                raw_state = None
+                by_comps = req.get("by-components", [])
+                if by_comps:
+                    for bc in by_comps:
+                        st = bc.get("implementation-status", {}).get("state")
+                        if st:
+                            raw_state = st
+                            break
+
+                if not raw_state:
+                    raw_state = req.get("implementation-status", {}).get("state")
+
+                if not raw_state and req.get("props"):
+                    for pr in req["props"]:
+                        if pr.get("name") in ("implementation-status", "status", "state"):
+                            raw_state = pr.get("value")
+                            break
+
+                if not raw_state:
+                    raw_state = "planned"
+
+                raw_state_l = raw_state.lower().replace("_", "-")
+                if raw_state_l == "implemented":
                     summary["implemented"] += 1
-                elif state == "partial":
+                    norm_state = "implemented"
+                elif raw_state_l in ("partial", "partially-implemented"):
                     summary["partially_implemented"] += 1
-                elif state == "not-applicable":
+                    norm_state = "partially-implemented"
+                elif raw_state_l in ("not-applicable", "notapplicable"):
                     summary["not_applicable"] += 1
+                    norm_state = "not-applicable"
                 else:
                     summary["planned"] += 1
-                new_c["implementation_status"] = state
+                    norm_state = "planned"
+
+                new_c["implementation_status"] = norm_state
+                new_c["implemented_requirement"] = req
             else:
                 summary["planned"] += 1
                 new_c["implementation_status"] = "none"
-                
+
             if new_c.get("controls"):
                 new_c["controls"] = annotate_controls(new_c["controls"])
             annotated.append(new_c)
         return annotated
-        
+
     def annotate_groups(groups):
         annotated = []
         for g in groups:
@@ -1032,17 +1419,364 @@ async def resolve_ssp(workspace_id: str, ssp_id: str) -> Dict[str, Any]:
                 new_g["groups"] = annotate_groups(new_g["groups"])
             annotated.append(new_g)
         return annotated
-        
-    control_tree = {
-        "controls": annotate_controls(resolved_profile.get("controls", [])),
-        "groups": annotate_groups(resolved_profile.get("groups", []))
-    }
-    
+
+    annotated_controls = annotate_controls(raw_controls)
+    annotated_groups = annotate_groups(raw_groups)
+
     return {
-        "control_tree": control_tree,
+        "control_tree": {
+            "controls": annotated_controls,
+            "groups": annotated_groups
+        },
         "implementation_summary": summary,
-        "components": ssp.get("system-implementation", {}).get("components", [])
+        "components": ssp.get("system-implementation", {}).get("components", []),
+        "users": ssp.get("system-implementation", {}).get("users", []),
+        "inventory-items": ssp.get("system-implementation", {}).get("inventory-items", []),
+        "roles": ssp.get("metadata", {}).get("roles", []),
+        "parties": ssp.get("metadata", {}).get("parties", []),
+        "system-characteristics": ssp.get("system-characteristics", {}),
+        "parameters": {
+            "global": ssp_global_params,
+            "control_level": control_level_params,
+            "component_level": component_level_params,
+            "baseline_defaults": baseline_default_params
+        },
+        "source_baseline": {
+            "href": profile_href,
+            "id": profile_id,
+            "type": baseline_type,
+            "title": baseline_title
+        }
     }
+
+
+async def resolve_ssp(workspace_id: str, ssp_id: str) -> Dict[str, Any]:
+    """Resolves an SSP document from disk."""
+    try:
+        doc, _ = await get_document("ssps", ssp_id, include_draft=False, workspace_id=workspace_id)
+    except FileNotFoundError:
+        # Fallback to system-security-plans in case document was written with legacy stage name
+        doc, _ = await get_document("system-security-plans", ssp_id, include_draft=False, workspace_id=workspace_id)
+    ssp = doc.get("system-security-plan", {})
+    return await _run_ssp_resolution_pipeline(workspace_id, ssp)
+
+
+async def resolve_ssp_inline(workspace_id: str, ssp: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Resolves an in-memory SSP document for live preview during editing.
+    """
+    ssp_obj = ssp.get("system-security-plan", ssp) if isinstance(ssp, dict) else {}
+    while isinstance(ssp_obj, dict) and "system-security-plan" in ssp_obj and len(ssp_obj) == 1:
+        ssp_obj = ssp_obj["system-security-plan"]
+    return await _run_ssp_resolution_pipeline(workspace_id, ssp_obj)
+
+
+async def _run_ap_resolution_pipeline(
+    workspace_id: str,
+    ap: Dict[str, Any],
+    ssp: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Core Assessment Plan resolution pipeline:
+    1. Resolves target SSP from workspace or inline document.
+    2. Computes 3D scoping matrix (reviewed controls, statements, subjects, assets & platforms).
+    3. Resolves local definitions, evaluation methods, and procedural activities.
+    4. Computes scheduled task timeline and Gantt model.
+    """
+    ap_obj = ap.get("assessment-plan", ap) if isinstance(ap, dict) else {}
+    while isinstance(ap_obj, dict) and "assessment-plan" in ap_obj and len(ap_obj) == 1:
+        ap_obj = ap_obj["assessment-plan"]
+
+    # 1. Target SSP resolution
+    import_ssp = ap_obj.get("import-ssp", {}) if isinstance(ap_obj.get("import-ssp"), dict) else {}
+    ssp_href = import_ssp.get("href", "")
+    ssp_uuid = None
+    if ssp_href:
+        ssp_uuid = _resolve_resource_href(ssp_href, ap_obj)
+        if not ssp_uuid:
+            uuid_m = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", ssp_href)
+            if uuid_m:
+                ssp_uuid = uuid_m.group(1)
+
+    ssp_data = None
+    resolved_ssp_data = None
+
+    if ssp:
+        ssp_data = ssp.get("system-security-plan", ssp) if isinstance(ssp, dict) else {}
+        while isinstance(ssp_data, dict) and "system-security-plan" in ssp_data and len(ssp_data) == 1:
+            ssp_data = ssp_data["system-security-plan"]
+        resolved_ssp_data = await _run_ssp_resolution_pipeline(workspace_id, ssp_data)
+    elif ssp_uuid:
+        try:
+            ssp_doc, _ = await get_document("ssps", ssp_uuid, include_draft=False, workspace_id=workspace_id)
+            ssp_data = ssp_doc.get("system-security-plan", {})
+            resolved_ssp_data = await _run_ssp_resolution_pipeline(workspace_id, ssp_data)
+        except Exception:
+            try:
+                ssp_doc, _ = await get_document("system-security-plans", ssp_uuid, include_draft=False, workspace_id=workspace_id)
+                ssp_data = ssp_doc.get("system-security-plan", {})
+                resolved_ssp_data = await _run_ssp_resolution_pipeline(workspace_id, ssp_data)
+            except Exception:
+                ssp_data = None
+                resolved_ssp_data = None
+
+    system_name = "No Target SSP Linked"
+    security_impact_level = {}
+    status = {}
+    ssp_baseline_href = None
+    candidate_controls_map: Dict[str, Dict[str, Any]] = {}
+    ssp_components = []
+    ssp_inventory = []
+    ssp_users = []
+    ssp_locations = []
+
+    if ssp_data:
+        system_chars = ssp_data.get("system-characteristics", {})
+        system_name = system_chars.get("system-name", "Unnamed System")
+        security_impact_level = system_chars.get("security-impact-level", {})
+        status = system_chars.get("status", {})
+        ssp_baseline_href = ssp_data.get("import-profile", {}).get("href")
+        ssp_impl_reqs = ssp_data.get("control-implementation", {}).get("implemented-requirements", [])
+        for req in ssp_impl_reqs:
+            cid = req.get("control-id")
+            if cid:
+                candidate_controls_map[cid.lower()] = {
+                    "control-id": cid,
+                    "title": req.get("description") or cid,
+                    "by-components": req.get("by-components", []),
+                    "statements": req.get("statements", []),
+                    "implemented_requirement": req
+                }
+
+        if resolved_ssp_data:
+            for c in resolved_ssp_data.get("control_tree", {}).get("controls", []):
+                cid = c.get("id")
+                if cid and cid.lower() not in candidate_controls_map:
+                    candidate_controls_map[cid.lower()] = c
+            for g in resolved_ssp_data.get("control_tree", {}).get("groups", []):
+                for c in g.get("controls", []):
+                    cid = c.get("id")
+                    if cid and cid.lower() not in candidate_controls_map:
+                        candidate_controls_map[cid.lower()] = c
+
+        ssp_components = ssp_data.get("system-implementation", {}).get("components", [])
+        ssp_inventory = ssp_data.get("system-implementation", {}).get("inventory-items", [])
+        ssp_users = ssp_data.get("system-implementation", {}).get("users", [])
+        ssp_locations = ssp_data.get("system-implementation", {}).get("locations", [])
+
+    # 2. Scoping Resolution (Reviewed Controls & Statement Parts)
+    reviewed_controls = ap_obj.get("reviewed-controls", {}) if isinstance(ap_obj.get("reviewed-controls"), dict) else {}
+    control_selections = reviewed_controls.get("control-selections", [])
+
+    include_all = any("include-all" in cs for cs in control_selections if isinstance(cs, dict))
+    included_ctrl_ids: Set[str] = set()
+    excluded_ctrl_ids: Set[str] = set()
+    statement_ids_map: Dict[str, List[str]] = {}
+
+    for cs in control_selections:
+        if not isinstance(cs, dict):
+            continue
+        for inc in cs.get("include-controls", []):
+            if isinstance(inc, dict):
+                cid = inc.get("control-id")
+                if cid:
+                    cid_lower = cid.lower()
+                    included_ctrl_ids.add(cid_lower)
+                    if "statement-ids" in inc and inc["statement-ids"]:
+                        statement_ids_map[cid_lower] = inc["statement-ids"]
+        for exc in cs.get("exclude-controls", []):
+            if isinstance(exc, dict):
+                cid = exc.get("control-id")
+                if cid:
+                    excluded_ctrl_ids.add(cid.lower())
+
+    if include_all:
+        final_in_scope_ids = (set(candidate_controls_map.keys()) | included_ctrl_ids) - excluded_ctrl_ids
+    else:
+        final_in_scope_ids = included_ctrl_ids - excluded_ctrl_ids
+
+    total_ssp_controls = len(candidate_controls_map)
+    in_scope_count = len(final_in_scope_ids)
+    matching_ssp_controls_count = len(final_in_scope_ids & set(candidate_controls_map.keys()))
+    excluded_count = max(0, total_ssp_controls - matching_ssp_controls_count)
+    coverage_pct = round((matching_ssp_controls_count / total_ssp_controls * 100), 1) if total_ssp_controls > 0 else 100.0
+
+    in_scope_controls_details = []
+    for cid_l in sorted(final_in_scope_ids):
+        candidate = candidate_controls_map.get(cid_l, {})
+        cid_orig = candidate.get("control-id") or candidate.get("id") or cid_l
+        title = candidate.get("title") or candidate.get("description", "")
+        comp_count = len(candidate.get("by-components", [])) if "by-components" in candidate else 0
+        in_scope_controls_details.append({
+            "control_id": cid_orig,
+            "title": title,
+            "component_count": comp_count,
+            "statement_ids": statement_ids_map.get(cid_l, []),
+            "is_custom": cid_l not in candidate_controls_map
+        })
+
+    # 3. Assessment Subjects & Local Definitions
+    local_defs = ap_obj.get("local-definitions", {}) if isinstance(ap_obj.get("local-definitions"), dict) else {}
+    assessment_subjects = ap_obj.get("assessment-subjects", [])
+    resolved_subjects_list = []
+    placeholders_list = []
+
+    for subj_group in assessment_subjects:
+        if not isinstance(subj_group, dict):
+            continue
+        stype = subj_group.get("type", "component")
+        is_inc_all = "include-all" in subj_group
+        inc_subjs = subj_group.get("include-subjects", [])
+        exc_subjs = {s.get("subject-uuid") for s in subj_group.get("exclude-subjects", []) if isinstance(s, dict) and s.get("subject-uuid")}
+
+        for ph in subj_group.get("assessment-subject-placeholder", []):
+            if isinstance(ph, dict):
+                placeholders_list.append(ph)
+
+        ssp_entities = []
+        if stype == "component":
+            ssp_entities = ssp_components
+        elif stype == "inventory-item":
+            ssp_entities = ssp_inventory
+        elif stype == "user":
+            ssp_entities = ssp_users
+        elif stype == "location":
+            ssp_entities = ssp_locations
+
+        if is_inc_all:
+            for ent in ssp_entities:
+                e_uuid = ent.get("uuid")
+                if e_uuid and e_uuid not in exc_subjs:
+                    resolved_subjects_list.append({
+                        "subject_uuid": e_uuid,
+                        "type": stype,
+                        "title": ent.get("title") or ent.get("description") or ent.get("name", "Untitled"),
+                        "source": "ssp"
+                    })
+        else:
+            for s in inc_subjs:
+                if isinstance(s, dict):
+                    s_uuid = s.get("subject-uuid")
+                    if s_uuid and s_uuid not in exc_subjs:
+                        matching_ent = next((e for e in ssp_entities if e.get("uuid") == s_uuid), None)
+                        title = "Unknown Subject"
+                        source = "ssp"
+                        if matching_ent:
+                            title = matching_ent.get("title") or matching_ent.get("description") or matching_ent.get("name", "")
+                        else:
+                            local_list_key = "inventory-items" if stype == "inventory-item" else f"{stype}s"
+                            local_entities = local_defs.get(local_list_key, [])
+                            loc_match = next((e for e in local_entities if isinstance(e, dict) and e.get("uuid") == s_uuid), None)
+                            if loc_match:
+                                title = loc_match.get("title") or loc_match.get("description", "")
+                                source = "local"
+                        resolved_subjects_list.append({
+                            "subject_uuid": s_uuid,
+                            "type": stype,
+                            "title": title,
+                            "source": source
+                        })
+
+    # 4. Tasks & Scheduled Timeline
+    def extract_timeline_tasks(task_list: Any) -> List[Dict[str, Any]]:
+        res = []
+        if not isinstance(task_list, list):
+            return res
+        for t in task_list:
+            if not isinstance(t, dict):
+                continue
+            timing = t.get("timing", {}) if isinstance(t.get("timing"), dict) else {}
+            on_date = timing.get("on-date", {}).get("date") if "on-date" in timing and isinstance(timing["on-date"], dict) else None
+            range_start = timing.get("within-date-range", {}).get("start") if "within-date-range" in timing and isinstance(timing["within-date-range"], dict) else None
+            range_end = timing.get("within-date-range", {}).get("end") if "within-date-range" in timing and isinstance(timing["within-date-range"], dict) else None
+            freq = timing.get("at-frequency") if "at-frequency" in timing and isinstance(timing["at-frequency"], dict) else None
+
+            start = on_date or range_start
+            end = on_date or range_end
+
+            deps = [d.get("task-uuid") for d in t.get("dependencies", []) if isinstance(d, dict) and d.get("task-uuid")]
+
+            res.append({
+                "uuid": t.get("uuid"),
+                "title": t.get("title", "Untitled Task"),
+                "type": t.get("type", "action"),
+                "description": t.get("description", ""),
+                "timing_type": "on-date" if on_date else ("within-date-range" if range_start else ("at-frequency" if freq else "unscheduled")),
+                "start": start,
+                "end": end,
+                "frequency": freq,
+                "dependencies": deps,
+                "associated_activities": t.get("associated-activities", []),
+                "subjects": t.get("subjects", []),
+                "responsible_roles": t.get("responsible-roles", [])
+            })
+            if "tasks" in t and isinstance(t["tasks"], list):
+                res.extend(extract_timeline_tasks(t["tasks"]))
+        return res
+
+    resolved_timeline_tasks = extract_timeline_tasks(ap_obj.get("tasks", []))
+
+    return {
+        "assessment_plan_uuid": ap_obj.get("uuid"),
+        "title": ap_obj.get("metadata", {}).get("title", "Untitled Assessment Plan"),
+        "target_ssp": {
+            "href": ssp_href,
+            "uuid": ssp_uuid,
+            "system_name": system_name,
+            "security_impact_level": security_impact_level,
+            "status": status,
+            "baseline_profile": ssp_baseline_href,
+            "total_implemented_controls": len(candidate_controls_map),
+            "total_components": len(ssp_components)
+        },
+        "scoping": {
+            "total_ssp_controls": total_ssp_controls,
+            "in_scope_controls": in_scope_controls_details,
+            "in_scope_count": in_scope_count,
+            "excluded_count": excluded_count,
+            "coverage_percentage": coverage_pct,
+            "statement_ids": statement_ids_map,
+            "reviewed_controls": reviewed_controls
+        },
+        "subjects": {
+            "resolved_subjects": resolved_subjects_list,
+            "placeholders": placeholders_list,
+            "ssp_components": ssp_components,
+            "ssp_inventory": ssp_inventory,
+            "ssp_users": ssp_users,
+            "local_components": local_defs.get("components", []),
+            "local_inventory": local_defs.get("inventory-items", []),
+            "local_users": local_defs.get("users", [])
+        },
+        "assets_and_platforms": ap_obj.get("assessment-assets", {}),
+        "local_definitions": local_defs,
+        "tasks": ap_obj.get("tasks", []),
+        "timeline": resolved_timeline_tasks,
+        "terms_and_conditions": ap_obj.get("terms-and-conditions", {})
+    }
+
+
+async def resolve_assessment_plan(workspace_id: str, ap_id: str) -> Dict[str, Any]:
+    """Resolves a saved Assessment Plan document from disk."""
+    try:
+        doc, _ = await get_document("assessment-plans", ap_id, include_draft=False, workspace_id=workspace_id)
+    except FileNotFoundError:
+        doc, _ = await get_document("assessment-plan", ap_id, include_draft=False, workspace_id=workspace_id)
+    ap = doc.get("assessment-plan", {})
+    return await _run_ap_resolution_pipeline(workspace_id, ap)
+
+
+async def resolve_assessment_plan_inline(
+    workspace_id: str,
+    ap: Dict[str, Any],
+    ssp: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Resolves an in-memory Assessment Plan document for live preview."""
+    return await _run_ap_resolution_pipeline(workspace_id, ap, ssp)
+
+
+preview_ap_resolution = resolve_assessment_plan_inline
+
 
 def _flatten_tree(groups, controls):
     flat = []
@@ -1062,13 +1796,14 @@ def _flatten_tree(groups, controls):
         traverse_g(g, 0)
     return flat
 
+
 async def get_control_tree(workspace_id: str, stage: str, doc_id: str) -> Dict[str, Any]:
     cache_key = (workspace_id, stage, doc_id)
     if cache_key in _resolution_cache:
         return _resolution_cache[cache_key]
 
     if stage == "catalogs":
-        doc, _ = await get_document("catalogs", doc_id, workspace_id=workspace_id)
+        doc, _ = await get_document("catalogs", doc_id, include_draft=False, workspace_id=workspace_id)
         cat = doc.get("catalog", {})
         groups = cat.get("groups", [])
         controls = cat.get("controls", [])
@@ -1090,7 +1825,7 @@ async def get_control_tree(workspace_id: str, stage: str, doc_id: str) -> Dict[s
             "flat_list": flat,
             "total_controls": len([c for c in flat if c["type"] == "control"])
         }
-    elif stage == "system-security-plans":
+    elif stage in ("ssps", "system-security-plans", "ssp"):
         resolved = await resolve_ssp(workspace_id, doc_id)
         groups = resolved.get("control_tree", {}).get("groups", [])
         controls = resolved.get("control_tree", {}).get("controls", [])
@@ -1100,6 +1835,23 @@ async def get_control_tree(workspace_id: str, stage: str, doc_id: str) -> Dict[s
             "groups": groups,
             "flat_list": flat,
             "total_controls": len([c for c in flat if c["type"] == "control"])
+        }
+    elif stage in ("assessment-plans", "assessment-plan", "ap"):
+        resolved = await resolve_assessment_plan(workspace_id, doc_id)
+        in_scope = resolved.get("scoping", {}).get("in_scope_controls", [])
+        flat = [{
+            "id": c.get("control_id"),
+            "title": c.get("title", ""),
+            "depth": 0,
+            "type": "control",
+            "is_custom": c.get("is_custom", False),
+            "statement_ids": c.get("statement_ids", [])
+        } for c in in_scope]
+        res = {
+            "nodes": flat,
+            "groups": [],
+            "flat_list": flat,
+            "total_controls": len(flat)
         }
     else:
         res = {"nodes": [], "groups": [], "flat_list": [], "total_controls": 0}

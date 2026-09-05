@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Body, Depends
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from app.dependencies import get_workspace_id
 from app.services.resolution_service import (
-    resolve_profile, resolve_profile_inline, resolve_ssp,
+    resolve_profile, resolve_profile_inline, resolve_ssp, resolve_ssp_inline,
+    resolve_assessment_plan, resolve_assessment_plan_inline,
     get_control_tree,
     detect_modify_conflicts, _collect_all_control_ids, _collect_all_param_ids
 )
@@ -44,6 +45,46 @@ async def preview_resolve_profile(
 @router.get("/ssp/{ssp_id}")
 async def resolve_ssp_endpoint(ssp_id: str, workspace_id: str = Depends(get_workspace_id)) -> Dict[str, Any]:
     return await resolve_ssp(workspace_id, ssp_id)
+
+@router.post("/ssp/preview")
+async def preview_resolve_ssp(
+    body: Dict[str, Any] = Body(...),
+    workspace_id: str = Depends(get_workspace_id)
+) -> Dict[str, Any]:
+    """
+    Resolves an unsaved SSP document in-memory.
+    Returns resolved control tree + parameter cascade + implementation summary for live preview.
+    """
+    ssp = body.get("system-security-plan", body)
+    while isinstance(ssp, dict) and "system-security-plan" in ssp and len(ssp) == 1:
+        ssp = ssp["system-security-plan"]
+    resolved = await resolve_ssp_inline(workspace_id, ssp)
+    return resolved
+
+@router.get("/assessment-plan/{ap_id}")
+@router.get("/assessment-plans/{ap_id}")
+async def resolve_assessment_plan_endpoint(ap_id: str, workspace_id: str = Depends(get_workspace_id)) -> Dict[str, Any]:
+    """
+    Resolves a saved Assessment Plan document from disk.
+    Returns target SSP resolution, scoping coverage metrics, subjects, and timeline preview.
+    """
+    return await resolve_assessment_plan(workspace_id, ap_id)
+
+@router.post("/assessment-plan/preview")
+@router.post("/assessment-plans/preview")
+async def preview_resolve_assessment_plan(
+    body: Dict[str, Any] = Body(...),
+    workspace_id: str = Depends(get_workspace_id)
+) -> Dict[str, Any]:
+    """
+    Resolves an unsaved Assessment Plan document in-memory.
+    Returns target SSP resolution, scoping coverage metrics, subjects, and timeline preview.
+    """
+    ap = body.get("assessment-plan", body)
+    while isinstance(ap, dict) and "assessment-plan" in ap and len(ap) == 1:
+        ap = ap["assessment-plan"]
+    ssp = body.get("ssp") or body.get("system-security-plan")
+    return await resolve_assessment_plan_inline(workspace_id, ap, ssp=ssp)
 
 @router.get("/tree/{stage}/{doc_id}")
 async def get_control_tree_endpoint(stage: str, doc_id: str, workspace_id: str = Depends(get_workspace_id)) -> Dict[str, Any]:

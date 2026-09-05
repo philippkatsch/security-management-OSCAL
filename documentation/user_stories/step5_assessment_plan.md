@@ -1,231 +1,490 @@
 # Step 5: Detailed User Stories – Assessment Plan Builder
 
-* **Persona:** Bob (Lead Assessor / Compliance Auditor)
-* **Goal:** Create a comprehensive `assessment-plan` document that defines the scope, timeline, tasks, and methodologies for evaluating an information system's security controls, referencing an imported System Security Plan (SSP).
+* **Persona:** Bob (Lead Assessor / Compliance Auditor / Independent Security Assessor)
+* **Goal:** Create, configure, scope, schedule, and verify a comprehensive, schema-compliant NIST OSCAL Assessment Plan (AP / SAP) document (v1.2.2) that formally establishes the audit scope, assessment objectives, evaluation methodologies, test activities, assessment subjects and platforms, task schedules with dependency graphs, rules of engagement, and back-matter evidence attachments. The Assessment Plan imports and resolves the target System Security Plan (SSP) from Step 4 to establish an authoritative baseline for compliance evaluation in Step 6 (Assessment Results).
 
-## 1. Breakdown of User Stories
+---
 
-### US 5.1: AP Document Creation & Inner View (US 0.14)
-> **As a** Lead Assessor
-> **I want to** create and view an `assessment-plan` document (US 0.14)
-> **so that** I have a foundational workspace to outline the assessment strategy.
+## 1. Architectural Overview & 6-Tab Structure
 
-### US 5.2: SSP Import & System Context Resolution
-> **As a** Lead Assessor
-> **I want to** define an `import-ssp` linkage
-> **so that** my assessment plan clearly references the target system documentation and scope.
+The Reposol Assessment Plan Builder is organized around a modular 6-tab builder architecture designed to guide assessors seamlessly through the end-to-end planning lifecycle:
 
-### US 5.3: Local Definitions — Components, Inventory & Users
-> **As a** Lead Assessor
-> **I want to** define assessment-specific `components`, `inventory-items`, and `users` within `local-definitions`
-> **so that** I can track temporary tools or specific individuals uniquely involved in the assessment but not in the SSP.
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ Top Bar: Title, Target SSP Import Selector, [👁️ View | ✏️ Edit] Mode Toggle, Save/Validate│
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ Navigation Tabs (6 Modular Tabs):                                                     │
+│ 1. Overview & Metadata: Title, Version, Parties, Roles, Target SSP Metadata Summary    │
+│ 2. Reviewed Controls & Scope: SSP Control Tree Picker, Include/Exclude Tailoring,      │
+│    Statement Parts, Control Objective Selections                                       │
+│ 3. Assessment Subjects & Assets: Target Components, Inventory, Locations, Users,       │
+│    Assessment Tools & Platforms (`assessment-platforms`, `uses-components`)           │
+│ 4. Local Definitions & Methods: Local Components, Users, Objectives, Activities &      │
+│    Procedural Steps with Method Enums (INTERVIEW, EXAMINE, TEST)                       │
+│ 5. Tasks & Timeline: Task Scheduler with Timing (`on-date`, `within-date-range`,       │
+│    `at-frequency`), Dependencies (`depends-on` DAG), Role Assignments, Activity Links  │
+│ 6. Terms & Conditions & Attachments: 7 Terms Parts (`rules-of-engagement`,             │
+│    `methodology`, etc.) & Back-Matter Resource Attachments (Base64 Payloads)           │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-### US 5.4: Assessment Objectives & Methods
-> **As a** Lead Assessor
-> **I want to** define `objectives-and-methods` within `local-definitions`
-> **so that** I can outline how specific controls will be evaluated using standard assessment methods (INTERVIEW, EXAMINE, TEST).
+---
 
-### US 5.5: Assessment Activities & Procedural Steps
-> **As a** Lead Assessor
-> **I want to** define assessment `activities` and their procedural `steps` within `local-definitions`
-> **so that** I can provide exact instructions on what actions assessors must perform.
+## 2. Breakdown of User Stories by Tab & Capability
 
-### US 5.6: Reviewed Controls & Control Selections
-> **As a** Lead Assessor
-> **I want to** define `reviewed-controls` and `control-selections`
-> **so that** I explicitly declare the boundaries of the assessment by including or excluding specific controls and control statements.
+### Tab 1: Overview & Metadata
 
-### US 5.7: Control Objective Selections
-> **As a** Lead Assessor
-> **I want to** specify `control-objective-selections`
-> **so that** I can narrow down or comprehensively select the control objectives being evaluated.
+#### US 5.1: Minimal AP Document Creation & Initial Shell
+> Implements [US 0.14](step0_global_requirements.md) with Assessment Plan specific initialization rules.  
+> **As a** Lead Assessor (Bob)  
+> **I want to** create a new Assessment Plan document by specifying a document title in a streamlined dialog and be redirected to the editor (`/assessment-plans/{uuid}?edit=true`),  
+> **so that** I have an authoritative, schema-compliant workspace ready to configure the assessment strategy.
 
-### US 5.8: Assessment Subjects & Scope Definition
-> **As a** Lead Assessor
-> **I want to** manage `assessment-subjects`
-> **so that** I can detail exactly which components, locations, inventory items, parties, or users are in scope for the assessment.
+* **Acceptance Criteria:**
+  * **Given** Bob is on the Assessment Plans overview page (`/assessment-plans`),
+  * **When** Bob clicks "New Assessment Plan", a modal dialog appears requesting the document `title` (required, string) and an optional initial `import-ssp` target.
+  * **When** Bob submits the dialog with a valid title:
+    * The backend generates an authoritative document shell adhering strictly to the NIST OSCAL AP JSON Schema v1.2.2 (`oscal_assessment-plan_schema.json`).
+    * The initial document payload contains:
+      * `assessment-plan.uuid`: auto-generated RFC 4122 v4 UUID.
+      * `metadata`: `title`, `last-modified` (ISO 8601 UTC timestamp), `version: "1.0.0"`, `oscal-version: "1.2.2"`, `roles: []`, `parties: []`.
+      * `import-ssp`: `{ "href": "" }` (required 1..1 root element).
+      * `reviewed-controls`: `{ "control-selections": [{ "include-all": {} }] }` (required 1..1 root element with valid initial selection satisfying `minItems: 1`).
+      * Optional empty assemblies (`local-definitions`, `terms-and-conditions`, `assessment-subjects`, `assessment-assets`, `tasks`, `back-matter`) are omitted or purged prior to save per DD-014.
+    * Bob is immediately redirected to `/assessment-plans/{uuid}?edit=true` with the document loaded in Edit mode on Tab 1 (Overview & Metadata).
+  * **Then** the initialized document passes schema validation against `oscal_assessment-plan_schema.json` without errors.
 
-### US 5.9: Assessment Assets & Platforms
-> **As a** Lead Assessor
-> **I want to** configure `assessment-assets` and `assessment-platforms`
-> **so that** the specialized tools or environments the assessment team uses are officially documented and authorized.
+---
 
-### US 5.10: Task Scheduling & Dependencies
-> **As a** Lead Assessor
-> **I want to** schedule `tasks` with defined timing, dependencies, and assigned roles
-> **so that** the entire assessment team knows what milestones or actions occur and in what sequence.
+#### US 5.2: Target SSP Import & Live System Context Resolution
+> Implements [DD-016](../design_decisions/DD-016_cross_document_import_resolution.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** select and link the target System Security Plan (SSP) via `import-ssp.href`,  
+> **so that** the assessment plan binds to the system's implemented controls, components, inventory items, locations, and users.
 
-### US 5.11: Terms & Conditions
-> **As a** Lead Assessor
-> **I want to** define `terms-and-conditions` using standardized part types
-> **so that** rules of engagement, disclosures, and assessment methodology are clearly communicated and agreed upon.
+* **Acceptance Criteria:**
+  * **Given** Bob is on the Overview & Metadata tab of the Assessment Plan editor,
+  * **When** Bob interacts with the "Target System Security Plan (SSP)" selector:
+    * The UI provides a **Workspace Document Browser Modal** listing all available SSPs in the workspace (`/api/documents/ssps`) with title, version, system name, and implemented control count.
+    * Bob can select an SSP from the list (setting `href: "../system-security-plans/{ssp_uuid}.json"`), specify an external HTTPS URI, or reference a `#resource-uuid` fragment.
+    * An optional `remarks` textarea allows capturing the audit mandate or context for this SSP linkage.
+  * **When** a valid target SSP is selected:
+    * The backend resolution service (`POST /api/resolve/assessment-plan/preview` or `GET /api/resolve/ssp/{id}`) resolves the SSP context in real time.
+    * The UI renders a **Live Target SSP Summary Card** displaying:
+      * Target System Name (`system-characteristics.system-name`).
+      * Security Categorization / FIPS-199 Impact Level (`security-impact-level`).
+      * Baseline Profile / Catalog source reference (`import-profile.href`).
+      * Total Implemented Controls count (`control-implementation.implemented-requirements.length`).
+      * Total System Components count (`system-implementation.components.length`).
+      * System Authorization Status (`system-characteristics.status.state`).
+  * **When** the referenced SSP is updated in the workspace, the AP editor displays a "Target SSP Updated — Re-sync Candidate Scope" banner.
+  * **Then** `import-ssp` is persisted with required `href` (URI reference) and passes validation.
 
-### US 5.12: Assessment Plan Completeness Validation
-> **As a** Lead Assessor (Bob)
-> **I want to** run a pre-flight completeness check on the Assessment Plan before starting assessment execution
-> **so that** I can verify all reviewed controls have corresponding assessment objectives, all tasks have assigned activities, and all assessment subjects are resolvable.
+---
 
-### US 5.12b: Assessment Task Timeline Visualization
-> **As a** Lead Assessor (Bob)
-> **I want to** see a visual timeline of all assessment tasks showing scheduling, dependencies, and milestones
-> **so that** I can plan the assessment execution efficiently and identify scheduling conflicts.
+#### US 5.14: Document Metadata, Parties, Roles, and Tagging
+> Implements [US 0.16](step0_global_requirements.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** configure document metadata, assess lead roles, assessment team parties, document revision history, and custom tags (`props`),  
+> **so that** administrative ownership, assessment personnel, and document provenance are fully recorded.
 
-### US 5.13: AP Table & Navigation (US 0.18)
-> **As a** Lead Assessor
-> **I want to** navigate the complex Assessment Plan via a structured table (US 0.18)
-> **so that** I can easily jump between tasks, local definitions, and control scopes without losing context.
+* **Acceptance Criteria:**
+  * **Given** Bob is in the Overview & Metadata tab,
+  * **When** Bob edits metadata:
+    * **Document Title & Version:** Can edit `metadata.title` and semantic `metadata.version` (e.g., `1.0.0`).
+    * **OSCAL Version:** Displays `metadata.oscal-version: "1.2.2"` (read-only or selectable).
+    * **Roles (`metadata.roles[]`):** Can add/edit roles (e.g., `lead-assessor`, `security-auditor`, `technical-evaluator`, `system-owner-poc`), each requiring `id` and `title`.
+    * **Parties (`metadata.parties[]`):** Can add/edit individual auditors or assessment organizations with `uuid`, `type: "person" | "organization"`, `name`, `email-addresses`, and `telephone-numbers`.
+    * **Responsible Parties (`metadata.responsible-parties[]`):** Can associate parties to defined roles (e.g., linking Bob's party UUID to role `lead-assessor`).
+    * **Custom Properties / Tags (`metadata.props[]`):** Can assign key-value pairs (e.g., `name: "assessment-type", value: "annual-reauthorization"`, `name: "classification", value: "CUI"`).
+    * **Revision History (`metadata.revisions[]`):** Can track previous versions with timestamps and change summaries.
+  * **Then** all metadata entries conform to OSCAL metadata assembly standards.
 
-### US 5.14: Document Overview & Tags (US 0.16)
-> **As a** Lead Assessor
-> **I want to** view a Document Overview and assign tags (US 0.16)
-> **so that** metadata, statuses, and high-level assessment parameters are easily identifiable.
+---
 
-### US 5.15: In-Card Editing & Draft Persistence (US 0.17)
-> **As a** Lead Assessor
-> **I want to** use In-Card Editing with Draft Persistence (US 0.17)
-> **so that** I can iteratively flesh out complex tasks or assessment procedures without risking data loss.
+### Tab 2: Reviewed Controls & Scope
 
-### US 5.16: Integrated Backend Versioning (US 0.15)
-> **As a** Lead Assessor
-> **I want to** rely on Integrated Backend Versioning (US 0.15)
-> **so that** changes to the assessment scope or methodology can be tracked and rolled back if negotiations change.
+#### US 5.3: Reviewed Controls & Control Selections Tailoring
+> Implements [DD-030](../design_decisions/DD-030_unified_control_editor.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** define `reviewed-controls` using inclusion/exclusion rules and statement-level granularity,  
+> **so that** the exact perimeter of security controls evaluated in the assessment is explicitly bounded.
 
-### US 5.17: Back-Matter & Resource Attachments
-> **As a** Lead Assessor
-> **I want to** attach supporting documentation in `back-matter`
-> **so that** external references, methodology PDFs, or approval artifacts are preserved within the assessment plan itself.
+* **Acceptance Criteria:**
+  * **Given** Bob is in the "Reviewed Controls & Scope" tab,
+  * **When** Bob views the control scoping interface:
+    * The UI displays a hierarchical tree of candidate controls derived from the imported SSP's resolved baseline.
+    * Bob can configure `reviewed-controls.control-selections[]` (required 1..*):
+      * **All Controls Option:** Toggle `include-all` (evaluates every control in the baseline).
+      * **Explicit Selection Option:** Toggle `include-controls[]` (list of `select-control-by-id` items with `control-id`).
+      * **Exclusion Option:** Add `exclude-controls[]` (list of `select-control-by-id` items with `control-id` to subtract specific controls from `include-all`).
+    * **Statement-Level Scoping (`statement-ids[]`):** For any included control (e.g., `ac-2`), Bob can expand the control and select specific statement parts (e.g., `ac-2_smt_a`, `ac-2_smt_c`) to tailor the assessment scope to individual control sub-parts.
+    * **Control Search & Family Filtering:** Bob can filter the candidate tree by control family (e.g., AC, AU, IA, SC) or text search (ID or title).
+  * **When** Bob clicks "Auto-Populate from SSP":
+    * The system populates `include-controls` with all control IDs present in the target SSP's `implemented-requirements`.
+  * **Then** `reviewed-controls` is saved with valid `control-selections` satisfying `minItems: 1` and passes schema validation.
 
-## 2. Workflow & User Journey
+---
 
-1. **Initialization:** Bob logs into the platform, initiates a new `assessment-plan` document, and sets the base `metadata` (US 5.1).
-2. **System Context Import:** Bob immediately uses the `import-ssp` section to link the target System Security Plan via an `href` URI reference (US 5.2).
-3. **Local Definitions Generation:** Knowing the assessment requires specific penetration testing tools not in the SSP, Bob adds these under `local-definitions` as `components` and `inventory-items` (US 5.3).
-4. **Methodology Configuration:** Bob defines `objectives-and-methods` for the controls in scope, strictly categorizing them by method types like `INTERVIEW` or `TEST` (US 5.4).
-5. **Activity Mapping:** He details the actual `activities` and sequential `steps` assessors will follow during the engagement (US 5.5).
-6. **Control Scoping:** Bob configures the `reviewed-controls` (a required element), specifying `include-controls` to detail exactly which `control-id` and `statement-ids` are being assessed (US 5.6).
-7. **Objective Scoping:** He further refines the scope by applying `control-objective-selections` (US 5.7).
-8. **Subject Identification:** Using `assessment-subjects`, Bob flags specific subject types (`component`, `location`, `party`, `user`, `inventory-item`) to be audited (US 5.8).
-9. **Asset & Platform Definition:** Bob establishes the `assessment-assets`, defining the `assessment-platforms` and the `uses-components` associations mapping to his testing laptops (US 5.9).
-10. **Task Scheduling:** He creates `tasks` marked as `milestone` and `action`, setting their `timing` parameters (e.g., `within-date-range`), mapping them to `associated-activities`, and defining `dependencies` (US 5.10).
-11. **Terms Formalization:** Bob fills out `terms-and-conditions`, explicitly detailing the `rules-of-engagement` and mandated `assessment-inclusions` (US 5.11).
-12. **Completeness Validation:** Bob runs the pre-flight completeness check to ensure all references are valid and scope is fully mapped (US 5.12).
-13. **Timeline Visualization:** Bob checks the assessment task timeline to review milestones and scheduling dependencies (US 5.12b).
-14. **Navigation & Verification:** Using the Assessment Plan table, Bob navigates through tasks and scoped items to verify completeness (US 5.13).
-15. **Metadata & Overview:** He reviews the Document Overview, assigning relevant tags and confirming core metadata elements (US 5.14).
-16. **Iterative Drafting:** While finalizing the rules of engagement, Bob utilizes In-Card Editing to save drafts before publishing the final methodology (US 5.15).
-17. **Versioning:** The backend tracks all commits, allowing Bob to maintain an audit trail of scope adjustments (US 5.16).
-18. **Finalizing Attachments:** Bob embeds signed authorization memos into the `back-matter` (US 5.17), concluding the Assessment Plan creation.
+#### US 5.4: Control Objective Selections
+> **As a** Lead Assessor (Bob)  
+> **I want to** configure `control-objective-selections` within `reviewed-controls`,  
+> **so that** I can tailor assessment objectives independently or select all objectives for the in-scope controls.
 
-## 3. Functional Requirements
+* **Acceptance Criteria:**
+  * **Given** Bob is in the Reviewed Controls & Scope tab under the Objectives sub-section,
+  * **When** Bob configures `control-objective-selections[]`:
+    * Bob can choose between:
+      * `include-all`: Enforces evaluation of all standard control objectives associated with the in-scope controls.
+      * `include-objectives[]`: Explicitly selects objective IDs (e.g., `ac-2_obj_1`, `ac-2_obj_2`) using `select-objective-by-id` (`objective-id` required).
+      * `exclude-objectives[]`: Explicitly excludes objective IDs from assessment.
+    * An optional `description` and `props` can be attached to the objective selection collection.
+  * **Then** the objective selections are serialized into `reviewed-controls.control-objective-selections` conforming to the OSCAL AP schema.
 
-- **Strict Schema Compliance**: The resulting Assessment Plan strictly adheres to the OSCAL `assessment-plan` metaschema (v1.2.2).
-- **Enforced Required Fields**: Critical fields like `uuid`, `import-ssp`, `reviewed-controls`, and `metadata` cannot be bypassed.
-- **Accurate Enum Validation**: Fields such as assessment `method` (INTERVIEW, EXAMINE, TEST), task `type` (milestone, action), and task `timing` units are heavily restricted to allowed values.
-- **Complex Scoping Mechanics**: Deep inclusion/exclusion logic (`include-all` vs explicit identifiers) is fully supported for controls, objectives, and subjects.
-- **Methodology & Rules Integrity**: Assessment procedures, parts logic, and Terms & Conditions precisely map to the 7 allowed naming conventions dictated by OSCAL.
+---
 
-## 4. Functional Acceptance Criteria
+#### US 5.5: Assessment Scoping Gap Analysis & Coverage Summary
+> **As a** Lead Assessor (Bob)  
+> **I want to** view a real-time scoping coverage summary comparing imported SSP controls against the scoped AP controls,  
+> **so that** I can detect any unaddressed controls, orphaned objectives, or out-of-scope elements before finalizing the plan.
 
-- [ ] **US 5.1: AP Document Creation & Inner View (US 0.14)**
-  - [ ] **Root Initialization**: The system MUST generate a valid `assessment-plan` root object with a globally unique, auto-generated `uuid` (required).
-  - [ ] **Metadata Constraint**: The system MUST enforce the creation of exactly one `metadata` object (required 1..1) compliant with OSCAL standards.
-  - [ ] **Validation Layer**: The document MUST be validated against the OSCAL metaschema for `assessment-plan` upon save (DD-002).
+* **Acceptance Criteria:**
+  * **Given** Bob has configured `reviewed-controls`,
+  * **When** Bob reviews the Scoping Summary widget on Tab 2:
+    * The UI displays:
+      * **Total Target SSP Controls**: Count of implemented requirements in the target SSP.
+      * **In-Scope Controls**: Count and percentage of controls included in `reviewed-controls`.
+      * **Excluded Controls**: Count of controls excluded or omitted.
+      * **Statement Coverage**: Total statement parts in-scope vs total available.
+      * **Family Breakdown Matrix**: Visual bar chart / chips showing coverage per control family (e.g., Access Control: 100%, Audit: 80%).
+    * Any control in `include-controls` that does not exist in the imported SSP is flagged with an informational badge (`[External/Custom Control]`).
+  * **Then** the summary updates reactively as control inclusions/exclusions are toggled.
 
-- [ ] **US 5.2: SSP Import & System Context Resolution**
-  - [ ] **Mandatory Linkage**: The UI MUST enforce the presence of exactly one `import-ssp` object (required 1..1).
-  - [ ] **Reference Capture**: The `import-ssp` MUST capture an `href` (required, `uri-reference`) pointing to the target SSP (DD-016).
-  - [ ] **Remarks Support**: The editor MUST allow an optional `remarks` field for the `import-ssp` linkage.
+---
 
-- [ ] **US 5.3: Local Definitions — Components, Inventory & Users**
-  - [ ] **Optional Section**: The system MUST support an optional `local-definitions` block (0..1).
-  - [ ] **Component Definition**: Within `local-definitions`, users MUST be able to define `components` (0..*, `system-component` format).
-  - [ ] **Inventory & User Definition**: The system MUST support defining `inventory-items` (0..*) and `users` (0..*).
-  - [ ] **Uniqueness Constraint**: Every component, inventory-item, and user defined locally MUST have a unique `uuid`.
+### Tab 3: Assessment Subjects & Assets
 
-- [ ] **US 5.4: Assessment Objectives & Methods**
-  - [ ] **Objective Blocks**: Within `local-definitions`, the UI MUST allow creating `objectives-and-methods` (0..*, `local-objective`) using the Unified Control Detail Editor (DD-008) and ProseWithParams (DD-013).
-  - [ ] **Control ID Mapping**: Each `local-objective` MUST include a `control-id` (required, token).
-  - [ ] **Part Constraints**: The `local-objective` MUST have `parts` (required 1..*, `assessment-part`).
-  - [ ] **Allowed Part Names**: The UI MUST restrict part names to `assessment-objective` (maximum 1) and `assessment-method`.
-  - [ ] **Method Enforcement**: An `assessment-method` part MUST contain exactly 1 property named `method`, restricted to the values: `INTERVIEW`, `EXAMINE`, `TEST`.
-  - [ ] **Objects Enforcement**: An `assessment-method` part MUST contain exactly 1 child part named `assessment-objects`.
-  - [ ] **Objective Enforcement**: An `assessment-objective` part MUST contain at least 1 property named `method-id`.
+#### US 5.6: Assessment Subjects (Components, Inventory, Locations, Users, Parties)
+> Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** configure `assessment-subjects` mapping target components, inventory items, physical locations, parties, and system users into the assessment scope,  
+> **so that** auditors know precisely which physical and logical entities are undergoing examination.
 
-- [ ] **US 5.5: Assessment Activities & Procedural Steps**
-  - [ ] **Activity Generation**: The system MUST support defining `activities` (0..*) within `local-definitions` utilizing the Unified Control Detail Editor (DD-008) and ProseWithParams (DD-013).
-  - [ ] **Activity Requirements**: Each activity MUST have a `uuid` (required) and a `description` (required), along with an optional `title`.
-  - [ ] **Step Sequencing**: Activities MUST support nested `steps` (0..*), each requiring a `uuid`, and `description`, and allowing optional `title`, `reviewed-controls`, and `responsible-roles`.
-  - [ ] **Method Prop**: Each activity MUST have at least 1 property named `method` with allowed values: `INTERVIEW`, `EXAMINE`, `TEST`.
-  - [ ] **Control Relation**: The UI MUST allow linking an activity to `related-controls` (0..1, `reviewed-controls`).
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 3 (Assessment Subjects & Assets),
+  * **When** Bob manages `assessment-subjects[]`:
+    * Bob can create subject groupings categorized by `type` (required token, enum: `component`, `inventory-item`, `location`, `party`, `user`).
+    * For each subject grouping:
+      * Bob can select `include-all` (includes all instances of that type from the imported SSP).
+      * Or Bob can select `include-subjects[]` (list of `select-subject-by-id` requiring `subject-uuid` and `type`).
+      * Bob can add `exclude-subjects[]` to omit specific items.
+      * An optional `description` explains the sampling methodology or scope boundary for that subject group.
+    * **SSP Entity Picker:** Clicking "Add Subject" opens a selector populated with live components, inventory items, locations, and users resolved from the target SSP (or defined locally in Tab 4).
+    * **Assessment Subject Placeholders (`assessment-subject-placeholder`):** Bob can declare placeholders for subjects that will be dynamically identified during testing tasks (requiring `uuid`, `description`, and `sources: [{ "task-uuid": ... }]`).
+  * **Then** all `assessment-subjects` entries pass schema validation and properly link `subject-uuid` references.
 
-- [ ] **US 5.6: Reviewed Controls & Control Selections**
-  - [ ] **Mandatory Block**: The system MUST require exactly one `reviewed-controls` block (required 1..1) at the root level.
-  - [ ] **Selection Strategy**: The UI MUST require 1..* `control-selections`.
-  - [ ] **Inclusion Choice**: The system MUST enforce a choice between `include-all` (boolean/empty) OR `include-controls` (1..*, `select-control-by-id`).
-  - [ ] **Granular Inclusion**: When using `include-controls`, the UI MUST capture the `control-id` and optional `statement-ids`.
-  - [ ] **Exclusion Support**: The system MUST allow optional `exclude-controls` (0..*, `select-control-by-id`).
-  - [ ] **SSP Auto-Population (DD-016):** Upon resolving the imported SSP, the system SHOULD offer to auto-populate `control-selections` from the SSP's `control-implementation.implemented-requirements[].control-id` list, pre-selecting all implemented controls as reviewed candidates.
+---
 
-- [ ] **US 5.7: Control Objective Selections**
-  - [ ] **Objective Scoping**: The system MUST support optional `control-objective-selections` (0..*) within `reviewed-controls`.
-  - [ ] **Objective Inclusion Choice**: The UI MUST enforce a choice between `include-all` OR `include-objectives` (1..*, `select-objective-by-id` requiring `objective-id`).
-  - [ ] **Objective Exclusion**: The system MUST allow optional `exclude-objectives` (0..*, `select-objective-by-id`).
+#### US 5.7: Assessment Assets & Platforms (`assessment-platforms`, `uses-components`)
+> Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** declare `assessment-assets` including specialized scanning tools, assessor workstations, and `assessment-platforms`,  
+> **so that** authorized audit tooling and environment configurations are formally documented and approved.
 
-- [ ] **US 5.8: Assessment Subjects & Scope Definition**
-  - [ ] **Subject Blocks**: The UI MUST support adding `assessment-subjects` (0..*).
-  - [ ] **Subject Types**: Each subject MUST define a `type` (required, token) restricted to: `component`, `inventory-item`, `location`, `party`, `user` (or `allow-other` custom values).
-  - [ ] **Subject Inclusion Choice**: The system MUST enforce a choice between `include-all` OR `include-subjects` (1..*, `select-subject-by-id` requiring `subject-uuid` and `type`).
-  - [ ] **Subject Exclusion**: The system MUST allow `exclude-subjects` (0..*, `select-subject-by-id`).
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 3 in the Assessment Assets section,
+  * **When** Bob enables `assessment-assets` (0..1):
+    * **Asset Components (`assessment-assets.components[]`):** Bob can add assessment tools as `system-component` objects (e.g., `type: "software"`, `title: "Nessus Vulnerability Scanner v10.5"`, `title: "Burp Suite Professional"`, with purpose and version).
+    * **Assessment Platforms (`assessment-assets.assessment-platforms[]`, required 1..* if assets defined):**
+      * Bob can add platforms (requiring `uuid`, optional `title`).
+      * **Component Usage (`uses-components[]`):** Each platform can link to declared asset components via `component-uuid` (required).
+      * **Responsible Parties (`responsible-parties[]`):** Each linked component can designate who is authorized to operate the tool (linking `role-id` and `party-uuids`).
+      * Optional `props`, `links`, and `remarks` can be attached to platforms and component usages.
+  * **Then** the serialized `assessment-assets` structure strictly satisfies `minItems: 1` on `assessment-platforms` and passes schema validation.
 
-- [ ] **US 5.9: Assessment Assets & Platforms**
-  - [ ] **Assets Block**: The system MUST support an optional `assessment-assets` (0..1) block.
-  - [ ] **Asset Components**: The UI MUST allow defining `components` (0..*) directly under assets.
-  - [ ] **Platform Definition**: The system MUST support `assessment-platforms` (required 1..* if assets are defined), requiring a `uuid` and allowing an optional `title`.
-  - [ ] **Component Usage**: Each platform MUST support `uses-components` (0..*), mapping to a `component-uuid` and detailing `responsible-parties`.
+---
 
-- [ ] **US 5.10: Task Scheduling & Dependencies**
-  - [ ] **Task Creation**: The UI MUST allow creating `tasks` (0..*) with a `uuid` (required) and `title` (required).
-  - [ ] **Task Types**: The `type` MUST be defined (required) and restricted to: `milestone` or `action`.
-  - [ ] **Timing Choice**: The system MUST allow an optional `timing` block (0..1) presenting a choice of: `on-date` (requires date), `within-date-range` (requires start and end dates), or `at-frequency`.
-  - [ ] **Frequency Validation**: If `at-frequency` is chosen, the UI MUST enforce a `period` (positive-integer) and a `unit` restricted to: `seconds`, `minutes`, `hours`, `days`, `months`, `years`.
-  - [ ] **Dependencies & Nesting**: Tasks MUST support `dependencies` (0..*, requiring `task-uuid`) and nested sub-`tasks` (0..*).
-  - [ ] **Activity Association**: Tasks MUST support `associated-activities` (0..*), requiring an `activity-uuid` and at least one `subjects` mapping (required 1..*).
+### Tab 4: Local Definitions & Methods
 
-- [ ] **US 5.11: Terms & Conditions**
-  - [ ] **Terms Block**: The system MUST support an optional `terms-and-conditions` block (0..1).
-  - [ ] **Terms Parts**: The UI MUST require `parts` (required 1..*, `assessment-part`) if terms are defined.
-  - [ ] **Allowed Part Names Enforcement**: The system MUST restrict part names to exactly these 7 types: `rules-of-engagement`, `disclosures`, `assessment-inclusions`, `assessment-exclusions`, `results-delivery`, `assumptions`, `methodology`.
-  - [ ] **Child Part Constraints**: If `disclosures` or `assumptions` are used, the UI MUST support child parts named `item`.
+#### US 5.8: Local Definitions — Components, Inventory Items, and Users
+> **As a** Lead Assessor (Bob)  
+> **I want to** define assessment-specific components, inventory items, and users within `local-definitions`,  
+> **so that** temporary assessment environments, test accounts, or external auditor identities not present in the target SSP can be modeled.
 
-- [ ] **US 5.12: Assessment Plan Completeness Validation**
-  - [ ] **Objective Coverage Check:** The system MUST verify that every `control-id` in `reviewed-controls.control-selections` has a corresponding `objectives-and-methods` entry in `local-definitions`. Missing objectives MUST be flagged as warnings (DD-002).
-  - [ ] **Task-Activity Linkage Check:** The system MUST verify that every task with `associated-activities` references a valid `activity.uuid` in `local-definitions.activities` (DD-002).
-  - [ ] **Subject Resolution Check:** The system MUST verify that every `include-subjects` entry references a valid component, inventory-item, location, party, or user in the imported SSP or local-definitions (DD-002).
-  - [ ] **Completeness Report:** The system MUST display a structured report listing all validation results (pass/warn/fail) with actionable navigation links to the relevant sections.
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 4 (Local Definitions & Methods),
+  * **When** Bob manages `local-definitions` (0..1):
+    * **Local Components (`local-definitions.components[]`):** Can add `system-component` items (with `uuid`, `type`, `title`, `description`, `status: { state }`).
+    * **Local Inventory Items (`local-definitions.inventory-items[]`):** Can add `inventory-item` items (with `uuid`, `description`, `implemented-components[]`).
+    * **Local Users (`local-definitions.users[]`):** Can add `system-user` items (with `uuid`, `title`, `short-name`, `role-ids[]`).
+    * Every locally defined entity receives a distinct RFC 4122 v4 UUID and is immediately made available for selection in Assessment Subjects (Tab 3), Activities (Tab 4), and Tasks (Tab 5).
+  * **Then** `local-definitions` entities conform to the standard OSCAL component and user metaschemas.
 
-- [ ] **US 5.12b: Assessment Task Timeline Visualization**
-  - [ ] **Timeline Rendering:** The system SHOULD render tasks on a horizontal timeline based on their `timing` configuration (`on-date`, `within-date-range`, `at-frequency`).
-  - [ ] **Dependency Arrows:** Tasks with `dependencies[].task-uuid` SHOULD be connected with visual arrows showing execution order.
-  - [ ] **Milestone Markers:** Tasks with `type="milestone"` SHOULD be rendered as diamond markers on the timeline.
-  - [ ] **Action Bars:** Tasks with `type="action"` SHOULD be rendered as horizontal bars spanning their date range.
+---
 
-- [ ] **US 5.13: AP Table & Navigation (US 0.18)**
-  - [ ] **Structural Navigation**: The UI MUST render a persistent navigation table allowing quick access to `local-definitions`, `reviewed-controls`, `tasks`, and `terms-and-conditions`.
-  - [ ] **Deep Linking**: Clicking an item in the navigation MUST scroll to and expand the relevant Assessment Plan section.
+#### US 5.9: Assessment Objectives & Evaluation Methods (`INTERVIEW`, `EXAMINE`, `TEST`)
+> Implements [DD-008](../design_decisions/DD-008_unified_control_detail_editor.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** define `objectives-and-methods` within `local-definitions` using standard NIST SP 800-53A method enums (`INTERVIEW`, `EXAMINE`, `TEST`),  
+> **so that** specific assessment procedures and evaluation criteria are defined for each reviewed control.
 
-- [ ] **US 5.14: Document Overview & Tags (US 0.16)**
-  - [ ] **Metadata Display**: The system MUST display a Document Overview summarizing the AP `metadata` and current `tasks` schedule.
-  - [ ] **Tagging System**: The UI MUST allow adding standard tags via `props` on the root `assessment-plan`.
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 4 in the Objectives & Methods section,
+  * **When** Bob adds a `local-objective` to `local-definitions.objectives-and-methods[]`:
+    * Bob selects a `control-id` (required token, referencing an in-scope control e.g. `ac-2`).
+    * An optional `description` can be entered.
+    * Bob configures `parts[]` (required 1..*, `assessment-part`):
+      * **Assessment Objective Part (`name: "assessment-objective"`):** Contains evaluation prose and requires at least one property `name: "method-id"` pointing to the corresponding assessment method.
+      * **Assessment Method Part (`name: "assessment-method"`):**
+        * Must contain exactly 1 property named `method` with allowed enum values: `INTERVIEW`, `EXAMINE`, `TEST`.
+        * Must contain exactly 1 child part named `assessment-objects` detailing the evidence items or subjects examined.
+        * Optional child parts or prose detailing the test procedure.
+  * **Then** `local-objective` structures strictly enforce part naming and property enum constraints.
 
-- [ ] **US 5.15: In-Card Editing & Draft Persistence (US 0.17)**
-  - [ ] **Unified Editor**: The platform MUST utilize the Unified Control Detail Editor (DD-008) for managing `local-objective` and `activity` data.
-  - [ ] **Auto-save**: The system MUST save incomplete drafts of `tasks` or `steps` locally to prevent data loss (DD-004).
+---
 
-- [ ] **US 5.16: Integrated Backend Versioning (US 0.15)**
-  - [ ] **Commit Tracking**: Every modification to the `assessment-plan` MUST be logged in the backend Git repository (DD-002).
-  - [ ] **Diff Viewing**: The UI MUST provide a mechanism to view changes (e.g., modified task dates or scope inclusions) between document versions.
+#### US 5.10: Procedural Activities & Sequential Steps
+> Implements [DD-008](../design_decisions/DD-008_unified_control_detail_editor.md) and [DD-013](../design_decisions/DD-013_universal_prose_with_params_integration.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** define reusable assessment `activities` with sequential `steps`, related controls, and responsible roles,  
+> **so that** execution instructions can be mapped to scheduled assessment tasks.
 
-- [ ] **US 5.17: Back-Matter & Resource Attachments**
-  - [ ] **Resource Integration**: The system MUST support an optional `back-matter` (0..1) block.
-  - [ ] **Base64 Embeds**: Artifacts (like signed Rules of Engagement PDFs) MUST be stored as Base64 encoded strings within `back-matter` resources (DD-007).
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 4 in the Activities section,
+  * **When** Bob creates an activity in `local-definitions.activities[]`:
+    * Each activity requires `uuid` and `description`, with optional `title`.
+    * **Activity Method Property:** Each activity can include a property `name: "method"` with value `INTERVIEW`, `EXAMINE`, or `TEST`.
+    * **Related Controls (`related-controls`):** Bob can link the activity to specific reviewed controls via `control-selections`.
+    * **Responsible Roles (`responsible-roles[]`):** Bob can designate which assessor roles execute this activity.
+    * **Sequential Steps (`steps[]`):**
+      * Bob can add ordered steps, each requiring `uuid` and `description`, with optional `title`, `reviewed-controls`, and `responsible-roles`.
+      * Steps can be reordered via drag-and-drop or move buttons.
+  * **Then** defined activities are ready for linking to tasks in Tab 5.
 
+---
+
+### Tab 5: Tasks & Timeline
+
+#### US 5.11: Task Scheduling, Types, and Timing Variants
+> Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** create assessment `tasks` with explicit types (`milestone`, `action`) and flexible timing conditions (`on-date`, `within-date-range`, `at-frequency`),  
+> **so that** the entire assessment workflow is scheduled with precise execution windows.
+
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 5 (Tasks & Timeline),
+  * **When** Bob adds or edits a task in `tasks[]`:
+    * Each task requires `uuid` (auto-generated), `title` (required string), and `type` (required enum: `milestone` | `action`).
+    * An optional `description` can be provided.
+    * **Timing Configuration (`timing`):** Bob can choose exactly one of three timing modes:
+      1. **On Date (`on-date`):** Requires a single ISO 8601 date-time string (`date`, e.g., `2026-10-15T09:00:00Z`).
+      2. **Date Range (`within-date-range`):** Requires `start` and `end` ISO 8601 date-time strings (validating that `start <= end`).
+      3. **Recurring Frequency (`at-frequency`):** Requires `period` (positive integer) and `unit` (enum: `seconds`, `minutes`, `hours`, `days`, `months`, `years`).
+    * **Responsible Roles (`responsible-roles[]`):** Bob can assign responsible assessor roles (e.g., `lead-assessor`, `pen-tester`).
+    * **Task Nesting (`tasks[]`):** Tasks can contain sub-tasks to model sub-phases of an assessment.
+  * **Then** the task timing is serialized into the exact corresponding schema object and validated.
+
+---
+
+#### US 5.12: Task Dependency Graph (`depends-on`) & Cycle Detection
+> Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** define task dependencies (`dependencies[].task-uuid`) and have the system validate the Directed Acyclic Graph (DAG) for cycles,  
+> **so that** prerequisite milestones and execution ordering are strictly enforced without deadlock.
+
+* **Acceptance Criteria:**
+  * **Given** Bob is configuring task dependencies on Tab 5,
+  * **When** Bob adds a dependency to `tasks[i].dependencies[]`:
+    * The UI dropdown lists all other declared tasks by title and UUID.
+    * A task cannot declare a dependency on itself.
+    * **Cycle Detection Engine (Kahn's Algorithm / DFS):** If Bob attempts to create a circular dependency (e.g., Task A → Task B → Task C → Task A), the UI immediately displays a validation error: `"Circular dependency detected: Task A -> Task B -> Task C -> Task A"` and prevents saving the invalid dependency.
+    * The backend semantic validator (`_validate_ap_integrity` in `validation.py`) independently verifies the task DAG and rejects circular dependencies with HTTP 422.
+  * **Then** only valid, acyclic dependency graphs are persisted.
+
+---
+
+#### US 5.12b: Interactive Task Timeline / Gantt & Milestone Visualization
+> Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** view an interactive horizontal timeline / Gantt chart of all assessment tasks and milestones,  
+> **so that** I can easily inspect the execution sequence, identify critical paths, and spot scheduling bottlenecks.
+
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 5,
+  * **When** Bob switches to the "Timeline View":
+    * The UI renders an interactive Gantt chart:
+      * **Milestones (`type: "milestone"`):** Rendered as distinct diamond markers positioned at their `on-date` or range end date.
+      * **Actions (`type: "action"`):** Rendered as horizontal bars spanning from `start` to `end` date.
+      * **Dependencies:** Rendered as visual connector lines/arrows connecting prerequisite tasks to dependent tasks.
+      * **Frequency Badges:** Tasks with `at-frequency` display a recurring indicator icon with period details.
+    * Hovering over any task bar or milestone reveals a tooltip with task title, assigned roles, linked activities, and timing details.
+    * Clicking any task in the timeline highlights the task in the editor list.
+  * **Then** the timeline updates in real time as task dates and dependencies are adjusted.
+
+---
+
+#### US 5.19: Task-Activity-Subject Triangulation (`associated-activities`, `subjects`)
+> Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** link activities and specific target subjects to scheduled tasks via `associated-activities` and `subjects`,  
+> **so that** every task defines exactly what procedure is executed against which system element.
+
+* **Acceptance Criteria:**
+  * **Given** Bob is editing a task on Tab 5,
+  * **When** Bob configures `associated-activities[]`:
+    * Bob selects an `activity-uuid` (required, referencing an activity in `local-definitions.activities`).
+    * Bob specifies `subjects[]` (required 1..*, `assessment-subject` items with `type` and `include-subjects` / `include-all`) indicating which components, servers, or users this activity is executed against during this task.
+    * Optional `responsible-roles` can override or specify activity executors for this task execution.
+  * **When** Bob configures task-level `subjects[]`:
+    * Bob specifies target subjects directly bound to the overall task.
+  * **Then** the task-activity-subject associations satisfy OSCAL AP referential integrity requirements.
+
+---
+
+### Tab 6: Terms & Conditions & Attachments
+
+#### US 5.13: Terms & Conditions with 7 Canonical Part Types
+> Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** define `terms-and-conditions` using the 7 standardized OSCAL part types and structured items,  
+> **so that** rules of engagement, testing boundaries, disclosures, and methodologies are formally established and agreed upon.
+
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 6 (Terms & Conditions & Attachments),
+  * **When** Bob manages `terms-and-conditions.parts[]` (required 1..* if terms are enabled):
+    * The UI provides a structured selector restricted to the **7 canonical OSCAL AP part types**:
+      1. `rules-of-engagement`: Testing authorization, escalation contacts, operational restrictions.
+      2. `disclosures`: Responsible vulnerability disclosure rules and reporting timelines (supports child `item` parts).
+      3. `assessment-inclusions`: Mandatory inclusion parameters and required test depths.
+      4. `assessment-exclusions`: Prohibited actions (e.g., DoS attacks, physical penetration, production disruption).
+      5. `results-delivery`: Report formatting, delivery mechanisms, and encryption requirements.
+      6. `assumptions`: Key technical or administrative assumptions (supports child `item` parts).
+      7. `methodology`: Overall assessment methodology references (e.g., FedRAMP SAP Guidelines, NIST SP 800-53A).
+    * For each part: Bob can provide `prose` (Markdown supported), optional `title`, `props`, and child `parts[]` (e.g., individual `item` clauses).
+  * **Then** all parts strictly use the allowed 7 part names and pass schema validation.
+
+---
+
+#### US 5.17: Back-Matter Resource Attachments & Base64 Payloads
+> Implements [DD-007](../design_decisions/DD-007_base64_embedded_attachments_strategy.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** upload and embed supporting documents (signed Rules of Engagement PDFs, scan configuration files, authorization memos) into `back-matter.resources[]`,  
+> **so that** all audit artifacts are self-contained within the Assessment Plan file.
+
+* **Acceptance Criteria:**
+  * **Given** Bob is on Tab 6 in the Back-Matter Attachments section,
+  * **When** Bob uploads a file (PDF, YAML, JSON, TXT, PNG):
+    * The client-side `FileReader` encodes the binary file into a Base64 string.
+    * A new resource is created in `back-matter.resources[]` with:
+      * `uuid`: auto-generated RFC 4122 v4 UUID.
+      * `title`: user-supplied or file name.
+      * `description`: optional remarks.
+      * `rlinks`: `[{ "href": "#" + uuid, "media-type": file.type }]`.
+      * `base64`: `{ "filename": file.name, "media-type": file.type, "value": "<base64-encoded-string>" }`.
+    * Bob can download, preview (for supported formats), or delete attached resources.
+    * Internal references across the AP (e.g. in links or terms) can target `#resource-uuid`.
+  * **Then** the attachment is embedded directly into the OSCAL JSON payload without requiring external storage.
+
+---
+
+### Cross-Cutting & Global Capabilities
+
+#### US 5.12c: AP Completeness & Referential Integrity Pre-flight Validation
+> Implements [DD-002](../design_decisions/DD-002_oscal_validation_strategy.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** execute a pre-flight validation check on the Assessment Plan,  
+> **so that** schema compliance, referential integrity, and scoping coverage issues are flagged with actionable links before export.
+
+* **Acceptance Criteria:**
+  * **Given** Bob clicks the "Validate AP" button in the top bar,
+  * **When** the validation engine evaluates the document:
+    * **L1 Schema Validation:** Validates against `oscal_assessment-plan_schema.json` (checking required fields `uuid`, `metadata`, `import-ssp`, `reviewed-controls`, minItems, additionalProperties).
+    * **L2 Referential Integrity Validation (`_validate_ap_integrity`):**
+      * Verifies `import-ssp.href` is non-empty.
+      * Verifies every `associated-activities[].activity-uuid` points to a valid activity in `local-definitions.activities`.
+      * Verifies every `dependencies[].task-uuid` points to an existing task and no DAG cycles exist.
+      * Verifies every `uses-components[].component-uuid` in platforms references a valid component in `assessment-assets` or `local-definitions`.
+      * Verifies every `select-subject-by-id` references a resolvable entity.
+    * **L3 Audit Completeness Warnings:**
+      * Flags any in-scope control that lacks an entry in `local-definitions.objectives-and-methods`.
+      * Flags any task without scheduled timing or assigned roles.
+    * The UI displays a structured **Pre-Flight Validation Drawer** listing Errors, Warnings, and Info badges with direct deep-links to the offending tab and field.
+  * **Then** Bob can resolve all validation findings directly within the editor.
+
+---
+
+#### US 5.15: In-Place Editing, Tab Switching & Draft Persistence
+> Implements [US 0.17](step0_global_requirements.md), [DD-004](../design_decisions/DD-004_editor_ux_patterns.md), and [DD-029](../design_decisions/DD-029_document_actions_pattern.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** seamlessly switch between the 6 tabs, toggle between View and Edit modes, and benefit from client-side draft persistence and undo/redo,  
+> **so that** I can draft complex assessment plans without risking data loss.
+
+* **Acceptance Criteria:**
+  * **Given** Bob is editing an Assessment Plan,
+  * **When** Bob switches between the 6 tabs:
+    * Document state is preserved across tab transitions in the centralized React state.
+    * In-memory changes are tracked in the undo/redo history stack (`Ctrl+Z` / `Ctrl+Y`).
+    * Unsaved changes are persisted via backend draft auto-save (`<uuid>_draft.json`, 30s interval when dirty) in accordance with DD-004 to prevent accidental data loss on refresh.
+    * Bob can toggle between "View Mode" (clean, formatted audit report layout) and "Edit Mode" (interactive form builders) at any time.
+  * **Then** state transitions remain responsive and preserve all nested assemblies.
+
+---
+
+#### US 5.16: Immutable Backend Document Actions & Versioning
+> Implements [US 0.15](step0_global_requirements.md), [DD-028](../design_decisions/DD-028_backend_resolution_engine.md), and [DD-029](../design_decisions/DD-029_document_actions_pattern.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** save the Assessment Plan to the backend with optimistic locking and automatic version history tracking without UUID regeneration,  
+> **so that** all scope negotiations and audit plan revisions maintain an auditable provenance trail.
+
+* **Acceptance Criteria:**
+  * **Given** Bob saves an Assessment Plan via the Save button or `Ctrl+S`,
+  * **When** the frontend sends `PUT /api/documents/assessment-plans/{id}`:
+    * All mutations are executed via pure Immer action reducers in `assessment-plan-actions.ts`.
+    * The backend validates the document, purges empty optional arrays (DD-014), updates `metadata.last-modified`, and creates a Git commit in the workspace version store.
+    * The document `uuid` remains strictly stable across all saves.
+    * Bob can view previous document revisions and diffs via the Document History drawer.
+  * **Then** the saved Assessment Plan is reliably stored and verifiable.
+
+---
+
+#### US 5.18: Multi-Format Export (JSON, YAML, XML) & Schema Validation
+> Implements [US 0.4](step0_global_requirements.md) and [DD-002](../design_decisions/DD-002_oscal_validation_strategy.md).  
+> **As a** Lead Assessor (Bob)  
+> **I want to** export the completed Assessment Plan in JSON, YAML, or XML format via the Export dialog,  
+> **so that** I can distribute the official assessment plan to authorizing officials, testing teams, and automated compliance runners.
+
+* **Acceptance Criteria:**
+  * **Given** Bob is on the Assessment Plan editor or overview page,
+  * **When** Bob clicks "Export":
+    * An Export modal opens allowing format selection: OSCAL JSON, OSCAL YAML, or OSCAL XML.
+    * The system validates the document prior to serialization.
+    * The exported file strictly adheres to official NIST OSCAL schema definitions and downloads cleanly.
+  * **Then** external OSCAL tools can ingest the exported assessment plan without syntax or schema errors.
+
+---
+
+## 3. Traceability Matrix (User Stories ↔ 6-Tab Architecture ↔ Design Decisions)
+
+| User Story | Title | Builder Tab | Key OSCAL AP Elements | Design Decision |
+|---|---|---|---|---|
+| **US 5.1** | AP Document Creation & Initial Shell | Tab 1: Overview & Metadata | `assessment-plan` (`uuid`, `metadata`, `import-ssp`, `reviewed-controls`) | DD-001, DD-037 |
+| **US 5.2** | Target SSP Import & Context Resolution | Tab 1: Overview & Metadata | `import-ssp` (`href`, `remarks`) | DD-016, DD-037 |
+| **US 5.14** | Document Metadata, Parties & Tagging | Tab 1: Overview & Metadata | `metadata` (`roles`, `parties`, `responsible-parties`, `props`, `revisions`) | DD-001, DD-037 |
+| **US 5.3** | Reviewed Controls & Control Selections | Tab 2: Reviewed Controls & Scope | `reviewed-controls.control-selections` (`include-all`, `include-controls`, `exclude-controls`, `statement-ids`) | DD-030, DD-037 |
+| **US 5.4** | Control Objective Selections | Tab 2: Reviewed Controls & Scope | `reviewed-controls.control-objective-selections` (`include-objectives`, `exclude-objectives`) | DD-030, DD-037 |
+| **US 5.5** | Scoping Gap Analysis & Summary | Tab 2: Reviewed Controls & Scope | Live resolution comparison widget | DD-028, DD-037 |
+| **US 5.6** | Assessment Subjects & Scope Definition | Tab 3: Assessment Subjects & Assets | `assessment-subjects` (`type`, `include-subjects`, `assessment-subject-placeholder`) | DD-017, DD-037 |
+| **US 5.7** | Assessment Assets & Platforms | Tab 3: Assessment Subjects & Assets | `assessment-assets` (`components`, `assessment-platforms`, `uses-components`) | DD-037 |
+| **US 5.8** | Local Components, Inventory & Users | Tab 4: Local Definitions & Methods | `local-definitions` (`components`, `inventory-items`, `users`) | DD-037 |
+| **US 5.9** | Objectives & Evaluation Methods | Tab 4: Local Definitions & Methods | `local-definitions.objectives-and-methods` (`method: INTERVIEW\|EXAMINE\|TEST`) | DD-008, DD-037 |
+| **US 5.10** | Procedural Activities & Steps | Tab 4: Local Definitions & Methods | `local-definitions.activities` (`steps`, `related-controls`, `responsible-roles`) | DD-008, DD-037 |
+| **US 5.11** | Task Scheduling, Types & Timing | Tab 5: Tasks & Timeline | `tasks` (`type: milestone\|action`, `timing: on-date\|within-date-range\|at-frequency`) | DD-037 |
+| **US 5.12** | Task Dependency DAG & Cycle Detection | Tab 5: Tasks & Timeline | `tasks.dependencies` (`task-uuid`, topological sort, acyclic validation) | DD-002, DD-037 |
+| **US 5.12b**| Interactive Task Timeline / Gantt | Tab 5: Tasks & Timeline | Visual Gantt chart rendering milestones and dependency links | DD-037 |
+| **US 5.19** | Task-Activity-Subject Triangulation | Tab 5: Tasks & Timeline | `tasks.associated-activities` (`activity-uuid`, `subjects`) | DD-037 |
+| **US 5.13** | Terms & Conditions (7 Canonical Parts) | Tab 6: Terms & Conditions & Attachments | `terms-and-conditions.parts` (`rules-of-engagement`, `methodology`, etc.) | DD-037 |
+| **US 5.17** | Back-Matter Base64 Resource Attachments | Tab 6: Terms & Conditions & Attachments | `back-matter.resources` (`base64: { value, media-type, filename }`) | DD-007, DD-037 |
+| **US 5.12c**| AP Pre-Flight Completeness Validation | Global / Header | L1 Schema + L2 Referential Integrity + L3 Completeness Checks | DD-002, DD-037 |
+| **US 5.15** | In-Place Editing, Tabs & Persistence | Global / Editor Shell | Centralized React state, `useDocumentActions`, undo/redo, draft cache | DD-004, DD-029 |
+| **US 5.16** | Immutable Backend Actions & Versioning | Global / Persistence | Immer action reducers, optimistic locking, Git workspace commits | DD-015, DD-029 |
+| **US 5.18** | Multi-Format Export (JSON, YAML, XML) | Global / Header | Export modal, format serializers, schema verification | DD-002 |
