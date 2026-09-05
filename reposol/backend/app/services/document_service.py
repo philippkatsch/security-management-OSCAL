@@ -3,7 +3,7 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 
-from app.constants import STAGE_ROOT_KEYS
+from app.constants import STAGE_ROOT_KEYS, DRAFT_SUFFIX
 from app.validation import validate_document
 from app.repositories.document_repository import (
     is_valid_uuid,
@@ -99,7 +99,7 @@ async def save_document(
     saved_doc, new_etag, existed = await repo_save_document(stage, doc_id, document, workspace_id=workspace_id, if_match=if_match)
     if stage == "profiles":
         saved_doc = await postprocess_profile_for_loading(saved_doc, workspace_id)
-    await cleanup_local_catalogs(workspace_id=workspace_id)
+        await cleanup_local_catalogs(workspace_id=workspace_id)
     clear_resolution_cache()
     return saved_doc, new_etag, existed
 
@@ -146,7 +146,8 @@ async def delete_document(stage: str, doc_id: str, force: bool = False, workspac
             )
 
     await repo_delete_document(stage, doc_id, workspace_id=workspace_id)
-    await cleanup_local_catalogs(workspace_id=workspace_id)
+    if stage == "profiles":
+        await cleanup_local_catalogs(workspace_id=workspace_id)
     clear_resolution_cache()
 
 
@@ -166,6 +167,9 @@ async def get_document_version(stage: str, doc_id: str, version: str, workspace_
 async def save_document_version(stage: str, doc_id: str, version: str, document: Dict[str, Any], is_draft: bool = False, remarks: Optional[str] = None, workspace_id: Optional[str] = None, skip_validation: bool = False) -> None:
     """Preprocesses, validates and saves a document version."""
     root_key = STAGE_ROOT_KEYS[stage]
+    
+    # Check if this is a draft version
+    is_draft = bool(is_draft or version.endswith(DRAFT_SUFFIX) or "draft" in version.lower())
     
     # Automatic revision tracking (US 0.7) - Only for official versions
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -189,14 +193,16 @@ async def save_document_version(stage: str, doc_id: str, version: str, document:
     else:
         document = remove_empty_arrays(document)
 
-    if not skip_validation:
+    if not skip_validation and not is_draft:
         await validate_document(stage, document, workspace_id=workspace_id)
 
     await repo_save_document_version(stage, doc_id, version, document, is_draft=is_draft, workspace_id=workspace_id)
-    await cleanup_local_catalogs(workspace_id=workspace_id)
+    if stage == "profiles":
+        await cleanup_local_catalogs(workspace_id=workspace_id)
 
 
 async def delete_document_version(stage: str, doc_id: str, version: str, workspace_id: Optional[str] = None) -> None:
     """Deletes a specific document version."""
     await repo_delete_document_version(stage, doc_id, version, workspace_id=workspace_id)
-    await cleanup_local_catalogs(workspace_id=workspace_id)
+    if stage == "profiles":
+        await cleanup_local_catalogs(workspace_id=workspace_id)

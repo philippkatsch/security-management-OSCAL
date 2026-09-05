@@ -157,6 +157,7 @@ export function DocumentToolbar({
             type="button"
             className={styles['btn-secondary']}
             onClick={handleBack}
+            disabled={isBusy}
             data-testid="back-btn"
             style={{ padding: '6px 12px', fontSize: '13px' }}
           >
@@ -197,9 +198,10 @@ export function DocumentToolbar({
             <button
               type="button"
               className={styles['btn-secondary']}
-              disabled={editMode === 'visual' ? !canUndo : false}
+              disabled={isBusy || (editMode === 'visual' ? !canUndo : false)}
               onClick={onUndo}
               title="Undo (Ctrl+Z)"
+              data-testid="undo-btn"
               style={{ padding: '6px 10px', fontSize: '12px' }}
             >
               ↩️
@@ -207,9 +209,10 @@ export function DocumentToolbar({
             <button
               type="button"
               className={styles['btn-secondary']}
-              disabled={editMode === 'visual' ? !canRedo : false}
+              disabled={isBusy || (editMode === 'visual' ? !canRedo : false)}
               onClick={onRedo}
               title="Redo (Ctrl+Y)"
+              data-testid="redo-btn"
               style={{ padding: '6px 10px', fontSize: '12px' }}
             >
               ↪️
@@ -224,6 +227,8 @@ export function DocumentToolbar({
               type="button"
               className={editMode === 'visual' ? styles['btn-primary'] : styles['btn-secondary']}
               onClick={() => onToggleEditMode('visual')}
+              disabled={isBusy}
+              data-testid="visual-mode-btn"
               style={{
                 borderTopRightRadius: 0,
                 borderBottomRightRadius: 0,
@@ -234,7 +239,9 @@ export function DocumentToolbar({
                 borderLeft: `1px solid ${editMode === 'visual' ? 'var(--color-accent)' : 'var(--color-border)'}`,
                 borderRight: 'none',
                 background: editMode === 'visual' ? 'var(--color-accent)' : undefined,
-                color: editMode === 'visual' ? '#fff' : undefined
+                color: editMode === 'visual' ? '#fff' : undefined,
+                opacity: isBusy ? 0.6 : 1,
+                cursor: isBusy ? 'not-allowed' : 'pointer'
               }}
             >
               🎨 Visual
@@ -243,6 +250,8 @@ export function DocumentToolbar({
               type="button"
               className={editMode === 'json' ? styles['btn-primary'] : styles['btn-secondary']}
               onClick={() => onToggleEditMode('json')}
+              disabled={isBusy}
+              data-testid="json-mode-btn"
               style={{
                 borderTopLeftRadius: 0,
                 borderBottomLeftRadius: 0,
@@ -250,7 +259,9 @@ export function DocumentToolbar({
                 fontSize: '12px',
                 border: `1px solid ${editMode === 'json' ? 'var(--color-accent)' : 'var(--color-border)'}`,
                 background: editMode === 'json' ? 'var(--color-accent)' : undefined,
-                color: editMode === 'json' ? '#fff' : undefined
+                color: editMode === 'json' ? '#fff' : undefined,
+                opacity: isBusy ? 0.6 : 1,
+                cursor: isBusy ? 'not-allowed' : 'pointer'
               }}
             >
               💻 JSON
@@ -259,8 +270,20 @@ export function DocumentToolbar({
         )}
 
         {/* Saving / Validating Status Indicator */}
-        {isEditing && isBusy && (
-          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', marginRight: '8px' }}>
+        {isBusy && (
+          <span
+            data-testid="save-status-indicator"
+            style={{
+              fontSize: '12px',
+              color: 'var(--color-text-muted)',
+              fontStyle: 'italic',
+              marginRight: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <span style={{ display: 'inline-block' }}>⏳</span>
             {saving || isSaving ? 'Saving...' : 'Validating...'}
           </span>
         )}

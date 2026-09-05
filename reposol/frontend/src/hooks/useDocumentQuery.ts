@@ -66,9 +66,16 @@ export function useSaveVersionMutation(stage: OscalStage, docId: string) {
   return useMutation({
     mutationFn: ({ version, document, remarks, isDraft }: { version: string; document: OscalDocument; remarks?: string; isDraft?: boolean }): Promise<void> =>
       api.saveVersion(stage, docId, version, document, remarks, isDraft),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['versions', stage, docId] });
-      queryClient.invalidateQueries({ queryKey: ['document', stage, docId] });
+      const isDraft = Boolean(
+        variables?.isDraft ||
+        variables?.version?.endsWith('-draft') ||
+        variables?.version?.toLowerCase().includes('draft')
+      );
+      if (!isDraft) {
+        queryClient.invalidateQueries({ queryKey: ['document', stage, docId] });
+      }
     },
   });
 }

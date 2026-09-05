@@ -178,3 +178,68 @@ class TestDocumentVersioning:
 
             with pytest.raises(ValueError, match="Directory traversal"):
                 await delete_document_version("catalogs", traversal_id, "1.0.0")
+
+    @pytest.mark.asyncio
+    async def test_draft_version_skips_validation(self, isolated_data_dir):
+        from app.validation import OSCALValidationError
+        doc_id = str(uuid.uuid4())
+        # An invalid draft doc: missing required fields or having invalid types per NIST OSCAL schema
+        doc_draft = {
+            "catalog": {
+                "uuid": doc_id,
+                "metadata": {
+                    "title": "Draft Incomplete",
+                    "version": "1.0.0-draft",
+                    "oscal-version": "1.1.2",
+                    "invalid-extra-prop": 12345
+                },
+                "controls": [
+                    {"id": "c1"} # Missing required 'title' in control
+                ]
+            }
+        }
+        # Saving as draft should NOT raise schema validation error even with skip_validation=False
+        await save_document_version("catalogs", doc_id, "1.0.0-draft", doc_draft, is_draft=True, skip_validation=False)
+        loaded = await get_document_version("catalogs", doc_id, "1.0.0-draft")
+        assert loaded["catalog"]["metadata"]["title"] == "Draft Incomplete"
+
+    @pytest.mark.asyncio
+    async def test_published_version_enforces_validation(self, isolated_data_dir):
+        from app.validation import OSCALValidationError
+        doc_id = str(uuid.uuid4())
+        doc_invalid = {
+            "catalog": {
+                "uuid": doc_id,
+                "metadata": {
+                    "title": "Invalid Published",
+                    "version": "1.0.0",
+                    "oscal-version": "1.1.2"
+                },
+                "controls": [
+                    {"id": "c1"} # Missing required 'title' in control
+                ]
+            }
+        }
+        # Saving as official release MUST raise validation error
+        with pytest.raises(OSCALValidationError):
+            await save_document_version("catalogs", doc_id, "1.0.0", doc_invalid, is_draft=False, skip_validation=False)
+
+    @pytest.mark.asyncio
+    async def test_draft_version_case_insensitive_and_variants(self, isolated_data_dir):
+        doc_id = str(uuid.uuid4())
+        # Incomplete document that would fail schema validation
+        doc_variant = {
+            "catalog": {
+                "uuid": doc_id,
+                "metadata": {
+                    "title": "Variant Draft",
+                    "version": "1.0.0-Draft",
+                    "oscal-version": "1.1.2"
+                },
+                "controls": [{"id": "c_var"}] # Missing required title
+            }
+        }
+        # Saving with "1.0.0-Draft" without explicit is_draft=True should be detected as draft
+        await save_document_version("catalogs", doc_id, "1.0.0-Draft", doc_variant, skip_validation=False)
+        loaded = await get_document_version("catalogs", doc_id, "1.0.0-Draft")
+        assert loaded["catalog"]["metadata"]["title"] == "Variant Draft"

@@ -718,17 +718,8 @@ async def _validate_ar_integrity(
                         })
 
 
-async def validate_document(stage: str, document: Dict[str, Any], check_refs: bool = True, workspace_id: Optional[str] = None) -> None:
-    """Validates a document against the schema for the given normalized stage."""
-    if stage not in SCHEMAS:
-        raise ValueError(f"Unknown stage: {stage}")
-    
-    root_key = STAGE_ROOT_KEYS[stage]
-    if root_key not in document:
-        raise JSONSchemaValidationError(f"Missing required root key: '{root_key}'")
-        
+def _run_schema_validation(stage: str, document: Dict[str, Any]) -> list:
     validator = _get_validator(stage)
-    
     errors = []
     for err in validator.iter_errors(document):
         path = "$"
@@ -747,6 +738,19 @@ async def validate_document(stage: str, document: Dict[str, Any], check_refs: bo
                     "message": sub_err.message,
                     "schema_path": ".".join(str(p) for p in sub_err.absolute_schema_path)
                 })
+    return errors
+
+
+async def validate_document(stage: str, document: Dict[str, Any], check_refs: bool = True, workspace_id: Optional[str] = None) -> None:
+    """Validates a document against the schema for the given normalized stage."""
+    if stage not in SCHEMAS:
+        raise ValueError(f"Unknown stage: {stage}")
+    
+    root_key = STAGE_ROOT_KEYS[stage]
+    if root_key not in document:
+        raise JSONSchemaValidationError(f"Missing required root key: '{root_key}'")
+        
+    errors = await asyncio.to_thread(_run_schema_validation, stage, document)
 
     if stage == "profiles":
         _validate_profile_integrity(document[root_key], root_key, errors)

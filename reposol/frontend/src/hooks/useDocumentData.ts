@@ -73,7 +73,8 @@ export function useDocumentData(stage: OscalStage, modelName: string, documentId
     saveDraft: saveDraftTag,
     remove: deleteVersionTag,
     switchTo: loadVersion,
-    reload: loadVersions
+    reload: loadVersions,
+    saving: versionSaving
   } = useVersions(stage, documentId);
 
   const { saveNow: saveDraftNow, markDiscarded: markDraftDiscarded } = useDraft(
@@ -95,7 +96,7 @@ export function useDocumentData(stage: OscalStage, modelName: string, documentId
     setDoc: updateDoc,
     loading: query.isLoading,
     error: query.isError ? (query.error as Error)?.message || String(query.error) : null,
-    saving: mutation.isPending,
+    saving: mutation.isPending || versionSaving,
     validating: validationMutation.isPending,
     validationResult,
     save,

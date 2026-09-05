@@ -88,6 +88,7 @@ export function useVersions(stage: OscalStage, documentId: string) {
   return {
     versions,
     loading: versionsQuery.isLoading,
+    saving: saveMutation.isPending,
     showDrawer,
     setShowDrawer,
     selectedVersion,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAtom } from 'jotai';
 import { produce } from 'immer';
 import { useDocumentData } from './useDocumentData';
@@ -43,6 +43,13 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
   useEffect(() => {
     setIsDirty(history.hasUnsavedChanges);
   }, [history.hasUnsavedChanges]);
+
+  // Keep underlying doc reference in sync with activeDoc so useDraft and auto-save have current edits
+  useEffect(() => {
+    if (isEditing && history.activeDoc && history.activeDoc !== data.doc) {
+      data.setDoc(history.activeDoc);
+    }
+  }, [history.activeDoc, isEditing, data.doc, data.setDoc]);
   
   useUnsavedChangesWarning(history.hasUnsavedChanges, isEditing);
 
@@ -173,36 +180,48 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
     if (docData) history.resetUndoRedo(docData);
   }, [data, history, setIsEditing, stage]);
 
+  const isBackInProgressRef = useRef(false);
   const handleBack = useCallback(async (navigateBackFn?: () => void) => {
-    if (isEditing && history.hasUnsavedChanges) {
-      const choice = await confirm({
-        title: 'Unsaved Draft Changes',
-        message: 'You have unsaved changes in your active draft. Click Save to save your draft, or Discard to discard changes.',
-        confirmLabel: 'Save Draft',
-        cancelLabel: 'Discard Changes',
-        variant: 'warning',
-      });
-      if (choice) {
-        try {
-          await data.saveDraftTag(history.activeDoc as OscalDocument);
-        } catch (err: any) {
-          toast.error(`Draft save failed: ${err.message || err}`);
-        }
-      } else {
-        data.markDraftDiscarded();
-        try {
-          if (data.deleteVersionTag) {
-            await data.deleteVersionTag('draft');
+    if (isBackInProgressRef.current) return;
+    isBackInProgressRef.current = true;
+    try {
+      if (isEditing && history.hasUnsavedChanges) {
+        const choice = await confirm({
+          title: 'Unsaved Draft Changes',
+          message: 'You have unsaved changes in your active draft. Click Save to save your draft, or Discard to discard changes.',
+          confirmLabel: 'Save Draft',
+          cancelLabel: 'Discard Changes',
+          variant: 'warning',
+        });
+        if (choice) {
+          try {
+            await data.saveDraftTag(history.activeDoc as OscalDocument);
+            data.markDraftDiscarded();
+            setIsDirty(false);
+            history.resetUndoRedo(history.activeDoc as OscalDocument);
+          } catch (err: any) {
+            toast.error(`Draft save failed: ${err.message || err}`);
+            return;
           }
-        } catch (err: any) {
-          // Silent catch if draft tag did not exist on server
+        } else {
+          data.markDraftDiscarded();
+          setIsDirty(false);
+          try {
+            if (data.deleteVersionTag) {
+              await data.deleteVersionTag('draft');
+            }
+          } catch (err: any) {
+            // Silent catch if draft tag did not exist on server
+          }
         }
       }
+      if (navigateBackFn) {
+        navigateBackFn();
+      }
+    } finally {
+      isBackInProgressRef.current = false;
     }
-    if (navigateBackFn) {
-      navigateBackFn();
-    }
-  }, [isEditing, history.hasUnsavedChanges, history.activeDoc, data]);
+  }, [isEditing, history.hasUnsavedChanges, history.activeDoc, data, history, confirm]);
 
   return {
     doc: data.doc,

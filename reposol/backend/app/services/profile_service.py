@@ -236,9 +236,8 @@ async def prune_orphaned_alters(profile: Dict[str, Any], workspace_id: Optional[
 
 def preprocess_catalog_for_saving(document: Dict[str, Any]) -> Dict[str, Any]:
     """Preprocesses a catalog document before saving, removing empty arrays."""
-    document = copy.deepcopy(document)
     if "catalog" in document:
-        document = remove_empty_arrays(document)
+        return remove_empty_arrays(document)
     return document
 
 
