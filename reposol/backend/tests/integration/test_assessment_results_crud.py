@@ -7,11 +7,41 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def create_sample_ar_document(doc_id: str = None, title: str = "Test Assessment Results", version: str = "1.0.0") -> dict:
+def create_sample_ap(client: TestClient, title: str = "Governing Assessment Plan") -> str:
+    """Helper to save a valid target Assessment Plan in the test store."""
+    ap_id = str(uuid.uuid4())
+    ap_doc = {
+        "assessment-plan": {
+            "uuid": ap_id,
+            "metadata": {
+                "title": title,
+                "last-modified": "2026-07-30T10:00:00Z",
+                "version": "1.0.0",
+                "oscal-version": "1.2.2",
+            },
+            "import-ssp": {
+                "href": "https://example.com/ssps/target-ssp.json"
+            },
+            "reviewed-controls": {
+                "control-selections": [
+                    {
+                        "include-all": {}
+                    }
+                ]
+            }
+        }
+    }
+    res = client.post("/api/documents/assessment-plan", json=ap_doc)
+    assert res.status_code == 201, f"Failed to create prerequisite AP: {res.text}"
+    return ap_id
+
+
+def create_sample_ar_document(ap_id: str = None, doc_id: str = None, title: str = "Test Assessment Results", version: str = "1.0.0") -> dict:
     """Helper to construct a valid OSCAL Assessment Results document."""
     if doc_id is None:
         doc_id = str(uuid.uuid4())
-    ap_id = str(uuid.uuid4())
+    if ap_id is None:
+        ap_id = str(uuid.uuid4())
     obs_id = str(uuid.uuid4())
     risk_id = str(uuid.uuid4())
     finding_id = str(uuid.uuid4())
@@ -23,7 +53,7 @@ def create_sample_ar_document(doc_id: str = None, title: str = "Test Assessment 
                 "title": title,
                 "last-modified": "2026-07-30T10:00:00Z",
                 "version": version,
-                "oscal-version": "1.1.2",
+                "oscal-version": "1.2.2",
             },
             "import-ap": {
                 "href": f"../assessment-plans/{ap_id}.json"
@@ -90,8 +120,9 @@ def create_sample_ar_document(doc_id: str = None, title: str = "Test Assessment 
 
 def test_ar_create_and_get(client: TestClient):
     """Test creation and retrieval of Assessment Results (US 6.1, US 6.3, US 6.13)."""
+    ap_id = create_sample_ap(client)
     doc_id = str(uuid.uuid4())
-    doc = create_sample_ar_document(doc_id=doc_id, title="Q3 Audit Results")
+    doc = create_sample_ar_document(ap_id=ap_id, doc_id=doc_id, title="Q3 Audit Results")
 
     # POST create
     response = client.post("/api/documents/assessment-results", json=doc)
@@ -104,7 +135,10 @@ def test_ar_create_and_get(client: TestClient):
     list_res = client.get("/api/documents/assessment-results")
     assert list_res.status_code == 200
     docs = list_res.json()
-    assert any(d.get("assessment-results", {}).get("uuid") == doc_id for d in docs)
+    matching = [d.get("assessment-results") for d in docs if d.get("assessment-results", {}).get("uuid") == doc_id]
+    assert len(matching) == 1
+    assert "import-ap" in matching[0]
+    assert matching[0]["import-ap"]["href"] == f"../assessment-plans/{ap_id}.json"
 
     # GET single
     get_res = client.get(f"/api/documents/assessment-results/{doc_id}")
@@ -114,8 +148,9 @@ def test_ar_create_and_get(client: TestClient):
 
 def test_ar_risk_and_finding_structure(client: TestClient):
     """Test observations, risk characterization (DD-018), and findings in AR (US 6.6, US 6.7, US 6.10)."""
+    ap_id = create_sample_ap(client)
     doc_id = str(uuid.uuid4())
-    doc = create_sample_ar_document(doc_id=doc_id, title="Risk & Findings AR")
+    doc = create_sample_ar_document(ap_id=ap_id, doc_id=doc_id, title="Risk & Findings AR")
 
     response = client.post("/api/documents/assessment-results", json=doc)
     assert response.status_code == 201, f"Failed: {response.json()}"
@@ -130,8 +165,9 @@ def test_ar_risk_and_finding_structure(client: TestClient):
 
 def test_ar_update_and_delete(client: TestClient):
     """Test editing and deleting Assessment Results documents (US 6.1, US 6.15)."""
+    ap_id = create_sample_ap(client)
     doc_id = str(uuid.uuid4())
-    doc = create_sample_ar_document(doc_id=doc_id, title="Initial AR")
+    doc = create_sample_ar_document(ap_id=ap_id, doc_id=doc_id, title="Initial AR")
     res_init = client.post("/api/documents/assessment-results", json=doc)
     assert res_init.status_code == 201, f"Failed: {res_init.json()}"
 
@@ -150,8 +186,9 @@ def test_ar_update_and_delete(client: TestClient):
 
 def test_ar_versioning(client: TestClient):
     """Test version management for Assessment Results (US 6.16)."""
+    ap_id = create_sample_ap(client)
     doc_id = str(uuid.uuid4())
-    doc = create_sample_ar_document(doc_id=doc_id, title="Versioned AR", version="1.2.0")
+    doc = create_sample_ar_document(ap_id=ap_id, doc_id=doc_id, title="Versioned AR", version="1.2.0")
     res_init = client.post("/api/documents/assessment-results", json=doc)
     assert res_init.status_code == 201, f"Failed: {res_init.json()}"
 

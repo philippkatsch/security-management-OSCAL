@@ -18,6 +18,31 @@ export interface Link {
   'resource-fragment'?: string;
 }
 
+export interface Role {
+  id: string;
+  title: string;
+  'short-name'?: string;
+  description?: string;
+  props?: Property[];
+  links?: Link[];
+  remarks?: string;
+  [key: string]: unknown;
+}
+
+export interface Party {
+  uuid: string;
+  type: 'person' | 'organization' | string;
+  name?: string;
+  'short-name'?: string;
+  'email-addresses'?: string[];
+  'telephone-numbers'?: Array<{ type?: string; number: string }>;
+  addresses?: Array<Record<string, unknown>>;
+  props?: Property[];
+  links?: Link[];
+  remarks?: string;
+  [key: string]: unknown;
+}
+
 export interface Metadata {
   title: string;
   version: string;
@@ -26,9 +51,9 @@ export interface Metadata {
   published?: string;
   props?: Property[];
   links?: Link[];
-  roles?: Record<string, unknown>[];
+  roles?: (Role | Record<string, unknown>)[];
   locations?: Record<string, unknown>[];
-  parties?: Record<string, unknown>[];
+  parties?: (Party | Record<string, unknown>)[];
   'responsible-parties'?: Record<string, unknown>[];
   'document-ids'?: Record<string, unknown>[];
   revisions?: Record<string, unknown>[];
@@ -917,14 +942,78 @@ export interface AssessmentPlan {
 // Step 6-8: Assessment Results, POA&M & Assurance
 // ==========================================
 
+export interface ImportAP {
+  href: string;
+  remarks?: string;
+}
+
+export interface OriginActor {
+  type: 'tool' | 'assessment-platform' | 'party' | string;
+  'actor-uuid': string;
+  'role-id'?: string;
+  props?: Property[];
+  links?: Link[];
+}
+
+export interface Origin {
+  actors: OriginActor[];
+  'related-tasks'?: Array<{ 'task-uuid': string; remarks?: string }>;
+}
+
+export interface RelevantEvidence {
+  href?: string;
+  description: string;
+  props?: Property[];
+  links?: Link[];
+  remarks?: string;
+}
+
+export interface FindingTarget {
+  type: 'statement-id' | 'objective-id' | string;
+  'target-id': string;
+  title?: string;
+  description?: string;
+  props?: Property[];
+  links?: Link[];
+  status: {
+    state: 'satisfied' | 'not-satisfied' | string;
+    reason?: 'pass' | 'fail' | 'other' | string;
+    remarks?: string;
+  };
+  'implementation-status'?: {
+    state: 'implemented' | 'partial' | 'planned' | 'alternative' | 'not-applicable' | string;
+    remarks?: string;
+  };
+  remarks?: string;
+}
+
+export interface RelatedObservation {
+  'observation-uuid': string;
+  props?: Property[];
+  links?: Link[];
+  remarks?: string;
+}
+
+export interface RelatedRisk {
+  'risk-uuid': string;
+  props?: Property[];
+  links?: Link[];
+  remarks?: string;
+}
+
 export interface Finding {
   uuid: string;
   title: string;
   description: string;
   props?: Property[];
-  target?: Record<string, unknown>;
-  'related-observations'?: Record<string, unknown>[];
-  'related-risks'?: Record<string, unknown>[];
+  links?: Link[];
+  origins?: Origin[];
+  target: FindingTarget;
+  'implementation-statement-uuid'?: string;
+  'related-observations'?: RelatedObservation[];
+  'related-risks'?: RelatedRisk[];
+  'related-response'?: Record<string, unknown>[];
+  risks?: Risk[];
   remarks?: string;
 }
 
@@ -933,27 +1022,133 @@ export interface Observation {
   title?: string;
   description: string;
   props?: Property[];
-  methods: string[];
-  types?: string[];
-  subjects?: Record<string, unknown>[];
-  'relevant-evidence'?: Record<string, unknown>[];
-  collected?: string;
+  links?: Link[];
+  methods: ('EXAMINE' | 'INTERVIEW' | 'TEST' | 'UNKNOWN' | string)[];
+  types?: ('ssp-statement-issue' | 'control-objective' | 'mitigation' | 'finding' | 'discovery' | 'historic' | string)[];
+  origins?: Origin[];
+  subjects?: SubjectReference[];
+  'relevant-evidence'?: RelevantEvidence[];
+  collected: string;
   expires?: string;
   remarks?: string;
+}
+
+export interface RiskFacet {
+  name: string;
+  system: string;
+  value: string;
+  props?: Property[];
+  links?: Link[];
+  remarks?: string;
+}
+
+export interface RiskCharacterization {
+  origin?: Origin;
+  date?: string;
+  facets: RiskFacet[];
+  props?: Property[];
+  links?: Link[];
+}
+
+export interface RiskMitigatingFactor {
+  uuid: string;
+  description: string;
+  'implementation-uuid'?: string;
+  props?: Property[];
+  links?: Link[];
+  subjects?: SubjectReference[];
+}
+
+export interface RiskThreatID {
+  system: string;
+  id: string;
+  href?: string;
+}
+
+export interface RiskResponse {
+  uuid: string;
+  lifecycle: 'recommendation' | 'planned' | 'completed' | string;
+  title: string;
+  description: string;
+  props?: Property[];
+  links?: Link[];
+  origins?: Origin[];
+  'required-assets'?: Array<{ uuid: string; description: string }>;
+  tasks?: Task[];
+  remarks?: string;
+}
+
+export interface RiskLogEntry {
+  uuid: string;
+  title?: string;
+  description?: string;
+  start: string;
+  end?: string;
+  props?: Property[];
+  links?: Link[];
+  'logged-by'?: Array<{ 'party-uuid': string; 'role-id'?: string; remarks?: string }>;
+  'status-change'?: 'open' | 'investigating' | 'remediating' | 'deviation-requested' | 'deviation-approved' | 'closed' | string;
+  'related-responses'?: Array<{
+    'response-uuid': string;
+    props?: Property[];
+    links?: Link[];
+    'related-tasks'?: Array<{ 'task-uuid': string; remarks?: string }>;
+    remarks?: string;
+  }>;
+  remarks?: string;
+}
+
+export interface RiskLog {
+  entries: RiskLogEntry[];
 }
 
 export interface Risk {
   uuid: string;
   title: string;
   description: string;
+  statement: string;
   props?: Property[];
-  status?: string;
-  origins?: Record<string, unknown>[];
-  'threat-ids'?: Record<string, unknown>[];
-  characterizations?: Record<string, unknown>[];
-  'mitigating-factors'?: Record<string, unknown>[];
-  remediations?: Record<string, unknown>[];
-  'risk-log'?: Record<string, unknown>;
+  links?: Link[];
+  status: 'open' | 'investigating' | 'remediating' | 'deviation-requested' | 'deviation-approved' | 'closed' | string;
+  origins?: Origin[];
+  'threat-ids'?: RiskThreatID[];
+  characterizations?: RiskCharacterization[];
+  'mitigating-factors'?: RiskMitigatingFactor[];
+  deadline?: string;
+  remediations?: RiskResponse[];
+  'risk-log'?: RiskLog;
+  'related-observations'?: RelatedObservation[];
+  remarks?: string;
+}
+
+export interface AssessmentLogEntry {
+  uuid: string;
+  title?: string;
+  description?: string;
+  start: string;
+  end?: string;
+  props?: Property[];
+  links?: Link[];
+  'logged-by'?: Array<{ 'party-uuid': string; 'role-id'?: string; remarks?: string }>;
+  'related-tasks'?: Array<{ 'task-uuid': string; remarks?: string }>;
+  remarks?: string;
+}
+
+export interface AssessmentLog {
+  entries: AssessmentLogEntry[];
+}
+
+export interface Attestation {
+  'responsible-parties'?: ResponsibleParty[];
+  parts: AssessmentPart[];
+}
+
+export interface ResultLocalDefinitions {
+  components?: SystemComponent[];
+  'inventory-items'?: InventoryItem[];
+  users?: SystemUser[];
+  'assessment-assets'?: AssessmentAssets;
+  tasks?: Task[];
   remarks?: string;
 }
 
@@ -964,21 +1159,28 @@ export interface Result {
   start: string;
   end?: string;
   props?: Property[];
-  'reviewed-controls'?: Record<string, unknown>[];
-  'assessment-subjects'?: Record<string, unknown>[];
-  attestations?: Record<string, unknown>[];
-  'assessment-log'?: Record<string, unknown>;
+  links?: Link[];
+  'local-definitions'?: ResultLocalDefinitions;
+  'reviewed-controls': ReviewedControls;
+  attestations?: Attestation[];
+  'assessment-log'?: AssessmentLog;
   observations?: Observation[];
   risks?: Risk[];
   findings?: Finding[];
+  remarks?: string;
 }
 
 export interface AssessmentResults {
   uuid: string;
   metadata: Metadata;
-  'import-ap'?: Record<string, unknown>;
+  'import-ap'?: ImportAP;
   'local-definitions'?: LocalDefinitions;
   results: Result[];
+  'back-matter'?: BackMatter;
+}
+
+export interface AssessmentResultsDocument {
+  'assessment-results': AssessmentResults;
 }
 
 export interface POAMItem {

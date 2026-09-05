@@ -1,27 +1,60 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'react-hot-toast';
 import styles from './ARPage.module.css';
-import sharedStyles from '@components/shared/SharedComponents.module.css';
 import { useDocumentLifecycle } from '@hooks/useDocumentLifecycle';
+import { useDocumentActions } from '@hooks/useDocumentActions';
 import { DocumentPageLayout } from '../layout/DocumentPageLayout';
-
-import { MetadataEditor } from '@components/shared/MetadataEditor';
+import { LoadingSpinner } from '@components/shared/ui/LoadingSpinner';
 import { StandardMetadataTab } from '@components/shared/tabs/StandardMetadataTab';
 import { JsonEditor } from '@components/shared/JsonEditor';
-import { PropsEditor } from '@components/shared/PropsEditor';
-import { BackMatterEditor } from '@components/shared/BackMatterEditor';
-import { LinksEditor } from '@components/shared/LinksEditor';
 
-import StatusBadge from '@components/shared/status/StatusBadge';
-import EntityTable from '@components/shared/entity/EntityTable';
-import EntityDetailPanel from '@components/shared/entity/EntityDetailPanel';
-import MetricCard from '@components/shared/dashboard/MetricCard';
-import MetricCardGrid from '@components/shared/dashboard/MetricCardGrid';
-import StatusBreakdown from '@components/shared/dashboard/StatusBreakdown';
-import { OriginsEditor } from '@components/shared/risk-assessment/OriginsEditor';
-import { CharacterizationsEditor } from '@components/shared/risk-assessment/CharacterizationsEditor';
-import { RiskLogEditor } from '@components/shared/risk-assessment/RiskLogEditor';
-import { RelevantEvidenceEditor } from '@components/shared/risk-assessment/RelevantEvidenceEditor';
-import { RemediationsEditor } from '@components/shared/risk-assessment/RemediationsEditor';
+import { ResultSetsSidebar } from './components/ResultSetsSidebar';
+import { OverviewMetadataTab } from './tabs/OverviewMetadataTab';
+import { AssessmentFindingsTab } from './tabs/AssessmentFindingsTab';
+import { ObservationsEvidenceTab } from './tabs/ObservationsEvidenceTab';
+import { IdentifiedRisksTab } from './tabs/IdentifiedRisksTab';
+import { AssessmentLogTab } from './tabs/AssessmentLogTab';
+
+import {
+  AssessmentResults,
+  Result,
+  Observation,
+  Finding,
+  Risk,
+  AssessmentLogEntry,
+  Attestation,
+  SystemComponent,
+  SystemUser,
+  Task,
+} from '../../lib/types/oscal';
+
+import {
+  setImportAP,
+  setAssessmentResultsMetadata,
+  addResultSet,
+  updateResultSet,
+  removeResultSet,
+  addObservation,
+  updateObservation,
+  removeObservation,
+  addFinding,
+  updateFinding,
+  removeFinding,
+  addRisk,
+  updateRisk,
+  removeRisk,
+  addAssessmentLogEntry,
+  updateAssessmentLogEntry,
+  removeAssessmentLogEntry,
+  addAttestation,
+  updateAttestation,
+  removeAttestation,
+  addResultLocalComponent,
+  addResultLocalUser,
+  addResultLocalTask,
+  replaceAssessmentResults,
+} from '../../lib/document-actions/assessment-results-actions';
+import { createAction } from '../../lib/document-actions/types';
 
 export interface ARPageProps {
   arId?: string;
@@ -33,663 +66,244 @@ export function ARPage({ arId = '', initialEditMode = false, onClose }: ARPagePr
   const lifecycle = useDocumentLifecycle('assessment-results', 'assessment-results', arId, initialEditMode);
   const {
     activeDoc,
-    setDoc,
+    doc,
+    loading,
+    error,
     isEditing,
-    pushUndoRedoState,
   } = lifecycle;
 
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  const [activeResultSetId, setActiveResultSetId] = useState<string | null>(null);
-  const [resultSetTab, setResultSetTab] = useState('observations');
+  const { dispatch } = useDocumentActions(lifecycle);
 
-  const [activeObservation, setActiveObservation] = useState<any>(null);
-  const [activeFinding, setActiveFinding] = useState<any>(null);
-  const [activeRisk, setActiveRisk] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [activeResultSetId, setActiveResultSetId] = useState<string | null>(null);
+  const [resultSetTab, setResultSetTab] = useState<
+    'details' | 'observations' | 'findings' | 'risks' | 'assessment-log' | 'attestations' | 'local-definitions'
+  >('details');
+
   const jsonEditorRef = useRef<any>(null);
 
-  // Set initial active result set when doc loads
+  const rawDoc = activeDoc || doc;
+  const ar: AssessmentResults = ((rawDoc as any)?.['assessment-results'] || rawDoc) as AssessmentResults;
+  const metadata = ar?.metadata || {};
+  const results: Result[] = ar?.results || [];
+
+  // Automatically keep activeResultSetId valid as results change
   useEffect(() => {
-    if (activeDoc && activeDoc['assessment-results']?.results?.length > 0 && !activeResultSetId) {
-      setActiveResultSetId(activeDoc['assessment-results'].results[0].uuid);
+    if (results.length > 0) {
+      if (!activeResultSetId || !results.some((r) => r.uuid === activeResultSetId)) {
+        setActiveResultSetId(results[0].uuid);
+      }
+    } else {
+      setActiveResultSetId(null);
     }
-  }, [activeDoc, activeResultSetId]);
+  }, [results, activeResultSetId]);
 
-  const updateObservationField = (field, value) => {
-    if (!activeObservation || !activeDoc) return;
-    const next = { ...activeObservation, [field]: value };
-    setActiveObservation(next);
-    const newDoc = { ...activeDoc };
-    const rs = newDoc['assessment-results']?.results?.find(res => res.uuid === activeResultSetId);
-    if (rs) {
-      const idx = (rs.observations || []).findIndex(o => o.uuid === activeObservation.uuid);
-      if (idx >= 0) rs.observations[idx] = next;
+  const activeResultSetIndex = results.findIndex((r) => r.uuid === activeResultSetId);
+  const activeResultSet = activeResultSetIndex >= 0 ? results[activeResultSetIndex] : results[0] || null;
+
+  // Save handler triggered by DocumentToolbar's save-btn
+  const handleSave = async () => {
+    try {
+      const docToSave = (lifecycle.activeDoc || lifecycle.doc) as any;
+      if (docToSave) {
+        await lifecycle.save(docToSave);
+        toast.success('Saved successfully');
+      }
+    } catch (err: any) {
+      toast.error(`Save failed: ${err?.message || err}`);
     }
-    setDoc(newDoc);
-    pushUndoRedoState(newDoc);
   };
 
-  const updateRiskField = (field, value) => {
-    if (!activeRisk || !activeDoc) return;
-    const next = { ...activeRisk, [field]: value };
-    setActiveRisk(next);
-    const newDoc = { ...activeDoc };
-    const rs = newDoc['assessment-results']?.results?.find(res => res.uuid === activeResultSetId);
-    if (rs) {
-      const idx = (rs.risks || []).findIndex(r => r.uuid === activeRisk.uuid);
-      if (idx >= 0) rs.risks[idx] = next;
+  const handleAddResultSet = () => {
+    const newId = crypto.randomUUID();
+    dispatch(
+      addResultSet({
+        uuid: newId,
+        title: 'New Result Set',
+        description: 'Assessment execution results and findings',
+        start: new Date().toISOString(),
+        'reviewed-controls': {
+          'control-selections': [
+            {
+              'include-all': {},
+            },
+          ],
+        },
+        observations: [],
+        findings: [],
+        risks: [],
+      })
+    );
+    setActiveResultSetId(newId);
+    setResultSetTab('details');
+  };
+
+  const handleUpdateActiveResultSet = (updates: Partial<Result>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(updateResultSet(activeResultSetIndex, updates));
     }
-    setDoc(newDoc);
-    pushUndoRedoState(newDoc);
   };
 
-  const ar = activeDoc?.['assessment-results'] || {};
-  const metadata = ar.metadata || {};
-  const results = ar.results || [];
-  
-  const activeResultSet = results.find(r => r.uuid === activeResultSetId) || results[0];
-
-  const totalFindings = results.reduce((acc, r) => acc + (r.findings?.length || 0), 0);
-  const totalObservations = results.reduce((acc, r) => acc + (r.observations?.length || 0), 0);
-  const totalRisks = results.reduce((acc, r) => acc + (r.risks?.length || 0), 0);
-
-  const createResultSet = () => {
-    if (!activeDoc) return;
-    const newDoc = { ...activeDoc };
-    const newRs = {
-      uuid: crypto.randomUUID(),
-      title: 'New Result Set',
-      description: '',
-      start: new Date().toISOString(),
-      'reviewed-controls': { 'control-selections': [] }
-    };
-    newDoc['assessment-results'].results = [...(newDoc['assessment-results'].results || []), newRs];
-    setDoc(newDoc);
-    pushUndoRedoState(newDoc);
-    setActiveResultSetId(newRs.uuid);
-  };
-
-  const deleteResultSet = (id) => {
-    if (!activeDoc) return;
-    const newDoc = { ...activeDoc };
-    newDoc['assessment-results'].results = newDoc['assessment-results'].results.filter(r => r.uuid !== id);
-    if (activeResultSetId === id) {
-      setActiveResultSetId(newDoc['assessment-results'].results[0]?.uuid || null);
+  const handleRemoveActiveResultSet = (id: string) => {
+    const idx = results.findIndex((r) => r.uuid === id);
+    if (idx >= 0) {
+      dispatch(removeResultSet(idx));
+      const remaining = results.filter((r) => r.uuid !== id);
+      setActiveResultSetId(remaining[0]?.uuid || null);
     }
-    setDoc(newDoc);
-    pushUndoRedoState(newDoc);
   };
 
-  const renderOverview = () => {
-    const findingStatuses = { 'satisfied': 0, 'not-satisfied': 0 };
-    results.forEach(r => {
-      (r.findings || []).forEach(f => {
-        const state = f.target?.status?.state || 'unknown';
-        findingStatuses[state] = (findingStatuses[state] || 0) + 1;
-      });
-    });
+  // Import AP handler
+  const handleUpdateImportAP = (href: string, remarks?: string) => {
+    dispatch(setImportAP(href, remarks));
+  };
 
-    const riskStatuses = {};
-    results.forEach(r => {
-      (r.risks || []).forEach(risk => {
-        const status = risk.status || 'unknown';
-        riskStatuses[status] = (riskStatuses[status] || 0) + 1;
-      });
-    });
-
-    const findingBreakdown = Object.keys(findingStatuses).map(k => ({
-      label: k,
-      value: findingStatuses[k],
-      color: k === 'satisfied' ? 'var(--color-success)' : 'var(--color-danger)'
-    }));
-
-    const riskBreakdown = Object.keys(riskStatuses).map(k => ({
-      label: k,
-      value: riskStatuses[k],
-      color: 'var(--color-warning)'
-    }));
-
-    return (
-      <div className={styles['ar-overview']}>
-        <div className={styles['ar-import-ap']}>
-          <h3>Referenced Assessment Plan</h3>
-          {isEditing ? (
-            <input 
-              type="text" 
-              value={ar['import-ap']?.href || ''} 
-              onChange={e => {
-                const newDoc = { ...activeDoc };
-                newDoc['assessment-results']['import-ap'] = { ...(newDoc['assessment-results']['import-ap'] || {}), href: e.target.value };
-                setDoc(newDoc);
-                pushUndoRedoState(newDoc);
-              }} 
-              placeholder="Enter AP href..." 
-            />
-          ) : (
-            <div>{ar['import-ap']?.href || 'No Assessment Plan imported'}</div>
-          )}
-        </div>
-        <MetricCardGrid>
-          <MetricCard title="Total Findings" value={totalFindings} icon="🎯" />
-          <MetricCard title="Total Observations" value={totalObservations} icon="👁️" />
-          <MetricCard title="Total Risks" value={totalRisks} icon="⚠️" />
-          <MetricCard title="Result Sets" value={results.length} icon="📑" />
-        </MetricCardGrid>
-        <div className={styles['ar-breakdowns']}>
-          <div className={styles['breakdown-card']}>
-            <h3>Finding Statuses</h3>
-            <StatusBreakdown items={findingBreakdown} total={totalFindings} />
-          </div>
-          <div className={styles['breakdown-card']}>
-            <h3>Risk Statuses</h3>
-            <StatusBreakdown items={riskBreakdown} total={totalRisks} />
-          </div>
-        </div>
-      </div>
+  // Back-matter handler
+  const handleUpdateBackMatter = (backMatter: any) => {
+    dispatch(
+      createAction('assessment-results', 'SET_BACK_MATTER', 'Update back-matter', (draft: any) => {
+        const root = draft['assessment-results'] || draft;
+        if (root) {
+          root['back-matter'] = backMatter;
+        }
+      })
     );
   };
 
-  const renderResultSets = () => {
-    return (
-      <div className={styles['ar-result-sets']}>
-        <div className={styles['result-sets-sidebar']}>
-          <div className={styles['rs-header-actions']}>
-            <h3>Result Sets</h3>
-            {isEditing && <button className={styles['btn-primary']} onClick={createResultSet}>+ New</button>}
-          </div>
-          <ul className={styles['result-set-list']}>
-            {results.map(r => (
-              <li 
-                key={r.uuid} 
-                className={r.uuid === activeResultSetId ? styles['active'] : ''}
-                onClick={() => setActiveResultSetId(r.uuid)}
-              >
-                <div className={styles['rs-title']}>{r.title || 'Untitled'}</div>
-                <div className={styles['rs-dates']}>
-                  {r.start ? new Date(r.start).toLocaleDateString() : 'N/A'} - {r.end ? new Date(r.end).toLocaleDateString() : 'Ongoing'}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className={styles['result-set-content']}>
-          {activeResultSet ? (
-            <>
-              {isEditing && (
-                <div className={styles['rs-editor-header']}>
-                  <div className={styles['form-group']}>
-                    <label>Title</label>
-                    <input type="text" value={activeResultSet.title || ''} onChange={(e) => {
-                      const newDoc = { ...activeDoc };
-                      const arRoot = newDoc['assessment-results'];
-                      if (arRoot?.results) {
-                        const rsIdx = arRoot.results.findIndex((res: any) => res.uuid === activeResultSet.uuid);
-                        if (rsIdx >= 0) {
-                          arRoot.results = [...arRoot.results];
-                          arRoot.results[rsIdx] = { ...arRoot.results[rsIdx], title: e.target.value };
-                        }
-                      }
-                      setDoc(newDoc);
-                      pushUndoRedoState(newDoc);
-                    }} />
-                  </div>
-                  <div className={styles['form-row']}>
-                    <div className={styles['form-group']}>
-                      <label>Start Date</label>
-                      <input type="datetime-local" value={(activeResultSet.start || '').slice(0, 16)} onChange={(e) => {
-                        const newDoc = { ...activeDoc };
-                        const arRoot = newDoc['assessment-results'];
-                        if (arRoot?.results) {
-                          const rsIdx = arRoot.results.findIndex((res: any) => res.uuid === activeResultSet.uuid);
-                          if (rsIdx >= 0) {
-                            arRoot.results = [...arRoot.results];
-                            const d = new Date(e.target.value);
-                            if (!isNaN(d.getTime())) {
-                              arRoot.results[rsIdx] = { ...arRoot.results[rsIdx], start: d.toISOString() };
-                            } else {
-                              const updated = { ...arRoot.results[rsIdx] };
-                              delete updated.start;
-                              arRoot.results[rsIdx] = updated;
-                            }
-                          }
-                        }
-                        setDoc(newDoc);
-                        pushUndoRedoState(newDoc);
-                      }} />
-                    </div>
-                    <div className={styles['form-group']}>
-                      <label>End Date</label>
-                      <input type="datetime-local" value={(activeResultSet.end || '').slice(0, 16)} onChange={(e) => {
-                        const newDoc = { ...activeDoc };
-                        const arRoot = newDoc['assessment-results'];
-                        if (arRoot?.results) {
-                          const rsIdx = arRoot.results.findIndex((res: any) => res.uuid === activeResultSet.uuid);
-                          if (rsIdx >= 0) {
-                            arRoot.results = [...arRoot.results];
-                            const d = new Date(e.target.value);
-                            if (!isNaN(d.getTime())) {
-                              arRoot.results[rsIdx] = { ...arRoot.results[rsIdx], end: d.toISOString() };
-                            } else {
-                              const updated = { ...arRoot.results[rsIdx] };
-                              delete updated.end;
-                              arRoot.results[rsIdx] = updated;
-                            }
-                          }
-                        }
-                        setDoc(newDoc);
-                        pushUndoRedoState(newDoc);
-                      }} />
-                    </div>
-                  </div>
-                  <button className={styles['btn-danger']} onClick={() => deleteResultSet(activeResultSet.uuid)}>Delete Result Set</button>
-                </div>
-              )}
-              <div className={styles['rs-tabs']}>
-                <button className={resultSetTab === 'observations' ? styles['active'] : ''} onClick={() => setResultSetTab('observations')}>Observations ({(activeResultSet.observations || []).length})</button>
-                <button className={resultSetTab === 'findings' ? styles['active'] : ''} onClick={() => setResultSetTab('findings')}>Findings ({(activeResultSet.findings || []).length})</button>
-                <button className={resultSetTab === 'risks' ? styles['active'] : ''} onClick={() => setResultSetTab('risks')}>Risks ({(activeResultSet.risks || []).length})</button>
-                <button className={resultSetTab === 'local-definitions' ? styles['active'] : ''} onClick={() => setResultSetTab('local-definitions')}>Local Definitions</button>
-                <button className={resultSetTab === 'assessment-log' ? styles['active'] : ''} onClick={() => setResultSetTab('assessment-log')}>Assessment Log</button>
-                <button className={resultSetTab === 'attestations' ? styles['active'] : ''} onClick={() => setResultSetTab('attestations')}>Attestations</button>
-              </div>
-              <div className={styles['rs-tab-content']}>
-                {resultSetTab === 'observations' && renderObservations(activeResultSet)}
-                {resultSetTab === 'findings' && renderFindings(activeResultSet)}
-                {resultSetTab === 'risks' && renderRisks(activeResultSet)}
-                {resultSetTab === 'local-definitions' && renderLocalDefinitions(activeResultSet)}
-                {resultSetTab === 'assessment-log' && renderAssessmentLog(activeResultSet)}
-                {resultSetTab === 'attestations' && renderAttestations(activeResultSet)}
-              </div>
-            </>
-          ) : (
-            <div className={sharedStyles['empty-state']}>No Result Sets</div>
-          )}
-        </div>
-      </div>
-    );
+  // Observations handlers
+  const handleAddObservation = (obs?: Partial<Observation>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(addObservation(activeResultSetIndex, obs));
+    }
   };
 
-  const renderLocalDefinitions = (rs) => {
-    const componentsData = (rs['local-definitions']?.components || []).map(c => ({...c, id: c.uuid}));
-    const usersData = (rs['local-definitions']?.users || []).map(u => ({...u, id: u.uuid, rolesStr: (u['role-ids']||[]).join(', ')}));
-    const tasksData = (rs['local-definitions']?.tasks || []).map(t => ({...t, id: t.uuid}));
-
-    return (
-      <div className={styles['entity-section']}>
-        <h3 style={{marginTop: '20px'}}>Components</h3>
-        <EntityTable 
-          columns={[{key:'title', label:'Title'}, {key:'type', label:'Type'}, {key:'description', label:'Description'}, {key:'status', label:'Status', render: (_,c) => c.status?.state}]} 
-          data={componentsData} 
-          onRowClick={() => {}} 
-        />
-        
-        <h3 style={{marginTop: '20px'}}>Users</h3>
-        <EntityTable 
-          columns={[{key:'title', label:'Title'}, {key:'rolesStr', label:'Roles'}]} 
-          data={usersData} 
-          onRowClick={() => {}} 
-        />
-        
-        <h3 style={{marginTop: '20px'}}>Tasks</h3>
-        <EntityTable 
-          columns={[{key:'title', label:'Title'}, {key:'type', label:'Type'}, {key:'description', label:'Description'}]} 
-          data={tasksData} 
-          onRowClick={() => {}} 
-        />
-      </div>
-    );
+  const handleUpdateObservation = (observationIndex: number, updates: Partial<Observation>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(updateObservation(activeResultSetIndex, observationIndex, updates));
+    }
   };
 
-  const renderAssessmentLog = (rs) => {
-    const entriesData = (rs['assessment-log']?.entries || []).map(e => ({
-      ...e,
-      id: e.uuid,
-      startStr: e.start ? new Date(e.start).toLocaleString() : '',
-      endStr: e.end ? new Date(e.end).toLocaleString() : '',
-      loggedByStr: (e['logged-by'] || []).map(l => l['role-id'] || l['party-uuid']).join(', ')
-    }));
-
-    return (
-      <div className={styles['entity-section']}>
-        <EntityTable 
-          columns={[
-            {key:'title', label:'Title'},
-            {key:'startStr', label:'Start'},
-            {key:'endStr', label:'End'},
-            {key:'loggedByStr', label:'Logged By'}
-          ]}
-          data={entriesData}
-          onRowClick={() => {}}
-        />
-      </div>
-    );
+  const handleRemoveObservation = (observationIndex: number) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(removeObservation(activeResultSetIndex, observationIndex));
+    }
   };
 
-  const renderAttestations = (rs) => {
-    const attestationsData = (rs.attestations || []).map((a, i) => ({
-      ...a,
-      id: a.uuid || `attestation-${i}`,
-      partiesStr: (a['responsible-parties'] || []).map(p => p['role-id']).join(', '),
-      partsStr: (a.parts || []).map(p => p.name).join(', ')
-    }));
-
-    return (
-      <div className={styles['entity-section']}>
-        <EntityTable 
-          columns={[
-            {key:'partiesStr', label:'Responsible Parties'},
-            {key:'partsStr', label:'Parts'}
-          ]}
-          data={attestationsData}
-          onRowClick={() => {}}
-        />
-      </div>
-    );
+  // Findings handlers
+  const handleAddFinding = (finding?: Partial<Finding>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(addFinding(activeResultSetIndex, finding));
+    }
   };
 
-  const renderObservations = (rs) => {
-    const columns = [
-      { key: 'title', label: 'Title' },
-      { key: 'methods', label: 'Methods', render: (val) => (val || []).map(m => <StatusBadge key={m} status={m} category="generic" />) },
-      { key: 'types', label: 'Types', render: (val) => (val || []).join(', ') },
-      { key: 'collected', label: 'Collected', render: (val) => val ? new Date(val).toLocaleDateString() : '' },
-      { key: 'subjects', label: 'Subjects', render: (_, obs) => (obs.subjects || []).length }
-    ];
-
-    return (
-      <div className={styles['entity-section']}>
-        <EntityTable 
-          columns={columns} 
-          data={rs.observations || []} 
-          onRowClick={(obs) => setActiveObservation(obs)} 
-        />
-        <EntityDetailPanel 
-          isOpen={!!activeObservation} 
-          onClose={() => setActiveObservation(null)} 
-          title="Observation Details"
-        >
-          {activeObservation && (
-            <div className={styles['editor-form']}>
-              <div className={styles['form-group']}>
-                <label>Title</label>
-                <input type="text" value={activeObservation.title || ''} disabled={!isEditing} onChange={()=>{}} />
-              </div>
-              <div className={styles['form-group']}>
-                <label>Description</label>
-                <textarea value={activeObservation.description || ''} disabled={!isEditing} onChange={()=>{}} />
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Classification</h4>
-                <div className={styles['form-group']}>
-                  <label>Methods</label>
-                  <div className={styles['checkbox-group']}>
-                    {['EXAMINE', 'INTERVIEW', 'TEST'].map(m => (
-                      <label key={m}><input type="checkbox" checked={(activeObservation.methods || []).includes(m)} disabled={!isEditing} onChange={()=>{}} /> {m}</label>
-                    ))}
-                  </div>
-                </div>
-                <div className={styles['form-group']}>
-                  <label>Types</label>
-                  <input type="text" placeholder="finding, historic, observation..." value={(activeObservation.types || []).join(', ')} disabled={!isEditing} onChange={()=>{}} />
-                </div>
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Timing</h4>
-                <div className={styles['form-row']}>
-                  <div className={styles['form-group']}>
-                    <label>Collected</label>
-                    <input type="datetime-local" value={(activeObservation.collected || '').slice(0, 16)} disabled={!isEditing} onChange={()=>{}} />
-                  </div>
-                  <div className={styles['form-group']}>
-                    <label>Expires (Optional)</label>
-                    <input type="datetime-local" value={(activeObservation.expires || '').slice(0, 16)} disabled={!isEditing} onChange={()=>{}} />
-                  </div>
-                </div>
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Subjects</h4>
-                {(activeObservation.subjects || []).map((sub, i) => (
-                  <div key={i} className={styles['form-row']}>
-                    <input type="text" value={sub['subject-uuid'] || ''} placeholder="Subject UUID" disabled={!isEditing} />
-                    <select value={sub.type || ''} disabled={!isEditing}>
-                      <option value="component">Component</option>
-                      <option value="inventory-item">Inventory Item</option>
-                      <option value="location">Location</option>
-                      <option value="party">Party</option>
-                      <option value="user">User</option>
-                    </select>
-                  </div>
-                ))}
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Relevant Evidence</h4>
-                <RelevantEvidenceEditor 
-                  value={activeObservation['relevant-evidence'] || []} 
-                  isEditing={isEditing} 
-                  onChange={newEv => updateObservationField('relevant-evidence', newEv)} 
-                />
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Origins</h4>
-                <OriginsEditor 
-                  value={activeObservation.origins || []} 
-                  isEditing={isEditing} 
-                  onChange={newOrigins => updateObservationField('origins', newOrigins)} 
-                />
-              </div>
-              <PropsEditor properties={activeObservation.props || []} isEditing={isEditing} onChange={()=>{}} />
-              <LinksEditor links={activeObservation.links || []} isEditing={isEditing} onChange={()=>{}} />
-            </div>
-          )}
-        </EntityDetailPanel>
-      </div>
-    );
+  const handleUpdateFinding = (findingIndex: number, updates: Partial<Finding>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(updateFinding(activeResultSetIndex, findingIndex, updates));
+    }
   };
 
-  const renderFindings = (rs) => {
-    const columns = [
-      { key: 'title', label: 'Title' },
-      { key: 'target', label: 'Target', render: (_, f) => f.target?.['target-id'] },
-      { key: 'status', label: 'Status', render: (_, f) => <StatusBadge status={f.target?.status?.state} category="finding-status" /> },
-      { key: 'relations', label: 'Relations', render: (_, f) => `Obs: ${(f['related-observations'] || []).length} / Risks: ${(f['related-risks'] || []).length}` }
-    ];
-
-    return (
-      <div className={styles['entity-section']}>
-        <EntityTable 
-          columns={columns} 
-          data={rs.findings || []} 
-          onRowClick={(f) => setActiveFinding(f)} 
-        />
-        <EntityDetailPanel 
-          isOpen={!!activeFinding} 
-          onClose={() => setActiveFinding(null)} 
-          title="Finding Details"
-        >
-          {activeFinding && (
-            <div className={styles['editor-form']}>
-              <div className={styles['form-group']}>
-                <label>Title</label>
-                <input type="text" value={activeFinding.title || ''} disabled={!isEditing} onChange={()=>{}} />
-              </div>
-              <div className={styles['form-group']}>
-                <label>Description</label>
-                <textarea value={activeFinding.description || ''} disabled={!isEditing} onChange={()=>{}} />
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Target</h4>
-                <div className={styles['form-row']}>
-                  <div className={styles['form-group']}>
-                    <label>Target Type</label>
-                    <select value={activeFinding.target?.type || ''} disabled={!isEditing} onChange={()=>{}}>
-                      <option value="objective-id">Objective ID</option>
-                      <option value="statement-id">Statement ID</option>
-                    </select>
-                  </div>
-                  <div className={styles['form-group']}>
-                    <label>Target ID</label>
-                    <input type="text" value={activeFinding.target?.['target-id'] || ''} disabled={!isEditing} onChange={()=>{}} />
-                  </div>
-                </div>
-                <div className={styles['form-row']}>
-                  <div className={styles['form-group']}>
-                    <label>Status State</label>
-                    <select value={activeFinding.target?.status?.state || ''} disabled={!isEditing} onChange={()=>{}}>
-                      <option value="satisfied">Satisfied</option>
-                      <option value="not-satisfied">Not Satisfied</option>
-                    </select>
-                  </div>
-                  <div className={styles['form-group']}>
-                    <label>Implementation Status</label>
-                    <select value={activeFinding.target?.['implementation-status']?.state || ''} disabled={!isEditing} onChange={()=>{}}>
-                      <option value="implemented">Implemented</option>
-                      <option value="partial">Partial</option>
-                      <option value="planned">Planned</option>
-                      <option value="alternative">Alternative</option>
-                      <option value="not-applicable">Not Applicable</option>
-                    </select>
-                  </div>
-                </div>
-                <div className={styles['form-group']}>
-                  <label>Status Reason (Optional)</label>
-                  <input type="text" value={activeFinding.target?.status?.reason || ''} disabled={!isEditing} onChange={()=>{}} />
-                </div>
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Relations</h4>
-                <div className={styles['form-group']}>
-                  <label>Related Observations</label>
-                  <select multiple value={(activeFinding['related-observations'] || []).map(r => r['observation-uuid'])} disabled={!isEditing} onChange={()=>{}}>
-                    {(rs.observations || []).map(obs => (
-                      <option key={obs.uuid} value={obs.uuid}>{obs.title || obs.uuid}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles['form-group']}>
-                  <label>Related Risks</label>
-                  <select multiple value={(activeFinding['related-risks'] || []).map(r => r['risk-uuid'])} disabled={!isEditing} onChange={()=>{}}>
-                    {(rs.risks || []).map(risk => (
-                      <option key={risk.uuid} value={risk.uuid}>{risk.title || risk.uuid}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <PropsEditor properties={activeFinding.props || []} isEditing={isEditing} onChange={()=>{}} />
-            </div>
-          )}
-        </EntityDetailPanel>
-      </div>
-    );
+  const handleRemoveFinding = (findingIndex: number) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(removeFinding(activeResultSetIndex, findingIndex));
+    }
   };
 
-  const renderRisks = (rs) => {
-    const columns = [
-      { key: 'title', label: 'Title' },
-      { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} category="risk-status" /> },
-      { key: 'severity', label: 'Severity', render: (_, r) => {
-          const char = (r.characterizations || [])[0];
-          const facet = (char?.facets || []).find(f => f.name === 'likelihood' || f.name === 'impact');
-          return facet?.value || 'N/A';
-      }},
-      { key: 'remediations', label: 'Remediations', render: (_, r) => (r.remediations || []).length }
-    ];
+  // Risks handlers
+  const handleAddRisk = (risk?: Partial<Risk>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(addRisk(activeResultSetIndex, risk));
+    }
+  };
 
+  const handleUpdateRisk = (riskIndex: number, updates: Partial<Risk>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(updateRisk(activeResultSetIndex, riskIndex, updates));
+    }
+  };
+
+  const handleRemoveRisk = (riskIndex: number) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(removeRisk(activeResultSetIndex, riskIndex));
+    }
+  };
+
+  // Assessment Log & Attestations handlers
+  const handleAddLogEntry = (entry?: Partial<AssessmentLogEntry>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(addAssessmentLogEntry(activeResultSetIndex, entry));
+    }
+  };
+
+  const handleUpdateLogEntry = (entryIndex: number, updates: Partial<AssessmentLogEntry>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(updateAssessmentLogEntry(activeResultSetIndex, entryIndex, updates));
+    }
+  };
+
+  const handleRemoveLogEntry = (entryIndex: number) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(removeAssessmentLogEntry(activeResultSetIndex, entryIndex));
+    }
+  };
+
+  const handleAddAttestation = (att?: Partial<Attestation>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(addAttestation(activeResultSetIndex, att));
+    }
+  };
+
+  const handleUpdateAttestation = (index: number, updates: Partial<Attestation>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(updateAttestation(activeResultSetIndex, index, updates));
+    }
+  };
+
+  const handleRemoveAttestation = (index: number) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(removeAttestation(activeResultSetIndex, index));
+    }
+  };
+
+  // Local Definitions handlers
+  const handleAddLocalComponent = (comp: Partial<SystemComponent>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(addResultLocalComponent(activeResultSetIndex, comp as any));
+    }
+  };
+
+  const handleAddLocalUser = (u: Partial<SystemUser>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(addResultLocalUser(activeResultSetIndex, u as any));
+    }
+  };
+
+  const handleAddLocalTask = (t: Partial<Task>) => {
+    if (activeResultSetIndex >= 0) {
+      dispatch(addResultLocalTask(activeResultSetIndex, t as any));
+    }
+  };
+
+  if (loading && !rawDoc) {
+    return <LoadingSpinner variant="skeleton" message="Loading Assessment Results..." />;
+  }
+
+  if (error) {
     return (
-      <div className={styles['entity-section']}>
-        <EntityTable 
-          columns={columns} 
-          data={rs.risks || []} 
-          onRowClick={(r) => setActiveRisk(r)} 
-        />
-        <EntityDetailPanel 
-          isOpen={!!activeRisk} 
-          onClose={() => setActiveRisk(null)} 
-          title="Risk Details"
-        >
-          {activeRisk && (
-            <div className={styles['editor-form']}>
-              <div className={styles['form-group']}>
-                <label>Title</label>
-                <input type="text" value={activeRisk.title || ''} disabled={!isEditing} onChange={()=>{}} />
-              </div>
-              <div className={styles['form-group']}>
-                <label>Description</label>
-                <textarea value={activeRisk.description || ''} disabled={!isEditing} onChange={()=>{}} />
-              </div>
-              <div className={styles['form-row']}>
-                <div className={styles['form-group']}>
-                  <label>Status</label>
-                  <select value={activeRisk.status || ''} disabled={!isEditing} onChange={()=>{}}>
-                    <option value="open">Open</option>
-                    <option value="investigating">Investigating</option>
-                    <option value="remediating">Remediating</option>
-                    <option value="deviation-requested">Deviation Requested</option>
-                    <option value="deviation-approved">Deviation Approved</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                </div>
-              </div>
-              <div className={styles['form-group']}>
-                <label>Statement</label>
-                <textarea value={activeRisk.statement || ''} disabled={!isEditing} onChange={()=>{}} />
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Characterizations</h4>
-                <CharacterizationsEditor 
-                  value={activeRisk.characterizations || []} 
-                  isEditing={isEditing} 
-                  onChange={newChars => updateRiskField('characterizations', newChars)} 
-                />
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Mitigating Factors</h4>
-                {(activeRisk['mitigating-factors'] || []).map((mf, i) => (
-                  <div key={i} className={styles['form-group']}>
-                    <input type="text" value={mf.uuid || ''} placeholder="UUID" disabled={!isEditing} />
-                    <textarea value={mf.description || ''} placeholder="Description" disabled={!isEditing} />
-                    <input type="text" value={mf['implementation-uuid'] || ''} placeholder="Implementation UUID" disabled={!isEditing} />
-                  </div>
-                ))}
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Risk Log</h4>
-                <RiskLogEditor 
-                  value={activeRisk['risk-log'] || { entries: [] }} 
-                  isEditMode={isEditing} 
-                  onChange={newLog => updateRiskField('risk-log', newLog)} 
-                />
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Remediations</h4>
-                <RemediationsEditor 
-                  value={activeRisk.remediations || []} 
-                  isEditMode={isEditing} 
-                  onChange={newRems => updateRiskField('remediations', newRems)} 
-                />
-              </div>
-              <div className={styles['form-section']}>
-                <h4>Threat IDs</h4>
-                {(activeRisk['threat-ids'] || []).map((threat, i) => (
-                  <div key={i} className={styles['form-row']}>
-                    <input type="text" value={threat.system || ''} placeholder="System URI" disabled={!isEditing} />
-                    <input type="text" value={threat.id || ''} placeholder="ID" disabled={!isEditing} />
-                    <input type="text" value={threat.href || ''} placeholder="HREF" disabled={!isEditing} />
-                  </div>
-                ))}
-              </div>
-              <PropsEditor properties={activeRisk.props || []} isEditing={isEditing} onChange={()=>{}} />
-            </div>
-          )}
-        </EntityDetailPanel>
+      <div className="p-8 text-center text-red-500 font-medium">
+        Error loading assessment results: {typeof error === 'string' ? error : (error as any)?.message || String(error)}
       </div>
     );
-  };
+  }
+
+  if (!ar) {
+    return null;
+  }
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'results', label: 'Result Sets' },
     { id: 'metadata', label: 'Metadata' },
-    { id: 'json', label: 'JSON Source' }
+    { id: 'json', label: 'JSON Source' },
   ];
 
   return (
@@ -700,43 +314,260 @@ export function ARPage({ arId = '', initialEditMode = false, onClose }: ARPagePr
       title={metadata.title || 'Untitled Assessment Result'}
       tabs={tabs}
       activeTab={activeTab}
-      onTabChange={(newTab) => {
-        if (activeTab === 'json' && newTab !== 'json') {
-          const entityId = jsonEditorRef.current?.getCursorEntityId?.();
-          if (entityId) {
-            const ar = activeDoc?.['assessment-results'];
-            for (const rs of ar?.results || []) {
-              const obs = rs.observations?.find((o: any) => o.uuid === entityId);
-              if (obs) { setActiveObservation(obs); break; }
-              const finding = rs.findings?.find((f: any) => f.uuid === entityId);
-              if (finding) { setActiveFinding(finding); break; }
-              const risk = rs.risks?.find((r: any) => r.uuid === entityId);
-              if (risk) { setActiveRisk(risk); break; }
-            }
-          }
-        }
-        setActiveTab(newTab);
-      }}
+      onTabChange={(newTab) => setActiveTab(newTab)}
       onClose={onClose}
+      onSave={handleSave}
     >
       <div className={styles['ar-content']}>
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'results' && renderResultSets()}
+        {/* 1. Overview & Metadata Tab */}
+        {activeTab === 'overview' && (
+          <OverviewMetadataTab
+            ar={ar}
+            isEditing={isEditing}
+            onUpdateImportAP={handleUpdateImportAP}
+            onUpdateBackMatter={handleUpdateBackMatter}
+          />
+        )}
+
+        {/* 2. Result Sets Coordinator Tab */}
+        {activeTab === 'results' && (
+          <div className={styles['ar-result-sets']}>
+            <ResultSetsSidebar
+              results={results}
+              activeResultSetId={activeResultSetId}
+              onSelectResultSet={(id) => {
+                setActiveResultSetId(id);
+              }}
+              onAddResultSet={handleAddResultSet}
+              isEditing={isEditing}
+            />
+
+            <div className={styles['result-set-content']}>
+              {activeResultSet ? (
+                <>
+                  {/* Result Set Sub-Tabs */}
+                  <div className={styles['rs-tabs']}>
+                    <button
+                      type="button"
+                      className={resultSetTab === 'details' ? styles['active'] : ''}
+                      onClick={() => setResultSetTab('details')}
+                    >
+                      Result Set Details
+                    </button>
+                    <button
+                      type="button"
+                      className={resultSetTab === 'observations' ? styles['active'] : ''}
+                      onClick={() => setResultSetTab('observations')}
+                    >
+                      Observations ({(activeResultSet.observations || []).length})
+                    </button>
+                    <button
+                      type="button"
+                      className={resultSetTab === 'findings' ? styles['active'] : ''}
+                      onClick={() => setResultSetTab('findings')}
+                    >
+                      Findings ({(activeResultSet.findings || []).length})
+                    </button>
+                    <button
+                      type="button"
+                      className={resultSetTab === 'risks' ? styles['active'] : ''}
+                      onClick={() => setResultSetTab('risks')}
+                    >
+                      Risks ({(activeResultSet.risks || []).length})
+                    </button>
+                    <button
+                      type="button"
+                      className={resultSetTab === 'assessment-log' ? styles['active'] : ''}
+                      onClick={() => setResultSetTab('assessment-log')}
+                    >
+                      Assessment Log
+                    </button>
+                    <button
+                      type="button"
+                      className={resultSetTab === 'attestations' ? styles['active'] : ''}
+                      onClick={() => setResultSetTab('attestations')}
+                    >
+                      Attestations
+                    </button>
+                    <button
+                      type="button"
+                      className={resultSetTab === 'local-definitions' ? styles['active'] : ''}
+                      onClick={() => setResultSetTab('local-definitions')}
+                    >
+                      Local Definitions
+                    </button>
+                  </div>
+
+                  {/* Subtab Body */}
+                  <div className={styles['rs-tab-content']}>
+                    {resultSetTab === 'details' && (
+                      <div className={styles['rs-editor-header']}>
+                        <div className={styles['form-group']}>
+                          <label htmlFor="rs-title">Title</label>
+                          <input
+                            id="rs-title"
+                            type="text"
+                            value={activeResultSet.title || ''}
+                            disabled={!isEditing}
+                            onChange={(e) =>
+                              handleUpdateActiveResultSet({ title: e.target.value })
+                            }
+                            placeholder="Result Set Title"
+                          />
+                        </div>
+
+                        <div className={styles['form-row']}>
+                          <div className={styles['form-group']}>
+                            <label htmlFor="rs-start">Start</label>
+                            <input
+                              id="rs-start"
+                              type="datetime-local"
+                              value={(activeResultSet.start || '').slice(0, 16)}
+                              disabled={!isEditing}
+                              onChange={(e) => {
+                                const d = new Date(e.target.value);
+                                handleUpdateActiveResultSet({
+                                  start: !isNaN(d.getTime()) ? d.toISOString() : e.target.value,
+                                });
+                              }}
+                            />
+                          </div>
+
+                          <div className={styles['form-group']}>
+                            <label htmlFor="rs-end">End</label>
+                            <input
+                              id="rs-end"
+                              type="datetime-local"
+                              value={(activeResultSet.end || '').slice(0, 16)}
+                              disabled={!isEditing}
+                              onChange={(e) => {
+                                const d = new Date(e.target.value);
+                                handleUpdateActiveResultSet({
+                                  end: e.target.value && !isNaN(d.getTime()) ? d.toISOString() : undefined,
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className={styles['form-group']}>
+                          <label htmlFor="rs-desc">Description</label>
+                          <textarea
+                            id="rs-desc"
+                            rows={3}
+                            value={activeResultSet.description || ''}
+                            disabled={!isEditing}
+                            onChange={(e) =>
+                              handleUpdateActiveResultSet({ description: e.target.value })
+                            }
+                            placeholder="Execution scope and parameters description..."
+                          />
+                        </div>
+
+                        {isEditing && results.length > 0 && (
+                          <div>
+                            <button
+                              type="button"
+                              className={styles['btn-danger']}
+                              onClick={() => handleRemoveActiveResultSet(activeResultSet.uuid)}
+                            >
+                              Delete Result Set
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {resultSetTab === 'observations' && (
+                      <ObservationsEvidenceTab
+                        resultSet={activeResultSet}
+                        resultIndex={activeResultSetIndex}
+                        isEditing={isEditing}
+                        onAddObservation={handleAddObservation}
+                        onUpdateObservation={handleUpdateObservation}
+                        onRemoveObservation={handleRemoveObservation}
+                      />
+                    )}
+
+                    {resultSetTab === 'findings' && (
+                      <AssessmentFindingsTab
+                        resultSet={activeResultSet}
+                        resultIndex={activeResultSetIndex}
+                        isEditing={isEditing}
+                        onAddFinding={handleAddFinding}
+                        onUpdateFinding={handleUpdateFinding}
+                        onRemoveFinding={handleRemoveFinding}
+                      />
+                    )}
+
+                    {resultSetTab === 'risks' && (
+                      <IdentifiedRisksTab
+                        resultSet={activeResultSet}
+                        resultIndex={activeResultSetIndex}
+                        isEditing={isEditing}
+                        onAddRisk={handleAddRisk}
+                        onUpdateRisk={handleUpdateRisk}
+                        onRemoveRisk={handleRemoveRisk}
+                      />
+                    )}
+
+                    {(resultSetTab === 'assessment-log' ||
+                      resultSetTab === 'attestations' ||
+                      resultSetTab === 'local-definitions') && (
+                      <AssessmentLogTab
+                        resultSet={activeResultSet}
+                        resultIndex={activeResultSetIndex}
+                        isEditing={isEditing}
+                        onAddLogEntry={handleAddLogEntry}
+                        onUpdateLogEntry={handleUpdateLogEntry}
+                        onRemoveLogEntry={handleRemoveLogEntry}
+                        onAddAttestation={handleAddAttestation}
+                        onUpdateAttestation={handleUpdateAttestation}
+                        onRemoveAttestation={handleRemoveAttestation}
+                        onAddLocalComponent={handleAddLocalComponent}
+                        onAddLocalUser={handleAddLocalUser}
+                        onAddLocalTask={handleAddLocalTask}
+                      />
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className={styles['empty-hint']}>
+                  No Result Sets defined. Click &quot;+ New&quot; in the sidebar to declare an assessment result set.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Metadata Tab */}
         {activeTab === 'metadata' && (
           <div className={styles['ar-metadata']}>
-            <StandardMetadataTab 
-              document={activeDoc['assessment-results'] as any} 
+            <StandardMetadataTab
+              document={ar as any}
+              isEditing={isEditing}
               onChange={(updated) => {
-                const newDoc: any = { ...activeDoc };
-                newDoc['assessment-results'] = updated;
-                setDoc(newDoc);
-                pushUndoRedoState(newDoc);
-              }} 
+                if (updated.metadata) {
+                  dispatch(setAssessmentResultsMetadata(updated.metadata));
+                } else {
+                  dispatch(replaceAssessmentResults(updated));
+                }
+              }}
             />
           </div>
         )}
+
+        {/* 4. JSON Source Tab */}
         {activeTab === 'json' && (
-          <JsonEditor ref={jsonEditorRef} value={activeDoc} readOnly={!isEditing} onChange={(newDoc) => { setDoc(newDoc); pushUndoRedoState(newDoc); }} highlightId={activeObservation?.uuid || activeFinding?.uuid || activeRisk?.uuid || activeResultSetId || null} />
+          <JsonEditor
+            ref={jsonEditorRef}
+            value={rawDoc}
+            readOnly={!isEditing}
+            onChange={(newDoc) => {
+              const newAr = (newDoc as any)?.['assessment-results'] || newDoc;
+              dispatch(replaceAssessmentResults(newAr));
+            }}
+          />
         )}
       </div>
     </DocumentPageLayout>

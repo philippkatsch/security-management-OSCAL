@@ -201,6 +201,25 @@ def write_component_fixture(tmp_data_dir, comp_uuid):
     return path
 
 
+def write_ap_fixture(tmp_data_dir, ap_uuid):
+    ap_dir = os.path.join(tmp_data_dir, "assessment-plans")
+    os.makedirs(ap_dir, exist_ok=True)
+    ap_doc = {
+        "assessment-plan": {
+            "uuid": ap_uuid,
+            "metadata": make_valid_metadata(),
+            "import-ssp": {"href": "#target-ssp"},
+            "reviewed-controls": {
+                "control-selections": [{"include-all": {}}]
+            }
+        }
+    }
+    path = os.path.join(ap_dir, f"{ap_uuid}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(ap_doc, f)
+    return path
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # validate_document - basic and schema validation tests
 # ─────────────────────────────────────────────────────────────────────────────
@@ -449,4 +468,174 @@ class TestProfileAdvancedTailoringValidation:
         }
         with pytest.raises(ValidationError, match="is valid under each of"):
             await validate_document("profiles", profile_doc)
+
+
+class TestARIntegrityValidation:
+    def _make_valid_ar(self, ap_uuid=None, obs_uuid=None, risk_uuid=None, finding_uuid=None, target_state="satisfied"):
+        doc_uuid = str(uuid.uuid4())
+        ap_id = ap_uuid or str(uuid.uuid4())
+        o_uuid = obs_uuid or str(uuid.uuid4())
+        r_uuid = risk_uuid or str(uuid.uuid4())
+        f_uuid = finding_uuid or str(uuid.uuid4())
+        return {
+            "assessment-results": {
+                "uuid": doc_uuid,
+                "metadata": make_valid_metadata(),
+                "import-ap": {
+                    "href": f"../assessment-plans/{ap_id}.json"
+                },
+                "results": [
+                    {
+                        "uuid": str(uuid.uuid4()),
+                        "title": "Quarterly Evaluation Results",
+                        "description": "Comprehensive security assessment results",
+                        "start": "2026-08-01T00:00:00Z",
+                        "reviewed-controls": {
+                            "control-selections": [{"include-all": {}}]
+                        },
+                        "observations": [
+                            {
+                                "uuid": o_uuid,
+                                "description": "Port 22 is open on bastion host",
+                                "methods": ["examine"],
+                                "collected": "2026-08-01T12:00:00Z"
+                            }
+                        ],
+                        "risks": [
+                            {
+                                "uuid": r_uuid,
+                                "title": "Unauthorized SSH Access Risk",
+                                "description": "SSH access exposed to public internet",
+                                "statement": "Permitting arbitrary inbound connections to port 22 increases compromise risk.",
+                                "status": "open",
+                                "related-observations": [{"observation-uuid": o_uuid}]
+                            }
+                        ],
+                        "findings": [
+                            {
+                                "uuid": f_uuid,
+                                "title": "AC-1 Non-Compliance Determination",
+                                "description": "Access control policy not enforced",
+                                "target": {
+                                    "type": "statement-id",
+                                    "target-id": "ac-1_smt",
+                                    "status": {"state": target_state}
+                                },
+                                "related-observations": [{"observation-uuid": o_uuid}],
+                                "related-risks": [{"risk-uuid": r_uuid}]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+    @pytest.mark.asyncio
+    async def test_valid_ar_passes(self, isolated_data_dir):
+        ap_uuid = str(uuid.uuid4())
+        write_ap_fixture(isolated_data_dir, ap_uuid)
+        doc = self._make_valid_ar(ap_uuid=ap_uuid)
+        await validate_document("assessment-results", doc)
+
+    @pytest.mark.asyncio
+    async def test_valid_ar_fragment_href_passes(self):
+        doc = self._make_valid_ar()
+        doc["assessment-results"]["import-ap"]["href"] = f"#{uuid.uuid4()}"
+        await validate_document("assessment-results", doc)
+
+    @pytest.mark.asyncio
+    async def test_missing_root_fields_fails(self):
+        # Missing import-ap
+        doc = self._make_valid_ar()
+        del doc["assessment-results"]["import-ap"]
+        with pytest.raises(ValidationError, match="Missing required field: 'import-ap'"):
+            await validate_document("assessment-results", doc)
+
+        # Missing results
+        doc2 = self._make_valid_ar()
+        del doc2["assessment-results"]["results"]
+        with pytest.raises(ValidationError, match="Missing required field: 'results'"):
+            await validate_document("assessment-results", doc2)
+
+        # Missing metadata
+        doc3 = self._make_valid_ar()
+        del doc3["assessment-results"]["metadata"]
+        with pytest.raises(ValidationError, match="Missing required field: 'metadata'"):
+            await validate_document("assessment-results", doc3)
+
+        # Missing uuid
+        doc4 = self._make_valid_ar()
+        del doc4["assessment-results"]["uuid"]
+        with pytest.raises(ValidationError, match="Missing required field: 'uuid'"):
+            await validate_document("assessment-results", doc4)
+
+    @pytest.mark.asyncio
+    async def test_nonexistent_ap_href_fails(self, isolated_data_dir):
+        missing_ap_uuid = str(uuid.uuid4())
+        doc = self._make_valid_ar(ap_uuid=missing_ap_uuid)
+        with pytest.raises(ValidationError, match="Referenced Assessment Plan.*does not exist"):
+            await validate_document("assessment-results", doc)
+
+    @pytest.mark.asyncio
+    async def test_dangling_observation_uuid_in_finding_fails(self, isolated_data_dir):
+        ap_uuid = str(uuid.uuid4())
+        write_ap_fixture(isolated_data_dir, ap_uuid)
+        dangling_obs = str(uuid.uuid4())
+        doc = self._make_valid_ar(ap_uuid=ap_uuid)
+        doc["assessment-results"]["results"][0]["findings"][0]["related-observations"] = [
+            {"observation-uuid": dangling_obs}
+        ]
+        with pytest.raises(ValidationError, match=f"Dangling observation reference: '{dangling_obs}' not found"):
+            await validate_document("assessment-results", doc)
+
+    @pytest.mark.asyncio
+    async def test_dangling_risk_uuid_in_finding_fails(self, isolated_data_dir):
+        ap_uuid = str(uuid.uuid4())
+        write_ap_fixture(isolated_data_dir, ap_uuid)
+        dangling_risk = str(uuid.uuid4())
+        doc = self._make_valid_ar(ap_uuid=ap_uuid)
+        doc["assessment-results"]["results"][0]["findings"][0]["related-risks"] = [
+            {"risk-uuid": dangling_risk}
+        ]
+        with pytest.raises(ValidationError, match=f"Dangling risk reference: '{dangling_risk}' not found"):
+            await validate_document("assessment-results", doc)
+
+    @pytest.mark.asyncio
+    async def test_dangling_observation_uuid_in_risk_fails(self, isolated_data_dir):
+        ap_uuid = str(uuid.uuid4())
+        write_ap_fixture(isolated_data_dir, ap_uuid)
+        dangling_obs = str(uuid.uuid4())
+        doc = self._make_valid_ar(ap_uuid=ap_uuid)
+        doc["assessment-results"]["results"][0]["risks"][0]["related-observations"] = [
+            {"observation-uuid": dangling_obs}
+        ]
+        with pytest.raises(ValidationError, match=f"Dangling observation reference in risk: '{dangling_obs}' not found"):
+            await validate_document("assessment-results", doc)
+
+    @pytest.mark.asyncio
+    async def test_invalid_target_type_fails(self, isolated_data_dir):
+        ap_uuid = str(uuid.uuid4())
+        write_ap_fixture(isolated_data_dir, ap_uuid)
+        doc = self._make_valid_ar(ap_uuid=ap_uuid)
+        doc["assessment-results"]["results"][0]["findings"][0]["target"]["type"] = "invalid-type"
+        with pytest.raises(ValidationError, match="Invalid finding target type 'invalid-type'"):
+            await validate_document("assessment-results", doc)
+
+    @pytest.mark.asyncio
+    async def test_invalid_target_status_state_fails(self, isolated_data_dir):
+        ap_uuid = str(uuid.uuid4())
+        write_ap_fixture(isolated_data_dir, ap_uuid)
+        doc = self._make_valid_ar(ap_uuid=ap_uuid)
+        doc["assessment-results"]["results"][0]["findings"][0]["target"]["status"]["state"] = "unknown-state"
+        with pytest.raises(ValidationError, match="Invalid finding target status state 'unknown-state'"):
+            await validate_document("assessment-results", doc)
+
+    @pytest.mark.asyncio
+    async def test_duplicate_entity_uuid_fails(self, isolated_data_dir):
+        ap_uuid = str(uuid.uuid4())
+        write_ap_fixture(isolated_data_dir, ap_uuid)
+        shared_uuid = str(uuid.uuid4())
+        doc = self._make_valid_ar(ap_uuid=ap_uuid, obs_uuid=shared_uuid, risk_uuid=shared_uuid)
+        with pytest.raises(ValidationError, match="Duplicate"):
+            await validate_document("assessment-results", doc)
 

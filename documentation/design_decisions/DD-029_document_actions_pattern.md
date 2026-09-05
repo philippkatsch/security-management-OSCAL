@@ -17,6 +17,7 @@ We established the **Document Actions Pattern**. All mutations to OSCAL document
 Action logic is strictly separated by domain into specific modules:
 - `catalog-actions.ts`: Actions for modifying groups, controls, and parameters.
 - `ssp-actions.ts`: Actions for system characteristics, components, and implemented requirements.
+- `assessment-plan-actions.ts`: Actions for reviewed controls, assessment subjects, assets, platforms, local definitions, tasks, dependencies, timing, terms & conditions, and back-matter (see [DD-037](DD-037_assessment_plan_architecture_and_scoping_model.md)).
 - `poam-actions.ts`: Actions for POA&M items.
 - `metadata-actions.ts`: Shared actions for document metadata (roles, parties, versions, props).
 

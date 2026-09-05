@@ -5,4 +5,8 @@ export * from './catalog-actions';
 export * from './profile-actions';
 export * from './component-definition-actions';
 export * from './ssp-actions';
+export { removeImplementedRequirement } from './ssp-actions';
+export { removeImplementedRequirement as removeComponentImplementedRequirement } from './component-definition-actions';
+export * from './assessment-plan-actions';
+export * from './assessment-results-actions';
 export * from './poam-actions';

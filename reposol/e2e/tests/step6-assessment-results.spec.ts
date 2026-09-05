@@ -31,21 +31,13 @@ test.describe('Step 6 Assessment Results — Extended Coverage', () => {
   test('UC-6.5: Assessment Log - Add log entry', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
     const resultSetId = randomUUID();
-    const arId = await apiSetup.createDocument('assessment-results', {
-      'assessment-results': {
-        uuid: randomUUID(),
-        metadata: { title: 'Test AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
-        'import-ap': { href: `ap-1` },
-        results: [{
-          uuid: resultSetId,
-          title: 'Result Set 1',
-          description: 'Desc',
-          start: '2026-08-13T10:00:00Z',
-          'assessment-log': {
-            entries: []
-          }
-        }]
-      }
+    const arId = await apiSetup.createAssessmentResults({
+      results: [{
+        uuid: resultSetId,
+        title: 'Result Set 1',
+        description: 'Result Set 1 Description',
+        start: '2026-08-13T10:00:00Z',
+      }]
     });
 
     await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
@@ -65,24 +57,20 @@ test.describe('Step 6 Assessment Results — Extended Coverage', () => {
 
   test('UC-6.8: Risk Remediation Planning - Create remediation', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    const arId = await apiSetup.createDocument('assessment-results', {
-      'assessment-results': {
-        uuid: randomUUID(),
-        metadata: { title: 'Test AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
-        'import-ap': { href: `ap-1` },
-        results: [{
-          uuid: randomUUID(),
-          title: 'Result Set 1',
-          description: 'Desc',
-          start: '2026-08-13T10:00:00Z',
-          risks: [{
-            uuid: randomUUID(),
-            title: 'Test Risk',
-            description: 'Risk description',
-            status: 'open'
-          }]
+    const riskId = randomUUID();
+    const arId = await apiSetup.createAssessmentResults({
+      results: [{
+        title: 'Result Set 1',
+        description: 'Result Set 1 Description',
+        start: '2026-08-13T10:00:00Z',
+        risks: [{
+          uuid: riskId,
+          title: 'Test Risk',
+          description: 'Risk description',
+          statement: 'Risk statement description',
+          status: 'open'
         }]
-      }
+      }]
     });
 
     await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
@@ -104,30 +92,27 @@ test.describe('Step 6 Assessment Results — Extended Coverage', () => {
     await page.getByLabel('Title').last().fill('Task 1');
     await page.getByLabel('Description').last().fill('Task description');
     
+    await page.getByRole('button', { name: 'Done' }).click();
     await page.getByTestId('save-btn').click();
     await expect(page.getByText('Saved successfully')).toBeVisible();
   });
 
   test('UC-6.9: Risk Log & Status Tracking - Add log entries', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    const arId = await apiSetup.createDocument('assessment-results', {
-      'assessment-results': {
-        uuid: randomUUID(),
-        metadata: { title: 'Test AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
-        'import-ap': { href: `ap-1` },
-        results: [{
-          uuid: randomUUID(),
-          title: 'Result Set 1',
-          description: 'Desc',
-          start: '2026-08-13T10:00:00Z',
-          risks: [{
-            uuid: randomUUID(),
-            title: 'Test Risk',
-            description: 'Risk description',
-            status: 'open'
-          }]
+    const riskId = randomUUID();
+    const arId = await apiSetup.createAssessmentResults({
+      results: [{
+        title: 'Result Set 1',
+        description: 'Result Set 1 Description',
+        start: '2026-08-13T10:00:00Z',
+        risks: [{
+          uuid: riskId,
+          title: 'Test Risk',
+          description: 'Risk description',
+          statement: 'Risk statement description',
+          status: 'open'
         }]
-      }
+      }]
     });
 
     await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
@@ -143,6 +128,7 @@ test.describe('Step 6 Assessment Results — Extended Coverage', () => {
     await page.getByLabel('Start').last().fill('2026-08-13T12:00');
     await page.getByLabel('Description').last().fill('Changing status to investigating');
     
+    await page.getByRole('button', { name: 'Done' }).click();
     await page.getByTestId('save-btn').click();
     await expect(page.getByText('Saved successfully')).toBeVisible();
   });
@@ -151,21 +137,27 @@ test.describe('Step 6 Assessment Results — Extended Coverage', () => {
     await apiSetup.syncWorkspace();
     const obsId = randomUUID();
     const riskId = randomUUID();
-    const arId = await apiSetup.createDocument('assessment-results', {
-      'assessment-results': {
-        uuid: randomUUID(),
-        metadata: { title: 'Test AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
-        'import-ap': { href: `ap-1` },
-        results: [{
-          uuid: randomUUID(),
-          title: 'Result Set 1',
-          description: 'Desc',
-          start: '2026-08-13T10:00:00Z',
-          observations: [{ uuid: obsId, title: 'Obs 1', description: 'desc', methods: ['EXAMINE'] }],
-          risks: [{ uuid: riskId, title: 'Risk 1', description: 'desc', status: 'open' }],
-          findings: []
-        }]
-      }
+    const arId = await apiSetup.createAssessmentResults({
+      results: [{
+        title: 'Result Set 1',
+        description: 'Result Set 1 Description',
+        start: '2026-08-13T10:00:00Z',
+        observations: [{
+          uuid: obsId,
+          title: 'Obs 1',
+          description: 'Observation description',
+          methods: ['EXAMINE'],
+          collected: '2026-08-13T10:00:00Z'
+        }],
+        risks: [{
+          uuid: riskId,
+          title: 'Risk 1',
+          description: 'Risk description',
+          statement: 'Risk statement description',
+          status: 'open'
+        }],
+        findings: []
+      }]
     });
 
     await page.goto(`/assessment-results/${arId}?edit=true&w=${apiSetup.workspaceId}`);
@@ -187,35 +179,22 @@ test.describe('Step 6 Assessment Results — Extended Coverage', () => {
     await page.getByLabel('Related Observations').selectOption(obsId);
     await page.getByLabel('Related Risks').selectOption(riskId);
 
+    await page.getByRole('button', { name: 'Done' }).click();
     await page.getByTestId('save-btn').click();
     await expect(page.getByText('Saved successfully')).toBeVisible();
   });
 
   test('UC-6.13: AR Table & Navigation - List view, search filter', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
-    await apiSetup.createDocument('assessment-results', {
-      'assessment-results': {
-        uuid: randomUUID(),
-        metadata: { title: 'Alpha AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
-        'import-ap': { href: `ap-1` },
-        results: []
-      }
-    });
-    await apiSetup.createDocument('assessment-results', {
-      'assessment-results': {
-        uuid: randomUUID(),
-        metadata: { title: 'Beta AR', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
-        'import-ap': { href: `ap-2` },
-        results: []
-      }
-    });
+    await apiSetup.createAssessmentResults({ title: 'Alpha AR' });
+    await apiSetup.createAssessmentResults({ title: 'Beta AR' });
 
     await page.goto(`/assessment-results?w=${apiSetup.workspaceId}`);
     
     await expect(page.getByText('Alpha AR')).toBeVisible();
     await expect(page.getByText('Beta AR')).toBeVisible();
 
-    await page.getByPlaceholder('Search...').fill('Alpha');
+    await page.getByPlaceholder(/search/i).fill('Alpha');
     await expect(page.getByText('Alpha AR')).toBeVisible();
     await expect(page.getByText('Beta AR')).not.toBeVisible();
   });
@@ -224,18 +203,13 @@ test.describe('Step 6 Assessment Results — Extended Coverage', () => {
     await apiSetup.syncWorkspace();
     const apId = await apiSetup.createAssessmentPlan();
     
-    const arId = await apiSetup.createDocument('assessment-results', {
-      'assessment-results': {
-        uuid: randomUUID(),
-        metadata: { title: 'Test AR for AP Context', 'last-modified': new Date().toISOString(), version: '1.0', oscal_version: '1.1.2' },
-        'import-ap': { href: `#${apId}` },
-        results: []
-      }
+    const arId = await apiSetup.createAssessmentResults(apId, {
+      title: 'Test AR for AP Context',
     });
 
     await page.goto(`/assessment-results/${arId}?w=${apiSetup.workspaceId}`);
     
-    await page.getByRole('button', { name: /Overview/i }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Overview' }).click();
     await expect(page.locator('text=' + apId)).toBeVisible();
   });
 });

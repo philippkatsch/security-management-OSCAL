@@ -79,9 +79,32 @@ def build_valid_poam(doc_id: str = None) -> Dict[str, Any]:
         }
     }
 
-def build_valid_ar(doc_id: str = None, results: list = None) -> Dict[str, Any]:
+def build_valid_ap(doc_id: str = None) -> Dict[str, Any]:
     if not doc_id:
         doc_id = generate_uuid()
+    return {
+        "assessment-plan": {
+            "uuid": doc_id,
+            "metadata": {
+                "title": "Prerequisite Assessment Plan",
+                "last-modified": "2026-08-13T00:00:00Z",
+                "version": "1.0.0",
+                "oscal-version": "1.2.2"
+            },
+            "import-ssp": {
+                "href": "https://example.com/ssps/target-ssp.json"
+            },
+            "reviewed-controls": {
+                "control-selections": [{"include-all": {}}]
+            }
+        }
+    }
+
+def build_valid_ar(doc_id: str = None, results: list = None, ap_id: str = None) -> Dict[str, Any]:
+    if not doc_id:
+        doc_id = generate_uuid()
+    if not ap_id:
+        ap_id = generate_uuid()
     if results is None:
         results = [
             {
@@ -102,10 +125,10 @@ def build_valid_ar(doc_id: str = None, results: list = None) -> Dict[str, Any]:
                 "title": "Valid Assessment Results",
                 "last-modified": "2026-08-13T00:00:00Z",
                 "version": "1.0.0",
-                "oscal-version": "1.1.2"
+                "oscal-version": "1.2.2"
             },
             "import-ap": {
-                "href": f"../assessment-plans/{generate_uuid()}.json"
+                "href": f"../assessment-plans/{ap_id}.json"
             },
             "results": results
         }
@@ -509,7 +532,11 @@ class TestARToPOAMImportAdversarial:
                 ]
             }
         ]
-        ar_doc = build_valid_ar(results=results)
+        ap_doc = build_valid_ap()
+        ap_id = ap_doc["assessment-plan"]["uuid"]
+        await save_document("assessment-plans", ap_id, ap_doc, workspace_id="default")
+
+        ar_doc = build_valid_ar(results=results, ap_id=ap_id)
         ar_id = ar_doc["assessment-results"]["uuid"]
         await save_document("assessment-results", ar_id, ar_doc, workspace_id="default")
 
@@ -547,7 +574,11 @@ class TestARToPOAMImportAdversarial:
                 ]
             }
         ]
-        ar_doc = build_valid_ar(results=results)
+        ap_doc = build_valid_ap()
+        ap_id = ap_doc["assessment-plan"]["uuid"]
+        await save_document("assessment-plans", ap_id, ap_doc, workspace_id="default")
+
+        ar_doc = build_valid_ar(results=results, ap_id=ap_id)
         ar_id = ar_doc["assessment-results"]["uuid"]
         await save_document("assessment-results", ar_id, ar_doc, workspace_id="default")
 
@@ -581,7 +612,11 @@ class TestARToPOAMImportAdversarial:
                 ]
             }
         ]
-        ar_doc = build_valid_ar(results=results)
+        ap_doc = build_valid_ap()
+        ap_id = ap_doc["assessment-plan"]["uuid"]
+        await save_document("assessment-plans", ap_id, ap_doc, workspace_id="default")
+
+        ar_doc = build_valid_ar(results=results, ap_id=ap_id)
         ar_id = ar_doc["assessment-results"]["uuid"]
         await save_document("assessment-results", ar_id, ar_doc, workspace_id="default")
 
