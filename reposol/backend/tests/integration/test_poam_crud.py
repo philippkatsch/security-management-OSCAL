@@ -7,11 +7,23 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def create_sample_poam_document(doc_id: str = None, title: str = "Test POA&M", version: str = "1.0.0") -> dict:
+def create_sample_ssp(client: TestClient, title: str = "Prerequisite Target SSP") -> str:
+    """Helper to save a valid target System Security Plan in the test store."""
+    from tests.factories import SSPFactory
+    ssp_id = str(uuid.uuid4())
+    doc = SSPFactory.build(doc_id=ssp_id, title=title)
+    doc["system-security-plan"]["import-profile"]["href"] = "https://example.com/baselines/nist-800-53.json"
+    res = client.post("/api/documents/ssp", json=doc)
+    assert res.status_code == 201, f"Failed to create prerequisite SSP: {res.text}"
+    return ssp_id
+
+
+def create_sample_poam_document(doc_id: str = None, ssp_id: str = None, title: str = "Test POA&M", version: str = "1.0.0") -> dict:
     """Helper to construct a valid OSCAL Plan of Action & Milestones document."""
     if doc_id is None:
         doc_id = str(uuid.uuid4())
-    ssp_id = str(uuid.uuid4())
+    if ssp_id is None:
+        ssp_id = str(uuid.uuid4())
     poam_item_id = str(uuid.uuid4())
 
     return {
@@ -39,8 +51,9 @@ def create_sample_poam_document(doc_id: str = None, title: str = "Test POA&M", v
 
 def test_poam_create_and_get(client: TestClient):
     """Test creation and retrieval of POA&M document (US 7.1, US 7.4, US 7.15)."""
+    ssp_id = create_sample_ssp(client)
     doc_id = str(uuid.uuid4())
-    doc = create_sample_poam_document(doc_id=doc_id, title="Annual Security POA&M")
+    doc = create_sample_poam_document(doc_id=doc_id, ssp_id=ssp_id, title="Annual Security POA&M")
 
     # POST create
     response = client.post("/api/documents/poam", json=doc)
@@ -65,8 +78,9 @@ def test_poam_create_and_get(client: TestClient):
 
 def test_poam_update_and_delete(client: TestClient):
     """Test updating and deleting POA&M documents (US 7.1, US 7.17)."""
+    ssp_id = create_sample_ssp(client)
     doc_id = str(uuid.uuid4())
-    doc = create_sample_poam_document(doc_id=doc_id, title="Initial POA&M")
+    doc = create_sample_poam_document(doc_id=doc_id, ssp_id=ssp_id, title="Initial POA&M")
     res_init = client.post("/api/documents/poam", json=doc)
     assert res_init.status_code == 201, f"Failed: {res_init.json()}"
 
@@ -89,8 +103,9 @@ def test_poam_update_and_delete(client: TestClient):
 
 def test_poam_versioning(client: TestClient):
     """Test versioning for POA&M documents (US 7.18)."""
+    ssp_id = create_sample_ssp(client)
     doc_id = str(uuid.uuid4())
-    doc = create_sample_poam_document(doc_id=doc_id, title="Versioned POA&M", version="2.0.0")
+    doc = create_sample_poam_document(doc_id=doc_id, ssp_id=ssp_id, title="Versioned POA&M", version="2.0.0")
     res_init = client.post("/api/documents/poam", json=doc)
     assert res_init.status_code == 201, f"Failed: {res_init.json()}"
 

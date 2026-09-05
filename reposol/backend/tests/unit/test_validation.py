@@ -639,3 +639,158 @@ class TestARIntegrityValidation:
         with pytest.raises(ValidationError, match="Duplicate"):
             await validate_document("assessment-results", doc)
 
+
+class TestComponentIntegrityValidation:
+    def _make_valid_cdef(self, comp_uuid=None):
+        c_uuid = comp_uuid or str(uuid.uuid4())
+        return {
+            "component-definition": {
+                "uuid": str(uuid.uuid4()),
+                "metadata": make_valid_metadata(),
+                "components": [
+                    {
+                        "uuid": c_uuid,
+                        "type": "software",
+                        "title": "Software Asset",
+                        "description": "Component Description"
+                    }
+                ]
+            }
+        }
+
+    @pytest.mark.asyncio
+    async def test_defined_component_with_status_fails(self):
+        doc = self._make_valid_cdef()
+        doc["component-definition"]["components"][0]["status"] = {"state": "operational"}
+        with pytest.raises(ValidationError, match="must not contain 'status' property"):
+            await validate_document("component-definitions", doc)
+
+    @pytest.mark.asyncio
+    async def test_capability_dangling_component_uuid_fails(self):
+        doc = self._make_valid_cdef()
+        dangling_comp = str(uuid.uuid4())
+        doc["component-definition"]["capabilities"] = [
+            {
+                "uuid": str(uuid.uuid4()),
+                "name": "Cap 1",
+                "description": "Cap 1 description",
+                "incorporates-components": [
+                    {"component-uuid": dangling_comp}
+                ]
+            }
+        ]
+        with pytest.raises(ValidationError, match="Referenced component .* not found in components array"):
+            await validate_document("component-definitions", doc)
+
+
+class TestPOAMIntegrityValidation:
+    def _make_valid_poam(self, finding_uuid=None, obs_uuid=None, risk_uuid=None):
+        f_uuid = finding_uuid or str(uuid.uuid4())
+        o_uuid = obs_uuid or str(uuid.uuid4())
+        r_uuid = risk_uuid or str(uuid.uuid4())
+        return {
+            "plan-of-action-and-milestones": {
+                "uuid": str(uuid.uuid4()),
+                "metadata": make_valid_metadata(),
+                "findings": [
+                    {
+                        "uuid": f_uuid,
+                        "title": "Finding 1",
+                        "description": "Finding 1 Description",
+                        "target": {
+                            "type": "statement-id",
+                            "target-id": "ac-1_smt",
+                            "status": {"state": "not-satisfied"}
+                        }
+                    }
+                ],
+                "observations": [
+                    {
+                        "uuid": o_uuid,
+                        "description": "Obs desc",
+                        "methods": ["TEST"],
+                        "collected": "2026-09-05T12:00:00Z"
+                    }
+                ],
+                "risks": [
+                    {
+                        "uuid": r_uuid,
+                        "title": "Risk 1",
+                        "description": "Risk 1 Description",
+                        "statement": "Risk statement",
+                        "status": "open"
+                    }
+                ],
+                "poam-items": [
+                    {
+                        "uuid": str(uuid.uuid4()),
+                        "title": "Remediation Item 1",
+                        "description": "Desc",
+                        "related-findings": [{"finding-uuid": f_uuid}],
+                        "related-observations": [{"observation-uuid": o_uuid}],
+                        "related-risks": [{"risk-uuid": r_uuid}]
+                    }
+                ]
+            }
+        }
+
+    @pytest.mark.asyncio
+    async def test_valid_poam_passes(self):
+        doc = self._make_valid_poam()
+        await validate_document("poams", doc)
+
+    @pytest.mark.asyncio
+    async def test_poam_dangling_finding_uuid_fails(self):
+        doc = self._make_valid_poam()
+        dangling_f = str(uuid.uuid4())
+        doc["plan-of-action-and-milestones"]["poam-items"][0]["related-findings"] = [
+            {"finding-uuid": dangling_f}
+        ]
+        with pytest.raises(ValidationError, match="Dangling finding reference"):
+            await validate_document("poams", doc)
+
+    @pytest.mark.asyncio
+    async def test_poam_empty_risk_statement_fails(self):
+        doc = self._make_valid_poam()
+        doc["plan-of-action-and-milestones"]["risks"][0]["statement"] = "   "
+        with pytest.raises(ValidationError, match="Risk statement must be a non-empty string"):
+            await validate_document("poams", doc)
+
+
+class TestMappingIntegrityValidation:
+    def _make_valid_mapping(self):
+        return {
+            "mapping-collection": {
+                "uuid": str(uuid.uuid4()),
+                "metadata": make_valid_metadata(),
+                "mappings": [
+                    {
+                        "uuid": str(uuid.uuid4()),
+                        "source-resource": {"type": "catalog", "href": "#cat1"},
+                        "target-resource": {"type": "catalog", "href": "#cat2"},
+                        "maps": [
+                            {
+                                "uuid": str(uuid.uuid4()),
+                                "relationship": "equivalent-to",
+                                "sources": [{"type": "control", "id-ref": "ac-1"}],
+                                "targets": [{"type": "control", "id-ref": "ctrl-1"}]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+    @pytest.mark.asyncio
+    async def test_valid_mapping_passes(self):
+        doc = self._make_valid_mapping()
+        await validate_document("control-mappings", doc)
+
+    @pytest.mark.asyncio
+    async def test_mapping_invalid_relationship_token_fails(self):
+        doc = self._make_valid_mapping()
+        doc["mapping-collection"]["mappings"][0]["maps"][0]["relationship"] = "bogus-rel"
+        with pytest.raises(ValidationError, match="Invalid relationship token 'bogus-rel'"):
+            await validate_document("control-mappings", doc)
+
+

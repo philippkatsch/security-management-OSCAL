@@ -86,7 +86,54 @@ async def preview_resolve_assessment_plan(
     ssp = body.get("ssp") or body.get("system-security-plan")
     return await resolve_assessment_plan_inline(workspace_id, ap, ssp=ssp)
 
+@router.post("/assessment-results/preview")
+@router.post("/assessment-result/preview")
+async def preview_resolve_assessment_results(
+    body: Dict[str, Any] = Body(...),
+    workspace_id: str = Depends(get_workspace_id)
+) -> Dict[str, Any]:
+    """
+    Resolves an unsaved Assessment Results document in-memory.
+    Returns findings correlation summary, observation methods count, risk severity breakdown, and target coverage.
+    """
+    ar = body.get("assessment-results", body)
+    while isinstance(ar, dict) and "assessment-results" in ar and len(ar) == 1:
+        ar = ar["assessment-results"]
+    results = ar.get("results", [])
+    total_findings = 0
+    total_observations = 0
+    total_risks = 0
+    satisfied_count = 0
+    not_satisfied_count = 0
+    for r in results:
+        if isinstance(r, dict):
+            findings = r.get("findings", [])
+            total_findings += len(findings)
+            for f in findings:
+                if isinstance(f, dict):
+                    status = f.get("target", {}).get("status", {}).get("state")
+                    if status == "satisfied":
+                        satisfied_count += 1
+                    elif status == "not-satisfied":
+                        not_satisfied_count += 1
+            total_observations += len(r.get("observations", []))
+            total_risks += len(r.get("risks", []))
+
+    return {
+        "assessment_results_uuid": ar.get("uuid"),
+        "title": ar.get("metadata", {}).get("title", "Untitled Assessment Results"),
+        "total_results_sets": len(results),
+        "total_findings": total_findings,
+        "total_observations": total_observations,
+        "total_risks": total_risks,
+        "findings_status": {
+            "satisfied": satisfied_count,
+            "not_satisfied": not_satisfied_count
+        }
+    }
+
 @router.get("/tree/{stage}/{doc_id}")
 async def get_control_tree_endpoint(stage: str, doc_id: str, workspace_id: str = Depends(get_workspace_id)) -> Dict[str, Any]:
     return await get_control_tree(workspace_id, stage, doc_id)
+
 

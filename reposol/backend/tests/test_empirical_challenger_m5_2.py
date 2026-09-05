@@ -275,9 +275,9 @@ def test_poam_and_mapping_validation_missing():
     with open(val_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    assert "_validate_poam_integrity" not in content, "Found unexpected _validate_poam_integrity in validation.py"
-    assert "_validate_mapping_integrity" not in content, "Found unexpected _validate_mapping_integrity in validation.py"
-    assert "_validate_component_integrity" not in content, "Found unexpected _validate_component_integrity in validation.py"
+    assert "_validate_poam_integrity" in content, "Expected _validate_poam_integrity in validation.py"
+    assert "_validate_mapping_integrity" in content, "Expected _validate_mapping_integrity in validation.py"
+    assert "_validate_component_integrity" in content, "Expected _validate_component_integrity in validation.py"
 
 
 def test_mapping_page_non_standard_props_and_enums():

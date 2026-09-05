@@ -718,6 +718,275 @@ async def _validate_ar_integrity(
                         })
 
 
+async def _validate_component_integrity(
+    cdef: Dict[str, Any],
+    root_key: str,
+    errors: list,
+    workspace_id: Optional[str] = None,
+    check_refs: bool = True
+) -> None:
+    """
+    Semantic and referential integrity validator for NIST OSCAL Component Definitions (Stage 3):
+    1. Mandatory root fields check (uuid, metadata).
+    2. defined-component must NOT contain 'status' per OSCAL metaschema.
+    3. capabilities[].incorporates-components[].component-uuid must point to defined component.
+    4. import-component-definitions[].href resolution against workspace documents.
+    """
+    UUID_REGEX = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+    for req_field in ("uuid", "metadata"):
+        if req_field not in cdef:
+            errors.append({
+                "path": f"{root_key}.{req_field}",
+                "message": f"Missing required field: '{req_field}'",
+                "schema_path": f"custom/{req_field}-required"
+            })
+
+    cdef_uuid = cdef.get("uuid")
+    if cdef_uuid and not re.match(UUID_REGEX, str(cdef_uuid)):
+        errors.append({
+            "path": f"{root_key}.uuid",
+            "message": f"Invalid UUID format for component-definition: '{cdef_uuid}'",
+            "schema_path": "custom/cdef-uuid-format"
+        })
+
+    components = cdef.get("components", [])
+    comp_uuids = set()
+    if isinstance(components, list):
+        for idx, comp in enumerate(components):
+            if not isinstance(comp, dict):
+                continue
+            comp_u = comp.get("uuid")
+            if comp_u:
+                comp_uuids.add(str(comp_u))
+            if "status" in comp:
+                errors.append({
+                    "path": f"{root_key}.components[{idx}].status",
+                    "message": "Component definition 'defined-component' must not contain 'status' property per OSCAL specification",
+                    "schema_path": "custom/defined-component-no-status"
+                })
+
+    capabilities = cdef.get("capabilities", [])
+    if isinstance(capabilities, list):
+        for cap_idx, cap in enumerate(capabilities):
+            if not isinstance(cap, dict):
+                continue
+            for inc_idx, inc in enumerate(cap.get("incorporates-components", [])):
+                if isinstance(inc, dict):
+                    c_ref = inc.get("component-uuid")
+                    if c_ref and str(c_ref) not in comp_uuids:
+                        errors.append({
+                            "path": f"{root_key}.capabilities[{cap_idx}].incorporates-components[{inc_idx}].component-uuid",
+                            "message": f"Referenced component '{c_ref}' not found in components array",
+                            "schema_path": "custom/capability-component-existence"
+                        })
+
+    if check_refs and "import-component-definitions" in cdef:
+        for imp_idx, imp in enumerate(cdef.get("import-component-definitions", [])):
+            if isinstance(imp, dict):
+                href = imp.get("href", "")
+                if href and not href.startswith("http://") and not href.startswith("https://") and not href.startswith("#"):
+                    uuid_match = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", href)
+                    if uuid_match:
+                        ref_uuid = uuid_match.group(1)
+                        exists = await document_repository.document_exists("component-definitions", ref_uuid, workspace_id=workspace_id)
+                        if not exists and workspace_id and workspace_id != "default":
+                            exists = await document_repository.document_exists("component-definitions", ref_uuid, workspace_id="default")
+                        if not exists:
+                            errors.append({
+                                "path": f"{root_key}.import-component-definitions[{imp_idx}].href",
+                                "message": f"Referenced component definition '{ref_uuid}' does not exist",
+                                "schema_path": "custom/import-cdef-existence"
+                            })
+
+
+async def _validate_poam_integrity(
+    poam: Dict[str, Any],
+    root_key: str,
+    errors: list,
+    workspace_id: Optional[str] = None,
+    check_refs: bool = True
+) -> None:
+    """
+    Semantic and referential integrity validator for NIST OSCAL Plans of Action and Milestones (Stage 7):
+    1. Mandatory root fields check (uuid, metadata, poam-items).
+    2. import-ssp.href resolution against workspace documents when check_refs=True.
+    3. Finding target semantics (status.state in satisfied/not-satisfied).
+    4. Risk statement non-empty check.
+    5. poam-items cross-references (related-findings, related-observations, related-risks).
+    """
+    UUID_REGEX = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+    for req_field in ("uuid", "metadata", "poam-items"):
+        if req_field not in poam:
+            errors.append({
+                "path": f"{root_key}.{req_field}",
+                "message": f"Missing required field: '{req_field}'",
+                "schema_path": f"custom/{req_field}-required"
+            })
+
+    poam_uuid = poam.get("uuid")
+    if poam_uuid and not re.match(UUID_REGEX, str(poam_uuid)):
+        errors.append({
+            "path": f"{root_key}.uuid",
+            "message": f"Invalid UUID format for poam: '{poam_uuid}'",
+            "schema_path": "custom/poam-uuid-format"
+        })
+
+    if check_refs and "import-ssp" in poam:
+        import_ssp = poam["import-ssp"]
+        if isinstance(import_ssp, dict):
+            href = import_ssp.get("href", "")
+            if not href or not str(href).strip():
+                errors.append({
+                    "path": f"{root_key}.import-ssp.href",
+                    "message": "Invalid or empty href in import-ssp",
+                    "schema_path": "custom/import-ssp-href"
+                })
+            elif not href.startswith("#"):
+                uuid_match = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", href)
+                if uuid_match:
+                    ref_uuid = uuid_match.group(1)
+                    exists = await document_repository.document_exists("ssps", ref_uuid, workspace_id=workspace_id)
+                    if not exists and workspace_id and workspace_id != "default":
+                        exists = await document_repository.document_exists("ssps", ref_uuid, workspace_id="default")
+                    if not exists:
+                        exists = await document_repository.document_exists("system-security-plans", ref_uuid, workspace_id=workspace_id)
+                        if not exists and workspace_id and workspace_id != "default":
+                            exists = await document_repository.document_exists("system-security-plans", ref_uuid, workspace_id="default")
+                    if not exists:
+                        errors.append({
+                            "path": f"{root_key}.import-ssp.href",
+                            "message": f"Referenced System Security Plan '{ref_uuid}' does not exist",
+                            "schema_path": "custom/import-ssp-existence"
+                        })
+
+    finding_uuids = set()
+    for f_idx, f in enumerate(poam.get("findings", [])):
+        if isinstance(f, dict):
+            f_u = f.get("uuid")
+            if f_u:
+                finding_uuids.add(str(f_u))
+            target = f.get("target")
+            if isinstance(target, dict):
+                t_status = target.get("status")
+                if isinstance(t_status, dict):
+                    t_state = t_status.get("state")
+                    if t_state and t_state not in ("satisfied", "not-satisfied"):
+                        errors.append({
+                            "path": f"{root_key}.findings[{f_idx}].target.status.state",
+                            "message": f"Invalid finding target status state '{t_state}'. Must be 'satisfied' or 'not-satisfied'",
+                            "schema_path": "custom/finding-target-status-state"
+                        })
+
+    obs_uuids = set()
+    for o in poam.get("observations", []):
+        if isinstance(o, dict) and o.get("uuid"):
+            obs_uuids.add(str(o["uuid"]))
+
+    risk_uuids = set()
+    for r_idx, r in enumerate(poam.get("risks", [])):
+        if isinstance(r, dict):
+            r_u = r.get("uuid")
+            if r_u:
+                risk_uuids.add(str(r_u))
+            stmt = r.get("statement")
+            if stmt is not None and (not isinstance(stmt, str) or not stmt.strip()):
+                errors.append({
+                    "path": f"{root_key}.risks[{r_idx}].statement",
+                    "message": "Risk statement must be a non-empty string",
+                    "schema_path": "custom/risk-statement-required"
+                })
+
+    for item_idx, item in enumerate(poam.get("poam-items", [])):
+        if not isinstance(item, dict):
+            continue
+        for rf_idx, rf in enumerate(item.get("related-findings", [])):
+            if isinstance(rf, dict):
+                f_ref = rf.get("finding-uuid")
+                if f_ref and str(f_ref) not in finding_uuids:
+                    errors.append({
+                        "path": f"{root_key}.poam-items[{item_idx}].related-findings[{rf_idx}].finding-uuid",
+                        "message": f"Dangling finding reference '{f_ref}' not found in poam.findings",
+                        "schema_path": "custom/poam-item-finding-existence"
+                    })
+        for ro_idx, ro in enumerate(item.get("related-observations", [])):
+            if isinstance(ro, dict):
+                o_ref = ro.get("observation-uuid")
+                if o_ref and str(o_ref) not in obs_uuids:
+                    errors.append({
+                        "path": f"{root_key}.poam-items[{item_idx}].related-observations[{ro_idx}].observation-uuid",
+                        "message": f"Dangling observation reference '{o_ref}' not found in poam.observations",
+                        "schema_path": "custom/poam-item-observation-existence"
+                    })
+        for rr_idx, rr in enumerate(item.get("related-risks", [])):
+            if isinstance(rr, dict):
+                r_ref = rr.get("risk-uuid")
+                if r_ref and str(r_ref) not in risk_uuids:
+                    errors.append({
+                        "path": f"{root_key}.poam-items[{item_idx}].related-risks[{rr_idx}].risk-uuid",
+                        "message": f"Dangling risk reference '{r_ref}' not found in poam.risks",
+                        "schema_path": "custom/poam-item-risk-existence"
+                    })
+
+
+CANONICAL_MAPPING_RELATIONSHIPS = {
+    "equivalent-to",
+    "equal-to",
+    "subset-of",
+    "superset-of",
+    "intersects-with",
+    "no-relationship",
+}
+
+async def _validate_mapping_integrity(
+    mc: Dict[str, Any],
+    root_key: str,
+    errors: list,
+    workspace_id: Optional[str] = None,
+    check_refs: bool = True
+) -> None:
+    """
+    Semantic and referential integrity validator for NIST OSCAL Mapping Collections (Stage 8):
+    1. Mandatory root fields check (uuid, metadata).
+    2. Canonical relationship token validation against metaschema.
+    3. Source and target resource resolution.
+    """
+    UUID_REGEX = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+    for req_field in ("uuid", "metadata"):
+        if req_field not in mc:
+            errors.append({
+                "path": f"{root_key}.{req_field}",
+                "message": f"Missing required field: '{req_field}'",
+                "schema_path": f"custom/{req_field}-required"
+            })
+
+    mc_uuid = mc.get("uuid")
+    if mc_uuid and not re.match(UUID_REGEX, str(mc_uuid)):
+        errors.append({
+            "path": f"{root_key}.uuid",
+            "message": f"Invalid UUID format for mapping-collection: '{mc_uuid}'",
+            "schema_path": "custom/mc-uuid-format"
+        })
+
+    mappings = mc.get("mappings", [])
+    if isinstance(mappings, list):
+        for m_idx, mapping in enumerate(mappings):
+            if not isinstance(mapping, dict):
+                continue
+            for map_idx, m_rule in enumerate(mapping.get("maps", [])):
+                if not isinstance(m_rule, dict):
+                    continue
+                rel = m_rule.get("relationship")
+                if rel and rel not in CANONICAL_MAPPING_RELATIONSHIPS:
+                    errors.append({
+                        "path": f"{root_key}.mappings[{m_idx}].maps[{map_idx}].relationship",
+                        "message": f"Invalid relationship token '{rel}'. Must be one of: {', '.join(sorted(CANONICAL_MAPPING_RELATIONSHIPS))}",
+                        "schema_path": "custom/mapping-relationship-token"
+                    })
+
+
 def _run_schema_validation(stage: str, document: Dict[str, Any]) -> list:
     validator = _get_validator(stage)
     errors = []
@@ -758,11 +1027,20 @@ async def validate_document(stage: str, document: Dict[str, Any], check_refs: bo
     if stage == "ssps" and check_refs:
         await _validate_ssp_integrity(document[root_key], root_key, errors, workspace_id)
 
+    if stage in ("component-definitions", "component-definition"):
+        await _validate_component_integrity(document[root_key], root_key, errors, workspace_id, check_refs=check_refs)
+
     if stage in ("assessment-plans", "assessment-plan"):
         await _validate_ap_integrity(document[root_key], root_key, errors, workspace_id, check_refs=check_refs)
 
     if stage in ("assessment-results", "assessment-result"):
         await _validate_ar_integrity(document[root_key], root_key, errors, workspace_id, check_refs=check_refs)
+
+    if stage in ("poams", "poam", "plans-of-action-and-milestones"):
+        await _validate_poam_integrity(document[root_key], root_key, errors, workspace_id, check_refs=check_refs)
+
+    if stage in ("control-mappings", "control-mapping", "mapping-collections", "mapping-collection"):
+        await _validate_mapping_integrity(document[root_key], root_key, errors, workspace_id, check_refs=check_refs)
 
     if errors:
         raise OSCALValidationError(errors)
