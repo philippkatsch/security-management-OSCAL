@@ -6,9 +6,17 @@ export interface CatalogOverviewPanelProps {
   document?: any;
   stats?: any;
   onSelectGroup?: (groupId: string) => void;
+  onLoadTemplate?: () => void;
+  isEditing?: boolean;
 }
 
-export function CatalogOverviewPanel({ document, stats = { total: 0, active: 0, withdrawn: 0 }, onSelectGroup }: CatalogOverviewPanelProps) {
+export function CatalogOverviewPanel({
+  document,
+  stats = { total: 0, active: 0, withdrawn: 0 },
+  onSelectGroup,
+  onLoadTemplate,
+  isEditing = false,
+}: CatalogOverviewPanelProps) {
   const doc = document || {};
   const metricCardStyle: React.CSSProperties = {
     background: 'var(--color-surface)',
@@ -97,8 +105,32 @@ export function CatalogOverviewPanel({ document, stats = { total: 0, active: 0, 
         </h3>
         <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-surface)', overflow: 'hidden' }}>
           {(document.groups || []).length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic', fontSize: '13px' }}>
-              No control families defined.
+            <div style={{ padding: '24px 20px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <span>No control families defined.</span>
+              {isEditing && onLoadTemplate && (
+                <button
+                  type="button"
+                  data-testid="empty-catalog-load-template-btn"
+                  onClick={onLoadTemplate}
+                  className="btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-surface)',
+                    color: 'var(--color-primary)',
+                  }}
+                >
+                  <span>📥</span>
+                  <span>Load Template / Content</span>
+                </button>
+              )}
             </div>
           ) : (
             (document.groups || []).map((group, idx) => {

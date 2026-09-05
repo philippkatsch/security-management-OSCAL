@@ -1,6 +1,6 @@
 import os
 import json
-from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Depends, Query
 from pydantic import BaseModel
 from typing import Optional
 
@@ -87,6 +87,14 @@ KNOWN_SOURCES = [
 class ImportURLRequest(BaseModel):
     url: str
     validate_schema: Optional[bool] = True
+    persist: Optional[bool] = True
+
+class ParseDocumentRequest(BaseModel):
+    document: Optional[dict] = None
+    url: Optional[str] = None
+    raw_text: Optional[str] = None
+    format: Optional[str] = None
+    validate_schema: Optional[bool] = True
 
 @import_router.get("/api/import/registry")
 async def list_registry(ws_id: str = Depends(get_workspace_id)):
@@ -110,11 +118,21 @@ async def list_registry(ws_id: str = Depends(get_workspace_id)):
     return annotated_sources
 
 @import_router.post("/api/import/url")
-async def import_from_url(request_data: ImportURLRequest, ws_id: str = Depends(require_write_permission)):
-    """Fetch and import an OSCAL document from a URL."""
+async def import_from_url(
+    request_data: ImportURLRequest,
+    persist: Optional[bool] = Query(None),
+    ws_id: str = Depends(require_write_permission)
+):
+    """Fetch and import an OSCAL document from a URL (or parse only if persist=False)."""
+    should_persist = persist if persist is not None else (request_data.persist if request_data.persist is not None else True)
     try:
         document = await fetch_remote_document(request_data.url)
-        result = await import_document(document, validate=request_data.validate_schema, workspace_id=ws_id)
+        result = await import_document(
+            document,
+            validate=request_data.validate_schema if request_data.validate_schema is not None else True,
+            workspace_id=ws_id,
+            persist=should_persist
+        )
         return result
     except ImportValidationError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -122,15 +140,24 @@ async def import_from_url(request_data: ImportURLRequest, ws_id: str = Depends(r
         raise HTTPException(status_code=400, detail=str(e))
 
 @import_router.post("/api/import/registry/{source_id}")
-async def import_from_registry(source_id: str, ws_id: str = Depends(require_write_permission)):
-    """Fetch and import a known OSCAL document from the built-in registry."""
+async def import_from_registry(
+    source_id: str,
+    persist: bool = Query(True),
+    ws_id: str = Depends(require_write_permission)
+):
+    """Fetch and import a known OSCAL document from the built-in registry (or parse only if persist=False)."""
     entry = next((s for s in KNOWN_SOURCES if s["id"] == source_id), None)
     if not entry:
         raise HTTPException(status_code=404, detail=f"Registry entry '{source_id}' not found")
 
     try:
         document = await fetch_remote_document(entry["url"])
-        result = await import_document(document, validate=True, workspace_id=ws_id)
+        result = await import_document(
+            document,
+            validate=True,
+            workspace_id=ws_id,
+            persist=persist
+        )
         result["registry_id"] = source_id
         result["source"] = entry.get("source")
         return result
@@ -140,14 +167,18 @@ async def import_from_registry(source_id: str, ws_id: str = Depends(require_writ
         raise HTTPException(status_code=400, detail=str(e))
 
 @import_router.post("/api/import/file")
-async def import_uploaded_file(file: UploadFile = File(...), ws_id: str = Depends(require_write_permission)):
-    """Upload and import an OSCAL document (JSON, YAML, or XML)."""
+async def import_uploaded_file(
+    file: UploadFile = File(...),
+    persist: bool = Query(True),
+    ws_id: str = Depends(require_write_permission)
+):
+    """Upload and import an OSCAL document (JSON, YAML, or XML) (or parse only if persist=False)."""
     MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large. Maximum upload size is 50 MB.")
     text = content.decode("utf-8", errors="ignore")
-    filename_lower = file.filename.lower()
+    filename_lower = (file.filename or "").lower()
     
     document = None
     
@@ -176,7 +207,48 @@ async def import_uploaded_file(file: UploadFile = File(...), ws_id: str = Depend
         raise HTTPException(status_code=400, detail="Invalid OSCAL document structure (must be a JSON object/dictionary).")
         
     try:
-        result = await import_document(document, validate=True, workspace_id=ws_id)
+        result = await import_document(document, validate=True, workspace_id=ws_id, persist=persist)
+        return result
+    except ImportValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ImportServiceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@import_router.post("/api/import/parse")
+async def parse_import_document(
+    request_data: ParseDocumentRequest,
+    ws_id: str = Depends(require_write_permission)
+):
+    """Parse and validate an OSCAL document without persisting to disk."""
+    try:
+        if request_data.url:
+            document = await fetch_remote_document(request_data.url)
+        elif request_data.document:
+            document = request_data.document
+        elif request_data.raw_text:
+            text = request_data.raw_text
+            fmt = (request_data.format or "").lower()
+            if fmt in ("yaml", "yml") or text.strip().startswith("---"):
+                document = parse_yaml_to_dict(text)
+            elif fmt == "xml" or text.strip().startswith("<"):
+                document = parse_xml_to_oscal_dict(text)
+            else:
+                try:
+                    document = json.loads(text)
+                except json.JSONDecodeError:
+                    document = parse_yaml_to_dict(text)
+        else:
+            raise HTTPException(status_code=400, detail="Either 'document', 'url', or 'raw_text' must be provided.")
+        
+        if not isinstance(document, dict):
+            raise HTTPException(status_code=400, detail="Invalid OSCAL document structure (must be a JSON object/dictionary).")
+
+        result = await import_document(
+            document,
+            validate=request_data.validate_schema if request_data.validate_schema is not None else True,
+            workspace_id=ws_id,
+            persist=False
+        )
         return result
     except ImportValidationError as e:
         raise HTTPException(status_code=422, detail=str(e))

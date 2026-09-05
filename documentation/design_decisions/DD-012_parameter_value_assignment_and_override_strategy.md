@@ -24,7 +24,7 @@ Previously, parameter editing lacked explicit architectural rules for:
 
 > **Scope Note:** The dual-mode adapter pattern (`mode="catalog"` vs `mode="profile"`) described in this DD applies to the **Catalog Builder (Step 1)** and **Profile Tailoring (Step 2)** ParameterCard editors. For parameter management in other stages:
 > - **Component Definitions (Step 3):** Component-level parameter defaults use `set-parameters[]` within `control-implementations[]` — managed via a simplified value-only editor without the full ParameterCard dual-mode logic.
-> - **SSPs (Step 4):** SSP parameters use a 3-level cascade visualizer (System → Control → Component) as described in [DD-009](DD-009_parameter_strategy.md). The cascade UI is a distinct component from the ParameterCard.
+> - **SSPs (Step 4):** SSP parameters follow the 4-tier cascade hierarchy (Baseline Profile/Catalog → SSP Global → Control-Level Requirement → Component-Level `by-component`) with real-time prose placeholder resolution, cascade visualization, and inheritance fallback as defined in [DD-036](DD-036_ssp_security_inheritance_and_baseline_resolution.md).
 > - **Assessment Plans (Step 5):** AP local parameters in `local-definitions` use a standalone parameter editor without catalog/profile inheritance context.
 
 ### 1. Parameter Card & Editor UX in Catalog vs. Profile Modes

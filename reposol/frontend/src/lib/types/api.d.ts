@@ -32,6 +32,9 @@ export interface ImportResult {
   title: string;
   stage: string;
   status: string;
+  document?: any;
+  registry_id?: string;
+  source?: string;
 }
 
 export interface ApiError {

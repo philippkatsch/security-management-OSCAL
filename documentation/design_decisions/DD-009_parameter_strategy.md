@@ -10,6 +10,7 @@
 > - [DD-011](DD-011_properties_vs_parameters_separation.md): Conceptual Separation — Properties (static metadata) vs. Parameters (dynamic placeholders)
 > - [DD-012](DD-012_parameter_value_assignment_and_override_strategy.md): Value Assignment UX — Choice dropdowns, constraints, override rendering
 > - [DD-013](DD-013_universal_prose_with_params_integration.md): Prose Integration — `ProseWithParams` component architecture
+> - [DD-036](DD-036_ssp_security_inheritance_and_baseline_resolution.md): SSP Architecture — Baseline Resolution, 4-Tier Parameter Cascade, Security Inheritance
 
 ## Context
 In OSCAL, security controls in catalogs contain **parameters** (representing "controlled parameter values" or variables). According to the official NIST OSCAL guidelines:

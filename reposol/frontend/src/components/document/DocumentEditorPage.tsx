@@ -21,6 +21,7 @@ export const DocumentEditorPage = () => {
 
   const queryParams = new URLSearchParams(location.search);
   const initialEditMode = queryParams.get('edit') === 'true';
+  const initialView = queryParams.get('view') || undefined;
 
   const handleClose = () => navigate(`/${stage}`);
 
@@ -35,7 +36,7 @@ export const DocumentEditorPage = () => {
       content = <CatalogPage catalogId={docId} initialEditMode={initialEditMode} onClose={handleClose} />;
       break;
     case 'profiles':
-      content = <ProfilePage profileId={docId} initialEditMode={initialEditMode} onClose={handleClose} />;
+      content = <ProfilePage profileId={docId} initialEditMode={initialEditMode} initialView={initialView} onClose={handleClose} />;
       break;
     case 'control-mappings':
     case 'mappings':

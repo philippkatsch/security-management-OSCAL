@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { editModeAtom } from '@stores/uiAtoms';
 import { BackMatterEditor } from './BackMatterEditor';
-import { importFromRegistry, importFromUrl, fetchRegistry, fetchDocument } from '@lib/api';
 import { CatalogOverviewPanel } from './overview/CatalogOverviewPanel';
 import { ProfileOverviewPanel } from './overview/ProfileOverviewPanel';
 import { DocumentOverviewMetadata } from './overview/DocumentOverviewMetadata';
@@ -69,7 +68,9 @@ export function DocumentOverview({
   availableProfiles = [],
   conflicts = null,
   SourcesPanel = null,
-  onNavigateToProperties
+  onNavigateToProperties,
+  onLoadTemplate,
+  onApplyContent
 }: any) {
   const document = rawDocument?.catalog || rawDocument?.profile || rawDocument?.['component-definition'] || rawDocument?.['system-security-plan'] || rawDocument?.['assessment-plan'] || rawDocument?.['assessment-results'] || rawDocument?.['plan-of-action-and-milestones'] || rawDocument || {};
   const globalEditMode = useAtomValue(editModeAtom);
@@ -77,12 +78,6 @@ export function DocumentOverview({
   const ActiveSourcesPanel = SourcesPanel || DefaultSourcesPanel;
 
   const [activeTab, setActiveTab] = useState('metadata');
-  const [importUrl, setImportUrl] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState('');
-  const [registryTemplates, setRegistryTemplates] = useState<any[]>([]);
-  const [loadingRegistry, setLoadingRegistry] = useState(false);
-
   const effectiveTab = activeTab;
 
   const handleMetadataChange = (updatedMetadata: any) => onChange({ ...document, metadata: updatedMetadata });
@@ -148,38 +143,6 @@ export function DocumentOverview({
     const updatedProps = [...(document.metadata?.props || []), { name: newName, value: 'placeholder' }];
     handleMetadataChange({ ...document.metadata, props: updatedProps });
   };
-
-  const handleOpenImportTab = async () => {
-    setActiveTab('import');
-    setLoadingRegistry(true);
-    setImportError('');
-    try {
-      const registry = await fetchRegistry();
-      setRegistryTemplates(registry.filter(r => r.model === 'catalog'));
-    } catch (err) {
-      setImportError('Registry could not be loaded.');
-    } finally {
-      setLoadingRegistry(false);
-    }
-  };
-
-  const performImport = async (importPromise) => {
-    setImporting(true);
-    setImportError('');
-    try {
-      const imported = await importPromise;
-      const fullDoc = await fetchDocument(imported.stage, imported.uuid);
-      onChange({ ...fullDoc.catalog, uuid: document.uuid, metadata: document.metadata });
-      setActiveTab('metadata');
-    } catch (err: any) {
-      setImportError(`Import failed: ${err?.message || 'Error'}`);
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const handleImportRegistry = (sourceId: string) => performImport(importFromRegistry(sourceId));
-  const handleImportUrl = () => { if (importUrl.trim()) performImport(importFromUrl(importUrl.trim())); };
 
   const baselineStats = (() => {
     if (mode !== 'profile' || !resolvedCatalog) return null;
@@ -251,7 +214,15 @@ export function DocumentOverview({
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ flex: 1, overflow: 'hidden', height: '100%' }}>
-        {currentTab === 'overview' && mode === 'catalog' && <CatalogOverviewPanel document={document} stats={stats} onSelectGroup={onSelectGroup} />}
+        {currentTab === 'overview' && mode === 'catalog' && (
+          <CatalogOverviewPanel
+            document={document}
+            stats={stats}
+            onSelectGroup={onSelectGroup}
+            onLoadTemplate={onLoadTemplate}
+            isEditing={isEditingState}
+          />
+        )}
         {currentTab === 'overview' && mode === 'profile' && <ProfileOverviewPanel document={document} resolvedCatalog={resolvedCatalog} stats={stats} onSelectGroup={onSelectGroup} />}
         {currentTab === 'imports' && mode === 'profile' && (
           <ActiveSourcesPanel profile={document} onChange={onChange} isEditing={isEditingState} isEditingState={isEditingState} availableCatalogs={availableCatalogs} availableProfiles={availableProfiles} conflicts={conflicts} resolvedCatalog={resolvedCatalog} />
@@ -274,18 +245,23 @@ export function DocumentOverview({
               stage="catalogs"
               embedded={true}
               currentDocument={document}
-              title="📥 Import Catalog Content"
-              subtitle="Load and apply catalog content from standard templates, remote URLs, or local files (JSON, YAML, XML). Your catalog UUID and document settings will be preserved."
+              title="📥 Load Template / Content"
+              subtitle="Load and apply catalog content from standard templates, remote URLs, or local files (JSON, YAML, XML). Your catalog UUID and title will be preserved."
               onApplyContent={(importedCatalog) => {
-                onChange({
-                  ...importedCatalog,
-                  uuid: document.uuid,
-                  metadata: {
-                    ...importedCatalog.metadata,
-                    title: document.metadata?.title || importedCatalog.metadata?.title,
-                    version: document.metadata?.version || importedCatalog.metadata?.version || '1.0.0',
-                  }
-                });
+                if (onApplyContent) {
+                  onApplyContent(importedCatalog);
+                } else {
+                  onChange({
+                    ...importedCatalog,
+                    uuid: document.uuid,
+                    metadata: {
+                      ...importedCatalog.metadata,
+                      title: document.metadata?.title || importedCatalog.metadata?.title,
+                      version: document.metadata?.version || importedCatalog.metadata?.version || '1.0.0',
+                      'last-modified': new Date().toISOString(),
+                    }
+                  });
+                }
                 setActiveTab('overview');
               }}
             />

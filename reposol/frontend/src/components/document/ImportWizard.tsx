@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from './Document.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
-import { authFetch, fetchDocument } from '@lib/api';
+import { authFetch } from '@lib/api';
 import { toast } from 'react-hot-toast';
 
 const SOURCE_LABELS: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -119,22 +119,25 @@ export default function ImportWizard({
     setImporting(entry.id);
     setResults((prev) => ({ ...prev, [entry.id]: null }));
     try {
-      const response = await authFetch(`/api/import/registry/${entry.id}`, {
+      const endpoint = embedded
+        ? `/api/import/registry/${entry.id}?persist=false`
+        : `/api/import/registry/${entry.id}`;
+      const response = await authFetch(endpoint, {
         method: 'POST',
       });
       const data = await response.json();
       if (response.ok) {
         let appliedTitle = data.title || entry.title;
         if (embedded && onApplyContent) {
-          try {
-            const targetStage = (data.stage || stage || 'catalogs') as any;
-            const fullDoc = await fetchDocument(targetStage, data.uuid);
-            const contentDoc = fullDoc.catalog || fullDoc.profile || fullDoc['component-definition'] || fullDoc['system-security-plan'] || fullDoc;
-            onApplyContent(contentDoc);
-            toast.success(`Content from "${appliedTitle}" applied to current document`);
-          } catch (fetchErr: any) {
-            console.error('Error fetching full imported doc:', fetchErr);
+          if (stage && data.stage && data.stage !== stage) {
+            const errStageMsg = `Cannot apply a ${data.stage} document to a ${stage} document`;
+            toast.error(errStageMsg);
+            throw new Error(errStageMsg);
           }
+          const fullDoc = data.document || data;
+          const contentDoc = fullDoc?.catalog || fullDoc?.profile || fullDoc?.['component-definition'] || fullDoc?.['system-security-plan'] || fullDoc;
+          await onApplyContent(contentDoc);
+          toast.success(`Content from "${appliedTitle}" applied to current document`);
         }
 
         setResults((prev) => ({
@@ -146,18 +149,22 @@ export default function ImportWizard({
               : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${appliedTitle}"`,
           },
         }));
-        if (onImported) onImported(data.stage);
+        if (!embedded && onImported) onImported(data.stage);
       } else {
         setResults((prev) => ({
           ...prev,
           [entry.id]: { ok: false, message: `❌ ${data.detail || 'Import failed'}` },
         }));
+        toast.error(data.detail || 'Import failed');
       }
     } catch (err: any) {
+      const isApiErr = err?.name === 'ApiError';
+      const msg = isApiErr ? `❌ ${err.message}` : `❌ Network error: ${err.message}`;
       setResults((prev) => ({
         ...prev,
-        [entry.id]: { ok: false, message: `❌ Network error: ${err.message}` },
+        [entry.id]: { ok: false, message: msg },
       }));
+      toast.error(err.message || 'Import failed');
     } finally {
       setImporting(null);
     }
@@ -168,23 +175,28 @@ export default function ImportWizard({
     setUrlImporting(true);
     setUrlResult(null);
     try {
-      const response = await authFetch('/api/import/url', {
+      const endpoint = embedded ? '/api/import/url?persist=false' : '/api/import/url';
+      const response = await authFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlInput.trim(), validate_schema: true }),
+        body: JSON.stringify({
+          url: urlInput.trim(),
+          validate_schema: true,
+          persist: !embedded
+        }),
       });
       const data = await response.json();
       if (response.ok) {
         if (embedded && onApplyContent) {
-          try {
-            const targetStage = (data.stage || stage || 'catalogs') as any;
-            const fullDoc = await fetchDocument(targetStage, data.uuid);
-            const contentDoc = fullDoc.catalog || fullDoc.profile || fullDoc['component-definition'] || fullDoc['system-security-plan'] || fullDoc;
-            onApplyContent(contentDoc);
-            toast.success(`Content from URL applied to current document`);
-          } catch (fetchErr: any) {
-            console.error('Error fetching full imported doc from URL:', fetchErr);
+          if (stage && data.stage && data.stage !== stage) {
+            const errStageMsg = `Cannot apply a ${data.stage} document to a ${stage} document`;
+            toast.error(errStageMsg);
+            throw new Error(errStageMsg);
           }
+          const fullDoc = data.document || data;
+          const contentDoc = fullDoc?.catalog || fullDoc?.profile || fullDoc?.['component-definition'] || fullDoc?.['system-security-plan'] || fullDoc;
+          await onApplyContent(contentDoc);
+          toast.success(`Content from URL applied to current document`);
         }
 
         setUrlResult({
@@ -193,12 +205,16 @@ export default function ImportWizard({
             ? `✅ Content Applied: "${data.title}"`
             : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
         });
-        if (onImported) onImported(data.stage);
+        if (!embedded && onImported) onImported(data.stage);
       } else {
         setUrlResult({ ok: false, message: `❌ ${data.detail || 'Import failed'}` });
+        toast.error(data.detail || 'Import failed');
       }
     } catch (err: any) {
-      setUrlResult({ ok: false, message: `❌ Network error: ${err.message}` });
+      const isApiErr = err?.name === 'ApiError';
+      const msg = isApiErr ? `❌ ${err.message}` : `❌ Network error: ${err.message}`;
+      setUrlResult({ ok: false, message: msg });
+      toast.error(err.message || 'Import failed');
     } finally {
       setUrlImporting(false);
     }
@@ -237,22 +253,23 @@ export default function ImportWizard({
     const formData = new FormData();
     formData.append("file", selectedFile);
     try {
-      const response = await authFetch("/api/import/file", {
+      const endpoint = embedded ? '/api/import/file?persist=false' : '/api/import/file';
+      const response = await authFetch(endpoint, {
         method: "POST",
         body: formData,
       });
       const data = await response.json();
       if (response.ok) {
         if (embedded && onApplyContent) {
-          try {
-            const targetStage = (data.stage || stage || 'catalogs') as any;
-            const fullDoc = await fetchDocument(targetStage, data.uuid);
-            const contentDoc = fullDoc.catalog || fullDoc.profile || fullDoc['component-definition'] || fullDoc['system-security-plan'] || fullDoc;
-            onApplyContent(contentDoc);
-            toast.success(`Content from file applied to current document`);
-          } catch (fetchErr: any) {
-            console.error('Error fetching full imported doc from file:', fetchErr);
+          if (stage && data.stage && data.stage !== stage) {
+            const errStageMsg = `Cannot apply a ${data.stage} document to a ${stage} document`;
+            toast.error(errStageMsg);
+            throw new Error(errStageMsg);
           }
+          const fullDoc = data.document || data;
+          const contentDoc = fullDoc?.catalog || fullDoc?.profile || fullDoc?.['component-definition'] || fullDoc?.['system-security-plan'] || fullDoc;
+          await onApplyContent(contentDoc);
+          toast.success(`Content from file applied to current document`);
         }
 
         setUploadResult({
@@ -261,12 +278,16 @@ export default function ImportWizard({
             ? `✅ Content Applied: "${data.title}"`
             : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
         });
-        if (onImported) onImported(data.stage);
+        if (!embedded && onImported) onImported(data.stage);
       } else {
         setUploadResult({ ok: false, message: `❌ ${data.detail || 'Import failed'}` });
+        toast.error(data.detail || 'Import failed');
       }
     } catch (err: any) {
-      setUploadResult({ ok: false, message: `❌ Network error: ${err.message}` });
+      const isApiErr = err?.name === 'ApiError';
+      const msg = isApiErr ? `❌ ${err.message}` : `❌ Network error: ${err.message}`;
+      setUploadResult({ ok: false, message: msg });
+      toast.error(err.message || 'Import failed');
     } finally {
       setUploading(false);
     }
@@ -279,8 +300,8 @@ export default function ImportWizard({
   };
 
   const modalTitle = title || (stage === 'catalogs' || stage === 'catalog' ? '📥 Import Catalog' : '📥 Import OSCAL Document');
-  const embeddedTitle = title || '📥 Import Catalog';
-  const embeddedSubtitle = subtitle || 'An OSCAL Catalog represents a single control source. Applying a template, URL, or file will replace the current catalog content with that single control baseline while preserving its UUID.';
+  const embeddedTitle = title || '📥 Load Template / Content';
+  const embeddedSubtitle = subtitle || 'An OSCAL Catalog represents a single control source. Applying a template, URL, or file will replace the current catalog content with that single control baseline while preserving its UUID and title.';
 
   const content = (
     <div className={embedded ? styles['import-panel-embedded'] : ['editor-panel', styles['import-panel']].filter(Boolean).join(' ')}>

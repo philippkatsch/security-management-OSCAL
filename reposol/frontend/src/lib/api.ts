@@ -55,8 +55,9 @@ export async function fetchDocuments(stage: OscalStage): Promise<DocumentSummary
   return res.json();
 }
 
-export async function saveDocument(stage: OscalStage, document: OscalDocument): Promise<OscalDocument> {
-  const res = await apiClient(`/documents/${stage}`, {
+export async function saveDocument(stage: OscalStage, document: OscalDocument, options?: { skipValidation?: boolean }): Promise<OscalDocument> {
+  const query = options?.skipValidation ? '?skip_validation=true' : '';
+  const res = await apiClient(`/documents/${stage}${query}`, {
     method: 'POST',
     body: JSON.stringify(document),
   });
@@ -120,17 +121,36 @@ export async function fetchRegistry(): Promise<Record<string, unknown>[]> {
   return res.json();
 }
 
-export async function importFromRegistry(sourceId: string): Promise<ImportResult> {
-  const res = await apiClient(`/import/registry/${sourceId}`, {
+export async function importFromRegistry(sourceId: string, persist = true): Promise<ImportResult> {
+  const query = persist ? '' : '?persist=false';
+  const res = await apiClient(`/import/registry/${sourceId}${query}`, {
     method: 'POST',
   });
   return res.json();
 }
 
-export async function importFromUrl(url: string, validateSchema = true): Promise<ImportResult> {
-  const res = await apiClient(`/import/url`, {
+export async function importFromUrl(url: string, validateSchema = true, persist = true): Promise<ImportResult> {
+  const query = persist ? '' : '?persist=false';
+  const res = await apiClient(`/import/url${query}`, {
     method: 'POST',
-    body: JSON.stringify({ url, validate_schema: validateSchema }),
+    body: JSON.stringify({ url, validate_schema: validateSchema, persist }),
+  });
+  return res.json();
+}
+
+export async function importFromFile(formData: FormData, persist = true): Promise<ImportResult> {
+  const query = persist ? '' : '?persist=false';
+  const res = await apiClient(`/import/file${query}`, {
+    method: 'POST',
+    body: formData,
+  });
+  return res.json();
+}
+
+export async function parseImportDocument(data: { document?: any; url?: string; raw_text?: string; format?: string; validate_schema?: boolean }): Promise<ImportResult> {
+  const res = await apiClient(`/import/parse`, {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
   return res.json();
 }

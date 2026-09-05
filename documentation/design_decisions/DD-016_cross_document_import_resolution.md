@@ -4,6 +4,10 @@
 **Date:** 2026-07-27  
 **Applies to:** Stage 5 (AP), Stage 6 (AR), Stage 7 (POA&M), Stage 8 (Mapping)
 
+> **Related Decisions:**
+> - [DD-036](DD-036_ssp_security_inheritance_and_baseline_resolution.md): SSP Architecture — Baseline Resolution & Security Inheritance
+> - [DD-037](DD-037_assessment_plan_architecture_and_scoping_model.md): Assessment Plan Architecture — 6-Tab Modular Builder, 3D Scoping Matrix & Target SSP Resolution
+
 ---
 
 ## Context

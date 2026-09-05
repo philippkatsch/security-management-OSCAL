@@ -233,12 +233,12 @@ The Knowledge Base portal includes validated, copyable JSON code blocks illustra
 #### Core Tailoring Principles:
 1. **Catalog Mode (Direct Mutation)**:
    - Modifications directly change the canonical control JSON.
-   - Header badge: `📖 Catalog Source (Direct Mutation)`.
+   - Header badge: (Removed per user preference to reduce visual clutter; previously `📖 Catalog Source`).
    - Control removal permanently deletes the control from the document.
    - Control deprecation uses formal `status: "withdrawn"` without removing historical text.
 2. **Profile Mode (Non-Destructive Overlay)**:
    - Modifications produce `modify.alters` (adds, removes) and `modify.set-parameters` without mutating the underlying imported catalog.
-   - Header badge: `⚙️ Profile Baseline (Non-Destructive)`.
+   - Header badge: (Removed per user preference to reduce visual clutter; previously `⚙️ Profile Baseline`).
    - Control removal produces `exclude-controls` directives; destructive deletion is disabled.
    - Excluded controls remain visible in Edit Mode with dimmed strikethrough styling and one-click "Include in Profile" restore capability, while remaining hidden in View Mode.
 3. **Sleeping Alters Preservation**:

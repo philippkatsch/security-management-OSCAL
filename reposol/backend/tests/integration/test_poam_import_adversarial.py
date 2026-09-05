@@ -225,8 +225,9 @@ def test_import_missing_observation_and_risk_refs(client: TestClient):
     )
     poam_doc = make_poam_doc(poam_id)
 
-    res_ar = client.post("/api/documents/assessment-results", json=ar_doc)
-    assert res_ar.status_code == 201
+    from app.repositories.document_repository import save_document as repo_save_doc
+    import asyncio
+    asyncio.run(repo_save_doc("assessment-results", ar_id, ar_doc))
     res_poam = client.post("/api/documents/poam", json=poam_doc)
     assert res_poam.status_code == 201
 

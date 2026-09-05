@@ -34,6 +34,7 @@ export interface DocumentPageLayoutProps {
   onClose?: () => void;
   headerActions?: React.ReactNode;
   onExport?: () => void;
+  onSave?: () => void;
 }
 
 export const DocumentPageLayout = ({
@@ -50,7 +51,8 @@ export const DocumentPageLayout = ({
   onSidebarToggle,
   onClose,
   headerActions,
-  onExport
+  onExport,
+  onSave
 }: DocumentPageLayoutProps) => {
   const navigate = useNavigate();
 
@@ -81,7 +83,7 @@ export const DocumentPageLayout = ({
         onBack={handleBack}
         isEditing={lifecycle.isEditing}
         onToggleEdit={lifecycle.handleToggleEdit}
-        onSave={() => lifecycle.setShowDrawer(true)}
+        onSave={onSave || (() => lifecycle.setShowDrawer(true))}
         loading={lifecycle.loading}
         saving={lifecycle.saving}
         validating={lifecycle.validating}

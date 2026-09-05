@@ -180,3 +180,136 @@ class TestImportRoutesIntegration:
         response = client.post("/api/import/file", files=files)
         assert response.status_code == 400
         assert "Invalid OSCAL document structure" in response.json()["detail"]
+
+    @patch("app.services.import_service.httpx.AsyncClient")
+    def test_import_registry_non_persisting(self, mock_client_class, client, isolated_data_dir):
+        """Verify importing with persist=false parses and returns document without writing to disk."""
+        from unittest.mock import AsyncMock
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        catalog_doc = CatalogFactory.build(
+            title="Registry Parse-Only Catalog",
+            version="1.0.0"
+        )
+        mock_uuid = catalog_doc["catalog"]["uuid"]
+        mock_response.json.return_value = catalog_doc
+        mock_client.get.return_value = mock_response
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        response = client.post("/api/import/registry/nist-800-53-rev5-catalog?persist=false")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "parsed"
+        assert data["uuid"] == mock_uuid
+        assert data["stage"] == "catalogs"
+        assert data["title"] == "Registry Parse-Only Catalog"
+        assert "document" in data
+        assert data["document"]["catalog"]["uuid"] == mock_uuid
+
+        # Verify it was NOT saved to disk
+        fetch_res = client.get(f"/api/documents/catalogs/{mock_uuid}")
+        assert fetch_res.status_code == 404
+
+    @patch("app.services.import_service.httpx.AsyncClient")
+    def test_import_url_non_persisting(self, mock_client_class, client, isolated_data_dir):
+        """Verify URL import with persist=false does not persist to disk."""
+        from unittest.mock import AsyncMock
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        catalog_doc = CatalogFactory.build(
+            title="URL Parse-Only Catalog",
+            version="1.0.0"
+        )
+        mock_uuid = catalog_doc["catalog"]["uuid"]
+        mock_response.json.return_value = catalog_doc
+        mock_client.get.return_value = mock_response
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        # Test both query param and body payload persist: false
+        payload = {
+            "url": "https://example.com/some-catalog.json",
+            "persist": False
+        }
+        response = client.post("/api/import/url", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "parsed"
+        assert data["uuid"] == mock_uuid
+        assert "document" in data
+
+        # Verify not persisted
+        fetch_res = client.get(f"/api/documents/catalogs/{mock_uuid}")
+        assert fetch_res.status_code == 404
+
+    def test_import_file_non_persisting(self, client, isolated_data_dir):
+        """Verify file import with persist=false returns parsed document without saving to disk."""
+        catalog_doc = CatalogFactory.build(title="File Parse-Only Catalog")
+        catalog_uuid = catalog_doc["catalog"]["uuid"]
+
+        files = {
+            "file": ("catalog.json", json.dumps(catalog_doc), "application/json")
+        }
+        response = client.post("/api/import/file?persist=false", files=files)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "parsed"
+        assert data["uuid"] == catalog_uuid
+        assert "document" in data
+
+        # Verify not persisted
+        fetch_res = client.get(f"/api/documents/catalogs/{catalog_uuid}")
+        assert fetch_res.status_code == 404
+
+    def test_import_parse_endpoint(self, client, isolated_data_dir):
+        """Verify POST /api/import/parse endpoint parses document directly."""
+        catalog_doc = CatalogFactory.build(title="Direct Parse Catalog")
+        catalog_uuid = catalog_doc["catalog"]["uuid"]
+
+        # Parse from JSON dictionary
+        response = client.post("/api/import/parse", json={"document": catalog_doc})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "parsed"
+        assert data["uuid"] == catalog_uuid
+        assert "document" in data
+
+        # Verify not persisted
+        fetch_res = client.get(f"/api/documents/catalogs/{catalog_uuid}")
+        assert fetch_res.status_code == 404
+
+        # Parse from raw text
+        response = client.post("/api/import/parse", json={"raw_text": json.dumps(catalog_doc)})
+        assert response.status_code == 200
+        assert response.json()["status"] == "parsed"
+
+        # Missing input
+        response = client.post("/api/import/parse", json={})
+        assert response.status_code == 400
+
+    def test_import_file_with_unspecified_filename(self, client, isolated_data_dir):
+        """Verify uploading file without explicit extension defaults to JSON/YAML parsing cleanly."""
+        catalog_doc = CatalogFactory.build(title="No Extension Catalog")
+        files = {
+            "file": ("catalog", json.dumps(catalog_doc), "application/json")
+        }
+        response = client.post("/api/import/file?persist=false", files=files)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "parsed"
+        assert data["title"] == "No Extension Catalog"
+
+    def test_import_parse_schema_validation_error(self, client, isolated_data_dir):
+        """Verify /api/import/parse returns 422 on schema violation when validate_schema is True."""
+        invalid_doc = {
+            "catalog": {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "metadata": {}  # Missing title, version, etc.
+            }
+        }
+        response = client.post("/api/import/parse", json={"document": invalid_doc, "validate_schema": True})
+        assert response.status_code == 422
+        assert "Schema validation failed" in response.json()["detail"]

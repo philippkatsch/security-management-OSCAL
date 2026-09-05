@@ -311,4 +311,258 @@ describe('ImportWizard', () => {
     });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('embedded mode uses non-persisting import and invokes onApplyContent directly', async () => {
+    const onApplyContent = vi.fn();
+    const mockCatalogDoc = {
+      catalog: {
+        uuid: 'nist-uuid-123',
+        metadata: { title: 'NIST SP 800-53 Rev 5' },
+        groups: [{ id: 'ac', title: 'Access Control' }]
+      }
+    };
+    setupFetchMocks(mockRegistry, {
+      status: 'parsed',
+      title: 'NIST SP 800-53 Rev 5',
+      stage: 'catalogs',
+      document: mockCatalogDoc
+    });
+
+    await act(async () => {
+      render(
+        <ImportWizard
+          stage="catalogs"
+          embedded={true}
+          onApplyContent={onApplyContent}
+          currentDocument={{ uuid: 'my-catalog-uuid', metadata: { title: 'My Custom Catalog' } }}
+        />
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('NIST SP 800-53 Rev 5')).toBeInTheDocument();
+    });
+
+    const applyButtons = screen.getAllByRole('button', { name: '📥 Apply Content' });
+    await act(async () => {
+      fireEvent.click(applyButtons[0]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('✅ Content Applied: "NIST SP 800-53 Rev 5"')).toBeInTheDocument();
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/import/registry/nist-800-53-catalog?persist=false'),
+      expect.any(Object)
+    );
+    expect(onApplyContent).toHaveBeenCalledWith(mockCatalogDoc.catalog);
+  });
+
+  it('embedded mode URL import sends persist: false and applies content', async () => {
+    const onApplyContent = vi.fn();
+    const mockUrlDoc = {
+      catalog: {
+        uuid: 'url-uuid-456',
+        metadata: { title: 'URL Catalog' },
+        controls: [{ id: 'ctrl-1', title: 'Control 1' }]
+      }
+    };
+    setupFetchMocks(mockRegistry, {
+      status: 'parsed',
+      title: 'URL Catalog',
+      stage: 'catalogs',
+      document: mockUrlDoc
+    });
+
+    await act(async () => {
+      render(
+        <ImportWizard
+          stage="catalogs"
+          embedded={true}
+          onApplyContent={onApplyContent}
+          currentDocument={{ uuid: 'my-catalog-uuid', metadata: { title: 'My Custom Catalog' } }}
+        />
+      );
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText(/Import from URL/i));
+    });
+
+    const input = screen.getByPlaceholderText(/https:\/\/raw.githubusercontent.com/);
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'https://example.com/custom.json' } });
+    });
+
+    const loadBtn = screen.getByRole('button', { name: '📥 Load & Apply Content' });
+    await act(async () => {
+      fireEvent.click(loadBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('✅ Content Applied: "URL Catalog"')).toBeInTheDocument();
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/import/url?persist=false'),
+      expect.objectContaining({
+        body: expect.stringContaining('"persist":false')
+      })
+    );
+    expect(onApplyContent).toHaveBeenCalledWith(mockUrlDoc.catalog);
+  });
+
+  it('embedded mode file upload sends persist: false and applies content', async () => {
+    const onApplyContent = vi.fn();
+    const mockFileDoc = {
+      catalog: {
+        uuid: 'file-uuid-789',
+        metadata: { title: 'File Catalog' },
+        controls: [{ id: 'ctrl-file', title: 'File Control' }]
+      }
+    };
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url.includes('/api/import/file')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            status: 'parsed',
+            title: 'File Catalog',
+            stage: 'catalogs',
+            document: mockFileDoc
+          })
+        });
+      }
+      if (url.includes('/api/import/registry')) {
+        return Promise.resolve({ ok: true, json: async () => mockRegistry });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    await act(async () => {
+      render(
+        <ImportWizard
+          stage="catalogs"
+          embedded={true}
+          onApplyContent={onApplyContent}
+          currentDocument={{ uuid: 'my-catalog-uuid', metadata: { title: 'My Custom Catalog' } }}
+        />
+      );
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText(/Upload File/i));
+    });
+
+    const file = new File([JSON.stringify(mockFileDoc)], 'catalog.json', { type: 'application/json' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+    });
+
+    const uploadBtn = screen.getByRole('button', { name: /Upload & Apply/i });
+    await act(async () => {
+      fireEvent.click(uploadBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('✅ Content Applied: "File Catalog"')).toBeInTheDocument();
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/import/file?persist=false'),
+      expect.any(Object)
+    );
+    expect(onApplyContent).toHaveBeenCalledWith(mockFileDoc.catalog);
+  });
+
+  it('embedded mode rejects stage mismatch when imported document does not match active stage', async () => {
+    const onApplyContent = vi.fn();
+    setupFetchMocks(mockRegistry, {
+      status: 'parsed',
+      title: 'Wrong Model Profile',
+      stage: 'profiles', // stage mismatch: expected catalogs, got profiles!
+      document: {
+        profile: {
+          uuid: 'prof-uuid',
+          metadata: { title: 'Wrong Model Profile' }
+        }
+      }
+    });
+
+    await act(async () => {
+      render(
+        <ImportWizard
+          stage="catalogs"
+          embedded={true}
+          onApplyContent={onApplyContent}
+          currentDocument={{ uuid: 'my-catalog-uuid', metadata: { title: 'My Catalog' } }}
+        />
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('NIST SP 800-53 Rev 5')).toBeInTheDocument();
+    });
+
+    const applyButtons = screen.getAllByRole('button', { name: '📥 Apply Content' });
+    await act(async () => {
+      fireEvent.click(applyButtons[0]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Cannot apply a profiles document to a catalogs document/i)).toBeInTheDocument();
+    });
+
+    expect(onApplyContent).not.toHaveBeenCalled();
+  });
+
+  it('embedded mode handles onApplyContent rejection without showing false success or calling onImported', async () => {
+    const onApplyContent = vi.fn().mockRejectedValue(new Error('Backend save failed'));
+    const onImported = vi.fn();
+    const mockCatalogDoc = {
+      catalog: {
+        uuid: 'cat-fail',
+        metadata: { title: 'Fail Catalog' }
+      }
+    };
+    setupFetchMocks(mockRegistry, {
+      status: 'parsed',
+      title: 'Fail Catalog',
+      stage: 'catalogs',
+      document: mockCatalogDoc
+    });
+
+    await act(async () => {
+      render(
+        <ImportWizard
+          stage="catalogs"
+          embedded={true}
+          onApplyContent={onApplyContent}
+          onImported={onImported}
+          currentDocument={{ uuid: 'my-catalog-uuid', metadata: { title: 'My Custom Catalog' } }}
+        />
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('NIST SP 800-53 Rev 5')).toBeInTheDocument();
+    });
+
+    const applyButtons = screen.getAllByRole('button', { name: '📥 Apply Content' });
+    await act(async () => {
+      fireEvent.click(applyButtons[0]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Backend save failed/i)).toBeInTheDocument();
+    });
+
+    // Verify false success is NOT shown and onImported is NOT called
+    expect(screen.queryByText(/✅ Content Applied/i)).not.toBeInTheDocument();
+    expect(onImported).not.toHaveBeenCalled();
+  });
 });

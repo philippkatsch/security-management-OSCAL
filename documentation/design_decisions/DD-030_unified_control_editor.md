@@ -18,7 +18,7 @@ We introduce a single `UnifiedControlEditor` component that handles all control 
 The `UnifiedControlEditor` is completely polymorphic, driven by injected stage adapters that provide data mapping and mutation callbacks.
 - **`CatalogAdapter`**: Maps direct inline edits to the underlying catalog document structure.
 - **`ProfileAdapter`**: Maps edits to `modify.alters` and `modify.set-parameters` for tailoring.
-- **`SSPAdapter`**: Maps implementation details to `implemented-requirements` and displays the resolved control in a read-only visual wrapper.
+- **`SSPAdapter`**: Maps implementation details to `implemented-requirements`, manages `by-components` narratives, statement breakdowns, parameter cascade overrides, origination tagging, and security inheritance (`inherited`, `satisfied`, `export`) within the unified control view (see [DD-036](DD-036_ssp_security_inheritance_and_baseline_resolution.md)).
 
 ### 3. ControlEditorContext
 To prevent massive prop-drilling through nested control properties, a `ControlEditorContext` is established. It provides stage-aware context to child components (e.g., statements, properties, enhancements), exposing current edit permissions, active adapters, and resolved parameter values.

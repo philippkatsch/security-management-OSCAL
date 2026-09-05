@@ -1,3 +1,4 @@
+import uuid
 import httpx
 from typing import Optional, Dict, Any
 from app.constants import STAGE_ROOT_KEYS, STAGE_MAPPING
@@ -21,16 +22,33 @@ def detect_stage(document: dict) -> str:
 
 
 async def fetch_remote_document(url: str) -> dict:
-    """Fetch JSON document from a remote URL."""
+    """Fetch JSON, YAML, or XML document from a remote URL."""
     try:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             headers = {
-                "Accept": "application/json",
+                "Accept": "application/json, application/yaml, application/xml, text/plain, */*",
                 "User-Agent": "Reposol-OSCAL-Manager/1.0",
             }
             response = await client.get(url, headers=headers)
             response.raise_for_status()
-            return response.json()
+            try:
+                data = response.json()
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                pass
+
+            text = response.text
+            url_lower = url.lower()
+            if url_lower.endswith((".yaml", ".yml")):
+                from app.format_converter import parse_yaml_to_dict
+                return parse_yaml_to_dict(text)
+            elif url_lower.endswith(".xml") or (isinstance(text, str) and text.strip().startswith("<")):
+                from app.format_converter import parse_xml_to_oscal_dict
+                return parse_xml_to_oscal_dict(text)
+            else:
+                from app.format_converter import parse_yaml_to_dict
+                return parse_yaml_to_dict(text)
     except httpx.TimeoutException:
         raise ImportServiceError(f"Timeout fetching URL: {url}")
     except httpx.HTTPStatusError as e:
@@ -39,8 +57,8 @@ async def fetch_remote_document(url: str) -> dict:
         raise ImportServiceError(f"Failed to fetch URL: {str(e)}")
 
 
-async def import_document(document: dict, validate: bool = True, workspace_id: Optional[str] = None) -> dict:
-    """Import a document into local storage, with optional validation."""
+async def import_document(document: dict, validate: bool = True, workspace_id: Optional[str] = None, persist: bool = True) -> dict:
+    """Import a document into local storage (or parse only if persist=False), with optional validation."""
     stage = detect_stage(document)
     normalized_stage = STAGE_MAPPING.get(stage, stage)
     root_key = STAGE_ROOT_KEYS.get(normalized_stage)
@@ -54,16 +72,34 @@ async def import_document(document: dict, validate: bool = True, workspace_id: O
 
     doc_id = doc_data.get("uuid")
     if not doc_id:
-        raise ImportServiceError("Document missing 'uuid' field")
+        if not persist:
+            doc_id = str(uuid.uuid4())
+            doc_data["uuid"] = doc_id
+        else:
+            raise ImportServiceError("Document missing 'uuid' field")
 
     if not is_valid_uuid(doc_id):
-        raise ImportServiceError(f"Invalid UUID format: '{doc_id}'")
+        if not persist:
+            doc_id = str(uuid.uuid4())
+            doc_data["uuid"] = doc_id
+        else:
+            raise ImportServiceError(f"Invalid UUID format: '{doc_id}'")
 
     if validate:
         try:
             await validate_document(normalized_stage, document, check_refs=False, workspace_id=workspace_id)
         except Exception as e:
             raise ImportValidationError(f"Schema validation failed: {str(e)}")
+
+    if not persist:
+        return {
+            "status": "parsed",
+            "stage": normalized_stage,
+            "uuid": doc_id,
+            "title": doc_data.get("metadata", {}).get("title", "Untitled"),
+            "oscal_version": doc_data.get("metadata", {}).get("oscal-version", "unknown"),
+            "document": document,
+        }
 
     _, _, existed = await save_document(normalized_stage, doc_id, document, workspace_id=workspace_id, skip_validation=True)
 
@@ -73,6 +109,7 @@ async def import_document(document: dict, validate: bool = True, workspace_id: O
         "uuid": doc_id,
         "title": doc_data.get("metadata", {}).get("title", "Untitled"),
         "oscal_version": doc_data.get("metadata", {}).get("oscal-version", "unknown"),
+        "document": document,
     }
 
 

@@ -11,6 +11,7 @@ STAGE_MAPPING = {
     "ssp": "ssps",
     "ssps": "ssps",
     "system-security-plan": "ssps",
+    "system-security-plans": "ssps",
     "component": "component-definitions",
     "components": "component-definitions",
     "component-definition": "component-definitions",
