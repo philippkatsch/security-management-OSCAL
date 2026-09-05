@@ -186,7 +186,12 @@ export const DocumentListPage = () => {
           <button className={sharedStyles['btn-secondary']} onClick={() => setShowImport(true)}>
             📥 Import {label.replace(/s$/, '')}
           </button>
-          <button className={sharedStyles['btn-primary']} onClick={() => setShowEditor(true)}>
+          <button
+            className={sharedStyles['btn-primary']}
+            onClick={() => setShowEditor(true)}
+            aria-label={`Create New ${label.replace(/s$/, '')}`}
+            data-testid="create-doc-btn"
+          >
             + New {label.replace(/s$/, '')}
           </button>
         </div>

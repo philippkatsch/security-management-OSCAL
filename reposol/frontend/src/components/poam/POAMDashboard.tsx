@@ -35,11 +35,19 @@ export function POAMDashboard({
   const [editingSystemId, setEditingSystemId] = React.useState(false);
   const [systemIdVal, setSystemIdVal] = React.useState('');
 
-  // Calculate overdue items (risk.deadline < today and status !== 'closed') per DD-022
+  // Calculate overdue items and risks per DD-022 & US 7.14
   const todayStr = new Date().toISOString().split('T')[0];
   const overdueRisks = (poam?.risks || []).filter((r: any) =>
     r.deadline && r.deadline.split('T')[0] < todayStr && r.status !== 'closed'
   );
+  const overdueItems = (items || []).filter((item: any) => {
+    const isCompleted = (item.props || []).some((p: any) => p.name === 'status' && p.value === 'completed');
+    if (isCompleted) return false;
+    const deadlineProp = (item.props || []).find((p: any) => p.name === 'milestone-deadline' || p.name === 'deadline')?.value;
+    if (deadlineProp && deadlineProp.split('T')[0] < todayStr) return true;
+    return false;
+  });
+  const totalOverdue = overdueRisks.length + overdueItems.length;
 
   // Calculate remediation lifecycle progress across all risks (DD-017 & DD-022)
   const allRemediations = (poam?.risks || []).flatMap((r: any) => r.remediations || []);
@@ -50,7 +58,7 @@ export function POAMDashboard({
 
   const combinedMetrics = [
     ...dashboardMetrics,
-    ...(overdueRisks.length > 0 ? [{ title: 'Overdue Risks', value: overdueRisks.length, icon: '🚨', accentColor: 'var(--color-danger, #ef4444)' }] : [])
+    ...(totalOverdue > 0 ? [{ title: 'Overdue Items/Risks', value: totalOverdue, icon: '🚨', accentColor: 'var(--color-danger, #ef4444)' }] : [])
   ];
 
   return (
@@ -75,15 +83,39 @@ export function POAMDashboard({
         </div>
       )}
 
-      {/* Overdue Warning Alert Banner (DD-022) */}
-      {overdueRisks.length > 0 && (
+      {/* Overdue Warning Alert Banner (DD-022 & US 7.14) */}
+      {(overdueRisks.length > 0 || overdueItems.length > 0) && (
         <div className={styles['overdue-alert-banner']} data-testid="overdue-alert-banner">
           <span style={{ fontSize: '20px' }}>⚠️</span>
-          <div>
-            <strong style={{ fontSize: '14px' }}>{overdueRisks.length} Overdue Risk(s) Detected!</strong>
-            <p style={{ margin: '2px 0 0 0', fontSize: '12px' }}>
-              Risks with passed deadline dates require immediate remediation triage.
+          <div style={{ width: '100%' }}>
+            <strong style={{ fontSize: '14px' }}>
+              {overdueRisks.length > 0
+                ? `${overdueRisks.length} Overdue Risk(s) Detected!`
+                : `${overdueItems.length} Overdue Item(s) Detected!`}
+            </strong>
+            <p style={{ margin: '2px 0 8px 0', fontSize: '12px' }}>
+              Risks and items with passed deadline dates require immediate remediation triage:
             </p>
+            <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px' }}>
+              {overdueItems.map((item: any, idx: number) => (
+                <li key={item.uuid || idx} style={{ marginBottom: '4px' }}>
+                  <span style={{ fontWeight: 600 }}>{item.title}</span>
+                  <span style={{ marginLeft: '8px', padding: '2px 6px', fontSize: '11px', borderRadius: '4px', background: '#ef4444', color: '#ffffff', fontWeight: 600 }} data-testid="overdue-deadline-indicator">
+                    🚨 Overdue
+                  </span>
+                  {item.description && <span style={{ marginLeft: '8px', color: 'var(--color-text-muted)' }}>— {item.description}</span>}
+                </li>
+              ))}
+              {overdueRisks.map((risk: any, idx: number) => (
+                <li key={risk.uuid || idx} style={{ marginBottom: '4px' }}>
+                  <span style={{ fontWeight: 600 }}>{risk.title}</span>
+                  <span style={{ marginLeft: '8px', padding: '2px 6px', fontSize: '11px', borderRadius: '4px', background: '#ef4444', color: '#ffffff', fontWeight: 600 }} data-testid="overdue-deadline-indicator">
+                    🚨 Overdue
+                  </span>
+                  {risk.statement && <span style={{ marginLeft: '8px', color: 'var(--color-text-muted)' }}>— {risk.statement}</span>}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
