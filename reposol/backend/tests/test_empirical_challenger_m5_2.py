@@ -26,32 +26,30 @@ AUDIT_FILE = os.path.join(DOCS_DIR, "audit", "OSCAL_STAGES_3_TO_8_LIFECYCLE_AUDI
 
 
 # =========================================================================
-# 1. DISC-01 & DISC-02: CdefImportModal.tsx
+# 1. DISC-01 & DISC-02: CdefImportModal.tsx & SystemImplementationTab.tsx
 # =========================================================================
-def test_disc_01_and_02_cdef_import_modal_flaws():
+def test_disc_01_and_02_cdef_import_modal_remediated():
     modal_path = os.path.join(FRONTEND_DIR, "src", "components", "ssp", "drawers", "CdefImportModal.tsx")
     assert os.path.exists(modal_path), f"File not found: {modal_path}"
     
     with open(modal_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # DISC-01: Control implementations dropped
-    # Verify chosen.map maps to SystemComponent without extracting control-implementations
-    import_match = re.search(r"const importedComps: SystemComponent\[\] = chosen\.map\(\(c: any\) => \(([\s\S]*?)\)\);", content)
-    assert import_match is not None, "Could not find importedComps mapping in CdefImportModal.tsx"
-    mapping_body = import_match.group(1)
-    
-    # Assert 'control-implementations' is NOT mapped in importedComps
-    assert "control-implementations" not in mapping_body, "DISC-01 falsified: control-implementations was found in mapping"
-    assert "implemented-requirements" not in mapping_body, "DISC-01 falsified: implemented-requirements was found in mapping"
+    # DISC-01 & DISC-02 Remediated:
+    # 1. source-component-uuid is preserved in props
+    assert "source-component-uuid" in content, "Expected source-component-uuid in props"
+    # 2. Fragment anchor #c.uuid is preserved in link href
+    assert "#${c.uuid}" in content, "Expected component anchor in link href"
+    # 3. onImport receives both importedComps and chosen (raw components with control-implementations)
+    assert "onImport(importedComps, chosen)" in content or "onImport(importedComps, chosen" in content, "Expected chosen components passed to onImport"
 
-    # DISC-02: uuid: generateUUID() without source component UUID retention
-    assert "uuid: generateUUID()" in mapping_body, "DISC-02 verification: uuid should be freshly generated"
-    # Verify that c.uuid is not preserved in links or props
-    assert "c.uuid" not in mapping_body, "DISC-02 falsified: c.uuid is referenced in mapping body"
-    # Verify link href only points to the doc, not the component
-    assert "rel: 'imported-from'" in mapping_body
-    assert "href: `../component-definitions/${selectedCdefDoc['component-definition']?.uuid || selectedCdefId}.json`" in mapping_body
+    # Verify SystemImplementationTab.tsx consumes control-implementations
+    ssp_impl_path = os.path.join(FRONTEND_DIR, "src", "components", "ssp", "SystemImplementationTab.tsx")
+    with open(ssp_impl_path, "r", encoding="utf-8") as f:
+        ssp_content = f.read()
+    assert "handleImportCdefComponents" in ssp_content
+    assert "upsertImplementedRequirement" in ssp_content
+    assert "addByComponent" in ssp_content
 
 
 # =========================================================================
@@ -201,70 +199,54 @@ async def test_disc_04_missing_ssp_baseline_control_membership():
 
 
 # =========================================================================
-# 4. DISC-05: ReviewedControlsTab.tsx Synthetic Statement IDs
+# 4. DISC-05: ReviewedControlsTab.tsx Dynamic Statement IDs
 # =========================================================================
-def test_disc_05_synthetic_statement_ids():
+def test_disc_05_dynamic_statement_ids():
     tab_path = os.path.join(FRONTEND_DIR, "src", "components", "assessment-plan", "ReviewedControlsTab.tsx")
     assert os.path.exists(tab_path), f"File not found: {tab_path}"
     
     with open(tab_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Look for the exact synthetic statement ID array elements
-    assert "`${cid}_smt_a`" in content, "Expected `${cid}_smt_a` in ReviewedControlsTab.tsx"
-    assert "`${cid}_smt_b`" in content, "Expected `${cid}_smt_b` in ReviewedControlsTab.tsx"
-    assert "`${cid}_smt_c`" in content, "Expected `${cid}_smt_c` in ReviewedControlsTab.tsx"
-    assert "`${cid}_smt_d`" in content, "Expected `${cid}_smt_d` in ReviewedControlsTab.tsx"
+    # Dynamic extraction from SSP statements or set-parameters
+    assert "reqStmts" in content, "Expected reqStmts dynamic extraction"
+    assert "r.statements" in content, "Expected r.statements extraction"
+    assert "FALLBACK_CANDIDATE_CONTROLS" in content, "Expected fallback catalog candidate lookup"
 
 
 # =========================================================================
 # 5. DISC-06: AssessmentSubjectsAssetsTab.tsx Omitted Locations and Parties
 # =========================================================================
-def test_disc_06_omitted_locations_and_parties():
+def test_disc_06_locations_and_parties_included():
     tab_path = os.path.join(FRONTEND_DIR, "src", "components", "assessment-plan", "AssessmentSubjectsAssetsTab.tsx")
     assert os.path.exists(tab_path), f"File not found: {tab_path}"
     
     with open(tab_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Verify that setSspEntities only stores components, inventory, users
-    entity_slice_idx = content.find("setSspEntities({")
-    assert entity_slice_idx != -1
-    entity_slice = content[entity_slice_idx:entity_slice_idx + 100]
-    assert "components: comps" in entity_slice
-    assert "inventory: invs" in entity_slice
-    assert "users: usrs" in entity_slice
-    assert "locations" not in entity_slice
-    assert "parties" not in entity_slice
+    # Verify that setSspEntities includes locations and parties
+    assert "locations: locs" in content, "Expected locations in setSspEntities"
+    assert "parties: pts" in content, "Expected parties in setSspEntities"
 
-    # Verify handleAutoPopulateSubjects only populates component, inventory-item, user
-    auto_idx = content.find("handleAutoPopulateSubjects")
-    assert auto_idx != -1
-    auto_slice = content[auto_idx:auto_idx + 800]
-    assert "type: 'component'" in auto_slice
-    assert "type: 'inventory-item'" in auto_slice
-    assert "type: 'user'" in auto_slice
-    assert "type: 'location'" not in auto_slice
-    assert "type: 'party'" not in auto_slice
-
+    # Verify handleAutoPopulateSubjects populates location and party
+    assert "type: 'location'" in content, "Expected location subject type auto-population"
+    assert "type: 'party'" in content, "Expected party subject type auto-population"
 
 
 # =========================================================================
 # 6. DISC-07: ComponentPage.tsx Bypassing Document Actions
 # =========================================================================
-def test_disc_07_component_page_bypassing_document_actions():
+def test_disc_07_component_page_using_document_actions():
     page_path = os.path.join(FRONTEND_DIR, "src", "components", "component-definition", "ComponentPage.tsx")
     assert os.path.exists(page_path), f"File not found: {page_path}"
     
     with open(page_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Verify component-definition-actions is NOT imported
-    assert "component-definition-actions" not in content, "DISC-07 falsified: component-definition-actions is imported in ComponentPage.tsx"
-
-    # Verify handleUpdate uses updateDocumentWith
-    assert "updateDocumentWith(doc, updater)" in content, "Expected updateDocumentWith in handleUpdate"
-    assert "pushUndoRedoState(nextDoc)" in content, "Expected pushUndoRedoState in handleUpdate"
+    # Verify component-definition-actions is imported and used
+    assert "component-definition-actions" in content, "Expected component-definition-actions imported"
+    assert "useDocumentActions" in content, "Expected useDocumentActions hook"
+    assert "dispatch(" in content, "Expected dispatch calls in ComponentPage.tsx"
 
 
 # =========================================================================
@@ -280,26 +262,22 @@ def test_poam_and_mapping_validation_missing():
     assert "_validate_component_integrity" in content, "Expected _validate_component_integrity in validation.py"
 
 
-def test_mapping_page_non_standard_props_and_enums():
+def test_mapping_page_standard_provenance_and_enums():
     mapping_page = os.path.join(FRONTEND_DIR, "src", "components", "mapping", "MappingPage.tsx")
     assert os.path.exists(mapping_page), f"File not found: {mapping_page}"
     with open(mapping_page, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Check fake props injection
-    assert "name: 'method'" in content, "Expected name: 'method' in MappingPage props"
-    assert "name: 'confidence'" in content, "Expected name: 'confidence' in MappingPage props"
-    assert "name: 'rationale'" in content, "Expected name: 'rationale' in MappingPage props"
+    # Verify standard OSCAL 1.1 mapping actions and helpers
+    assert "useDocumentActions" in content, "Expected useDocumentActions in MappingPage"
+    assert "renderDetailPanel" in content, "Expected renderDetailPanel helper in MappingPage"
+    assert "batchSetRelationship" in content, "Expected batchSetRelationship action in MappingPage"
+    assert "deleteMapEntries" in content, "Expected deleteMapEntries action in MappingPage"
 
-    # Check invalid method enums ('manual', 'automated', 'mixed')
-    assert '<option value="manual">Manual</option>' in content, "Expected invalid enum 'manual'"
-    assert '<option value="automated">Automated</option>' in content, "Expected invalid enum 'automated'"
-    assert '<option value="mixed">Mixed</option>' in content, "Expected invalid enum 'mixed'"
-
-    # Check relationship select options - confirm 'no-relationship' is absent
-    rel_block = re.search(r"<select[\s\S]*?category=\"mapping-relationship\"[\s\S]*?>", content)
-    # Search for option values within relationship selector
-    assert '<option value="no-relationship">' not in content, "Expected 'no-relationship' to be omitted from relationship select"
+    # Check valid method enums per OSCAL 1.1 ('human', 'automation', 'hybrid')
+    assert "human" in content, "Expected OSCAL 1.1 'human' method"
+    assert "automation" in content, "Expected OSCAL 1.1 'automation' method"
+    assert "hybrid" in content, "Expected OSCAL 1.1 'hybrid' method"
 
 
 # =========================================================================

@@ -1,7 +1,18 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useDocumentLifecycle } from '@hooks/useDocumentLifecycle';
+import { useDocumentActions } from '@hooks/useDocumentActions';
 import { useConfirm } from '@hooks/useConfirm';
-import { updateDocumentWith } from '@lib/document-updater';
+import {
+  addComponent,
+  updateComponent,
+  deleteComponents,
+  addCapability,
+  updateCapability,
+  deleteCapabilities,
+  updateComponentDefinitionMetadata,
+  updateComponentDefinitionBackMatter,
+  setImportComponentDefinitions
+} from '@lib/document-actions/component-definition-actions';
 import { DocumentPageLayout } from '../layout/DocumentPageLayout';
 import EntityTable, { EntityTableColumn } from '@components/shared/entity/EntityTable';
 import EntityDetailPanel from '@components/shared/entity/EntityDetailPanel';
@@ -61,6 +72,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
   );
 
   const { activeDoc, isEditing, setDoc, pushUndoRedoState } = lifecycle;
+  const { dispatch } = useDocumentActions(lifecycle);
   const doc = activeDoc;
   const compDef: any = doc?.['component-definition'] || {};
   const components = compDef.components || [];
@@ -69,16 +81,10 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
   const backMatter = compDef['back-matter'] || {};
   const metadata = compDef.metadata || {};
 
-  const handleUpdate = (updater: (draft: any) => void) => {
-    const nextDoc = updateDocumentWith(doc, updater);
-    setDoc(nextDoc);
-    pushUndoRedoState(nextDoc);
-  };
-
   const handleAddComponent = () => {
     const newComp = {
       uuid: generateUUID(),
-      type: 'software',
+      type: 'software' as const,
       title: 'New Component',
       description: 'Component description.',
       purpose: '',
@@ -88,12 +94,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
       protocols: [],
       'control-implementations': []
     };
-    handleUpdate(draft => {
-      if (!draft['component-definition'].components) {
-        draft['component-definition'].components = [];
-      }
-      draft['component-definition'].components.push(newComp);
-    });
+    dispatch(addComponent(newComp));
     setSelectedComponent(newComp);
   };
 
@@ -105,35 +106,14 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
       variant: 'danger',
     });
     if (!confirmed) return;
-    handleUpdate(draft => {
-      if (draft['component-definition'].components) {
-        draft['component-definition'].components = draft['component-definition'].components.filter(
-          (c: any) => !uuids.includes(c.uuid)
-        );
-      }
-      if (draft['component-definition'].capabilities) {
-        draft['component-definition'].capabilities.forEach((cap: any) => {
-          if (cap['incorporates-components']) {
-            cap['incorporates-components'] = cap['incorporates-components'].filter(
-              (ic: any) => !uuids.includes(ic['component-uuid'])
-            );
-          }
-        });
-      }
-    });
+    dispatch(deleteComponents(uuids));
     if (selectedComponent && uuids.includes(selectedComponent.uuid)) {
       setSelectedComponent(null);
     }
   };
 
   const handleUpdateComponent = (uuid: string, updates: any) => {
-    handleUpdate(draft => {
-      const comps = draft['component-definition'].components || [];
-      const index = comps.findIndex((c: any) => c.uuid === uuid);
-      if (index !== -1) {
-        comps[index] = { ...comps[index], ...updates };
-      }
-    });
+    dispatch(updateComponent(uuid, updates));
     if (selectedComponent && selectedComponent.uuid === uuid) {
       setSelectedComponent((prev: any) => ({ ...prev, ...updates }));
     }
@@ -147,12 +127,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
       'incorporates-components': [],
       'control-implementations': []
     };
-    handleUpdate(draft => {
-      if (!draft['component-definition'].capabilities) {
-        draft['component-definition'].capabilities = [];
-      }
-      draft['component-definition'].capabilities.push(newCap);
-    });
+    dispatch(addCapability(newCap));
     setSelectedCapability(newCap);
   };
 
@@ -164,26 +139,14 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
       variant: 'danger',
     });
     if (!confirmed) return;
-    handleUpdate(draft => {
-      if (draft['component-definition'].capabilities) {
-        draft['component-definition'].capabilities = draft['component-definition'].capabilities.filter(
-          (c: any) => !uuids.includes(c.uuid)
-        );
-      }
-    });
+    dispatch(deleteCapabilities(uuids));
     if (selectedCapability && uuids.includes(selectedCapability.uuid)) {
       setSelectedCapability(null);
     }
   };
 
   const handleUpdateCapability = (uuid: string, updates: any) => {
-    handleUpdate(draft => {
-      const caps = draft['component-definition'].capabilities || [];
-      const index = caps.findIndex((c: any) => c.uuid === uuid);
-      if (index !== -1) {
-        caps[index] = { ...caps[index], ...updates };
-      }
-    });
+    dispatch(updateCapability(uuid, updates));
     if (selectedCapability && selectedCapability.uuid === uuid) {
       setSelectedCapability((prev: any) => ({ ...prev, ...updates }));
     }
@@ -522,12 +485,8 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
             <ImportDefinitionsEditor
               importDefinitions={importDefinitions}
               backMatter={backMatter}
-              onChangeImports={(newImports) => handleUpdate(draft => {
-                draft['component-definition']['import-component-definitions'] = newImports;
-              })}
-              onChangeBackMatter={(newBm) => handleUpdate(draft => {
-                draft['component-definition']['back-matter'] = newBm;
-              })}
+              onChangeImports={(newImports) => dispatch(setImportComponentDefinitions(newImports))}
+              onChangeBackMatter={(newBm) => dispatch(updateComponentDefinitionBackMatter(newBm))}
               editMode={isEditing}
             />
           </div>
@@ -540,9 +499,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
               <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Document Metadata</h3>
               <MetadataEditor
                 metadata={metadata}
-                onChange={(md: any) => handleUpdate(draft => {
-                  draft['component-definition'].metadata = md;
-                })}
+                onChange={(md: any) => dispatch(updateComponentDefinitionMetadata(md))}
                 isEditing={isEditing}
               />
             </section>
@@ -551,10 +508,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
               <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Document Properties</h3>
               <PropsEditor
                 props={metadata.props || []}
-                onChange={(props: any) => handleUpdate(draft => {
-                  if (!draft['component-definition'].metadata) draft['component-definition'].metadata = {};
-                  draft['component-definition'].metadata.props = props;
-                })}
+                onChange={(props: any) => dispatch(updateComponentDefinitionMetadata({ ...metadata, props }))}
                 isEditing={isEditing}
               />
             </section>
@@ -563,9 +517,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
               <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Back Matter Resources</h3>
               <BackMatterEditor
                 backMatter={backMatter}
-                onChange={(bm: any) => handleUpdate(draft => {
-                  draft['component-definition']['back-matter'] = bm;
-                })}
+                onChange={(bm: any) => dispatch(updateComponentDefinitionBackMatter(bm))}
                 isEditing={isEditing}
               />
             </section>

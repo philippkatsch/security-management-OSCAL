@@ -1,9 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { produce } from 'immer';
+import React, { useState, useRef } from 'react';
 import { useDocumentLifecycle } from '../../hooks/useDocumentLifecycle';
 import { useDocumentActions } from '../../hooks/useDocumentActions';
-import { updatePOAMRoot, updatePOAMList, savePOAMItem, replacePOAM } from '../../lib/document-actions';
-import { importARFindingsAction } from '../../lib/document-actions/poam-actions';
+import {
+  updatePOAMRoot,
+  updatePOAMList,
+  savePOAMItem,
+  replacePOAM,
+  deletePOAMItems,
+  deletePOAMFindings,
+  deletePOAMObservations,
+  deletePOAMRisks,
+  addPOAMLocalComponent,
+  removePOAMLocalComponent,
+  addPOAMLocalUser,
+  removePOAMLocalUser,
+  importARFindingsAction,
+} from '../../lib/document-actions/poam-actions';
 import { DocumentPageLayout } from '../layout/DocumentPageLayout';
 import EntityTable from '../shared/entity/EntityTable';
 import { JsonEditor } from '../shared/JsonEditor';
@@ -11,11 +23,13 @@ import { StandardMetadataTab } from '../shared/tabs/StandardMetadataTab';
 import { POAMDashboard } from './POAMDashboard';
 import { POAMItemsEditor } from './POAMItemsEditor';
 import { ARFindingsImportModal } from './ARFindingsImportModal';
+import { FindingEditorModal } from '../assessment-results/modals/FindingEditorModal';
+import { ObservationEditorModal } from '../assessment-results/modals/ObservationEditorModal';
+import { RiskEditorModal } from '../assessment-results/modals/RiskEditorModal';
 import { StatusBadge } from '../shared/status';
 import { LoadingSpinner } from '../shared/ui/LoadingSpinner';
+import { generateUUID } from '../../lib/oscal-utils';
 import styles from './POAMPage.module.css';
-
-const generateUUID = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15));
 
 export interface POAMPageProps {
   poamId?: string;
@@ -26,7 +40,7 @@ export interface POAMPageProps {
 export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAMPageProps) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [itemType, setItemType] = useState<any>(null);
+  const [itemType, setItemType] = useState<string | null>(null);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const jsonEditorRef = useRef<any>(null);
 
@@ -34,26 +48,26 @@ export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAM
   const { doc, setDoc, loading, error, isEditing, pushUndoRedoState } = lifecycle;
   const { dispatch } = useDocumentActions(lifecycle);
 
-  const handleUpdate = (newDoc) => {
+  const handleUpdate = (newDoc: any) => {
     pushUndoRedoState(newDoc);
     setDoc(newDoc);
   };
 
-  const updateRootField = (field, value) => {
+  const updateRootField = (field: string, value: any) => {
     dispatch(updatePOAMRoot(field, value));
   };
 
-  const updateListField = (listName, newList) => {
+  const updateListField = (listName: string, newList: any[]) => {
     dispatch(updatePOAMList(listName, newList));
   };
 
-  const handleSaveItem = (item) => {
-    dispatch(savePOAMItem(itemType, item));
+  const handleSaveItem = (item: any) => {
+    dispatch(savePOAMItem(itemType || 'poam-items', item));
     setSelectedItem(null);
     setItemType(null);
   };
 
-  const handleImportFindings = (newItems, newObs, newRisks) => {
+  const handleImportFindings = (newItems: any[], newObs: any[], newRisks: any[]) => {
     dispatch(importARFindingsAction(newItems, newObs, newRisks));
   };
 
@@ -81,6 +95,7 @@ export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAM
   const dashboardMetrics = [
     { title: 'Total Items', value: items.length, icon: '📋' },
     { title: 'Open Items', value: items.length - completedItems.length, icon: '🔥' },
+    { title: 'Findings', value: (poam.findings || []).length, icon: '🎯' },
     { title: 'Identified Risks', value: (poam.risks || []).length, icon: '⚠️' },
     { title: 'Observations', value: (poam.observations || []).length, icon: '👁️' }
   ];
@@ -88,22 +103,68 @@ export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAM
   const tabs = [
     { id: 'dashboard', label: 'Overview' },
     { id: 'items', label: 'POA&M Items' },
+    { id: 'findings', label: 'Findings' },
     { id: 'observations', label: 'Observations' },
     { id: 'risks', label: 'Risks' },
+    { id: 'local-definitions', label: 'Local Definitions' },
     { id: 'metadata', label: 'Metadata' },
     { id: 'json', label: 'JSON Source' }
   ];
 
-  const renderListTab = (listName, title, columns) => (
+  const renderListTab = (listName: string, title: string, columns: any[], entityTypeKey = listName) => (
     <div className="p-6">
       <h2 className="text-xl font-bold mb-4">{title}</h2>
       <EntityTable
         data={poam[listName] || []}
         columns={columns}
-        onRowClick={item => { setItemType(listName); setSelectedItem(item); }}
-        onAdd={isEditing ? () => { setItemType(listName); setSelectedItem({ uuid: generateUUID(), title: `New ${title}` }); } : undefined}
+        onRowClick={item => { setItemType(entityTypeKey); setSelectedItem(item); }}
+        onAdd={isEditing ? () => {
+          let newItem: any;
+          if (entityTypeKey === 'findings') {
+            newItem = {
+              uuid: generateUUID(),
+              title: 'New Finding',
+              description: '',
+              target: { type: 'statement-id', 'target-id': '', status: { state: 'not-satisfied' } }
+            };
+          } else if (entityTypeKey === 'observations') {
+            newItem = {
+              uuid: generateUUID(),
+              title: 'New Observation',
+              description: '',
+              methods: ['EXAMINE'],
+              collected: new Date().toISOString()
+            };
+          } else if (entityTypeKey === 'risks') {
+            newItem = {
+              uuid: generateUUID(),
+              title: 'New Risk',
+              statement: 'Identified risk',
+              status: 'open'
+            };
+          } else {
+            newItem = {
+              uuid: generateUUID(),
+              title: `New ${title.replace(/s$/, '')}`,
+              description: '',
+              props: [{ name: 'status', value: 'open' }]
+            };
+          }
+          setItemType(entityTypeKey);
+          setSelectedItem(newItem);
+        } : undefined}
         onDelete={isEditing ? uuids => {
-          updateListField(listName, (poam[listName] || []).filter(x => !uuids.includes(x.uuid)));
+          if (entityTypeKey === 'poam-items') {
+            dispatch(deletePOAMItems(uuids));
+          } else if (entityTypeKey === 'findings') {
+            dispatch(deletePOAMFindings(uuids));
+          } else if (entityTypeKey === 'observations') {
+            dispatch(deletePOAMObservations(uuids));
+          } else if (entityTypeKey === 'risks') {
+            dispatch(deletePOAMRisks(uuids));
+          } else {
+            updateListField(listName, (poam[listName] || []).filter(x => !uuids.includes(x.uuid)));
+          }
         } : undefined}
       />
     </div>
@@ -133,7 +194,13 @@ export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAM
           const entityId = jsonEditorRef.current?.getCursorEntityId?.();
           if (entityId) {
             const item = items.find((i: any) => i.uuid === entityId);
-            if (item) { setSelectedItem(item); setItemType('poam-item'); }
+            if (item) { setSelectedItem(item); setItemType('poam-items'); }
+            const finding = (poam.findings || []).find((f: any) => f.uuid === entityId);
+            if (finding) { setSelectedItem(finding); setItemType('findings'); }
+            const obs = (poam.observations || []).find((o: any) => o.uuid === entityId);
+            if (obs) { setSelectedItem(obs); setItemType('observations'); }
+            const risk = (poam.risks || []).find((r: any) => r.uuid === entityId);
+            if (risk) { setSelectedItem(risk); setItemType('risks'); }
           }
         }
         setActiveTab(newTab);
@@ -153,15 +220,70 @@ export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAM
       {activeTab === 'items' && renderListTab('poam-items', 'POA&M Items', [
         { key: 'title', label: 'Title', sortable: true },
         { key: 'description', label: 'Description', render: v => v?.substring(0, 50) + (v?.length > 50 ? '...' : '') }
-      ])}
+      ], 'poam-items')}
+      {activeTab === 'findings' && renderListTab('findings', 'Findings', [
+        { key: 'title', label: 'Title', sortable: true },
+        { key: 'target', label: 'Target ID', render: t => t?.['target-id'] || 'N/A', sortable: true },
+        { key: 'status', label: 'Status', render: (_, r: any) => (
+          <StatusBadge category="finding-target-state" value={r.target?.status?.state || 'not-satisfied'} />
+        ) },
+        { key: 'description', label: 'Description', render: v => v?.substring(0, 50) + (v?.length > 50 ? '...' : '') }
+      ], 'findings')}
       {activeTab === 'observations' && renderListTab('observations', 'Observations', [
         { key: 'title', label: 'Title', sortable: true },
         { key: 'description', label: 'Description', render: v => v?.substring(0, 50) + (v?.length > 50 ? '...' : '') }
-      ])}
+      ], 'observations')}
       {activeTab === 'risks' && renderListTab('risks', 'Risks', [
         { key: 'title', label: 'Title', sortable: true },
-        { key: 'status', label: 'Status', render: (status: any) => <StatusBadge category="risk-status" value={status || 'open'} /> }
-      ])}
+        { key: 'status', label: 'Status', render: (status: any) => <StatusBadge category="risk-status" value={status || 'open'} /> },
+        { key: 'statement', label: 'Statement', render: v => v?.substring(0, 50) + (v?.length > 50 ? '...' : '') }
+      ], 'risks')}
+      {activeTab === 'local-definitions' && (
+        <div className="p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div>
+            <h2 className="text-xl font-bold mb-4">Local Remediation Components</h2>
+            <EntityTable
+              data={poam['local-definitions']?.components || []}
+              columns={[
+                { key: 'title', label: 'Component Title', sortable: true },
+                { key: 'type', label: 'Type', sortable: true },
+                { key: 'description', label: 'Description', render: v => v?.substring(0, 60) + (v?.length > 60 ? '...' : '') }
+              ]}
+              onAdd={isEditing ? () => {
+                dispatch(addPOAMLocalComponent({
+                  title: 'New Remediation Component',
+                  type: 'software',
+                  description: 'Component defined locally to support POA&M remediation.'
+                }));
+              } : undefined}
+              onDelete={isEditing ? uuids => {
+                uuids.forEach(u => dispatch(removePOAMLocalComponent(u)));
+              } : undefined}
+            />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold mb-4">Local Remediation Users / Assignees</h2>
+            <EntityTable
+              data={poam['local-definitions']?.users || []}
+              columns={[
+                { key: 'title', label: 'User / Assignee Name', sortable: true },
+                { key: 'short-name', label: 'Short Name' },
+                { key: 'role-ids', label: 'Roles', render: (roles: any) => Array.isArray(roles) ? roles.join(', ') : (roles || 'N/A') }
+              ]}
+              onAdd={isEditing ? () => {
+                dispatch(addPOAMLocalUser({
+                  title: 'New Assignee',
+                  'short-name': 'assignee',
+                  'role-ids': ['remediation-lead']
+                }));
+              } : undefined}
+              onDelete={isEditing ? uuids => {
+                uuids.forEach(u => dispatch(removePOAMLocalUser(u)));
+              } : undefined}
+            />
+          </div>
+        </div>
+      )}
       {activeTab === 'metadata' && (
         <StandardMetadataTab document={poam} onChange={(newPoam) => dispatch(replacePOAM(newPoam))} isEditing={isEditing} />
       )}
@@ -169,13 +291,54 @@ export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAM
         <div className="p-6 h-full"><JsonEditor ref={jsonEditorRef} value={doc} onChange={handleUpdate} readOnly={!isEditing} highlightId={selectedItem?.uuid || null} /></div>
       )}
 
-      {selectedItem && (
+      {selectedItem && itemType === 'poam-items' && (
         <POAMItemsEditor
           item={selectedItem}
           doc={poam}
           readOnly={!isEditing}
           onSave={handleSaveItem}
           onClose={() => { setSelectedItem(null); setItemType(null); }}
+        />
+      )}
+
+      {itemType === 'findings' && (
+        <FindingEditorModal
+          isOpen={Boolean(selectedItem)}
+          finding={selectedItem}
+          observations={poam.observations || []}
+          risks={poam.risks || []}
+          isEditing={isEditing}
+          onClose={() => { setSelectedItem(null); setItemType(null); }}
+          onUpdate={(updated) => {
+            dispatch(savePOAMItem('findings', updated));
+            setSelectedItem(updated);
+          }}
+        />
+      )}
+
+      {itemType === 'observations' && (
+        <ObservationEditorModal
+          isOpen={Boolean(selectedItem)}
+          observation={selectedItem}
+          isEditing={isEditing}
+          onClose={() => { setSelectedItem(null); setItemType(null); }}
+          onUpdate={(updated) => {
+            dispatch(savePOAMItem('observations', updated));
+            setSelectedItem(updated);
+          }}
+        />
+      )}
+
+      {itemType === 'risks' && (
+        <RiskEditorModal
+          isOpen={Boolean(selectedItem)}
+          risk={selectedItem}
+          isEditing={isEditing}
+          onClose={() => { setSelectedItem(null); setItemType(null); }}
+          onUpdate={(updated) => {
+            dispatch(savePOAMItem('risks', updated));
+            setSelectedItem(updated);
+          }}
         />
       )}
 

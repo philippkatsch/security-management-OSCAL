@@ -6,7 +6,7 @@ import { generateUUID } from '../../../lib/oscal-utils';
 export interface CdefImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (components: SystemComponent[]) => void;
+  onImport: (components: SystemComponent[], rawComponents?: any[]) => void;
 }
 
 export default function CdefImportModal({
@@ -96,28 +96,37 @@ export default function CdefImportModal({
     const cdef = selectedCdefDoc['component-definition'];
     const components = cdef?.components || [];
     const chosen = components.filter((c: any) => selectedCompUuids.has(c.uuid));
+    const cdefUuid = selectedCdefDoc['component-definition']?.uuid || selectedCdefId;
 
-    const importedComps: SystemComponent[] = chosen.map((c: any) => ({
-      uuid: generateUUID(),
-      type: c.type || 'software',
-      title: c.title || 'Imported Component',
-      description: c.description || c.purpose || 'Imported from Component Definition',
-      purpose: c.purpose || '',
-      status: { state: 'operational' },
-      props: c.props ? JSON.parse(JSON.stringify(c.props)) : [],
-      protocols: c.protocols ? JSON.parse(JSON.stringify(c.protocols)) : [],
-      links: [
-        ...(c.links || []),
-        {
-          rel: 'imported-from',
-          href: `../component-definitions/${selectedCdefDoc['component-definition']?.uuid || selectedCdefId}.json`
-        }
-      ]
-    }));
+    const importedComps: SystemComponent[] = chosen.map((c: any) => {
+      const existingProps = c.props ? JSON.parse(JSON.stringify(c.props)) : [];
+      const existingLinks = c.links ? JSON.parse(JSON.stringify(c.links)) : [];
+      return {
+        uuid: generateUUID(),
+        type: c.type || 'software',
+        title: c.title || 'Imported Component',
+        description: c.description || c.purpose || 'Imported from Component Definition',
+        purpose: c.purpose || '',
+        status: { state: 'operational' },
+        props: [
+          ...existingProps,
+          { name: 'source-component-uuid', value: c.uuid }
+        ],
+        protocols: c.protocols ? JSON.parse(JSON.stringify(c.protocols)) : [],
+        links: [
+          ...existingLinks,
+          {
+            rel: 'imported-from',
+            href: `../component-definitions/${cdefUuid}.json#${c.uuid}`
+          }
+        ]
+      };
+    });
 
-    onImport(importedComps);
+    onImport(importedComps, chosen);
     onClose();
   };
+
 
   if (!isOpen) return null;
 

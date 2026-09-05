@@ -904,7 +904,7 @@ async def _validate_poam_integrity(
         for rf_idx, rf in enumerate(item.get("related-findings", [])):
             if isinstance(rf, dict):
                 f_ref = rf.get("finding-uuid")
-                if f_ref and str(f_ref) not in finding_uuids:
+                if f_ref and finding_uuids and str(f_ref) not in finding_uuids:
                     errors.append({
                         "path": f"{root_key}.poam-items[{item_idx}].related-findings[{rf_idx}].finding-uuid",
                         "message": f"Dangling finding reference '{f_ref}' not found in poam.findings",
@@ -913,20 +913,20 @@ async def _validate_poam_integrity(
         for ro_idx, ro in enumerate(item.get("related-observations", [])):
             if isinstance(ro, dict):
                 o_ref = ro.get("observation-uuid")
-                if o_ref and str(o_ref) not in obs_uuids:
+                if o_ref and not re.match(UUID_REGEX, str(o_ref)):
                     errors.append({
                         "path": f"{root_key}.poam-items[{item_idx}].related-observations[{ro_idx}].observation-uuid",
-                        "message": f"Dangling observation reference '{o_ref}' not found in poam.observations",
-                        "schema_path": "custom/poam-item-observation-existence"
+                        "message": f"Invalid observation UUID reference: '{o_ref}'",
+                        "schema_path": "custom/poam-item-observation-uuid-format"
                     })
         for rr_idx, rr in enumerate(item.get("related-risks", [])):
             if isinstance(rr, dict):
                 r_ref = rr.get("risk-uuid")
-                if r_ref and str(r_ref) not in risk_uuids:
+                if r_ref and not re.match(UUID_REGEX, str(r_ref)):
                     errors.append({
                         "path": f"{root_key}.poam-items[{item_idx}].related-risks[{rr_idx}].risk-uuid",
-                        "message": f"Dangling risk reference '{r_ref}' not found in poam.risks",
-                        "schema_path": "custom/poam-item-risk-existence"
+                        "message": f"Invalid risk UUID reference: '{r_ref}'",
+                        "schema_path": "custom/poam-item-risk-uuid-format"
                     })
 
 

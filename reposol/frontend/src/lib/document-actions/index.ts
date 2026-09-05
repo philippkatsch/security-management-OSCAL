@@ -10,3 +10,4 @@ export { removeImplementedRequirement as removeComponentImplementedRequirement }
 export * from './assessment-plan-actions';
 export * from './assessment-results-actions';
 export * from './poam-actions';
+export * from './mapping-actions';

@@ -20,7 +20,9 @@ import {
   addLeveragedAuthorization,
   updateLeveragedAuthorization,
   removeLeveragedAuthorization,
-  initializeSSPComponents
+  initializeSSPComponents,
+  upsertImplementedRequirement,
+  addByComponent
 } from '../../lib/document-actions';
 import ComponentDrawer from './drawers/ComponentDrawer';
 import CdefImportModal from './drawers/CdefImportModal';
@@ -128,13 +130,36 @@ export function SystemImplementationTab({
     setEditingComponent(newComp);
   };
 
-  const handleImportCdefComponents = (importedComps: SystemComponent[]) => {
-    for (const comp of importedComps) {
+  const handleImportCdefComponents = (importedComps: SystemComponent[], rawComponents?: any[]) => {
+    for (let i = 0; i < importedComps.length; i++) {
+      const comp = importedComps[i];
       execAction(
         addSystemComponent(comp),
         ['system-implementation', 'components'],
         [...components, comp]
       );
+
+      const raw = rawComponents?.[i];
+      if (raw && raw['control-implementations']) {
+        for (const ci of raw['control-implementations']) {
+          for (const req of ci['implemented-requirements'] || []) {
+            if (req['control-id']) {
+              if (dispatch) {
+                dispatch(upsertImplementedRequirement({
+                  'control-id': req['control-id'],
+                  description: req.description || ''
+                }));
+                dispatch(addByComponent(req['control-id'], {
+                  'component-uuid': comp.uuid,
+                  description: req.description || `Implemented by ${comp.title}`,
+                  ...(req['set-parameters'] ? { 'set-parameters': req['set-parameters'] } : {}),
+                  ...(req.props ? { props: req.props } : {})
+                }));
+              }
+            }
+          }
+        }
+      }
     }
   };
 

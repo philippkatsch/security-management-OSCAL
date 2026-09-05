@@ -1190,24 +1190,90 @@ export interface POAMItem {
   props?: Property[];
   'related-observations'?: Record<string, unknown>[];
   'related-risks'?: Record<string, unknown>[];
+  'related-findings'?: Record<string, unknown>[];
   remarks?: string;
 }
 
 export interface PlanOfActionAndMilestones {
   uuid: string;
   metadata: Metadata;
-  'import-ssp'?: Record<string, unknown>;
-  'system-id'?: Record<string, unknown>;
-  'local-definitions'?: Record<string, unknown>;
+  'import-ssp'?: { href: string; remarks?: string };
+  'system-id'?: SystemId;
+  'local-definitions'?: {
+    components?: DefinedComponent[];
+    users?: SystemUser[];
+    remarks?: string;
+  };
   'poam-items': POAMItem[];
+  findings?: Finding[];
+  observations?: Observation[];
+  risks?: Risk[];
+  'back-matter'?: BackMatter;
+}
+
+export type MappingMethod = 'human' | 'automation' | 'hybrid';
+export type MappingMatchingRationale = 'syntactic' | 'semantic' | 'functional';
+export type MappingStatus = 'complete' | 'not-complete' | 'draft' | 'deprecated' | 'superseded';
+export type MappingRelationship = 'equivalent-to' | 'equal-to' | 'subset-of' | 'superset-of' | 'intersects-with' | 'no-relationship';
+
+export interface MappingResourceReference {
+  href: string;
+  type: 'catalog' | 'profile';
+  uuid?: string;
+  title?: string;
+}
+
+export interface MappingItem {
+  'id-ref': string;
+  type: 'control' | 'statement';
+}
+
+export interface MapEntry {
+  uuid: string;
+  relationship: MappingRelationship;
+  sources: MappingItem[];
+  targets: MappingItem[];
+  'matching-rationale'?: MappingMatchingRationale;
+  'confidence-score'?: number;
+  coverage?: number;
+  remarks?: string;
+  props?: Property[];
+  links?: Link[];
+}
+
+export interface MappingProvenance {
+  method: MappingMethod;
+  'matching-rationale': MappingMatchingRationale;
+  status: MappingStatus;
+  'mapping-description': string;
+  'responsible-parties'?: ResponsibleParty[];
+  props?: Property[];
+  links?: Link[];
+  remarks?: string;
+}
+
+export interface Mapping {
+  uuid: string;
+  'source-resource': MappingResourceReference;
+  'target-resource': MappingResourceReference;
+  maps: MapEntry[];
+  method?: MappingMethod;
+  'matching-rationale'?: MappingMatchingRationale;
+  status?: MappingStatus;
+  'mapping-description'?: string;
+  'confidence-score'?: number;
+  coverage?: number;
+  props?: Property[];
+  links?: Link[];
+  remarks?: string;
 }
 
 export interface MappingCollection {
   uuid: string;
   metadata: Metadata;
-  'import-ssp'?: Record<string, unknown>;
-  'local-definitions'?: Record<string, unknown>;
-  mappings?: Record<string, unknown>[];
+  provenance?: MappingProvenance;
+  mappings?: Mapping[];
+  'back-matter'?: BackMatter;
 }
 
 export interface OscalDocument {
@@ -1220,3 +1286,4 @@ export interface OscalDocument {
   'plan-of-action-and-milestones'?: PlanOfActionAndMilestones;
   'mapping-collection'?: MappingCollection;
 }
+

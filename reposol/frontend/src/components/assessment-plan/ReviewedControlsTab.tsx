@@ -33,6 +33,23 @@ const DEFAULT_FAMILIES = [
   'AC', 'AT', 'AU', 'CA', 'CM', 'CP', 'IA', 'IR', 'MA', 'MP', 'PE', 'PL', 'PS', 'RA', 'SA', 'SC', 'SI', 'SR'
 ];
 
+const FALLBACK_CANDIDATE_CONTROLS: CandidateControl[] = [
+  { id: 'ac-1', title: 'Policy and Procedures', family: 'AC', statementIds: ['ac-1_smt_a', 'ac-1_smt_b'] },
+  { id: 'ac-2', title: 'Account Management', family: 'AC', statementIds: ['ac-2_smt_a', 'ac-2_smt_b', 'ac-2_smt_c', 'ac-2_smt_d'] },
+  { id: 'ac-3', title: 'Access Enforcement', family: 'AC', statementIds: ['ac-3_smt'] },
+  { id: 'ac-6', title: 'Least Privilege', family: 'AC', statementIds: ['ac-6_smt_a', 'ac-6_smt_b'] },
+  { id: 'au-2', title: 'Event Logging', family: 'AU', statementIds: ['au-2_smt_a', 'au-2_smt_b', 'au-2_smt_c', 'au-2_smt_d'] },
+  { id: 'au-6', title: 'Audit Record Review, Analysis, and Reporting', family: 'AU', statementIds: ['au-6_smt_a', 'au-6_smt_b'] },
+  { id: 'ca-2', title: 'Control Assessments', family: 'CA', statementIds: ['ca-2_smt_a', 'ca-2_smt_b'] },
+  { id: 'cm-2', title: 'Baseline Configuration', family: 'CM', statementIds: ['cm-2_smt_a', 'cm-2_smt_b'] },
+  { id: 'cm-8', title: 'Information System Component Inventory', family: 'CM', statementIds: ['cm-8_smt_a', 'cm-8_smt_b'] },
+  { id: 'ia-2', title: 'Identification and Authentication (Organizational Users)', family: 'IA', statementIds: ['ia-2_smt_a', 'ia-2_smt_b'] },
+  { id: 'ia-5', title: 'Authenticator Management', family: 'IA', statementIds: ['ia-5_smt_a', 'ia-5_smt_b'] },
+  { id: 'sc-7', title: 'Boundary Protection', family: 'SC', statementIds: ['sc-7_smt_a', 'sc-7_smt_b', 'sc-7_smt_c'] },
+  { id: 'si-2', title: 'Flaw Remediation', family: 'SI', statementIds: ['si-2_smt_a', 'si-2_smt_b', 'si-2_smt_c'] },
+  { id: 'si-4', title: 'Information System Monitoring', family: 'SI', statementIds: ['si-4_smt_a', 'si-4_smt_b'] },
+];
+
 export const ReviewedControlsTab: React.FC<ReviewedControlsTabProps> = ({
   document: ap,
   dispatch,
@@ -63,54 +80,32 @@ export const ReviewedControlsTab: React.FC<ReviewedControlsTabProps> = ({
             const list: CandidateControl[] = reqs.map((r: any) => {
               const cid = r['control-id'] || 'ac-1';
               const fam = cid.split('-')[0].toUpperCase();
-              const stmtIds = (r['set-parameters'] || []).map((sp: any) => sp['param-id']) || [];
+              const reqStmts = (r.statements || []).map((s: any) => s['statement-id'] || s.statement_id).filter(Boolean);
+              const paramStmts = (r['set-parameters'] || []).map((sp: any) => sp['param-id']).filter(Boolean);
+              const fallbackStmts = FALLBACK_CANDIDATE_CONTROLS.find(f => f.id === cid)?.statementIds || [`${cid}_smt_a`, `${cid}_smt_b`];
+              const dynamicStmts = reqStmts.length > 0 ? reqStmts : (paramStmts.length > 0 ? paramStmts : fallbackStmts);
               return {
                 id: cid,
                 title: r.description ? r.description.slice(0, 60) : `Control ${cid.toUpperCase()}`,
                 family: fam,
-                statementIds: [
-                  `${cid}_smt_a`,
-                  `${cid}_smt_b`,
-                  `${cid}_smt_c`,
-                  `${cid}_smt_d`,
-                ],
+                statementIds: dynamicStmts,
               };
             });
             setCandidateControls(list);
           } else {
-            generateFallbackCandidates();
+            setCandidateControls(FALLBACK_CANDIDATE_CONTROLS);
           }
         })
         .catch(() => {
-          generateFallbackCandidates();
+          setCandidateControls(FALLBACK_CANDIDATE_CONTROLS);
         })
         .finally(() => {
           setLoadingCandidates(false);
         });
     } else {
-      generateFallbackCandidates();
+      setCandidateControls(FALLBACK_CANDIDATE_CONTROLS);
     }
   }, [ap?.['import-ssp']?.href]);
-
-  const generateFallbackCandidates = () => {
-    const fallbackList: CandidateControl[] = [
-      { id: 'ac-1', title: 'Policy and Procedures', family: 'AC', statementIds: ['ac-1_smt_a', 'ac-1_smt_b'] },
-      { id: 'ac-2', title: 'Account Management', family: 'AC', statementIds: ['ac-2_smt_a', 'ac-2_smt_b', 'ac-2_smt_c', 'ac-2_smt_d'] },
-      { id: 'ac-3', title: 'Access Enforcement', family: 'AC', statementIds: ['ac-3_smt'] },
-      { id: 'ac-6', title: 'Least Privilege', family: 'AC', statementIds: ['ac-6_smt_a', 'ac-6_smt_b'] },
-      { id: 'au-2', title: 'Event Logging', family: 'AU', statementIds: ['au-2_smt_a', 'au-2_smt_b', 'au-2_smt_c', 'au-2_smt_d'] },
-      { id: 'au-6', title: 'Audit Record Review, Analysis, and Reporting', family: 'AU', statementIds: ['au-6_smt_a', 'au-6_smt_b'] },
-      { id: 'ca-2', title: 'Control Assessments', family: 'CA', statementIds: ['ca-2_smt_a', 'ca-2_smt_b'] },
-      { id: 'cm-2', title: 'Baseline Configuration', family: 'CM', statementIds: ['cm-2_smt_a', 'cm-2_smt_b'] },
-      { id: 'cm-8', title: 'Information System Component Inventory', family: 'CM', statementIds: ['cm-8_smt_a', 'cm-8_smt_b'] },
-      { id: 'ia-2', title: 'Identification and Authentication (Organizational Users)', family: 'IA', statementIds: ['ia-2_smt_a', 'ia-2_smt_b'] },
-      { id: 'ia-5', title: 'Authenticator Management', family: 'IA', statementIds: ['ia-5_smt_a', 'ia-5_smt_b'] },
-      { id: 'sc-7', title: 'Boundary Protection', family: 'SC', statementIds: ['sc-7_smt_a', 'sc-7_smt_b', 'sc-7_smt_c'] },
-      { id: 'si-2', title: 'Flaw Remediation', family: 'SI', statementIds: ['si-2_smt_a', 'si-2_smt_b', 'si-2_smt_c'] },
-      { id: 'si-4', title: 'Information System Monitoring', family: 'SI', statementIds: ['si-4_smt_a', 'si-4_smt_b'] },
-    ];
-    setCandidateControls(fallbackList);
-  };
 
   const primarySelection = controlSelections[0] || {};
   const isIncludeAll = !!primarySelection['include-all'];

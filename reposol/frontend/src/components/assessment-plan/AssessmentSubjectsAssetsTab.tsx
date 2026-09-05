@@ -78,7 +78,9 @@ export const AssessmentSubjectsAssetsTab: React.FC<AssessmentSubjectsAssetsTabPr
     components: Array<{ uuid: string; title: string }>;
     inventory: Array<{ uuid: string; description: string }>;
     users: Array<{ uuid: string; title: string }>;
-  }>({ components: [], inventory: [], users: [] });
+    locations: Array<{ uuid: string; title: string }>;
+    parties: Array<{ uuid: string; title: string }>;
+  }>({ components: [], inventory: [], users: [], locations: [], parties: [] });
 
   useEffect(() => {
     const sspHref = ap?.['import-ssp']?.href;
@@ -99,7 +101,15 @@ export const AssessmentSubjectsAssetsTab: React.FC<AssessmentSubjectsAssetsTabPr
             uuid: u.uuid,
             title: u.title || 'User',
           }));
-          setSspEntities({ components: comps, inventory: invs, users: usrs });
+          const locs = (ssp?.['system-characteristics']?.locations || ssp?.metadata?.locations || []).map((l: any) => ({
+            uuid: l.uuid,
+            title: l.title || l.name || 'Location',
+          }));
+          const pts = (ssp?.metadata?.parties || []).map((p: any) => ({
+            uuid: p.uuid,
+            title: p.name || p.title || 'Party',
+          }));
+          setSspEntities({ components: comps, inventory: invs, users: usrs, locations: locs, parties: pts });
         })
         .catch(() => {});
     }
@@ -129,6 +139,24 @@ export const AssessmentSubjectsAssetsTab: React.FC<AssessmentSubjectsAssetsTabPr
         addAssessmentSubject({
           type: 'user',
           description: 'All Target SSP System Users',
+          includeAll: true,
+        })
+      );
+    }
+    if (sspEntities.locations.length > 0) {
+      dispatch(
+        addAssessmentSubject({
+          type: 'location',
+          description: 'All Target SSP System Locations',
+          includeAll: true,
+        })
+      );
+    }
+    if (sspEntities.parties.length > 0) {
+      dispatch(
+        addAssessmentSubject({
+          type: 'party',
+          description: 'All Target SSP System Parties',
           includeAll: true,
         })
       );

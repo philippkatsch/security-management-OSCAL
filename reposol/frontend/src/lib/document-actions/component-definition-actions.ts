@@ -834,9 +834,34 @@ export function removeImportComponentDefinition(hrefOrIndex: string | number): D
   });
 }
 
+export function updateComponentDefinitionMetadata(metadata: any): DocumentAction {
+  return createAction('component-definition', 'UPDATE_METADATA', 'Update metadata', (draft: any) => {
+    const compDef = getCompDef(draft);
+    if (!compDef) return;
+    compDef.metadata = metadata;
+  });
+}
+
+export function updateComponentDefinitionBackMatter(backMatter: any): DocumentAction {
+  return createAction('component-definition', 'UPDATE_BACK_MATTER', 'Update back matter', (draft: any) => {
+    const compDef = getCompDef(draft);
+    if (!compDef) return;
+    compDef['back-matter'] = backMatter;
+  });
+}
+
+export function setImportComponentDefinitions(imports: ImportComponentDefinition[]): DocumentAction {
+  return createAction('component-definition', 'SET_IMPORT_DEFS', 'Set import component definitions', (draft: any) => {
+    const compDef = getCompDef(draft);
+    if (!compDef) return;
+    compDef['import-component-definitions'] = imports;
+  });
+}
+
 // ============================================================================
 // DD-014 Empty Array Purging & Serialization Pipeline
 // ============================================================================
+
 
 /**
  * Recursively removes empty arrays, cleans whitespace-only values,
