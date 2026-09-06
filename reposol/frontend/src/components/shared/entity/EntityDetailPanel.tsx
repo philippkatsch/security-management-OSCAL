@@ -80,7 +80,7 @@ export default function EntityDetailPanel({
             {action.label}
           </button>
         ))}
-        {mode === 'slide-out' && (
+        {(mode === 'slide-out' || mode === 'inline') && (
           <button className={styles['btn-close']} onClick={onClose} aria-label="Close">
             ×
           </button>
@@ -88,6 +88,31 @@ export default function EntityDetailPanel({
       </div>
     </div>
   );
+
+  if (mode === 'inline') {
+    if (!isOpen) return null;
+    return (
+      <div 
+        className={`entity-panel-inline ${className}`}
+        style={{
+          width: '450px',
+          flexShrink: 0,
+          background: 'var(--color-surface)',
+          borderLeft: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '100%',
+          overflow: 'hidden'
+        }}
+      >
+        {renderHeader()}
+        <div className={styles['entity-panel-content']} style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
+          {contentToRender}
+        </div>
+      </div>
+    );
+  }
 
   if (mode === 'accordion') {
     return (

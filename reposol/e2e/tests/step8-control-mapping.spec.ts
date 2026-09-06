@@ -98,7 +98,7 @@ test.describe('Step 8 Control Mapping — Extended Coverage', () => {
 
     await page.reload();
     await page.getByRole('tab', { name: /Mappings/i }).click();
-    await page.getByText('ac-2').click(); // Open detail panel
+    await page.getByRole('cell', { name: 'ac-2', exact: true }).click(); // Open detail panel
 
     await expect(page.getByLabel('Method')).toHaveValue('Automated');
     await expect(page.getByLabel('Confidence')).toHaveValue('85');

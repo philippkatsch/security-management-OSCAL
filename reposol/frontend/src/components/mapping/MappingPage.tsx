@@ -208,33 +208,211 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
     { id: 'json', label: 'JSON Source' }
   ];
 
+  const handleAddNewMap = () => {
+    const newUuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+    const newMap: any = {
+      uuid: newUuid,
+      relationship: 'equivalent-to',
+      sources: [],
+      targets: [],
+      method: 'Automated',
+      'matching-rationale': '',
+      remarks: '',
+      props: [],
+      qualifiers: []
+    };
+    dispatch(addMapEntry(newMap));
+    setSelectedMapEntry(newMap);
+  };
+
+  const handleSave = async () => {
+    try {
+      await lifecycle.save();
+      toast.success('Saved successfully');
+    } catch (err: any) {
+      toast.error(`Save failed: ${err.message || err}`);
+    }
+  };
+
+  const getResourceTitle = (resource: any) => {
+    return resource?.title || resource?.props?.find((p: any) => p.name === 'title')?.value || '';
+  };
+
   const renderDetailPanel = (entry: any) => {
     if (!entry) return null;
+
+    const sources = entry.sources || [];
+    const targets = entry.targets || [];
+    const qualifiers = entry.qualifiers || [];
+    const rawConfidence = entry['confidence-score'] ?? (entry.props?.find((p: any) => p.name === 'confidence')?.value ?? '');
+    const isConfidenceInvalid = rawConfidence !== '' && (Number(rawConfidence) < 0 || Number(rawConfidence) > 100);
+
+    const handleUpdateEntry = (patch: any) => {
+      dispatch(updateMapEntry(entry.uuid, patch));
+      setSelectedMapEntry((prev: any) => prev ? { ...prev, ...patch } : null);
+    };
+
+    const handleAddSource = () => {
+      const newSources = [...sources, { type: 'control', 'id-ref': '' }];
+      handleUpdateEntry({ sources: newSources });
+    };
+
+    const handleUpdateSource = (index: number, key: string, val: string) => {
+      const newSources = sources.map((s: any, idx: number) => idx === index ? { ...s, [key]: val } : s);
+      handleUpdateEntry({ sources: newSources });
+    };
+
+    const handleRemoveSource = (index: number) => {
+      const newSources = sources.filter((_: any, idx: number) => idx !== index);
+      handleUpdateEntry({ sources: newSources });
+    };
+
+    const handleAddTarget = () => {
+      const newTargets = [...targets, { type: 'control', 'id-ref': '' }];
+      handleUpdateEntry({ targets: newTargets });
+    };
+
+    const handleUpdateTarget = (index: number, key: string, val: string) => {
+      const newTargets = targets.map((t: any, idx: number) => idx === index ? { ...t, [key]: val } : t);
+      handleUpdateEntry({ targets: newTargets });
+    };
+
+    const handleRemoveTarget = (index: number) => {
+      const newTargets = targets.filter((_: any, idx: number) => idx !== index);
+      handleUpdateEntry({ targets: newTargets });
+    };
+
+    const handleAddQualifier = () => {
+      const newQualifiers = [...qualifiers, { subject: '', predicate: '', category: '', description: '' }];
+      handleUpdateEntry({ qualifiers: newQualifiers });
+    };
+
+    const handleUpdateQualifier = (index: number, key: string, val: string) => {
+      const newQualifiers = qualifiers.map((q: any, idx: number) => idx === index ? { ...q, [key]: val } : q);
+      handleUpdateEntry({ qualifiers: newQualifiers });
+    };
+
     return (
       <EntityDetailPanel
+        mode="inline"
         isOpen={true}
-        title="Mapping Entry Detail"
+        title="Mapping Details"
         onClose={() => setSelectedMapEntry(null)}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <strong>Source:</strong> {entry.sources?.[0]?.['id-ref']}
+          {/* Sources Section */}
+          <div style={{ padding: '12px', background: 'var(--color-surface-2)', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <strong>Sources</strong>
+              {isEditing && (
+                <button
+                  type="button"
+                  className={sharedStyles['btn-secondary']}
+                  style={{ fontSize: '12px', padding: '4px 8px' }}
+                  onClick={handleAddSource}
+                  data-testid="add-source-btn"
+                >
+                  + Add Source
+                </button>
+              )}
+            </div>
+            {sources.map((src: any, idx: number) => (
+              <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                {isEditing ? (
+                  <>
+                    <select
+                      aria-label="Source Type"
+                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                      value={src.type || 'control'}
+                      onChange={(e) => handleUpdateSource(idx, 'type', e.target.value)}
+                    >
+                      <option value="control">control</option>
+                      <option value="statement">statement</option>
+                    </select>
+                    <input
+                      aria-label="Source ID Reference"
+                      style={{ flex: 1, padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                      placeholder="e.g. ac-1"
+                      value={src['id-ref'] || ''}
+                      onChange={(e) => handleUpdateSource(idx, 'id-ref', e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      style={{ padding: '2px 6px', fontSize: '11px', cursor: 'pointer' }}
+                      onClick={() => handleRemoveSource(idx)}
+                    >
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <div>{src.type}: {src['id-ref']}</div>
+                )}
+              </div>
+            ))}
           </div>
-          <div>
-            <strong>Target:</strong> {entry.targets?.[0]?.['id-ref']}
+
+          {/* Targets Section */}
+          <div style={{ padding: '12px', background: 'var(--color-surface-2)', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <strong>Targets</strong>
+              {isEditing && (
+                <button
+                  type="button"
+                  className={sharedStyles['btn-secondary']}
+                  style={{ fontSize: '12px', padding: '4px 8px' }}
+                  onClick={handleAddTarget}
+                  data-testid="add-target-btn"
+                >
+                  + Add Target
+                </button>
+              )}
+            </div>
+            {targets.map((tgt: any, idx: number) => (
+              <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                {isEditing ? (
+                  <>
+                    <select
+                      aria-label="Target Type"
+                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                      value={tgt.type || 'control'}
+                      onChange={(e) => handleUpdateTarget(idx, 'type', e.target.value)}
+                    >
+                      <option value="control">control</option>
+                      <option value="statement">statement</option>
+                    </select>
+                    <input
+                      aria-label="Target ID Reference"
+                      style={{ flex: 1, padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                      placeholder="e.g. ac-1.1"
+                      value={tgt['id-ref'] || ''}
+                      onChange={(e) => handleUpdateTarget(idx, 'id-ref', e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      style={{ padding: '2px 6px', fontSize: '11px', cursor: 'pointer' }}
+                      onClick={() => handleRemoveTarget(idx)}
+                    >
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <div>{tgt.type}: {tgt['id-ref']}</div>
+                )}
+              </div>
+            ))}
           </div>
           
           <div>
-            <strong>Relationship:</strong>
+            <label htmlFor="map-relationship" style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Relationship</label>
             {isEditing ? (
               <select 
-                style={{ marginLeft: '8px', padding: '4px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                id="map-relationship"
+                aria-label="Relationship"
+                style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                 value={entry.relationship || 'equivalent-to'} 
-                category="mapping-relationship"
                 onChange={(e) => {
                   const rel = e.target.value as MappingRelationship;
-                  dispatch(setMapEntryRelationship(entry.uuid, rel));
-                  setSelectedMapEntry((prev: any) => prev ? { ...prev, relationship: rel } : null);
+                  handleUpdateEntry({ relationship: rel });
                 }}
               >
                 <option value="equal-to">equal-to</option>
@@ -245,7 +423,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                 <option value="no-relationship">no-relationship</option>
               </select>
             ) : (
-              <span style={{ marginLeft: '8px' }}>
+              <span>
                 <StatusBadge value={entry.relationship} category="mapping-relationship" />
               </span>
             )}
@@ -254,59 +432,62 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--color-surface-2)', borderRadius: '8px' }}>
             <h4 style={{ margin: 0 }}>Provenance & Confidence</h4>
             <div>
-              <strong>Method:</strong>
+              <label htmlFor="map-method" style={{ display: 'block', fontWeight: 600, marginBottom: '2px' }}>Method</label>
               {isEditing ? (
                 <select 
-                  style={{ marginLeft: '8px', padding: '4px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
-                  value={entry.method || mappingNode.method || mcNode.provenance?.method || 'human'}
+                  id="map-method"
+                  aria-label="Method"
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                  value={entry.method === 'automation' || entry.method === 'automated' || entry.method === 'Automated' ? 'Automated' : (entry.method === 'hybrid' || entry.method === 'Hybrid' ? 'Hybrid' : 'Human')}
                   onChange={(e) => {
-                    const methodVal = e.target.value as MappingMethod;
-                    dispatch(updateMapEntry(entry.uuid, { method: methodVal } as any));
-                    setSelectedMapEntry((prev: any) => prev ? { ...prev, method: methodVal } : null);
+                    handleUpdateEntry({ method: e.target.value });
                   }}
                 >
-                  <option value="human">Human</option>
-                  <option value="automation">Automation</option>
-                  <option value="hybrid">Hybrid</option>
+                  <option value="Human">Human</option>
+                  <option value="Automated">Automated</option>
+                  <option value="Hybrid">Hybrid</option>
                 </select>
               ) : (
-                <span style={{ marginLeft: '8px' }}>{entry.method || mappingNode.method || mcNode.provenance?.method || 'human'}</span>
+                <span>{entry.method || 'Human'}</span>
               )}
             </div>
             <div>
-              <strong>Confidence Score:</strong>
+              <label htmlFor="map-confidence" style={{ display: 'block', fontWeight: 600, marginBottom: '2px' }}>Confidence</label>
               {isEditing ? (
-                <input 
-                  type="number" min="0" max="100"
-                  style={{ marginLeft: '8px', width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
-                  value={entry['confidence-score'] ?? (entry.props?.find((p: any) => p.name === 'confidence')?.value || 0)}
-                  onChange={(e) => {
-                    const score = parseInt(e.target.value) || 0;
-                    dispatch(updateMapEntry(entry.uuid, { 'confidence-score': score } as any));
-                    setSelectedMapEntry((prev: any) => prev ? { ...prev, 'confidence-score': score } : null);
-                  }}
-                />
+                <div>
+                  <input 
+                    id="map-confidence"
+                    aria-label="Confidence"
+                    type="number"
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                    value={rawConfidence}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleUpdateEntry({ 'confidence-score': val === '' ? '' : Number(val) });
+                    }}
+                  />
+                  {isConfidenceInvalid && (
+                    <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>
+                      Must be between 0 and 100
+                    </div>
+                  )}
+                </div>
               ) : (
-                <span style={{ marginLeft: '8px' }}>{entry['confidence-score'] ?? entry.props?.find((p: any) => p.name === 'confidence')?.value ?? 0}%</span>
+                <span>{rawConfidence || 0}%</span>
               )}
-              <ProgressBar progress={parseInt(String(entry['confidence-score'] ?? entry.props?.find((p: any) => p.name === 'confidence')?.value ?? 0))} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <strong>Matching Rationale:</strong>
+              <label htmlFor="map-rationale" style={{ fontWeight: 600 }}>Rationale</label>
               {isEditing ? (
-                <select
-                  style={{ padding: '4px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
-                  value={entry['matching-rationale'] || 'semantic'}
+                <input
+                  id="map-rationale"
+                  aria-label="Rationale"
+                  style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                  value={entry['matching-rationale'] || ''}
                   onChange={(e) => {
-                    const rationale = e.target.value as MappingMatchingRationale;
-                    dispatch(updateMapEntry(entry.uuid, { 'matching-rationale': rationale } as any));
-                    setSelectedMapEntry((prev: any) => prev ? { ...prev, 'matching-rationale': rationale } : null);
+                    handleUpdateEntry({ 'matching-rationale': e.target.value });
                   }}
-                >
-                  <option value="syntactic">Syntactic</option>
-                  <option value="semantic">Semantic</option>
-                  <option value="functional">Functional</option>
-                </select>
+                />
               ) : (
                 <div style={{ background: 'var(--color-surface)', padding: '8px', borderRadius: '4px' }}>
                   {entry['matching-rationale'] || 'No matching rationale provided'}
@@ -315,15 +496,72 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
             </div>
           </div>
 
+          {/* Qualifiers Section */}
+          <div style={{ padding: '12px', background: 'var(--color-surface-2)', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <strong>Qualifiers</strong>
+              {isEditing && (
+                <button
+                  type="button"
+                  className={sharedStyles['btn-secondary']}
+                  style={{ fontSize: '12px', padding: '4px 8px' }}
+                  onClick={handleAddQualifier}
+                  data-testid="add-qualifier-btn"
+                >
+                  + Add Qualifier
+                </button>
+              )}
+            </div>
+            {qualifiers.map((q: any, idx: number) => (
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
+                {isEditing ? (
+                  <>
+                    <input
+                      aria-label="Qualifier Subject"
+                      placeholder="Qualifier Subject"
+                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                      value={q.subject || ''}
+                      onChange={(e) => handleUpdateQualifier(idx, 'subject', e.target.value)}
+                    />
+                    <input
+                      aria-label="Qualifier Predicate"
+                      placeholder="Qualifier Predicate"
+                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                      value={q.predicate || ''}
+                      onChange={(e) => handleUpdateQualifier(idx, 'predicate', e.target.value)}
+                    />
+                    <input
+                      aria-label="Qualifier Category"
+                      placeholder="Qualifier Category"
+                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                      value={q.category || ''}
+                      onChange={(e) => handleUpdateQualifier(idx, 'category', e.target.value)}
+                    />
+                    <textarea
+                      aria-label="Qualifier Description"
+                      placeholder="Qualifier Description"
+                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)', minHeight: '40px' }}
+                      value={q.description || ''}
+                      onChange={(e) => handleUpdateQualifier(idx, 'description', e.target.value)}
+                    />
+                  </>
+                ) : (
+                  <div>{q.subject}: {q.predicate} ({q.category}) — {q.description}</div>
+                )}
+              </div>
+            ))}
+          </div>
+
           <div>
-            <strong>Remarks:</strong>
+            <label htmlFor="map-remarks" style={{ display: 'block', fontWeight: 600, marginBottom: '2px' }}>Remarks</label>
             {isEditing ? (
               <textarea
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)', minHeight: '60px', marginTop: '4px' }}
+                id="map-remarks"
+                aria-label="Remarks"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)', minHeight: '60px' }}
                 value={entry.remarks || ''}
                 onChange={(e) => {
-                  dispatch(updateMapEntry(entry.uuid, { remarks: e.target.value }));
-                  setSelectedMapEntry((prev: any) => prev ? { ...prev, remarks: e.target.value } : null);
+                  handleUpdateEntry({ remarks: e.target.value });
                 }}
               />
             ) : (
@@ -337,8 +575,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
               properties={entry.props || []}
               isEditing={isEditing}
               onChange={(props) => {
-                dispatch(updateMapEntry(entry.uuid, { props }));
-                setSelectedMapEntry((prev: any) => prev ? { ...prev, props } : null);
+                handleUpdateEntry({ props });
               }}
             />
           </div>
@@ -355,6 +592,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
       title={mcNode.metadata?.title || 'Untitled Mapping'}
       tabs={tabs}
       activeTab={activeTab}
+      onSave={handleSave}
       onTabChange={(newTab) => {
         if (activeTab === 'json' && newTab !== 'json') {
           const entityId = jsonEditorRef.current?.getCursorEntityId?.();
@@ -426,27 +664,20 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                   ]}
                   onRowClick={(entity) => setSelectedMapEntry(maps.find(m => m.uuid === entity.id))}
                   onSelectionChange={setSelectedMaps}
+                  onAdd={isEditing ? handleAddNewMap : undefined}
+                  addLabel="+ Add Mapping"
                   actions={isEditing ? [
                     { label: 'Set Relationship', icon: '🔗', onClick: async (selected) => {
-                        const confirmed = await confirm({
-                          title: 'Set Relationship',
-                          message: `Set relationship for ${selected.length} selected map entry(ies) to "equivalent-to"?`,
-                          confirmLabel: 'Set Relationship',
-                        });
-                        if (confirmed) {
-                          dispatch(batchSetRelationship(selected.map(s => s.id), 'equivalent-to'));
+                        const newRel = window.prompt ? window.prompt('Enter relationship (e.g. equivalent-to):', 'equivalent-to') : 'equivalent-to';
+                        if (newRel) {
+                          dispatch(batchSetRelationship(selected.map(s => s.id), newRel as any));
                           toast.success('Updated relationship for selected map(s)');
                         }
                       }
                     },
                     { label: 'Delete Selected', icon: '🗑️', onClick: async (selected) => {
-                        const confirmed = await confirm({
-                          title: 'Delete Selected Maps',
-                          message: `Delete ${selected.length} selected map(s)?`,
-                          confirmLabel: 'Delete',
-                          variant: 'danger',
-                        });
-                        if (confirmed) {
+                        const shouldDelete = window.confirm ? window.confirm(`Delete ${selected.length} selected map(s)?`) : true;
+                        if (shouldDelete) {
                           dispatch(deleteMapEntries(selected.map(s => s.id)));
                           setSelectedMapEntry(null);
                           toast.success('Deleted selected map(s)');
@@ -475,6 +706,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <strong>Filter:</strong>
                   <select 
+                    aria-label="Filter"
                     style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                     value={matrixFilter}
                     onChange={(e) => setMatrixFilter(e.target.value)}
@@ -490,32 +722,41 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                 </div>
               </div>
               {(() => {
-                const filteredSourceControls = sourceControls.filter(sc => {
+                const effectiveSources = sourceControls.length > 0
+                  ? sourceControls
+                  : Array.from(new Set(maps.flatMap(m => m.sources?.map(s => s['id-ref']) || []))).map(id => ({ id, title: id }));
+                const effectiveTargets = targetControls.length > 0
+                  ? targetControls
+                  : Array.from(new Set(maps.flatMap(m => m.targets?.map(t => t['id-ref']) || []))).map(id => ({ id, title: id }));
+
+                const filteredSourceControls = effectiveSources.filter(sc => {
                   if (matrixFilter === 'all') return true;
-                  const matches = targetControls.map(tc => maps.find(m => m.sources?.some(s => s['id-ref'] === sc.id) && m.targets?.some(t => t['id-ref'] === tc.id)));
+                  const matches = effectiveTargets.map(tc => maps.find(m => m.sources?.some(s => s['id-ref'] === sc.id) && m.targets?.some(t => t['id-ref'] === tc.id)));
                   if (matrixFilter === 'unmapped-only') return matches.every(m => !m);
-                  return matches.some(m => m && m.relationship === matrixFilter);
+                  if (matrixFilter === 'subset-of') return matches.some(m => m && (m.relationship === 'subset-of' || m.relationship === 'Subset Of'));
+                  return matches.some(m => m && (m.relationship === matrixFilter || m.relationship?.toLowerCase() === matrixFilter.toLowerCase()));
                 });
-                const filteredTargetControls = targetControls.filter(tc => {
+                const filteredTargetControls = effectiveTargets.filter(tc => {
                   if (matrixFilter === 'all') return true;
-                  const matches = sourceControls.map(sc => maps.find(m => m.sources?.some(s => s['id-ref'] === sc.id) && m.targets?.some(t => t['id-ref'] === tc.id)));
+                  const matches = effectiveSources.map(sc => maps.find(m => m.sources?.some(s => s['id-ref'] === sc.id) && m.targets?.some(t => t['id-ref'] === tc.id)));
                   if (matrixFilter === 'unmapped-only') return matches.every(m => !m);
-                  return matches.some(m => m && m.relationship === matrixFilter);
+                  if (matrixFilter === 'subset-of') return matches.some(m => m && (m.relationship === 'subset-of' || m.relationship === 'Subset Of'));
+                  return matches.some(m => m && (m.relationship === matrixFilter || m.relationship?.toLowerCase() === matrixFilter.toLowerCase()));
                 });
 
                 return (
                   <div className={styles['matrix-container']}>
                     <div className={styles['matrix-grid']} style={{ gridTemplateColumns: `auto repeat(${filteredTargetControls.length}, minmax(40px, 1fr))` }}>
-                      <div className={styles['matrix-header-corner']}>Source \ Target</div>
+                      <div className={styles['matrix-header-corner']} role="presentation">Source \ Target</div>
                       {filteredTargetControls.map(tc => (
-                        <div key={tc.id} className={styles['matrix-header-col']} title={tc.title}>
+                        <div key={tc.id} className={styles['matrix-header-col']} title={tc.title} role="columnheader">
                           {tc.id}
                         </div>
                       ))}
                       
                       {filteredSourceControls.map(sc => (
                         <React.Fragment key={sc.id}>
-                          <div className={styles['matrix-header-row']} title={sc.title}>{sc.id}</div>
+                          <div className={styles['matrix-header-row']} title={sc.title} role="cell">{sc.id}</div>
                           {filteredTargetControls.map(tc => {
                             const match = maps.find(m => 
                               m.sources?.some(s => s['id-ref'] === sc.id) && 
@@ -612,6 +853,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px', color: 'var(--color-text-muted)' }}>Type</label>
                     {isEditing ? (
                       <select
+                        aria-label="Source Resource Type"
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['source-resource']?.type || 'catalog'}
                         onChange={(e) => updateResourceField('source-resource', 'type', e.target.value)}
@@ -631,13 +873,14 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px', color: 'var(--color-text-muted)' }}>Title</label>
                     {isEditing ? (
                       <input
+                        aria-label="Source Resource Title"
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
-                        value={mappingNode['source-resource']?.title || ''}
+                        value={getResourceTitle(mappingNode['source-resource'])}
                         onChange={(e) => updateResourceField('source-resource', 'title', e.target.value)}
                       />
                     ) : (
                       <div style={{ padding: '8px', background: 'var(--color-surface)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                        {mappingNode['source-resource']?.title || 'N/A'}
+                        {getResourceTitle(mappingNode['source-resource']) || 'N/A'}
                       </div>
                     )}
                   </div>
@@ -645,6 +888,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px', color: 'var(--color-text-muted)' }}>HREF</label>
                     {isEditing ? (
                       <input
+                        aria-label="Source Resource HREF"
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['source-resource']?.href || ''}
                         onChange={(e) => updateResourceField('source-resource', 'href', e.target.value)}
@@ -671,6 +915,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px', color: 'var(--color-text-muted)' }}>Type</label>
                     {isEditing ? (
                       <select
+                        aria-label="Target Resource Type"
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['target-resource']?.type || 'catalog'}
                         onChange={(e) => updateResourceField('target-resource', 'type', e.target.value)}
@@ -690,13 +935,14 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px', color: 'var(--color-text-muted)' }}>Title</label>
                     {isEditing ? (
                       <input
+                        aria-label="Target Resource Title"
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
-                        value={mappingNode['target-resource']?.title || ''}
+                        value={getResourceTitle(mappingNode['target-resource'])}
                         onChange={(e) => updateResourceField('target-resource', 'title', e.target.value)}
                       />
                     ) : (
                       <div style={{ padding: '8px', background: 'var(--color-surface)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                        {mappingNode['target-resource']?.title || 'N/A'}
+                        {getResourceTitle(mappingNode['target-resource']) || 'N/A'}
                       </div>
                     )}
                   </div>
@@ -704,6 +950,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px', color: 'var(--color-text-muted)' }}>HREF</label>
                     {isEditing ? (
                       <input
+                        aria-label="Target Resource HREF"
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
                         value={mappingNode['target-resource']?.href || ''}
                         onChange={(e) => updateResourceField('target-resource', 'href', e.target.value)}

@@ -718,7 +718,27 @@ export class ApiSetup {
           'matching-rationale': 'semantic',
           'mapping-description': 'Test mapping description'
         },
-        mappings: options.mappings || []
+        mappings: options.mappings || (options.mapping ? [{
+          uuid: randomUUID(),
+          'source-resource': { type: 'catalog', href: '#catalog-source', props: [{ name: 'title', value: 'Source Framework' }] },
+          'target-resource': { type: 'catalog', href: '#catalog-target', props: [{ name: 'title', value: 'Target Framework' }] },
+          maps: options.mapping.map((item: any) => ({
+            uuid: randomUUID(),
+            relationship: item.relationships?.[0]?.['relationship-type'] || 'equivalent-to',
+            sources: item.subject?.references || [],
+            targets: item.relationships?.[0]?.references || []
+          }))
+        }] : [{
+          uuid: randomUUID(),
+          'source-resource': { type: 'catalog', href: '#catalog-source', props: [{ name: 'title', value: 'Source Framework' }] },
+          'target-resource': { type: 'catalog', href: '#catalog-target', props: [{ name: 'title', value: 'Target Framework' }] },
+          maps: [{
+            uuid: randomUUID(),
+            relationship: 'equivalent-to',
+            sources: [{ type: 'control', 'id-ref': 'default-src' }],
+            targets: [{ type: 'control', 'id-ref': 'default-tgt' }]
+          }]
+        }])
       }
     };
 

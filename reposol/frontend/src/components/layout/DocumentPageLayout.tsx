@@ -119,16 +119,24 @@ export const DocumentPageLayout = ({
 
           <div className={styles['workspace-main']}>
             {tabs && tabs.length > 0 && (
-              <div className={styles['document-tabs']}>
+              <div className={styles['document-tabs']} role="tablist">
                 {tabs.map(tab => (
-                  <button
+                  <div
                     key={tab.id}
-                    className={`${styles['doc-tab']} ${activeTab === tab.id ? styles['active'] : ''}`}
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    style={{ display: 'inline-flex' }}
                     onClick={() => onTabChange?.(tab.id)}
                   >
-                    {tab.icon && <span className={styles['tab-icon']}>{tab.icon}</span>}
-                    {tab.label}
-                  </button>
+                    <button
+                      type="button"
+                      className={`${styles['doc-tab']} ${activeTab === tab.id ? styles['active'] : ''}`}
+                      onClick={() => onTabChange?.(tab.id)}
+                    >
+                      {tab.icon && <span className={styles['tab-icon']}>{tab.icon}</span>}
+                      {tab.label}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

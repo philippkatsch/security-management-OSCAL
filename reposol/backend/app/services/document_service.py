@@ -56,6 +56,8 @@ async def list_documents(stage: str, workspace_id: Optional[str] = None) -> List
     for doc in raw_docs:
         if stage == "profiles":
             doc = await postprocess_profile_for_loading(doc, workspace_id)
+        elif stage in ("control-mappings", "control-mapping", "mapping-collections", "mapping-collection"):
+            doc = postprocess_control_mapping_for_loading(doc)
         processed_docs.append(_prune_doc_for_listing(doc, stage))
     return processed_docs
 
@@ -68,13 +70,165 @@ async def get_document(
     include_draft: Optional[bool] = None,
     workspace_id: Optional[str] = None
 ) -> tuple[Dict[str, Any], str]:
-    """Retrieves a document, applying profile postprocessing if requested for UI."""
+    """Retrieves a document, applying profile/mapping postprocessing if requested for UI."""
     if include_draft is None:
         include_draft = for_ui
     doc, etag = await repo_get_document(stage, doc_id, include_draft=include_draft, workspace_id=workspace_id)
     if stage == "profiles" and for_ui:
         doc = await postprocess_profile_for_loading(doc, workspace_id)
+    elif stage in ("control-mappings", "control-mapping", "mapping-collections", "mapping-collection") and for_ui:
+        doc = postprocess_control_mapping_for_loading(doc)
     return doc, etag
+
+
+def preprocess_control_mapping_for_saving(document: Dict[str, Any]) -> Dict[str, Any]:
+    """Ensures mapping-collection strictly conforms to OSCAL v1.2.2 schema."""
+    doc = remove_empty_arrays(document)
+    root = doc.get("mapping-collection") or doc.get("control-mapping")
+    if isinstance(root, dict):
+        mappings = root.get("mappings")
+        if isinstance(mappings, list):
+            for m in mappings:
+                if isinstance(m, dict):
+                    # 1. source-resource and target-resource title props
+                    for res_key in ("source-resource", "target-resource"):
+                        res = m.get(res_key)
+                        if isinstance(res, dict) and "title" in res:
+                            title_val = res.pop("title")
+                            if title_val and isinstance(title_val, str):
+                                props = res.setdefault("props", [])
+                                existing = next((p for p in props if isinstance(p, dict) and p.get("name") == "title"), None)
+                                if existing:
+                                    existing["value"] = title_val
+                                else:
+                                    props.append({"name": "title", "value": title_val})
+                    
+                    # 2. Sanitize individual map entries
+                    maps = m.get("maps")
+                    if isinstance(maps, list):
+                        valid_maps = []
+                        valid_subjects = {"source", "target", "both"}
+                        valid_predicates = {"has-requirement", "has-incompatibility"}
+                        valid_categories = {"restricted", "addressable", "blocked"}
+
+                        for entry in maps:
+                            if not isinstance(entry, dict):
+                                continue
+
+                            # Prune empty sources and targets
+                            if "sources" in entry and isinstance(entry["sources"], list):
+                                entry["sources"] = [s for s in entry["sources"] if isinstance(s, dict) and s.get("id-ref") and str(s.get("id-ref")).strip()]
+                            if "targets" in entry and isinstance(entry["targets"], list):
+                                entry["targets"] = [t for t in entry["targets"] if isinstance(t, dict) and t.get("id-ref") and str(t.get("id-ref")).strip()]
+
+                            # Method belongs in props or provenance, not map
+                            if "method" in entry:
+                                method_val = entry.pop("method", None)
+                                if method_val:
+                                    props = entry.setdefault("props", [])
+                                    existing = next((p for p in props if isinstance(p, dict) and p.get("name") == "method"), None)
+                                    if existing:
+                                        existing["value"] = str(method_val)
+                                    else:
+                                        props.append({"name": "method", "value": str(method_val)})
+
+                            # matching-rationale enum validation: ['syntactic', 'semantic', 'functional']
+                            valid_rationales = {"syntactic", "semantic", "functional"}
+                            mr = entry.get("matching-rationale")
+                            if mr:
+                                if str(mr).lower() in valid_rationales:
+                                    entry["matching-rationale"] = str(mr).lower()
+                                else:
+                                    props = entry.setdefault("props", [])
+                                    existing = next((p for p in props if isinstance(p, dict) and p.get("name") == "rationale"), None)
+                                    if existing:
+                                        existing["value"] = str(mr)
+                                    else:
+                                        props.append({"name": "rationale", "value": str(mr)})
+                                    entry["matching-rationale"] = "semantic"
+
+                            # Confidence score must be { percentage: 0..1 } or { category: string }
+                            if "confidence-score" in entry:
+                                cs = entry.get("confidence-score")
+                                if cs is None or cs == "":
+                                    entry.pop("confidence-score", None)
+                                elif isinstance(cs, (int, float)):
+                                    pct = float(cs)
+                                    if pct > 1.0:
+                                        pct = round(pct / 100.0, 4)
+                                    entry["confidence-score"] = {"percentage": pct}
+                                elif isinstance(cs, str):
+                                    try:
+                                        pct = float(cs)
+                                        if pct > 1.0:
+                                            pct = round(pct / 100.0, 4)
+                                        entry["confidence-score"] = {"percentage": pct}
+                                    except ValueError:
+                                        entry["confidence-score"] = {"category": cs}
+                                elif isinstance(cs, dict):
+                                    if "percentage" in cs and isinstance(cs["percentage"], (int, float)) and cs["percentage"] > 1.0:
+                                        cs["percentage"] = round(cs["percentage"] / 100.0, 4)
+
+                            # Qualifiers normalization
+                            if "qualifiers" in entry and isinstance(entry["qualifiers"], list):
+                                for q in entry["qualifiers"]:
+                                    if isinstance(q, dict):
+                                        subj = str(q.get("subject", "")).strip().lower()
+                                        if subj not in valid_subjects:
+                                            q["subject"] = "source" if "source" in subj else ("target" if "target" in subj else "both")
+                                        pred = str(q.get("predicate", "")).strip().lower()
+                                        if pred not in valid_predicates:
+                                            q["predicate"] = "has-incompatibility" if "incompat" in pred else "has-requirement"
+                                        cat = str(q.get("category", "")).strip().lower()
+                                        if cat not in valid_categories:
+                                            q["category"] = "restricted" if "restrict" in cat else ("blocked" if "block" in cat else "addressable")
+                                        if not q.get("description"):
+                                            q["description"] = "Qualifier details"
+
+                            valid_maps.append(entry)
+                        m["maps"] = valid_maps
+    return doc
+
+
+def postprocess_control_mapping_for_loading(document: Dict[str, Any]) -> Dict[str, Any]:
+    """Exposes title on source-resource and target-resource and extracts map props for UI consumers."""
+    root = document.get("mapping-collection") or document.get("control-mapping")
+    if isinstance(root, dict):
+        mappings = root.get("mappings")
+        if isinstance(mappings, list):
+            for m in mappings:
+                if isinstance(m, dict):
+                    for res_key in ("source-resource", "target-resource"):
+                        res = m.get(res_key)
+                        if isinstance(res, dict) and "props" in res and "title" not in res:
+                            for p in res.get("props", []):
+                                if isinstance(p, dict) and p.get("name") == "title" and p.get("value"):
+                                    res["title"] = p.get("value")
+                                    break
+                    maps = m.get("maps")
+                    if isinstance(maps, list):
+                        for entry in maps:
+                            if isinstance(entry, dict):
+                                # Surface method from props if not present
+                                if "method" not in entry and "props" in entry:
+                                    method_prop = next((p for p in entry["props"] if isinstance(p, dict) and p.get("name") == "method"), None)
+                                    if method_prop and method_prop.get("value"):
+                                        entry["method"] = method_prop["value"]
+                                # Surface confidence-score to UI string representation
+                                if "confidence-score" in entry:
+                                    cs = entry["confidence-score"]
+                                    if isinstance(cs, dict):
+                                        if "percentage" in cs and isinstance(cs["percentage"], (int, float)):
+                                            pct = cs["percentage"]
+                                            entry["confidence-score"] = str(int(round(pct * 100))) if (pct * 100).is_integer() else str(round(pct * 100, 2))
+                                        elif "category" in cs:
+                                            entry["confidence-score"] = str(cs["category"])
+                                # Surface freeform rationale from props if present
+                                if "props" in entry and isinstance(entry["props"], list):
+                                    rat_prop = next((p for p in entry["props"] if isinstance(p, dict) and p.get("name") == "rationale"), None)
+                                    if rat_prop and rat_prop.get("value"):
+                                        entry["matching-rationale"] = rat_prop["value"]
+    return document
 
 
 async def save_document(
@@ -90,6 +244,8 @@ async def save_document(
         document = await preprocess_profile_for_saving(document, persist_local_catalog=True, workspace_id=workspace_id)
     elif stage == "catalogs":
         document = preprocess_catalog_for_saving(document)
+    elif stage in ("control-mappings", "control-mapping", "mapping-collections", "mapping-collection"):
+        document = preprocess_control_mapping_for_saving(document)
     else:
         document = remove_empty_arrays(document)
 
@@ -100,6 +256,8 @@ async def save_document(
     if stage == "profiles":
         saved_doc = await postprocess_profile_for_loading(saved_doc, workspace_id)
         await cleanup_local_catalogs(workspace_id=workspace_id)
+    elif stage in ("control-mappings", "control-mapping", "mapping-collections", "mapping-collection"):
+        saved_doc = postprocess_control_mapping_for_loading(saved_doc)
     clear_resolution_cache()
     return saved_doc, new_etag, existed
 
@@ -161,6 +319,8 @@ async def get_document_version(stage: str, doc_id: str, version: str, workspace_
     doc = await repo_get_document_version(stage, doc_id, version, workspace_id=workspace_id)
     if stage == "profiles":
         doc = await postprocess_profile_for_loading(doc, workspace_id)
+    elif stage in ("control-mappings", "control-mapping", "mapping-collections", "mapping-collection"):
+        doc = postprocess_control_mapping_for_loading(doc)
     return doc
 
 
@@ -190,6 +350,8 @@ async def save_document_version(stage: str, doc_id: str, version: str, document:
         document = await preprocess_profile_for_saving(document, persist_local_catalog=True, workspace_id=workspace_id)
     elif stage == "catalogs":
         document = preprocess_catalog_for_saving(document)
+    elif stage in ("control-mappings", "control-mapping", "mapping-collections", "mapping-collection"):
+        document = preprocess_control_mapping_for_saving(document)
     else:
         document = remove_empty_arrays(document)
 

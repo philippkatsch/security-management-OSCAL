@@ -255,6 +255,7 @@ export default function EntityTable({
                       <td className={styles['checkbox-cell']} onClick={e => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
+                          aria-label={`Select row ${row.source || row.title || row.id || ''}`.trim()}
                           checked={selectedRows.has(rowKey)}
                           onChange={(e) => handleSelectRow(row, e)}
                         />
@@ -264,7 +265,7 @@ export default function EntityTable({
                       const val = row[col.key];
                       const cellContent = col.render ? col.render(val, row) : val;
                       return (
-                        <td key={col.key}>
+                        <td key={col.key} aria-label={typeof val === 'string' ? val : undefined}>
                           {cellContent}
                         </td>
                       );

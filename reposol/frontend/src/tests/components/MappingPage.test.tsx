@@ -157,28 +157,28 @@ describe('MappingPage Component', () => {
     });
 
     // Navigate to Mappings tab
-    fireEvent.click(screen.getByRole('button', { name: 'Mappings' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Mappings' }));
     expect(screen.getByText('Source Control')).toBeInTheDocument();
 
     // Navigate to Matrix View tab
-    fireEvent.click(screen.getByRole('button', { name: 'Matrix View' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Matrix View' }));
     expect(screen.getByText('Source \\ Target')).toBeInTheDocument();
 
     // Navigate to Sankey Flow View tab
-    fireEvent.click(screen.getByRole('button', { name: 'Sankey Flow View' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Sankey Flow View' }));
     expect(screen.getByTestId('sankey-diagram')).toBeInTheDocument();
 
     // Navigate to Gap Analysis tab
-    fireEvent.click(screen.getByRole('button', { name: 'Gap Analysis' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Gap Analysis' }));
     expect(screen.getByText('Unmapped Source Controls')).toBeInTheDocument();
 
     // Navigate to Metadata tab
-    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Metadata' }));
     expect(screen.getByText('Source Resource')).toBeInTheDocument();
     expect(screen.getByText('Target Resource')).toBeInTheDocument();
 
     // Navigate to JSON Source tab
-    fireEvent.click(screen.getByRole('button', { name: 'JSON Source' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'JSON Source' }));
     expect(document.querySelector('.json-editor-container')).toBeInTheDocument();
   });
 
@@ -186,7 +186,7 @@ describe('MappingPage Component', () => {
     renderComponent();
 
     // Navigate to Matrix View
-    fireEvent.click(screen.getByRole('button', { name: 'Matrix View' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Matrix View' }));
 
     // Wait for controls to load
     await waitFor(() => {
@@ -207,7 +207,7 @@ describe('MappingPage Component', () => {
     renderComponent();
 
     // Navigate to Sankey Flow View
-    fireEvent.click(screen.getByRole('button', { name: 'Sankey Flow View' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Sankey Flow View' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('sankey-diagram')).toBeInTheDocument();
@@ -244,7 +244,7 @@ describe('MappingPage Component', () => {
     });
 
     // Navigate to Metadata tab
-    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Metadata' }));
 
     expect(screen.getByText('Source Resource')).toBeInTheDocument();
     expect(screen.getByText('Target Resource')).toBeInTheDocument();

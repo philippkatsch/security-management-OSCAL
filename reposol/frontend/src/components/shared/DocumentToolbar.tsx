@@ -147,7 +147,10 @@ export function DocumentToolbar({
         background: 'var(--color-surface-2)',
         borderBottom: '1px solid var(--color-border)',
         gap: '12px',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        position: 'relative',
+        zIndex: 10,
+        flexShrink: 0
       }}
     >
       {/* Title Area */}

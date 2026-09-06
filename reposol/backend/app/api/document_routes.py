@@ -11,6 +11,7 @@ from app.services.document_service import (
     get_document,
     save_document,
     delete_document,
+    preprocess_control_mapping_for_saving,
 )
 from app.validation import validate_document
 from app.repositories.document_repository import is_valid_uuid, validate_etag, get_document as repo_get_document, ETagMismatchError
@@ -118,6 +119,8 @@ async def validate_doc(stage: str, body: Dict[str, Any] = Body(...), ws_id: str 
             validation_body = await preprocess_profile_for_saving(body, persist_local_catalog=False, workspace_id=ws_id)
         elif normalized == "catalogs":
             validation_body = preprocess_catalog_for_saving(body)
+        elif normalized in ("control-mappings", "control-mapping", "mapping-collections", "mapping-collection"):
+            validation_body = preprocess_control_mapping_for_saving(body)
         else:
             validation_body = remove_empty_arrays(body)
         await validate_document(normalized, validation_body, workspace_id=ws_id)
