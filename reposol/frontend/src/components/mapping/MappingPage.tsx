@@ -63,7 +63,7 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
   
   // Selection states for mappings detail
   const [selectedMapEntry, setSelectedMapEntry] = useState<any>(null);
-  const [selectedMaps, setSelectedMaps] = useState([]);
+  const [selectedMaps, setSelectedMaps] = useState<any[]>([]);
   const [matrixFilter, setMatrixFilter] = useState('all');
   const jsonEditorRef = useRef<any>(null);
 
@@ -127,29 +127,9 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
     }
   };
 
-  const getCleanDocCopy = (prev) => {
-    if (!prev) return prev;
-    return produce(prev, draft => {
-      if (draft['control-mapping'] && !draft['mapping-collection']) {
-        draft['mapping-collection'] = draft['control-mapping'];
-        delete draft['control-mapping'];
-      }
-      if (!draft['mapping-collection']) {
-        draft['mapping-collection'] = { mappings: [{ maps: [] }] };
-      }
-      const mc = draft['mapping-collection'];
-      if (!Array.isArray(mc.mappings) || mc.mappings.length === 0) {
-        mc.mappings = [{ maps: [] }];
-      }
-      if (!mc.mappings[0].maps) {
-        mc.mappings[0].maps = [];
-      }
-    });
-  };
-
-  const handleDocUpdate = (newDoc) => {
-    setDoc(newDoc);
-    pushUndoRedoState(newDoc);
+  const handleDocUpdate = (newDoc: any) => {
+    const mc = newDoc?.['mapping-collection'] || newDoc?.['control-mapping'] || newDoc;
+    dispatch(replaceMappingCollection(mc));
   };
 
   const mcNode = activeDoc?.['mapping-collection'] || activeDoc?.['control-mapping'] || {};
@@ -668,15 +648,24 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                   addLabel="+ Add Mapping"
                   actions={isEditing ? [
                     { label: 'Set Relationship', icon: '🔗', onClick: async (selected) => {
-                        const newRel = window.prompt ? window.prompt('Enter relationship (e.g. equivalent-to):', 'equivalent-to') : 'equivalent-to';
-                        if (newRel) {
-                          dispatch(batchSetRelationship(selected.map(s => s.id), newRel as any));
+                        const confirmed = await confirm({
+                          title: 'Batch Update Relationship',
+                          message: `Set relationship for ${selected.length} selected map(s) to "equivalent-to"?`,
+                          confirmLabel: 'Apply "equivalent-to"'
+                        });
+                        if (confirmed) {
+                          dispatch(batchSetRelationship(selected.map(s => s.id), 'equivalent-to'));
                           toast.success('Updated relationship for selected map(s)');
                         }
                       }
                     },
                     { label: 'Delete Selected', icon: '🗑️', onClick: async (selected) => {
-                        const shouldDelete = window.confirm ? window.confirm(`Delete ${selected.length} selected map(s)?`) : true;
+                        const shouldDelete = await confirm({
+                          title: 'Delete Selected Maps',
+                          message: `Are you sure you want to delete ${selected.length} selected map(s)?`,
+                          confirmLabel: 'Delete',
+                          variant: 'danger'
+                        });
                         if (shouldDelete) {
                           dispatch(deleteMapEntries(selected.map(s => s.id)));
                           setSelectedMapEntry(null);
@@ -974,43 +963,24 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
                 metadata={mcNode.metadata || {}}
                 readOnly={!isEditing}
                 onChange={(md) => {
-                  setDoc(prev => {
-                    if (!prev) return prev;
-                    return produce(prev, draft => {
-                      const rootKey = draft['mapping-collection'] ? 'mapping-collection' : (draft['control-mapping'] ? 'control-mapping' : 'mapping-collection');
-                      if (!draft[rootKey]) draft[rootKey] = {};
-                      draft[rootKey].metadata = md;
-                    });
-                  });
+                  dispatch(updateMappingRoot('metadata', md));
                 }}
               />
               <PropsEditor
                 properties={mcNode.metadata?.props || []}
                 isEditing={isEditing}
                 onChange={(props) => {
-                  setDoc(prev => {
-                    if (!prev) return prev;
-                    return produce(prev, draft => {
-                      const rootKey = draft['mapping-collection'] ? 'mapping-collection' : (draft['control-mapping'] ? 'control-mapping' : 'mapping-collection');
-                      if (!draft[rootKey]) draft[rootKey] = {};
-                      if (!draft[rootKey].metadata) draft[rootKey].metadata = {};
-                      draft[rootKey].metadata.props = props;
-                    });
-                  });
+                  dispatch(updateMappingRoot('metadata', {
+                    ...(mcNode.metadata || {}),
+                    props
+                  }));
                 }}
               />
               <BackMatterEditor
                 backMatter={mcNode['back-matter'] || { resources: [] }}
                 readOnly={!isEditing}
                 onChange={(bm) => {
-                  setDoc(prev => {
-                    if (!prev) return prev;
-                    return produce(prev, draft => {
-                      const rootKey = draft['mapping-collection'] ? 'mapping-collection' : (draft['control-mapping'] ? 'control-mapping' : 'mapping-collection');
-                      if (!draft[rootKey]) draft[rootKey] = {};
-                      draft[rootKey]['back-matter'] = bm;
-                    });
-                  });
+                  dispatch(updateMappingRoot('back-matter', bm));
                 }}
               />
             </div>

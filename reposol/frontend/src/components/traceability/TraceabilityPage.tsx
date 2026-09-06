@@ -24,6 +24,7 @@ export function TraceabilityPage() {
       case 'AP': return <span className={[styles['trace-badge'], styles['badge-ap']].filter(Boolean).join(' ')}>AP</span>;
       case 'AR': return <span className={[styles['trace-badge'], styles['badge-ar']].filter(Boolean).join(' ')}>AR</span>;
       case 'POAM': return <span className={[styles['trace-badge'], styles['badge-poam']].filter(Boolean).join(' ')}>POA&M</span>;
+      case 'Mapping': return <span className={[styles['trace-badge'], styles['badge-mapping']].filter(Boolean).join(' ')}>Mapping</span>;
       default: return <span className={styles['trace-badge']}>Found</span>;
     }
   };

@@ -6,10 +6,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ConfirmProvider } from '@components/shared/ui/ConfirmProvider';
 import { Layout } from '@components/layout/Layout';
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+  return render(
+    <MemoryRouter>
+      <ConfirmProvider>
+        {ui}
+      </ConfirmProvider>
+    </MemoryRouter>
+  );
 };
 
 describe('Layout', () => {

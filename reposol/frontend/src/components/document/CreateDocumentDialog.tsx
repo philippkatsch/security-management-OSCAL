@@ -128,7 +128,14 @@ export function CreateDocumentDialog({
         'matching-rationale': 'semantic',
         'mapping-description': 'Control mapping collection'
       };
-      newDoc['mapping-collection'].mappings = [];
+      newDoc['mapping-collection'].mappings = [
+        {
+          uuid: generateUUID(),
+          'source-resource': { href: '', type: 'catalog' },
+          'target-resource': { href: '', type: 'catalog' },
+          maps: []
+        }
+      ];
     } else if (stage === 'assessment-plans') {
       let sspUuid = generateUUID();
       try {

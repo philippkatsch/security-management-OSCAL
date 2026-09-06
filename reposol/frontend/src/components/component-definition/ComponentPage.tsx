@@ -341,7 +341,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
   return (
     <DocumentPageLayout
       stage="component-definitions"
-      docId={componentDefId}
+      docId={effectiveId}
       lifecycle={lifecycle}
       title={metadata.title || 'Untitled Component Definition'}
       tabs={tabsConfig}
@@ -518,7 +518,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
               <BackMatterEditor
                 backMatter={backMatter}
                 onChange={(bm: any) => dispatch(updateComponentDefinitionBackMatter(bm))}
-                isEditing={isEditing}
+                readOnly={!isEditing}
               />
             </section>
           </div>

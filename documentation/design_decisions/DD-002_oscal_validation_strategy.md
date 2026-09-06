@@ -5,7 +5,7 @@
 ## Decision Makers: Development Team
 
 ## Context
-The backend currently generates simplified JSON Schemas programmatically via `make_oscal_schema()` in `validation.py`. Official NIST OSCAL JSON Schemas (v1.1.2) already exist locally under `reposol/backend/app/schemas/` but are NOT used.
+The backend currently generates simplified JSON Schemas programmatically via `make_oscal_schema()` in `validation.py`. Official NIST OSCAL JSON Schemas (v1.2.2) already exist locally under `reposol/backend/app/schemas/` but are NOT used.
 
 This means:
 - Validation misses many valid OSCAL fields (e.g., `metadata.revisions`, `metadata.actions`, full party details)

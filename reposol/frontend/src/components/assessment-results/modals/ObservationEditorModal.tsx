@@ -240,7 +240,7 @@ export const ObservationEditorModal: React.FC<ObservationEditorModalProps> = ({
             <h4>Relevant Evidence</h4>
             <RelevantEvidenceEditor
               value={observation['relevant-evidence'] || []}
-              isEditing={isEditing}
+              isEditMode={isEditing}
               onChange={(newEv: RelevantEvidence[]) => handleFieldChange('relevant-evidence', newEv)}
             />
           </div>
@@ -249,7 +249,7 @@ export const ObservationEditorModal: React.FC<ObservationEditorModalProps> = ({
             <h4>Origins & Actors</h4>
             <OriginsEditor
               value={observation.origins || []}
-              isEditing={isEditing}
+              isEditMode={isEditing}
               onChange={(newOrigins: any[]) => handleFieldChange('origins', newOrigins)}
             />
           </div>

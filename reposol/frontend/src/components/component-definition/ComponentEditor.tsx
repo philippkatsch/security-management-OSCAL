@@ -144,14 +144,21 @@ export default function ComponentEditor({
                 <option value="__custom__">Custom / Other...</option>
               </select>
               {(!(OSCAL_DEFINED_COMPONENT_TYPES as readonly string[]).includes(component.type) || component.type === '') && (
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  placeholder="Enter custom component type (e.g. cloud-service, firmware)"
-                  value={component.type || ''} 
-                  onChange={(e) => handleChange('type', e.target.value)}
-                  disabled={!editMode}
-                />
+                <>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Enter custom component type (e.g. cloud-service, firmware)"
+                    value={component.type || ''} 
+                    onChange={(e) => handleChange('type', e.target.value)}
+                    disabled={!editMode}
+                  />
+                  {(component.type === 'this-system' || component.type === 'system') && (
+                    <div style={{ color: '#d97706', fontSize: '0.85rem', marginTop: '4px' }}>
+                      ⚠️ Warning: &quot;{component.type}&quot; is reserved exclusively for System Security Plans (SSPs) and should not be used in reusable Component Definitions.
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

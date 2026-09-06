@@ -170,6 +170,7 @@
 > **As a** Framework Developer (Alice)  
 > **I want to** be able to define, manage, and reference parameters in prose texts at the catalog, group, and control level,  
 > **so that** I can avoid redundant parameter definitions and declare parameters at the appropriate hierarchical level.
+> *See also: [DD-010](../design_decisions/DD-010_parameter_scoping_and_inheritance.md)*
 *   **Acceptance Criteria:**
     *   **Catalog-Level Parameters:** A new tab `⚙️ Parameters` in the document overview (DocumentOverview) in catalog mode allows adding, editing, and deleting global parameters.
     *   **Group-Level Parameters:** An expandable "Group Parameters" section in the GroupEditor allows managing parameters for all controls in this group and its subgroups.
@@ -241,7 +242,7 @@
 ## 2. Alice's Detailed Workflow & User Journey
 
 1.  **Create Catalog (US 1.9):** Alice clicks on "New Catalog", enters the title *"Reposol Enterprise Security Standard (RESS)"* and is redirected immediately to the editing view `/catalog/{uuid}?edit=true`.
-2.  **Configure Metadata & Global Tags (US 1.10):** In the right main pane (Document Overview) under *Metadata*, she enters version `1.0.0`. Under *Tags*, she defines a global property `risk-party`.
+2.  **Configure Metadata & Global Tags (US 1.10):** In the right main pane (Document Overview) under *Metadata*, she enters version `1.0.0`. Under *Properties*, she defines a global property `risk-party`.
 3.  **Build Group Structure (US 1.2):** She creates the main group *"Access Control"* (`ac`) and the subgroup *"Identification and Authentication"* (`ac-ia`) in the left sidebar.
 4.  **Declare Controls & Enhancements (US 1.3, US 1.11):** She creates control `ac-2` (*Account Management*) with a statement. In the combined detail view, she assigns the global tag `risk-party` with the value `Platform-Engineering` (supported by autocompletion suggestions). She adds the sub-control `ac-2.1` (*Automated System Account Management*).
 5.  **Secure Parameters (US 1.4):** 

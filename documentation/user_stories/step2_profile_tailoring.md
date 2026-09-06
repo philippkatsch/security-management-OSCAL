@@ -5,6 +5,19 @@
 
 ---
 
+## Historical Story Numbering & Consolidation Notes
+
+The Step 2 user story sequence contains historical numbering gaps resulting from story consolidation into cross-cutting standard patterns or unified feature scopes:
+- **US 2.15 (View/Edit Mode Toggle & Draft Auto-Save):** Consolidated into global standard pattern [US 0.17](step0_global_requirements.md) (*Editability, View/Edit Mode Toggle & Backend Draft*).
+- **US 2.16 (Document Overview & Property Management):** Consolidated into global standard pattern [US 0.16](step0_global_requirements.md) (*Document Overview & Property Management*) following [DD-011](../design_decisions/DD-011_properties_vs_parameters_separation.md).
+- **US 2.20 (Resource Management):** Consolidated into [US 2.19](#us-219-profile-back-matter-and-resource-management) (*Profile Back-Matter and Resource Management*).
+- **US 2.22 & US 2.23 (Group Restructuring & Sub-Control Accordions):** Consolidated into [US 2.7](#us-27-custom-group-hierarchy-dual-surface-control-assignment-and-merge-phase-restructuring) and [US 2.24](#us-224-enhancements-accordion-inline-expansion--parameter-placement-in-profile-mode-new-for-r1).
+- **US 2.27 (Fine-Grained Modification Pruning):** Merged into [US 2.26](#us-226-object-bound-targeted-modification-reverting--pruning-control-group--text-scope) (*Object-Bound Targeted Modification Reverting & Pruning*).
+- **US 2.29 (Prose Modification Actions):** Merged into [US 2.28](#us-228-profile-statement--sub-item-addition-streamlined-ux--engine-resolution) (*Profile Statement & Sub-item Addition*).
+- **US 2.31 (Resolution Error Reporting):** Consolidated into [US 2.32](#us-232-live-resolution-preview--modify-conflict-detection) (*Live Resolution Preview & Modify Conflict Detection*).
+
+---
+
 ## 1. Breakdown of User Stories
 
 ### US 2.1: Simplified Profile Creation & Direct Editing (Inner View)
@@ -72,7 +85,7 @@
     *   The profile references the managed catalog exclusively via a regular `imports` entry. The saved profile does not contain any non-standardized `local-controls` field. **Strict Rule:** Arbitrary custom control objects cannot be defined directly within the profile schema structure.
 
 ### US 2.6: Profile Resolution Engine & Preview
-> *References DD-003*
+> *References [DD-028](../design_decisions/DD-028_backend_resolution_engine.md)*
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** compile the profile and display the resolved rulebook,  
 > **so that** I can instantly check and validate the overall result.
@@ -85,7 +98,7 @@
 > *References DD-028, DD-029, DD-034, DD-035*  
 > **As a** Compliance Officer and Enterprise Architect (Alice)  
 > **I want to** configure the profile's `custom` merge directive, build custom hierarchical group structures with arbitrary nesting, and flexibly assign imported controls via dual-surface drag-and-drop (sidebar tree and visual pool grid),  
-> **so that** the final tailored baseline perfectly matches organizational domains, compliance policies, and governance structures while remaining 100% NIST OSCAL v1.1.2 compliant.
+> **so that** the final tailored baseline perfectly matches organizational domains, compliance policies, and governance structures while remaining 100% NIST OSCAL v1.2.2 compliant.
 
 *   **Acceptance Criteria:**
     *   **Merge Directive Selection (`as-is` | `flat` | `custom`):**
@@ -120,7 +133,7 @@
         *   Deleting a custom group prompts a confirmation modal offering two reassignment choices:
             1. Return all contained controls to the Unassigned Controls pool.
             2. Reassign all contained controls to the parent group (if nested) or a selected target group.
-    *   **Strict NIST OSCAL v1.1.2 Profile Serialization:**
+    *   **Strict NIST OSCAL v1.2.2 Profile Serialization:**
         *   Assigned controls are persisted strictly as `profile.merge.custom.groups[].insert-controls[].include-controls[].with-ids`.
         *   Order configuration (`order: 'keep' | 'ascending' | 'descending'`) is preserved and serialized per group.
         *   Empty arrays and transient UI properties are stripped before document validation and disk persistence.
@@ -198,7 +211,7 @@
     *   **Right Main Pane (Document Overview):**
         *   Displayed when no control is selected on the left (Document Overview active).
         *   **Baseline Summary Header:** A fixed dashboard at the top of the Document Overview continuously visualizes current statistics (number of controls, parameters, modifications).
-        *   **Divided into 4 horizontal subtabs:** **Import Sources** (Imported Catalogs, shown only in edit mode), **Metadata**, **Tags**, and **Back-matter**.
+        *   **Divided into 4 horizontal subtabs:** **Import Sources** (Imported Catalogs, shown only in edit mode), **Metadata**, **Properties**, and **Back-matter**.
         *   **Edit/View Mode:** Analogous to the Catalog Editor, there is a global edit/view mode ("✏️ Edit"). Configuring import sources is accessible exclusively in this mode.
         *   **Live Update of Imports:** Selecting a catalog in the checklist immediately loads it in the background and adds its controls to the sidebar. Deselecting immediately removes the catalog and its controls.
         *   **Import Mode Toggle:** For each imported catalog, the mode can be toggled between `include-all` (import all controls, default) and `include-controls` (import only selected controls by ID/pattern). The active mode is visually indicated.
@@ -386,28 +399,28 @@
 
 ## 4. Functional Acceptance Criteria (Summary)
 
-- [ ] US 2.1: Simplified Profile Creation & Direct Editing (Inner View)
-- [ ] US 2.2: Live Tailoring via Sidebar Checkboxes (Inclusion & Exclusion)
-- [ ] US 2.3: Global Parameter Assignments (`set-parameters`)
-- [ ] US 2.4: Context-Aware Modification Tab — Inline Editing of Control Text with Transparent OSCAL Mapping
-- [ ] US 2.5: Local Custom Controls via Managed Catalog Import (OSCAL-compliant)
-- [ ] US 2.6: Profile Resolution Engine & Preview
-- [ ] US 2.7: Custom Group Hierarchy, Dual-Surface Control Assignment, and Merge Phase Restructuring
-- [ ] US 2.8: Parameter Selection Rules, Validations, and Constraints (select & choice) in the GUI
-- [ ] US 2.9: Dynamic Filtering via Pattern Matching (matching) in the GUI
-- [ ] US 2.10: Assignment of Global Roles and Responsibilities (responsible-parties) in Metadata
-- [ ] US 2.11: Advanced Deletion of Control Components (removes) in the GUI
-- [ ] US 2.12: Collision and Merge Rules (merge.combine) in the GUI
-- [ ] US 2.13: Integrated Profile Versioning in the Backend
-- [ ] US 2.14: Assignment in the Right Pane (Document Overview) & Default Structure in the Sidebar
-- [ ] US 2.17: Profile Parameter Overrides (`modify.set-parameters`) & Dropdown Value Selection
-- [ ] US 2.18: Profile Resolution Export
-- [ ] US 2.19: Profile Back-Matter and Resource Management
-- [ ] US 2.21: Resolution of Back-Matter Resources in Profile Imports
-- [ ] US 2.24: Enhancements Accordion Inline Expansion & Parameter Placement in Profile Mode (New for R1)
-- [ ] US 2.25: Properties Overhaul in Profile Editor (Deletion & Revert) (New for Step 2)
-- [ ] US 2.26: Object-Bound Targeted Modification Reverting & Pruning (Control, Group & Text Scope)
-- [ ] US 2.28: Profile Statement & Sub-item Addition (Streamlined UX & Engine Resolution)
-- [ ] US 2.30: Cascading Profile Imports (Profile from Profiles)
-- [ ] US 2.32: Live Resolution Preview & Modify Conflict Detection
-- [ ] US 2.33: Profile Tree Visual Annotations (Modified & Orphaned Controls)
+- [x] US 2.1: Simplified Profile Creation & Direct Editing (Inner View)
+- [x] US 2.2: Live Tailoring via Sidebar Checkboxes (Inclusion & Exclusion)
+- [x] US 2.3: Global Parameter Assignments (`set-parameters`)
+- [x] US 2.4: Context-Aware Modification Tab — Inline Editing of Control Text with Transparent OSCAL Mapping
+- [x] US 2.5: Local Custom Controls via Managed Catalog Import (OSCAL-compliant)
+- [x] US 2.6: Profile Resolution Engine & Preview
+- [x] US 2.7: Custom Group Hierarchy, Dual-Surface Control Assignment, and Merge Phase Restructuring
+- [x] US 2.8: Parameter Selection Rules, Validations, and Constraints (select & choice) in the GUI
+- [x] US 2.9: Dynamic Filtering via Pattern Matching (matching) in the GUI
+- [x] US 2.10: Assignment of Global Roles and Responsibilities (responsible-parties) in Metadata
+- [x] US 2.11: Advanced Deletion of Control Components (removes) in the GUI
+- [x] US 2.12: Collision and Merge Rules (merge.combine) in the GUI
+- [x] US 2.13: Integrated Profile Versioning in the Backend
+- [x] US 2.14: Assignment in the Right Pane (Document Overview) & Default Structure in the Sidebar
+- [x] US 2.17: Profile Parameter Overrides (`modify.set-parameters`) & Dropdown Value Selection
+- [x] US 2.18: Profile Resolution Export
+- [x] US 2.19: Profile Back-Matter and Resource Management
+- [x] US 2.21: Resolution of Back-Matter Resources in Profile Imports
+- [x] US 2.24: Enhancements Accordion Inline Expansion & Parameter Placement in Profile Mode (New for R1)
+- [x] US 2.25: Properties Overhaul in Profile Editor (Deletion & Revert) (New for Step 2)
+- [x] US 2.26: Object-Bound Targeted Modification Reverting & Pruning (Control, Group & Text Scope)
+- [x] US 2.28: Profile Statement & Sub-item Addition (Streamlined UX & Engine Resolution)
+- [x] US 2.30: Cascading Profile Imports (Profile from Profiles)
+- [x] US 2.32: Live Resolution Preview & Modify Conflict Detection
+- [x] US 2.33: Profile Tree Visual Annotations (Modified & Orphaned Controls)

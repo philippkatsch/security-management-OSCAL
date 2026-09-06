@@ -22,7 +22,8 @@ import {
   removeLeveragedAuthorization,
   initializeSSPComponents,
   upsertImplementedRequirement,
-  addByComponent
+  addByComponent,
+  addStatementByComponent
 } from '../../lib/document-actions';
 import ComponentDrawer from './drawers/ComponentDrawer';
 import CdefImportModal from './drawers/CdefImportModal';
@@ -146,8 +147,7 @@ export function SystemImplementationTab({
             if (req['control-id']) {
               if (dispatch) {
                 dispatch(upsertImplementedRequirement({
-                  'control-id': req['control-id'],
-                  description: req.description || ''
+                  'control-id': req['control-id']
                 }));
                 dispatch(addByComponent(req['control-id'], {
                   'component-uuid': comp.uuid,
@@ -155,6 +155,18 @@ export function SystemImplementationTab({
                   ...(req['set-parameters'] ? { 'set-parameters': req['set-parameters'] } : {}),
                   ...(req.props ? { props: req.props } : {})
                 }));
+
+                if (req.statements && Array.isArray(req.statements)) {
+                  for (const smt of req.statements) {
+                    if (smt['statement-id']) {
+                      dispatch(addStatementByComponent(req['control-id'], smt['statement-id'], {
+                        'component-uuid': comp.uuid,
+                        description: smt.description || req.description || `Implemented by ${comp.title}`,
+                        ...(smt.props ? { props: smt.props } : {})
+                      }));
+                    }
+                  }
+                }
               }
             }
           }

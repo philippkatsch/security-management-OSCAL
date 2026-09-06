@@ -74,14 +74,14 @@ export interface MoveCustomGroupPayload {
 
 export interface AssignControlToCustomGroupPayload {
   controlId: string;
-  targetGroupId: string;
+  targetGroupId?: string | null;
   order?: 'keep' | 'ascending' | 'descending';
   targetIndex?: number;
 }
 
 export interface AssignMultipleControlsToCustomGroupPayload {
   controlIds: string[];
-  targetGroupId: string;
+  targetGroupId?: string | null;
   order?: 'keep' | 'ascending' | 'descending';
 }
 
@@ -704,7 +704,7 @@ export function applyAssignMultipleControlsToCustomGroup(
   }
 
   // 2. Obtain insert-controls reference after removals are complete
-  const ic = ensureInsertControls(targetGroup);
+  const ic = ensureInsertControls(targetGroup!);
   if (order) {
     ic.order = order;
   }
@@ -1222,7 +1222,7 @@ export function updateCustomGroup(targetGroupId: string, updatedGroup: any) {
           }
         }
       };
-      updateGroupRecursive(profile.merge.custom.groups);
+      updateGroupRecursive(profile.merge.custom.groups as any[]);
     });
 }
 

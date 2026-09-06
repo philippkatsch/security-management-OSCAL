@@ -214,7 +214,7 @@
 ---
 
 ### US 3.9: Control Implementation Sets & Source Framework Binding
-> *References DD-003, DD-014, DD-028*  
+> *References DD-014, [DD-028](../design_decisions/DD-028_backend_resolution_engine.md)*  
 > **As a** Compliance Officer and Lead Engineer (Alice)  
 > **I want to** create control implementation sets that link components to source compliance frameworks (Catalogs or Profiles),  
 > **so that** the component's out-of-the-box compliance coverage is documented against specific regulatory standards.

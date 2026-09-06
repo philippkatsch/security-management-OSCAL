@@ -130,11 +130,11 @@ export const OverviewMetadataTab: React.FC<OverviewMetadataTabProps> = ({
       <div className={styles['ar-breakdowns']}>
         <div className={styles['breakdown-card']}>
           <h3>Finding Posture Statuses</h3>
-          <StatusBreakdown items={findingBreakdown} total={totalFindings} />
+          <StatusBreakdown items={findingBreakdown} />
         </div>
         <div className={styles['breakdown-card']}>
           <h3>Identified Risk Statuses</h3>
-          <StatusBreakdown items={riskBreakdown} total={totalRisks} />
+          <StatusBreakdown items={riskBreakdown} />
         </div>
       </div>
 

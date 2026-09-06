@@ -321,12 +321,12 @@ export const ControlImplementationsEditor: React.FC<ControlImplementationsEditor
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
                               {(req.statements || []).length > 0 && (
                                 <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: '4px' }}>
-                                  {req.statements.length} smt(s)
+                                  {req.statements?.length} smt(s)
                                 </span>
                               )}
                               {(req['set-parameters'] || []).length > 0 && (
                                 <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: '4px' }}>
-                                  {req['set-parameters'].length} param(s)
+                                  {req['set-parameters']?.length} param(s)
                                 </span>
                               )}
                               {editMode && (

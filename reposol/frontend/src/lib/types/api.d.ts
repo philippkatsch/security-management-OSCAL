@@ -2,9 +2,11 @@ import { OscalStage } from './oscal';
 
 export interface DocumentSummary {
   id: string;
+  uuid?: string;
   title: string;
   stage: string;
   last_modified: string;
+  'last-modified'?: string;
   version: string;
   status: string;
 }

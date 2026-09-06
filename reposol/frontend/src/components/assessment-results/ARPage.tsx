@@ -464,11 +464,13 @@ export function ARPage({ arId = '', initialEditMode = false, onClose }: ARPagePr
                           />
                         </div>
 
-                        {isEditing && results.length > 0 && (
+                        {isEditing && (
                           <div>
                             <button
                               type="button"
                               className={styles['btn-danger']}
+                              disabled={results.length <= 1}
+                              title={results.length <= 1 ? "NIST OSCAL Assessment Results requires at least 1 result set" : undefined}
                               onClick={() => handleRemoveActiveResultSet(activeResultSet.uuid)}
                             >
                               Delete Result Set

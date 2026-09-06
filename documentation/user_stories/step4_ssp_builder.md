@@ -43,7 +43,7 @@
 ---
 
 ### US 4.2: Baseline Profile & Catalog Import Resolution
-> *References DD-003, DD-016, DD-028*  
+> *References DD-016, [DD-028](../design_decisions/DD-028_backend_resolution_engine.md)*  
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** select and import a baseline Profile or direct Catalog from the Reposol workspace (or via URI reference),  
 > **so that** the active control baseline, control statements, parameters with baseline defaults, and profile modifications are resolved into the SSP authoring workspace.

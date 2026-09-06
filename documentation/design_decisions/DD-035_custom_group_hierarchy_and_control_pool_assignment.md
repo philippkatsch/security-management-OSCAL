@@ -10,11 +10,11 @@ In OSCAL Profiles, the `merge.custom` directive enables profile authors to reorg
 
 Prior to this decision, custom grouping in Reposol was limited to basic group creation within the MergeConfigurator panel without comprehensive drag-and-drop support, visual pool management, inline hierarchy editing in the sidebar navigation tree, or full integration with the Document Actions architecture (DD-029) and Backend Resolution Engine (DD-028).
 
-To provide an intuitive, high-productivity tailoring experience that remains 100% compliant with the NIST OSCAL Profile Specification (v1.1.2), this design decision establishes the architecture for custom group lifecycles, dual-surface control assignment, virtual unassigned control state handling, and live resolution synchronization.
+To provide an intuitive, high-productivity tailoring experience that remains 100% compliant with the NIST OSCAL Profile Specification (v1.2.2), this design decision establishes the architecture for custom group lifecycles, dual-surface control assignment, virtual unassigned control state handling, and live resolution synchronization.
 
 ## OSCAL Specification Reference
 
-- **Specification**: [NIST OSCAL Profile Model v1.1.2 - Profile Resolution](https://pages.nist.gov/OSCAL/concepts/processing/profile-resolution/)
+- **Specification**: [NIST OSCAL Profile Model v1.2.2 - Profile Resolution](https://pages.nist.gov/OSCAL/concepts/processing/profile-resolution/)
 - **Schema Reference**: `merge` -> `custom` -> `groups` (`group[]`) & `insert-controls` (`insert-controls[]`)
 - **Control Inclusion**: `insert-controls[].include-controls[].with-ids`
 - **Sorting Rule**: `insert-controls[].order` (`keep` | `ascending` | `descending`)
@@ -80,9 +80,9 @@ Unassigned controls represent active imported controls that have not yet been as
 - **Arbitrary Nesting**: Groups support recursive children (`group.groups[]`). The backend and frontend resolvers traverse nested groups recursively.
 - **Deletion**: Deleting a group triggers a confirmation dialog offering to either return assigned controls to the unassigned pool or reassign them to the parent group.
 
-### 5. Strict NIST OSCAL Profile Schema v1.1.2 Serialization & Sanitization
+### 5. Strict NIST OSCAL Profile Schema v1.2.2 Serialization & Sanitization
 
-Serialization guarantees 100% compliance with NIST OSCAL Profile Schema v1.1.2:
+Serialization guarantees 100% compliance with NIST OSCAL Profile Schema v1.2.2:
 - Control assignments are stored canonically under:
   ```json
   "merge": {
@@ -131,7 +131,7 @@ Serialization guarantees 100% compliance with NIST OSCAL Profile Schema v1.1.2:
 ## Consequences
 
 ### Positive
-- **100% OSCAL Compliance**: Strictly adheres to NIST OSCAL v1.1.2 schema with zero schema pollution.
+- **100% OSCAL Compliance**: Strictly adheres to NIST OSCAL v1.2.2 schema with zero schema pollution.
 - **Architectural Separation**: Clean separation between pure Immer actions (`profile-actions.ts`), derived UI state (unassigned node), and server-side resolution (`resolution_service.py`).
 - **High Ergonomics**: Dual-surface DnD and inline editing streamline large-scale baseline structuring.
 - **Predictable History**: All group and assignment changes automatically record undo/redo history.

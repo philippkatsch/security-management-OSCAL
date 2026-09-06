@@ -1588,9 +1588,7 @@ export function SourceCatalogTree({
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', fontStyle: 'italic' }}>
             {searchQuery
               ? 'No controls match your search.'
-              : (catalogFilter !== 'all'
-                ? 'No matching controls or groups found for the selected catalog.'
-                : 'No controls found in the imported sources.')}
+              : 'No controls found in the imported sources.'}
           </div>
         ) : (
           filteredCatalogs.map(renderCatalogNode)

@@ -55,7 +55,11 @@ export const OSCAL_DEFINED_COMPONENT_TYPES = [
   'plan',
   'guidance',
   'standard',
-  'validation'
+  'validation',
+  'region',
+  'zone',
+  'resource-container',
+  'network'
 ] as const;
 
 export type OscalDefinedComponentType = typeof OSCAL_DEFINED_COMPONENT_TYPES[number];

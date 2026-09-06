@@ -200,8 +200,8 @@ export function SankeyDiagram({
         RELATIONSHIP_COLORS[m.relationship] ||
         RELATIONSHIP_COLORS['no-relationship'];
 
-      const confidence = m.props?.find((p) => p.name === 'confidence')?.value;
-      const rationale = m.props?.find((p) => p.name === 'rationale')?.value;
+      const confidence = (m as any)['confidence-score'] ?? m.props?.find((p) => p.name === 'confidence')?.value;
+      const rationale = (m as any)['matching-rationale'] ?? m.props?.find((p) => p.name === 'rationale')?.value ?? m.remarks;
 
       m.sources?.forEach((srcRef) => {
         const srcPos = nodePositions.get(`source-${srcRef['id-ref']}`);

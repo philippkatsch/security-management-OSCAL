@@ -17,6 +17,8 @@ export interface ControlTreeNode {
   withdrawn?: boolean; // Catalog
   sortId?: string;
   label?: string;
+  isExpanded?: boolean;
+  children?: ControlTreeNode[];
 }
 
 export interface TreeVisibilityFilter {
@@ -153,7 +155,7 @@ export function useControlTree(options: UseControlTreeOptions): UseControlTreeRe
       showActive: true,
       showExcluded: true,
       showWithdrawn: Boolean(showWithdrawn),
-      showUnassigned: Boolean(initialVisibilityFilter?.showUnassigned)
+      showUnassigned: false
     }
   );
 

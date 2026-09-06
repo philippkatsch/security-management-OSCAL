@@ -46,7 +46,7 @@ function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number) {
 
 interface ProseWithParamsProps {
   value?: string;
-  onChange: (val: string) => void;
+  onChange?: (val: string) => void;
   params?: any[];
   placeholder?: string;
   rows?: number;
@@ -124,7 +124,7 @@ export const ProseWithParams = forwardRef(({
       const before = value.substring(0, triggerIndex);
       const after = value.substring(triggerIndex + matchLength);
       const newValue = `${before}{{ insert: param, ${paramId} }}${after}`;
-      onChange(newValue);
+      onChange?.(newValue);
       setShowDropdown(false);
       
       // Return focus to textarea
@@ -155,7 +155,7 @@ export const ProseWithParams = forwardRef(({
         insertText + 
         value.substring(endPos);
 
-      onChange(newValue);
+      onChange?.(newValue);
 
       // Focus and select the parameter ID part so selection triggers dropdown
       setTimeout(() => {
@@ -213,7 +213,7 @@ export const ProseWithParams = forwardRef(({
         onChange={(e) => {
           e.target.style.height = 'auto';
           e.target.style.height = e.target.scrollHeight + 'px';
-          onChange(e.target.value);
+          onChange?.(e.target.value);
         }}
         onClick={handleSelectionChangeOrClick}
         onKeyUp={handleSelectionChangeOrClick}

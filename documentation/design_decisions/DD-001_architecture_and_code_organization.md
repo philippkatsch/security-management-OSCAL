@@ -28,7 +28,7 @@ reposol/
 │   │   ├── validation.py    # OSCAL schema validation (jsonschema)
 │   │   ├── format_converter.py # JSON/YAML/XML conversion utilities
 │   │   ├── constants.py     # Stage mapping, unified magic strings, and shared constants
-│   │   ├── schemas/         # Official OSCAL v1.1.2 JSON Schemas
+│   │   ├── schemas/         # Official OSCAL v1.2.2 JSON Schemas
 │   │   ├── repositories/    # Data access layer (document_repository.py, workspace_repository.py with atomic storage & file locks)
 │   │   └── services/        # Domain services layer (document_service.py, profile_service.py)
 │   └── tests/               # Pytest suite (unit, integration, storage, workflows)

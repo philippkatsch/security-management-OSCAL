@@ -76,7 +76,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
   const ssp = doc ? doc['system-security-plan'] : null;
   const sysChar = ssp ? (ssp['system-characteristics'] || {}) : {};
   const sysImp = ssp ? (ssp['system-implementation'] || {}) : {};
-  const ctrlImp = ssp ? (ssp['control-implementation'] || {}) : {};
+  const ctrlImp = ssp?.['control-implementation'] || { description: '', 'implemented-requirements': [] };
 
   // 1. Auto-initialize 'this-system' root component if missing
   useEffect(() => {
@@ -128,7 +128,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
   }, []);
 
   // Fetch resolution whenever ssp['import-profile'].href changes
-  const prevHrefRef = useRef<string | null>(null);
+  const prevHrefRef = useRef<string | null | undefined>(null);
   useEffect(() => {
     const currentHref = ssp?.['import-profile']?.href;
     if (currentHref !== prevHrefRef.current && ssp) {
@@ -283,7 +283,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
           title: ctrlDef.title,
           params: ctrlDef.params,
           parts: ctrlDef.parts
-        };
+        } as any;
       }
 
       if (req || ctrlDef) {
@@ -300,7 +300,7 @@ export function SSPPage({ sspId, initialEditMode = false, onClose }: any) {
 
   // Render Overview Tab
   const renderOverview = () => {
-    const importHref = typeof ssp['import-profile']?.href === 'string' ? ssp['import-profile'].href : '';
+    const importHref = typeof ssp?.['import-profile']?.href === 'string' ? ssp['import-profile'].href : '';
 
     return (
       <div data-testid="ssp-overview-tab" className="overview-tab p-6 space-y-6">

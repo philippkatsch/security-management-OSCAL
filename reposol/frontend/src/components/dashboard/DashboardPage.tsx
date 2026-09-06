@@ -184,9 +184,9 @@ export const DashboardPage = () => {
               {recentDocs.map((doc, i) => (
                 <div
                   className={styles['recent-activity-item']}
-                  key={`${doc.stage}-${doc.uuid}-${i}`}
+                  key={`${doc.stage}-${doc.uuid || doc.id}-${i}`}
                   onClick={() => {
-                    navigate(`/${doc.stage}/${doc.uuid}`);
+                    navigate(`/${doc.stage}/${doc.uuid || doc.id}`);
                   }}
                 >
                   <span className={styles['recent-icon']}>{STAGE_ICONS[doc.stage]}</span>

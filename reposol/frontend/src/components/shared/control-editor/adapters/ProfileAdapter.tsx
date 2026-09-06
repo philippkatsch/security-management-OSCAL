@@ -556,7 +556,7 @@ export function useProfileControlAlters({
             {part.isModified && <span style={{ fontSize: '10px', color: '#fbbf24', background: 'rgba(245,158,11,0.2)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>Modified</span>}
             {part.isAdded && <span style={{ fontSize: '10px', color: '#22c55e', background: 'rgba(34,197,94,0.2)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>Added</span>}
           </div>
-          {part.isModified && handleResetProse && (
+          {part.isModified && handleResetProse && partId && (
             <button
               type="button"
               onClick={() => handleResetProse(partId)}
@@ -577,10 +577,10 @@ export function useProfileControlAlters({
               ↩ Revert to Baseline
             </button>
           )}
-          {part.isAdded && handleResetProse && (
+          {part.isAdded && handleResetProse && part.id && (
             <button
               type="button"
-              onClick={() => handleResetProse(part.id)}
+              onClick={() => handleResetProse(part.id!)}
               title="Remove added statement"
               style={{
                 fontSize: '11px',
@@ -602,7 +602,7 @@ export function useProfileControlAlters({
         <ProseWithParams
           value={part.prose || ''}
           onChange={(newValue: string) => {
-            if (isOriginal && profile && onProfileChange) {
+            if (isOriginal && profile && onProfileChange && partId) {
               handleOriginalPartFieldChange(
                 partId, 'prose', newValue,
                 { originalName: part.originalName || part.name, originalProse: part.originalProse ?? part.prose },

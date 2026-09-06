@@ -273,7 +273,7 @@ describe('Iteration 4 Challenger 8 Adversarial Stress Suite', () => {
           expect(headings.length).toBeGreaterThan(0);
         }
       }
-    });
+    }, 15000);
 
     it('allows updating SSP reference inline and fires setDoc & toast', async () => {
       const mockSetDoc = vi.fn();

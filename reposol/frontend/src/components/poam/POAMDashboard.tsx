@@ -13,8 +13,8 @@ export interface POAMDashboardProps {
   resolvedPercent: number;
   completedItems: any[];
   items: any[];
-  riskStatusData: any[];
-  priorityData: any[];
+  riskStatusData: any;
+  priorityData: any;
   onOpenImportWizard?: () => void;
 }
 
@@ -203,12 +203,18 @@ export function POAMDashboard({
 
         <div className={styles['widget-card']}>
           <h3>Risk Status Breakdown</h3>
-          <StatusBreakdown data={riskStatusData} />
+          <StatusBreakdown
+            data={Array.isArray(riskStatusData) ? riskStatusData : undefined}
+            counts={!Array.isArray(riskStatusData) ? riskStatusData : undefined}
+          />
         </div>
 
         <div className={styles['widget-card']}>
           <h3>Items by Priority</h3>
-          <StatusBreakdown data={priorityData} />
+          <StatusBreakdown
+            data={Array.isArray(priorityData) ? priorityData : undefined}
+            counts={!Array.isArray(priorityData) ? priorityData : undefined}
+          />
         </div>
       </div>
     </div>

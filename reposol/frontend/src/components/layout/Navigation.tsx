@@ -7,6 +7,7 @@ import { documentCountsAtom } from '@stores/documentAtoms';
 import { masterEditEnabledAtom, isMasterModeAtom } from '@stores/workspaceAtoms';
 import { getWorkspaceId } from '@lib/api';
 import { toast } from 'react-hot-toast';
+import { useConfirm } from '@components/shared/ui/ConfirmProvider';
 
 const navSections = [
   {
@@ -166,6 +167,7 @@ export const Navigation = () => {
   const counts = useAtomValue(documentCountsAtom);
   const masterEditEnabled = useAtomValue(masterEditEnabledAtom);
   const [isMasterMode, setIsMasterMode] = useAtom(isMasterModeAtom);
+  const { confirm } = useConfirm();
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
@@ -341,8 +343,14 @@ export const Navigation = () => {
                 gap: '5px',
                 opacity: 0.7
               }}
-              onClick={() => {
-                if (window.confirm('Enter Master Template Mode?\n\nChanges will affect the global seed templates for all new user sessions.')) {
+              onClick={async () => {
+                const confirmed = await confirm({
+                  title: 'Enter Master Template Mode?',
+                  message: 'Changes will affect the global seed templates for all new user sessions.',
+                  confirmLabel: 'Enter Master Mode',
+                  variant: 'warning'
+                });
+                if (confirmed) {
                   setIsMasterMode(true);
                   window.location.reload();
                 }

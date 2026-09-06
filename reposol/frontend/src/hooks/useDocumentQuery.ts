@@ -102,7 +102,8 @@ export function useTraceabilityQuery(searchControlId: string) {
         { key: 'ssp', root: 'system-security-plan', name: 'SSP' },
         { key: 'assessment-plan', root: 'assessment-plan', name: 'AP' },
         { key: 'assessment-results', root: 'assessment-results', name: 'AR' },
-        { key: 'poam', root: 'plan-of-action-and-milestones', name: 'POAM' }
+        { key: 'poam', root: 'plan-of-action-and-milestones', name: 'POAM' },
+        { key: 'control-mappings', root: 'mapping-collection', name: 'Mapping' }
       ];
 
       const foundItems: Array<{ stageName: string; stageKey: string; title: string; uuid: string }> = [];
@@ -124,7 +125,7 @@ export function useTraceabilityQuery(searchControlId: string) {
                 const fullInner = (fullDoc as any)[stage.root] || fullDoc;
                 foundItems.push({
                   stageName: stage.name,
-                  stageKey: stage.key === 'catalog' ? 'catalogs' : stage.key === 'profile' ? 'profiles' : stage.key,
+                  stageKey: stage.key === 'catalog' ? 'catalogs' : stage.key === 'profile' ? 'profiles' : stage.key === 'control-mappings' ? 'control-mappings' : stage.key,
                   title: fullInner.metadata?.title || inner.metadata?.title || 'Untitled',
                   uuid: uuid
                 });

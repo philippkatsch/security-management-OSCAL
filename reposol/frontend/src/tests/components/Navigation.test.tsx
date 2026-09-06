@@ -6,12 +6,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ConfirmProvider } from '@components/shared/ui/ConfirmProvider';
 import Navigation from '@components/layout/Navigation';
 
 const renderWithRouter = (ui: React.ReactElement, initialEntries = ['/catalogs']) => {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
-      {ui}
+      <ConfirmProvider>
+        {ui}
+      </ConfirmProvider>
     </MemoryRouter>
   );
 };

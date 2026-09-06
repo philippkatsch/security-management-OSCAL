@@ -288,7 +288,7 @@ export const RiskEditorModal: React.FC<RiskEditorModalProps> = ({
             <h4>Characterizations & Facets</h4>
             <CharacterizationsEditor
               value={risk.characterizations || []}
-              isEditing={isEditing}
+              isEditMode={isEditing}
               onChange={(newChars: any[]) => handleFieldChange('characterizations', newChars)}
             />
           </div>
