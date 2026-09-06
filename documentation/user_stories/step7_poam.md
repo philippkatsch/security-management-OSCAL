@@ -80,7 +80,7 @@
 ---
 
 ### US 7.4: Core POA&M Items Management & Remediation Milestones
-> *Implements [DD-017](../design_decisions/DD-017_shared_assessment_entities.md) and [DD-020](../design_decisions/DD-020_badge_and_status_colors.md).*  
+> *Implements [DD-017](../design_decisions/DD-017_shared_assessment_entities.md) and [DD-020](../design_decisions/DD-020_status_badge_design_system.md).*  
 > **As a** System Owner / ISSO (Alice)  
 > **I want to** author and manage structured `poam-items` with remediation schedules, priorities, and milestone progress,  
 > **so that** corrective action plans have clear operational owners and measurable deadlines.
@@ -177,7 +177,7 @@
 ---
 
 ### US 7.8: Risk Lifecycle State Machine & Transition Governance
-> *Implements [DD-017](../design_decisions/DD-017_shared_assessment_entities.md) and [DD-020](../design_decisions/DD-020_badge_and_status_colors.md).*  
+> *Implements [DD-017](../design_decisions/DD-017_shared_assessment_entities.md) and [DD-020](../design_decisions/DD-020_status_badge_design_system.md).*  
 > **As a** System Owner / ISSO (Alice)  
 > **I want to** advance risk statuses through a controlled state machine with authoritative badge styling,  
 > **so that** the risk mitigation lifecycle is managed transparently and compliantly.
@@ -330,7 +330,7 @@
 ---
 
 ### US 7.16: POA&M Remediation Dashboard & Burndown Metrics
-> *Implements [DD-020](../design_decisions/DD-020_badge_and_status_colors.md).*  
+> *Implements [DD-020](../design_decisions/DD-020_status_badge_design_system.md).*  
 > **As a** System Owner / ISSO (Alice)  
 > **I want to** view a comprehensive dashboard summarizing remediation progress, open risks, and milestone deadlines,  
 > **so that** I can assess the organization's remediation velocity and identify overdue corrective actions.
@@ -348,7 +348,7 @@
 ---
 
 ### US 7.17: Dual-Mode View (`👁️ View`) vs Edit (`✏️ Edit`) & In-Card Authoring
-> *Implements [US 0.17](step0_global_requirements.md) and [DD-004](../design_decisions/DD-004_draft_state_management.md).*  
+> *Implements [US 0.17](step0_global_requirements.md) and [DD-004](../design_decisions/DD-004_editor_ux_patterns.md).*  
 > **As a** System Owner / ISSO (Alice)  
 > **I want to** toggle smoothly between View and Edit modes with URL query persistence and in-card editing,  
 > **so that** I can review remediation statuses in a clean read-only mode and switch to authoring mode on demand.
@@ -362,7 +362,7 @@
 ---
 
 ### US 7.18: Draft Persistence, Change Buffering & Dirty State Tracking
-> *Implements [DD-004](../design_decisions/DD-004_draft_state_management.md).*  
+> *Implements [DD-004](../design_decisions/DD-004_editor_ux_patterns.md).*  
 > **As a** System Owner / ISSO (Alice)  
 > **I want to** have local drafts saved automatically in the backend (`<uuid>_draft.json`) while editing complex remediations,  
 > **so that** work in progress is protected against browser crashes or network disconnections.

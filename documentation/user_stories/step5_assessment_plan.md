@@ -160,7 +160,7 @@ The Reposol Assessment Plan Builder is organized around an ergonomic, modular 6-
 ### Tab 3: Assessment Subjects & Assets
 
 #### US 5.6: Assessment Subjects & Scope Boundaries (DISC-06 Resolution)
-> *Implements [DD-017](../design_decisions/DD-017_assessment_subjects_and_assets.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).*  
+> *Implements [DD-017](../design_decisions/DD-017_shared_assessment_entities.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).*  
 > **As a** Lead Assessor (Bob)  
 > **I want to** select and scope assessment subjects across all 5 standard OSCAL subject types including locations and parties,  
 > **so that** physical facilities, operational teams, and software components under audit are formally bounded.
@@ -181,7 +181,7 @@ The Reposol Assessment Plan Builder is organized around an ergonomic, modular 6-
 ---
 
 #### US 5.7: Assessment Assets & Platform Declarations
-> *Implements [DD-017](../design_decisions/DD-017_assessment_subjects_and_assets.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).*  
+> *Implements [DD-017](../design_decisions/DD-017_shared_assessment_entities.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).*  
 > **As a** Lead Assessor (Bob)  
 > **I want to** declare assessment assets and platforms (`assessment-assets.assessment-platforms[]`),  
 > **so that** authorized vulnerability scanners, compliance testing tools, and test environments are formally accredited.
@@ -213,7 +213,7 @@ The Reposol Assessment Plan Builder is organized around an ergonomic, modular 6-
 ---
 
 #### US 5.9: Local Assessment Objectives & Standard Evaluation Methods
-> *Implements [DD-008](../design_decisions/DD-008_assessment_methods.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).*  
+> *Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).*  
 > **As a** Lead Assessor (Bob)  
 > **I want to** define assessment objectives and bind them to standardized NIST SP 800-53A evaluation methods (`INTERVIEW`, `EXAMINE`, `TEST`),  
 > **so that** testing criteria and evidence examination procedures are explicitly instructed.
@@ -232,7 +232,7 @@ The Reposol Assessment Plan Builder is organized around an ergonomic, modular 6-
 ---
 
 #### US 5.10: Procedural Assessment Activities & Step Sequences
-> *Implements [DD-008](../design_decisions/DD-008_assessment_methods.md) and [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).*  
+> *Implements [DD-037](../design_decisions/DD-037_assessment_plan_architecture_and_scoping_model.md).*  
 > **As a** Lead Assessor (Bob)  
 > **I want to** author structured procedural activities (`local-definitions.activities[]`) with step-by-step test sequences,  
 > **so that** audit procedures are repeatable, verifiable, and linked to evaluated controls.

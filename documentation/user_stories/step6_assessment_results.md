@@ -187,7 +187,7 @@
 ---
 
 ### US 6.9: Risk Lifecycle State Machine & Risk Log Audit Trail
-> *Implements [DD-017](../design_decisions/DD-017_shared_assessment_entities.md) and [DD-020](../design_decisions/DD-020_badge_and_status_colors.md).*  
+> *Implements [DD-017](../design_decisions/DD-017_shared_assessment_entities.md) and [DD-020](../design_decisions/DD-020_status_badge_design_system.md).*  
 > **As a** Lead Assessor (Bob)  
 > **I want to** advance risk statuses through a controlled lifecycle state machine and automatically record changes in the risk log,  
 > **so that** risk progression and deviation approvals are immutably audited over time.
@@ -349,7 +349,7 @@
 ---
 
 ### US 6.16: In-Card Editing, Segmented Mode Toggle & Draft Protection
-> *Implements [US 0.17](step0_global_requirements.md) and [DD-004](../design_decisions/DD-004_draft_state_management.md).*  
+> *Implements [US 0.17](step0_global_requirements.md) and [DD-004](../design_decisions/DD-004_editor_ux_patterns.md).*  
 > **As a** Lead Assessor (Bob)  
 > **I want to** toggle seamlessly between View and Edit modes with URL synchronization and local draft auto-saving,  
 > **so that** I can author complex assessment data iteratively without risk of accidental data loss.

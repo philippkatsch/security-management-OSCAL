@@ -222,7 +222,7 @@
 ---
 
 ### US 4.10: System Components Inventory & Component Definition Import (DISC-01 & DISC-02 Resolution)
-> *Implements [DD-021](../design_decisions/DD-021_entity_list_detail_editor_pattern.md), [DD-031](../design_decisions/DD-031_schema_form_and_entity_editor.md), and [DD-036](../design_decisions/DD-036_ssp_builder_architecture_and_control_satisfaction_model.md).*  
+> *Implements [DD-021](../design_decisions/DD-021_entity_list_detail_editor_pattern.md), [DD-031](../design_decisions/DD-031_schema_form_and_entity_editor.md), and [DD-036](../design_decisions/DD-036_ssp_security_inheritance_and_baseline_resolution.md).*  
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** manage system components, enforce the root `this-system` component, and import component templates from Stage 3 Component Definitions with full preservation of control implementations,  
 > **so that** all technical assets are documented and pre-configured compliance capabilities transfer seamlessly into the SSP.
@@ -268,7 +268,7 @@
 ---
 
 ### US 4.12: Leveraged Authorizations & Common Control Providers
-> *Implements [DD-036](../design_decisions/DD-036_ssp_builder_architecture_and_control_satisfaction_model.md).*  
+> *Implements [DD-036](../design_decisions/DD-036_ssp_security_inheritance_and_baseline_resolution.md).*  
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** declare leveraged authorizations (`system-implementation.leveraged-authorizations[]`) for external cloud service providers,  
 > **so that** inherited security controls (e.g., AWS or Azure FedRAMP packages) can be formally referenced and legally bound to our system plan.
@@ -301,7 +301,7 @@
 ---
 
 ### US 4.14: Control Implementation Global Strategy & Global Parameters
-> *Implements [DD-009](../design_decisions/DD-009_system_implementation_description.md) and [DD-012](../design_decisions/DD-012_parameter_value_assignment_and_override_strategy.md).*  
+> *Implements [DD-009](../design_decisions/DD-009_parameter_strategy.md) and [DD-012](../design_decisions/DD-012_parameter_value_assignment_and_override_strategy.md).*  
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** configure the global control implementation narrative and declare system-wide parameter defaults,  
 > **so that** our overarching security strategy and baseline parameter defaults (Tier 3) are established.
@@ -316,7 +316,7 @@
 ---
 
 ### US 4.15: Implemented Requirements & By-Components Architecture
-> *Implements [DD-030](../design_decisions/DD-030_unified_control_editor.md) and [DD-036](../design_decisions/DD-036_ssp_builder_architecture_and_control_satisfaction_model.md).*  
+> *Implements [DD-030](../design_decisions/DD-030_unified_control_editor.md) and [DD-036](../design_decisions/DD-036_ssp_security_inheritance_and_baseline_resolution.md).*  
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** map control satisfaction to concrete system components using the `by-components[]` architecture,  
 > **so that** implementation narratives are strictly located within component blocks as required by the NIST OSCAL SSP schema.
@@ -335,7 +335,7 @@
 ---
 
 ### US 4.16: Statement-Level Implementation Granularity
-> *Implements [DD-030](../design_decisions/DD-030_unified_control_editor.md) and [DD-036](../design_decisions/DD-036_ssp_builder_architecture_and_control_satisfaction_model.md).*  
+> *Implements [DD-030](../design_decisions/DD-030_unified_control_editor.md) and [DD-036](../design_decisions/DD-036_ssp_security_inheritance_and_baseline_resolution.md).*  
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** document implementation narratives at the individual control statement level (`statements[].by-components[]`),  
 > **so that** multi-part security controls (e.g., `ac-2` parts a through j) are documented with granular sub-requirement precision.
@@ -388,7 +388,7 @@
 ---
 
 ### US 4.19: 4-Tier Parameter Cascade Resolution & Visualizer
-> *Implements [DD-012](../design_decisions/DD-012_parameter_value_assignment_and_override_strategy.md) and [DD-036](../design_decisions/DD-036_ssp_builder_architecture_and_control_satisfaction_model.md).*  
+> *Implements [DD-012](../design_decisions/DD-012_parameter_value_assignment_and_override_strategy.md) and [DD-036](../design_decisions/DD-036_ssp_security_inheritance_and_baseline_resolution.md).*  
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** configure parameter overrides at the component or control level and view the effective resolved value via an interactive 4-tier cascade visualizer,  
 > **so that** parameter precedence is transparent and parameter placeholders in prose are accurately substituted.
@@ -409,7 +409,7 @@
 ---
 
 ### US 4.20: Security Inheritance (Inherited, Satisfied & Export Providers)
-> *Implements [DD-036](../design_decisions/DD-036_ssp_builder_architecture_and_control_satisfaction_model.md).*  
+> *Implements [DD-036](../design_decisions/DD-036_ssp_security_inheritance_and_baseline_resolution.md).*  
 > **As a** Compliance Officer and System Owner (Alice)  
 > **I want to** model security inheritance by configuring `inherited`, `satisfied`, and `export` assemblies on component implementations,  
 > **so that** our system can act as both an inheritance consumer (inheriting controls from IaaS) and an inheritance provider (exporting controls to downstream tenants).

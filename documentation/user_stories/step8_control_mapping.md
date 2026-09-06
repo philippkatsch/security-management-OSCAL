@@ -321,7 +321,7 @@
 ---
 
 ### US 8.16: Dual-Mode View (`👁️ View`) vs Edit (`✏️ Edit`) & In-Card Authoring
-> *Implements [US 0.17](step0_global_requirements.md) and [DD-004](../design_decisions/DD-004_draft_state_management.md).*  
+> *Implements [US 0.17](step0_global_requirements.md) and [DD-004](../design_decisions/DD-004_editor_ux_patterns.md).*  
 > **As a** Compliance Officer (Alice)  
 > **I want to** toggle between View and Edit modes with URL synchronization and in-card authoring,  
 > **so that** I can review published crosswalks without risk of accidental modification.
@@ -335,7 +335,7 @@
 ---
 
 ### US 8.17: Draft Persistence, Change Buffering & Dirty State Tracking
-> *Implements [DD-004](../design_decisions/DD-004_draft_state_management.md).*  
+> *Implements [DD-004](../design_decisions/DD-004_editor_ux_patterns.md).*  
 > **As a** Framework Developer (Alice)  
 > **I want to** have local drafts auto-saved in the backend (`<uuid>_draft.json`) while mapping complex control hierarchies,  
 > **so that** I am protected against accidental browser closure or connection loss.
