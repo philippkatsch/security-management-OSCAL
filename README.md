@@ -53,7 +53,7 @@ Browse, search, and manage all imported and custom OSCAL Catalogs.
 
 ![Catalogs Overview](./documentation/images/catalogs_list.png)
 
-### 📂 Catalog & Profile Editor ("Innenansicht")
+### 📂 Catalog & Profile Editor ("Internal View")
 When opening a Catalog or Profile, the interface displays the document tree in a sidebar and selected controls in the main workspace, giving you a full overview of parameters, prose, and metadata.
 
 | View Mode | Edit Mode |
