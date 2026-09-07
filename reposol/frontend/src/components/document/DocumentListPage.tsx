@@ -12,40 +12,9 @@ import { TableSkeleton } from '@components/shared/ui/LoadingSpinner';
 import { StageHelpModal } from '@components/shared/ui/StageHelpModal';
 import { toast } from 'react-hot-toast';
 
-const ROOT_KEYS: Record<string, string> = {
-  catalogs: 'catalog',
-  profiles: 'profile',
-  ssps: 'system-security-plan',
-  'component-definitions': 'component-definition',
-  'assessment-plans': 'assessment-plan',
-  'assessment-results': 'assessment-results',
-  poams: 'plan-of-action-and-milestones',
-  'control-mappings': 'mapping-collection',
-};
+import { STAGE_CANONICAL_ROUTES, ROOT_KEYS, STAGE_LABELS, STAGE_ICONS } from '@lib/oscal-utils';
 
-const STAGE_LABELS: Record<string, string> = {
-  catalogs: 'Catalogs',
-  profiles: 'Profiles',
-  ssps: 'System Security Plans',
-  'component-definitions': 'Component Definitions',
-  'assessment-plans': 'Assessment Plans',
-  'assessment-results': 'Assessment Results',
-  poams: 'POA&Ms',
-  'control-mappings': 'Control Mappings',
-};
-
-const STAGE_ICONS: Record<string, string> = {
-  catalogs: '📖',
-  profiles: '⚙️',
-  ssps: '📝',
-  'component-definitions': '🧱',
-  'assessment-plans': '📅',
-  'assessment-results': '✅',
-  poams: '⚠️',
-  'control-mappings': '🔗',
-};
-
-const UNDER_DEV_STAGES = ['component-definitions', 'control-mappings', 'ssps', 'assessment-plans', 'assessment-results', 'poams'];
+const UNDER_DEV_STAGES: string[] = [];
 
 export const DocumentListPage = () => {
   const { stage } = useParams<{ stage: string }>();
@@ -59,8 +28,8 @@ export const DocumentListPage = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [exportDoc, setExportDoc] = useState<{ id: string; title: string } | null>(null);
 
-  const safeStage = stage || 'catalogs';
-  const rootKey = ROOT_KEYS[safeStage];
+  const safeStage = STAGE_CANONICAL_ROUTES[stage || 'catalogs'] || stage || 'catalogs';
+  const rootKey = ROOT_KEYS[safeStage] || 'catalog';
   const label = STAGE_LABELS[safeStage] || safeStage;
   const isUnderDev = UNDER_DEV_STAGES.includes(safeStage);
 

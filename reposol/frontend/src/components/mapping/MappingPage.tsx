@@ -681,106 +681,115 @@ export function MappingPage({ mappingId = '', initialEditMode = false, onClose }
           )}
 
           {activeTab === 'matrix' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <strong>Legend:</strong>
-                  <div style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'var(--color-info-subtle)', border: '1px solid var(--color-info)' }}></div> Equal</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'var(--color-success-subtle)', border: '1px solid var(--color-success)' }}></div> Equivalent</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'var(--color-warning-subtle)', border: '1px solid var(--color-warning)' }}></div> Subset/Superset</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'var(--color-primary-subtle)', border: '1px solid var(--color-primary)' }}></div> Intersects</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <strong>Filter:</strong>
-                  <select 
-                    aria-label="Filter"
-                    style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
-                    value={matrixFilter}
-                    onChange={(e) => setMatrixFilter(e.target.value)}
-                  >
-                    <option value="all">Show All</option>
-                    <option value="unmapped-only">Unmapped Only</option>
-                    <option value="equal-to">Equal To</option>
-                    <option value="equivalent-to">Equivalent To</option>
-                    <option value="subset-of">Subset Of</option>
-                    <option value="superset-of">Superset Of</option>
-                    <option value="intersects-with">Intersects With</option>
-                  </select>
-                </div>
-              </div>
-              {(() => {
-                const effectiveSources = sourceControls.length > 0
-                  ? sourceControls
-                  : Array.from(new Set(maps.flatMap(m => m.sources?.map(s => s['id-ref']) || []))).map(id => ({ id, title: id }));
-                const effectiveTargets = targetControls.length > 0
-                  ? targetControls
-                  : Array.from(new Set(maps.flatMap(m => m.targets?.map(t => t['id-ref']) || []))).map(id => ({ id, title: id }));
-
-                const filteredSourceControls = effectiveSources.filter(sc => {
-                  if (matrixFilter === 'all') return true;
-                  const matches = effectiveTargets.map(tc => maps.find(m => m.sources?.some(s => s['id-ref'] === sc.id) && m.targets?.some(t => t['id-ref'] === tc.id)));
-                  if (matrixFilter === 'unmapped-only') return matches.every(m => !m);
-                  if (matrixFilter === 'subset-of') return matches.some(m => m && (m.relationship === 'subset-of' || m.relationship === 'Subset Of'));
-                  return matches.some(m => m && (m.relationship === matrixFilter || m.relationship?.toLowerCase() === matrixFilter.toLowerCase()));
-                });
-                const filteredTargetControls = effectiveTargets.filter(tc => {
-                  if (matrixFilter === 'all') return true;
-                  const matches = effectiveSources.map(sc => maps.find(m => m.sources?.some(s => s['id-ref'] === sc.id) && m.targets?.some(t => t['id-ref'] === tc.id)));
-                  if (matrixFilter === 'unmapped-only') return matches.every(m => !m);
-                  if (matrixFilter === 'subset-of') return matches.some(m => m && (m.relationship === 'subset-of' || m.relationship === 'Subset Of'));
-                  return matches.some(m => m && (m.relationship === matrixFilter || m.relationship?.toLowerCase() === matrixFilter.toLowerCase()));
-                });
-
-                return (
-                  <div className={styles['matrix-container']}>
-                    <div className={styles['matrix-grid']} style={{ gridTemplateColumns: `auto repeat(${filteredTargetControls.length}, minmax(40px, 1fr))` }}>
-                      <div className={styles['matrix-header-corner']} role="presentation">Source \ Target</div>
-                      {filteredTargetControls.map(tc => (
-                        <div key={tc.id} className={styles['matrix-header-col']} title={tc.title} role="columnheader">
-                          {tc.id}
-                        </div>
-                      ))}
-                      
-                      {filteredSourceControls.map(sc => (
-                        <React.Fragment key={sc.id}>
-                          <div className={styles['matrix-header-row']} title={sc.title} role="cell">{sc.id}</div>
-                          {filteredTargetControls.map(tc => {
-                            const match = maps.find(m => 
-                              m.sources?.some(s => s['id-ref'] === sc.id) && 
-                              m.targets?.some(t => t['id-ref'] === tc.id)
-                            );
-                            const relClass = match && match.relationship ? (styles[`rel-cell-${match.relationship}`] || '') : '';
-                            return (
-                              <div
-                                key={`${sc.id}-${tc.id}`}
-                                className={`${styles['matrix-cell']} ${match ? styles['mapped'] : ''} ${relClass}`}
-                                tabIndex={0}
-                                role="gridcell"
-                                aria-label={`Mapping cell ${sc.id} to ${tc.id}: ${match ? match.relationship : 'unmapped'}`}
-                                onClick={() => match && setSelectedMapEntry(match)}
-                                onKeyDown={(e) => {
-                                  if ((e.key === 'Enter' || e.key === ' ') && match) {
-                                    e.preventDefault();
-                                    setSelectedMapEntry(match);
-                                  }
-                                }}
-                              >
-                                {match && (
-                                  <div className={styles['matrix-tooltip']}>
-                                    {sc.id} → {tc.id} ({match.relationship})
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </React.Fragment>
-                      ))}
+            <div style={{ display: 'flex', gap: '20px', height: '100%' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <strong>Legend:</strong>
+                    <div style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'var(--color-info-subtle)', border: '1px solid var(--color-info)' }}></div> Equal</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'var(--color-success-subtle)', border: '1px solid var(--color-success)' }}></div> Equivalent</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'var(--color-warning-subtle)', border: '1px solid var(--color-warning)' }}></div> Subset/Superset</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '12px', height: '12px', background: 'var(--color-primary-subtle)', border: '1px solid var(--color-primary)' }}></div> Intersects</span>
                     </div>
                   </div>
-                );
-              })()}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <strong>Filter:</strong>
+                    <select 
+                      aria-label="Filter"
+                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                      value={matrixFilter}
+                      onChange={(e) => setMatrixFilter(e.target.value)}
+                    >
+                      <option value="all">Show All</option>
+                      <option value="unmapped-only">Unmapped Only</option>
+                      <option value="equal-to">Equal To</option>
+                      <option value="equivalent-to">Equivalent To</option>
+                      <option value="subset-of">Subset Of</option>
+                      <option value="superset-of">Superset Of</option>
+                      <option value="intersects-with">Intersects With</option>
+                    </select>
+                  </div>
+                </div>
+                {(() => {
+                  const effectiveSources = sourceControls.length > 0
+                    ? sourceControls
+                    : Array.from(new Set(maps.flatMap(m => m.sources?.map(s => s['id-ref']) || []))).map(id => ({ id, title: id }));
+                  const effectiveTargets = targetControls.length > 0
+                    ? targetControls
+                    : Array.from(new Set(maps.flatMap(m => m.targets?.map(t => t['id-ref']) || []))).map(id => ({ id, title: id }));
+
+                  const filteredSourceControls = effectiveSources.filter(sc => {
+                    if (matrixFilter === 'all') return true;
+                    const matches = effectiveTargets.map(tc => maps.find(m => m.sources?.some(s => s['id-ref'] === sc.id) && m.targets?.some(t => t['id-ref'] === tc.id)));
+                    if (matrixFilter === 'unmapped-only') return matches.every(m => !m);
+                    if (matrixFilter === 'subset-of') return matches.some(m => m && (m.relationship === 'subset-of' || m.relationship === 'Subset Of'));
+                    return matches.some(m => m && (m.relationship === matrixFilter || m.relationship?.toLowerCase() === matrixFilter.toLowerCase()));
+                  });
+                  const filteredTargetControls = effectiveTargets.filter(tc => {
+                    if (matrixFilter === 'all') return true;
+                    const matches = effectiveSources.map(sc => maps.find(m => m.sources?.some(s => s['id-ref'] === sc.id) && m.targets?.some(t => t['id-ref'] === tc.id)));
+                    if (matrixFilter === 'unmapped-only') return matches.every(m => !m);
+                    if (matrixFilter === 'subset-of') return matches.some(m => m && (m.relationship === 'subset-of' || m.relationship === 'Subset Of'));
+                    return matches.some(m => m && (m.relationship === matrixFilter || m.relationship?.toLowerCase() === matrixFilter.toLowerCase()));
+                  });
+
+                  return (
+                    <div className={styles['matrix-container']}>
+                      <div className={styles['matrix-grid']} style={{ gridTemplateColumns: `auto repeat(${filteredTargetControls.length}, minmax(54px, 1fr))` }}>
+                        <div className={styles['matrix-header-corner']} role="presentation">Source \ Target</div>
+                        {filteredTargetControls.map(tc => (
+                          <div key={tc.id} className={styles['matrix-header-col']} title={tc.title} role="columnheader">
+                            {tc.id}
+                          </div>
+                        ))}
+                        
+                        {filteredSourceControls.map(sc => (
+                          <React.Fragment key={sc.id}>
+                            <div className={styles['matrix-header-row']} title={sc.title} role="cell">{sc.id}</div>
+                            {filteredTargetControls.map(tc => {
+                              const match = maps.find(m => 
+                                m.sources?.some(s => s['id-ref'] === sc.id) && 
+                                m.targets?.some(t => t['id-ref'] === tc.id)
+                              );
+                              const relClass = match && match.relationship ? (styles[`rel-cell-${match.relationship}`] || '') : '';
+                              const isSelected = Boolean(match && selectedMapEntry && (selectedMapEntry.uuid === match.uuid || (selectedMapEntry.id && selectedMapEntry.id === match.id)));
+                              return (
+                                <div
+                                  key={`${sc.id}-${tc.id}`}
+                                  className={`${styles['matrix-cell']} ${match ? styles['mapped'] : ''} ${relClass}`}
+                                  tabIndex={0}
+                                  role="gridcell"
+                                  aria-label={`Mapping cell ${sc.id} to ${tc.id}: ${match ? match.relationship : 'unmapped'}`}
+                                  aria-selected={isSelected}
+                                  style={{ outline: isSelected ? '2px solid var(--color-primary)' : undefined, outlineOffset: '-2px' }}
+                                  onClick={() => match && setSelectedMapEntry(match)}
+                                  onKeyDown={(e) => {
+                                    if ((e.key === 'Enter' || e.key === ' ') && match) {
+                                      e.preventDefault();
+                                      setSelectedMapEntry(match);
+                                    }
+                                  }}
+                                >
+                                  {match && (
+                                    <>
+                                      <span className={styles['matrix-dot']} />
+                                      <div className={styles['matrix-tooltip']}>
+                                        {sc.id} → {tc.id} ({match.relationship})
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              {selectedMapEntry && renderDetailPanel(selectedMapEntry)}
             </div>
           )}
 

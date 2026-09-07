@@ -76,7 +76,7 @@ export function POAMItemsEditor({ item, onSave, onClose, readOnly, doc }) {
             <option value="4">4 - Low</option>
           </select>
           <div style={{marginTop: '8px'}}>
-            {getProp('priority') && <StatusBadge status={"P"+getProp('priority')} category={getProp('priority') === '1' ? 'critical' : getProp('priority') === '2' ? 'high' : getProp('priority') === '3' ? 'medium' : 'low'} />}
+            {getProp('priority') && <StatusBadge category="priority" value={getProp('priority')} />}
           </div>
         </div>
         

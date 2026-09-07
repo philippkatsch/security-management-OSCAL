@@ -201,6 +201,19 @@ describe('MappingPage Component', () => {
 
     // Press Enter to trigger selection
     fireEvent.keyDown(gridCell, { key: 'Enter', code: 'Enter' });
+
+    // Verify detail panel opens
+    expect(screen.getByText('Mapping Details')).toBeInTheDocument();
+    expect(gridCell).toHaveAttribute('aria-selected', 'true');
+
+    // Close detail panel
+    const closeBtn = screen.getByRole('button', { name: 'Close' });
+    fireEvent.click(closeBtn);
+    expect(screen.queryByText('Mapping Details')).not.toBeInTheDocument();
+
+    // Click grid cell to reopen detail panel
+    fireEvent.click(gridCell);
+    expect(screen.getByText('Mapping Details')).toBeInTheDocument();
   });
 
   it('renders Sankey Flow View with keyboard accessible nodes and links', async () => {

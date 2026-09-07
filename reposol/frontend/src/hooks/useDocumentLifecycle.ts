@@ -24,10 +24,9 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
   const setIsEditing = useCallback((val: boolean | ((prev: boolean) => boolean)) => {
     setIsEditingState(prev => {
       const next = typeof val === 'function' ? val(prev) : val;
-      setGlobalEditMode(next);
       return next;
     });
-  }, [setGlobalEditMode]);
+  }, []);
 
   useEffect(() => {
     setGlobalEditMode(isEditing);
@@ -45,9 +44,21 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
   }, [history.hasUnsavedChanges]);
 
   // Keep underlying doc reference in sync with activeDoc so useDraft and auto-save have current edits
+  const prevActiveDocRef = useRef(history.activeDoc);
+  const prevIsEditingRef = useRef(isEditing);
   useEffect(() => {
-    if (isEditing && history.activeDoc && history.activeDoc !== data.doc) {
-      data.setDoc(history.activeDoc);
+    const isEditingToggledOn = isEditing && !prevIsEditingRef.current;
+    prevIsEditingRef.current = isEditing;
+
+    if (isEditing && history.activeDoc) {
+      if (history.activeDoc !== prevActiveDocRef.current || isEditingToggledOn) {
+        prevActiveDocRef.current = history.activeDoc;
+        if (history.activeDoc !== data.doc) {
+          data.setDoc(history.activeDoc);
+        }
+      }
+    } else {
+      prevActiveDocRef.current = history.activeDoc;
     }
   }, [history.activeDoc, isEditing, data.doc, data.setDoc]);
   

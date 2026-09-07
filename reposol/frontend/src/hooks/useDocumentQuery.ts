@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@lib/api';
 import { OscalStage, OscalDocument } from '@lib/types/oscal';
 import { DocumentSummary, ValidationResult, VersionInfo } from '@lib/types/api';
+import { STAGE_CANONICAL_ROUTES } from '@lib/oscal-utils';
 
 export function useDocumentQuery(stage: OscalStage, docId: string) {
   return useQuery<OscalDocument>({
@@ -125,7 +126,7 @@ export function useTraceabilityQuery(searchControlId: string) {
                 const fullInner = (fullDoc as any)[stage.root] || fullDoc;
                 foundItems.push({
                   stageName: stage.name,
-                  stageKey: stage.key === 'catalog' ? 'catalogs' : stage.key === 'profile' ? 'profiles' : stage.key === 'control-mappings' ? 'control-mappings' : stage.key,
+                  stageKey: STAGE_CANONICAL_ROUTES[stage.key] || stage.key,
                   title: fullInner.metadata?.title || inner.metadata?.title || 'Untitled',
                   uuid: uuid
                 });

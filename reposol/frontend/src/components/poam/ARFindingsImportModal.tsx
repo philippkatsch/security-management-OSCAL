@@ -36,11 +36,12 @@ export function ARFindingsImportModal({ isOpen, onClose, onImport }: ARFindingsI
   if (!isOpen) return null;
 
   const handleSelectAR = async (arId: string) => {
+    if (!arId) return;
     setSelectedArId(arId);
     setLoadingDoc(true);
     try {
       const fullDoc: OscalDocument = await fetchDocument('assessment-results', arId);
-      const ar = fullDoc['assessment-results'];
+      const ar = (fullDoc as any)?.['assessment-results'] || fullDoc;
       setSelectedArDoc(ar || null);
 
       // Extract unsatisfied findings
@@ -147,22 +148,30 @@ export function ARFindingsImportModal({ isOpen, onClose, onImport }: ARFindingsI
                 </div>
               ) : (
                 <div className={styles['ar-doc-grid']}>
-                  {arList.map(doc => (
-                    <div
-                      key={doc.id}
-                      className={`${styles['ar-doc-card']} ${selectedArId === doc.id ? styles['selected'] : ''}`}
-                      onClick={() => handleSelectAR(doc.id)}
-                      data-testid={`ar-doc-card-${doc.id}`}
-                    >
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600 }}>{doc.title}</h4>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                        ID: {doc.id.substring(0, 8)}... | Ver: {doc.version || '1.0'}
-                      </p>
-                      <span className={styles['select-badge']}>
-                        {loadingDoc && selectedArId === doc.id ? 'Loading...' : 'Click to Select'}
-                      </span>
-                    </div>
-                  ))}
+                  {arList.map((doc: any) => {
+                    const ar = (doc as any)['assessment-results'] || doc;
+                    const docId = ar.uuid || ar.id || doc.uuid || doc.id || '';
+                    const title = ar.metadata?.title || doc.title || 'Untitled';
+                    const version = ar.metadata?.version || doc.version || '1.0';
+                    return (
+                      <div
+                        key={docId}
+                        className={`${styles['ar-doc-card']} ${selectedArId === docId ? styles['selected'] : ''}`}
+                        onClick={() => handleSelectAR(docId)}
+                        data-testid={`ar-doc-card-${docId}`}
+                      >
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600 }}>
+                          {title}
+                        </h4>
+                        <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                          ID: {docId.substring(0, 8)}... | Ver: {version}
+                        </p>
+                        <span className={styles['select-badge']}>
+                          {loadingDoc && selectedArId === docId ? 'Loading...' : 'Click to Select'}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

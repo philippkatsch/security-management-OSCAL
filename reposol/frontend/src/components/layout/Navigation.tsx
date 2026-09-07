@@ -9,7 +9,20 @@ import { getWorkspaceId } from '@lib/api';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '@components/shared/ui/ConfirmProvider';
 
-const navSections = [
+interface NavItem {
+  id: string;
+  path: string;
+  label: string;
+  icon: React.ReactNode;
+  isDev?: boolean;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
   {
     title: 'Overview',
     items: [
@@ -58,7 +71,6 @@ const navSections = [
         id: 'component-definitions', 
         path: '/component-definitions',
         label: 'Components', 
-        isDev: true,
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['nav-svg']}>
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -71,7 +83,6 @@ const navSections = [
         id: 'control-mappings',
         path: '/control-mappings',
         label: 'Control Mappings',
-        isDev: true,
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['nav-svg']}>
             <path d="M16 3h5v5" />
@@ -91,7 +102,6 @@ const navSections = [
         id: 'ssps', 
         path: '/ssps',
         label: 'SSPs', 
-        isDev: true,
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['nav-svg']}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -111,7 +121,6 @@ const navSections = [
         id: 'assessment-plans',
         path: '/assessment-plans', 
         label: 'Assessment Plans', 
-        isDev: true,
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['nav-svg']}>
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -125,7 +134,6 @@ const navSections = [
         id: 'assessment-results', 
         path: '/assessment-results',
         label: 'Assessment Results', 
-        isDev: true,
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['nav-svg']}>
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -137,7 +145,6 @@ const navSections = [
         id: 'poams', 
         path: '/poams',
         label: 'POA&Ms', 
-        isDev: true,
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['nav-svg']}>
             <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />

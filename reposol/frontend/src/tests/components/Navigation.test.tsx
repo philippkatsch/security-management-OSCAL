@@ -95,10 +95,10 @@ describe('Navigation', () => {
     expect(toggleButton?.title).toBe('Collapse sidebar');
   });
 
-  it('renders Under Development badges for uncompleted stages', () => {
+  it('does not render Under Development badges now that all stages are completed', () => {
     renderWithRouter(<Navigation />);
-    const devBadges = screen.getAllByText('🚧 Dev');
-    expect(devBadges.length).toBe(6); // Components, Control Mappings, SSPs, Assessment Plans, Assessment Results, POA&Ms
+    const devBadges = screen.queryAllByText('🚧 Dev');
+    expect(devBadges.length).toBe(0);
   });
 
   it('renders share workspace button with btn-share-workspace class', () => {

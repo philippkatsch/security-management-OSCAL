@@ -26,6 +26,8 @@ STAGE_MAPPING = {
     "control-mappings": "control-mappings",
     "mapping": "control-mappings",
     "mappings": "control-mappings",
+    "mapping-collection": "control-mappings",
+    "mapping-collections": "control-mappings",
 }
 
 OSCAL_ROOT_KEYS = {

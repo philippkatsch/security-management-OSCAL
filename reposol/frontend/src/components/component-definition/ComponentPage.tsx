@@ -385,7 +385,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
             </MetricCardGrid>
 
             {/* Type Breakdown Chart */}
-            <div style={{ background: 'var(--surface-color, #ffffff)', padding: '18px', border: '1px solid var(--border-color, #e5e7eb)', borderRadius: '8px' }}>
+            <div style={{ background: 'var(--color-surface, #161b22)', padding: '18px', border: '1px solid var(--color-border, #30363d)', borderRadius: '8px' }}>
               <StatusBreakdown 
                 title="Component Classification Breakdown" 
                 variant="bar"
@@ -398,39 +398,39 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
             </div>
 
             {/* DD-011 Properties Dashboard Analytics */}
-            <div style={{ background: 'var(--surface-color, #ffffff)', padding: '18px', border: '1px solid var(--border-color, #e5e7eb)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ background: 'var(--color-surface, #161b22)', padding: '18px', border: '1px solid var(--color-border, #30363d)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--color-text, #111827)' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--color-text, #e6edf3)' }}>
                   🏷️ Properties Analytics Dashboard (DD-011)
                 </h4>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-muted, #6b7280)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-muted, #7d8590)' }}>
                   Component &amp; Document Property Metrics
                 </span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                <div style={{ padding: '12px', background: 'var(--surface-alt, #f8f9fa)', borderRadius: '6px', textAlign: 'center' }}>
+                <div style={{ padding: '12px', background: 'var(--color-surface-2, #1c2333)', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--color-border, #30363d)' }}>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-primary, #3b82f6)' }}>
                     {propertiesAnalytics.globalHeaderProps}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #6b7280)' }}>Global Header Props</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #7d8590)' }}>Global Header Props</div>
                 </div>
-                <div style={{ padding: '12px', background: 'var(--surface-alt, #f8f9fa)', borderRadius: '6px', textAlign: 'center' }}>
+                <div style={{ padding: '12px', background: 'var(--color-surface-2, #1c2333)', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--color-border, #30363d)' }}>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-warning, #f59e0b)' }}>
                     {propertiesAnalytics.elementPropsCount}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #6b7280)' }}>Distinct Element Props</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #7d8590)' }}>Distinct Element Props</div>
                 </div>
-                <div style={{ padding: '12px', background: 'var(--surface-alt, #f8f9fa)', borderRadius: '6px', textAlign: 'center' }}>
+                <div style={{ padding: '12px', background: 'var(--color-surface-2, #1c2333)', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--color-border, #30363d)' }}>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-info, #6366f1)' }}>
                     {propertiesAnalytics.uniqueKeysCount}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #6b7280)' }}>Unique Property Keys</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #7d8590)' }}>Unique Property Keys</div>
                 </div>
-                <div style={{ padding: '12px', background: 'var(--surface-alt, #f8f9fa)', borderRadius: '6px', textAlign: 'center' }}>
+                <div style={{ padding: '12px', background: 'var(--color-surface-2, #1c2333)', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--color-border, #30363d)' }}>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-success, #10b981)' }}>
                     {propertiesAnalytics.totalAssignments}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #6b7280)' }}>Total Occurrences</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #7d8590)' }}>Total Occurrences</div>
                 </div>
               </div>
             </div>

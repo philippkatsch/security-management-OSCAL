@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styles from './Document.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
-import { generateUUID, ROOT_KEYS } from '@lib/oscal-utils';
+import { generateUUID, ROOT_KEYS, STAGE_CANONICAL_ROUTES } from '@lib/oscal-utils';
 import { saveDocument, fetchDocuments } from '@lib/api';
 
 const getFirstDocUuid = (docs: any[]) => {
@@ -32,8 +32,9 @@ export function CreateDocumentDialog({
     setError('');
     setSaving(true);
 
+    const canonicalStage = STAGE_CANONICAL_ROUTES[stage] || stage;
     const uuid = generateUUID();
-    const rootKey = ROOT_KEYS[stage];
+    const rootKey = ROOT_KEYS[canonicalStage] || ROOT_KEYS[stage];
     const now = new Date().toISOString();
 
     // Create minimal valid OSCAL skeleton based on stage schema
@@ -50,11 +51,11 @@ export function CreateDocumentDialog({
     };
 
     // Stage-specific additions to satisfy schemas (US 0.P1)
-    if (stage === 'catalogs') {
+    if (canonicalStage === 'catalogs') {
       // Minimal catalog
-    } else if (stage === 'profiles') {
+    } else if (canonicalStage === 'profiles') {
       // Minimal profile — user will add imports via the Imports tab
-    } else if (stage === 'ssps') {
+    } else if (canonicalStage === 'ssps') {
       let profileUuid = generateUUID();
       try {
         const profiles = await fetchDocuments('profiles');
@@ -112,7 +113,7 @@ export function CreateDocumentDialog({
           ]
         }
       };
-    } else if (stage === 'component-definitions') {
+    } else if (canonicalStage === 'component-definitions') {
       newDoc['component-definition'].components = [
         {
           uuid: generateUUID(),
@@ -121,22 +122,55 @@ export function CreateDocumentDialog({
           description: 'Placeholder component'
         }
       ];
-    } else if (stage === 'control-mappings') {
-      newDoc['mapping-collection'].provenance = {
-        method: 'human',
-        status: 'draft',
-        'matching-rationale': 'semantic',
-        'mapping-description': 'Control mapping collection'
-      };
-      newDoc['mapping-collection'].mappings = [
-        {
-          uuid: generateUUID(),
-          'source-resource': { href: '', type: 'catalog' },
-          'target-resource': { href: '', type: 'catalog' },
-          maps: []
+    } else if (canonicalStage === 'control-mappings') {
+      let srcCatHref = `../catalogs/${generateUUID()}.json`;
+      let tgtCatHref = `../catalogs/${generateUUID()}.json`;
+      try {
+        const catalogs = await fetchDocuments('catalogs');
+        const firstCat = getFirstDocUuid(catalogs);
+        if (firstCat) {
+          srcCatHref = `../catalogs/${firstCat}.json`;
+          tgtCatHref = `../catalogs/${firstCat}.json`;
         }
-      ];
-    } else if (stage === 'assessment-plans') {
+      } catch (e) {
+        // fallback
+      }
+      newDoc['mapping-collection'] = {
+        ...newDoc['mapping-collection'],
+        provenance: {
+          method: 'human',
+          status: 'draft',
+          'matching-rationale': 'semantic',
+          'mapping-description': 'Control mapping collection'
+        },
+        mappings: [
+          {
+            uuid: generateUUID(),
+            'source-resource': { href: srcCatHref, type: 'catalog' },
+            'target-resource': { href: tgtCatHref, type: 'catalog' },
+            maps: [
+              {
+                uuid: generateUUID(),
+                relationship: 'subset-of',
+                sources: [
+                  {
+                    type: 'control',
+                    'id-ref': 'ac-1'
+                  }
+                ],
+                targets: [
+                  {
+                    type: 'control',
+                    'id-ref': 'ac-1'
+                  }
+                ],
+                remarks: 'Initial control mapping entry'
+              }
+            ]
+          }
+        ]
+      };
+    } else if (canonicalStage === 'assessment-plans') {
       let sspUuid = generateUUID();
       try {
         const ssps = await fetchDocuments('ssps');
@@ -156,7 +190,7 @@ export function CreateDocumentDialog({
           ]
         }
       };
-    } else if (stage === 'assessment-results') {
+    } else if (canonicalStage === 'assessment-results') {
       let apUuid = generateUUID();
       try {
         const aps = await fetchDocuments('assessment-plans');
@@ -184,7 +218,7 @@ export function CreateDocumentDialog({
           }
         ]
       };
-    } else if (stage === 'poams') {
+    } else if (canonicalStage === 'poams') {
       let sspUuid = generateUUID();
       try {
         const ssps = await fetchDocuments('ssps');
@@ -207,8 +241,8 @@ export function CreateDocumentDialog({
     }
 
     try {
-      const skipValidation = stage === 'profiles';
-      await saveDocument(stage, newDoc, { skipValidation });
+      const skipValidation = canonicalStage === 'profiles';
+      await saveDocument(canonicalStage as any, newDoc, { skipValidation });
       onSaved(newDoc);
     } catch (err: any) {
       setError(err.message || 'Creation failed.');

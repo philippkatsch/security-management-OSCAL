@@ -163,16 +163,38 @@ export function APPage({
       onClose={onClose}
     >
       {/* Target SSP Reference Top Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/90 px-6 py-2.5 text-xs text-slate-300">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-400">Target SSP:</span>
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        borderBottom: '1px solid var(--color-border)',
+        backgroundColor: 'var(--color-surface)',
+        padding: '10px 24px',
+        fontSize: '13px',
+        color: 'var(--color-text)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontWeight: 600, color: 'var(--color-text-muted)' }}>Target SSP:</span>
           {sspHref ? (
-            <div className="flex items-center gap-1.5 font-mono text-blue-300 bg-blue-950/80 border border-blue-900 px-2.5 py-0.5 rounded-full">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontFamily: 'monospace',
+              color: 'var(--color-accent)',
+              backgroundColor: 'var(--color-accent-bg)',
+              border: '1px solid var(--color-border)',
+              padding: '2px 10px',
+              borderRadius: '9999px',
+              fontSize: '12px'
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }} />
               <span>{sspHref.split('/').pop() || sspHref}</span>
             </div>
           ) : (
-            <span className="text-amber-400 font-medium">No Target SSP Linked</span>
+            <span style={{ color: 'var(--color-warning)', fontWeight: 500 }}>No Target SSP Linked</span>
           )}
         </div>
 
@@ -180,7 +202,15 @@ export function APPage({
           <button
             type="button"
             onClick={() => setIsSSPBrowserOpen(true)}
-            className="rounded bg-slate-800 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-700 transition-colors"
+            style={{
+              padding: '4px 12px',
+              backgroundColor: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--color-text)',
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}
           >
             {sspHref ? 'Change SSP' : 'Link SSP'}
           </button>

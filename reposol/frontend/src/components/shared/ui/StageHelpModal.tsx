@@ -31,6 +31,8 @@ const STAGE_MAP: Record<string, OscalStageId> = {
   poams: 'poams',
   poam: 'poams',
   'control-mappings': 'control-mappings',
+  'mapping-collections': 'control-mappings',
+  'mapping-collection': 'control-mappings',
   mappings: 'control-mappings',
   mapping: 'control-mappings'
 };

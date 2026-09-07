@@ -88,8 +88,9 @@ export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAM
 
   const priorityData: Record<string, number> = {};
   items.forEach((i: any) => {
-    const p = (i.props || []).find((pr: any) => pr.name === 'priority')?.value || 'unassigned';
-    priorityData[`P${p}`] = (priorityData[`P${p}`] || 0) + 1;
+    const p = (i.props || []).find((pr: any) => pr.name === 'priority')?.value;
+    const label = p ? (/^\d+$/.test(p) ? `P${p}` : p) : 'Unassigned';
+    priorityData[label] = (priorityData[label] || 0) + 1;
   });
 
   const dashboardMetrics = [
@@ -224,9 +225,10 @@ export function POAMPage({ poamId = '', initialEditMode = false, onClose }: POAM
       {activeTab === 'findings' && renderListTab('findings', 'Findings', [
         { key: 'title', label: 'Title', sortable: true },
         { key: 'target', label: 'Target ID', render: t => t?.['target-id'] || 'N/A', sortable: true },
-        { key: 'status', label: 'Status', render: (_, r: any) => (
-          <StatusBadge category="finding-target-state" value={r.target?.status?.state || 'not-satisfied'} />
-        ) },
+        { key: 'status', label: 'Status', render: (_, r: any) => {
+          const state = typeof r.target?.status === 'string' ? r.target.status : r.target?.status?.state;
+          return <StatusBadge category="finding-status" value={state || 'not-satisfied'} />;
+        } },
         { key: 'description', label: 'Description', render: v => v?.substring(0, 50) + (v?.length > 50 ? '...' : '') }
       ], 'findings')}
       {activeTab === 'observations' && renderListTab('observations', 'Observations', [

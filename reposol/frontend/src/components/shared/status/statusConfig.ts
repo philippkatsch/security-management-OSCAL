@@ -116,6 +116,10 @@ export const STATUS_CONFIG = {
       '2': { label: 'High', color: 'hsl(24, 98%, 53%)', icon: '🟠', textColor: '#fff' },
       '3': { label: 'Medium', color: 'hsl(45, 93%, 47%)', icon: '🟡', textColor: '#000' },
       '4': { label: 'Low', color: 'hsl(142, 71%, 45%)', icon: '🟢', textColor: '#fff' },
+      'P1': { label: 'Critical', color: 'hsl(0, 72%, 51%)', icon: '🔴', textColor: '#fff' },
+      'P2': { label: 'High', color: 'hsl(24, 98%, 53%)', icon: '🟠', textColor: '#fff' },
+      'P3': { label: 'Medium', color: 'hsl(45, 93%, 47%)', icon: '🟡', textColor: '#000' },
+      'P4': { label: 'Low', color: 'hsl(142, 71%, 45%)', icon: '🟢', textColor: '#fff' },
     }
   }
 };

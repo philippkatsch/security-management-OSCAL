@@ -9,14 +9,22 @@ import { fetchRecentDocuments } from '@lib/api';
 import { apiClient } from '@lib/api-client';
 import { CardListSkeleton } from '@components/shared/ui/LoadingSpinner';
 
-const WORKFLOW_STEPS = [
+interface WorkflowStep {
+  stage: string;
+  label: string;
+  icon: string;
+  desc: string;
+  isDev?: boolean;
+}
+
+const WORKFLOW_STEPS: WorkflowStep[] = [
   { stage: 'catalogs', label: 'Catalog', icon: '📖', desc: 'Control definitions' },
   { stage: 'profiles', label: 'Profile', icon: '⚙️', desc: 'Tailored baselines' },
-  { stage: 'component-definitions', label: 'Components', icon: '🧱', desc: 'System parts', isDev: true },
-  { stage: 'ssps', label: 'SSP', icon: '📝', desc: 'Security plans', isDev: true },
-  { stage: 'assessment-plans', label: 'AP', icon: '📅', desc: 'Assessment plans', isDev: true },
-  { stage: 'assessment-results', label: 'AR', icon: '✅', desc: 'Audit results', isDev: true },
-  { stage: 'poams', label: 'POA&M', icon: '⚠️', desc: 'Remediation tracking', isDev: true },
+  { stage: 'component-definitions', label: 'Components', icon: '🧱', desc: 'System parts' },
+  { stage: 'ssps', label: 'SSP', icon: '📝', desc: 'Security plans' },
+  { stage: 'assessment-plans', label: 'AP', icon: '📅', desc: 'Assessment plans' },
+  { stage: 'assessment-results', label: 'AR', icon: '✅', desc: 'Audit results' },
+  { stage: 'poams', label: 'POA&M', icon: '⚠️', desc: 'Remediation tracking' },
 ];
 
 const STAGE_ICONS: Record<string, string> = {

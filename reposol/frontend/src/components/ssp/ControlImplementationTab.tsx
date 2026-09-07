@@ -12,6 +12,7 @@ import {
   removeImplementedRequirement,
   setControlImplementationDescription
 } from '@lib/document-actions/ssp-actions';
+import styles from './SSPPage.module.css';
 
 export interface ControlImplementationTabProps {
   ctrlImp?: ControlImplementation;
@@ -286,60 +287,61 @@ export function ControlImplementationTab({
   };
 
   return (
-    <div data-testid="control-implementation-tab" className="ctrl-imp-tab p-6 h-full flex flex-col gap-6 overflow-y-auto">
+    <div data-testid="control-implementation-tab" className={`${styles['ctrl-imp-container']} ctrl-imp-tab`}>
       {/* Top Overview & Progress */}
-      <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className={styles['ctrl-imp-card']}>
+        <div className={styles['ctrl-imp-header']}>
           <div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            <h3 className={styles['ctrl-imp-title']}>
               Control Implementation Coverage
             </h3>
-            <p className="text-xs text-gray-500">
+            <p className={styles['ctrl-imp-subtitle']}>
               Tracking satisfying components, operational statuses, and parameter overrides across {statusStats.total} baseline controls.
             </p>
           </div>
-          <div className="w-full md:w-72">
+          <div style={{ minWidth: '240px', flex: '0 1 300px' }}>
             <ProgressBar progress={coveragePercent} label={`Implementation Coverage (${coveragePercent}%)`} />
           </div>
         </div>
 
         {/* Status Metrics Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
-          <div className="p-3 bg-gray-50 dark:bg-gray-900/60 rounded-lg border border-gray-200 dark:border-gray-800 text-center">
-            <span className="text-xs text-gray-500 font-medium block">Total Controls</span>
-            <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{statusStats.total}</span>
+        <div className={styles['stats-grid']}>
+          <div className={styles['stat-box']}>
+            <span className={styles['stat-label']}>Total Controls</span>
+            <span className={styles['stat-value']}>{statusStats.total}</span>
           </div>
-          <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900/50 text-center">
-            <span className="text-xs text-green-700 dark:text-green-300 font-medium block">Implemented</span>
-            <span className="text-lg font-bold text-green-700 dark:text-green-300">{statusStats.implemented}</span>
+          <div className={styles['stat-box']}>
+            <span className={styles['stat-label']}>Implemented</span>
+            <span className={`${styles['stat-value']} ${styles['stat-value-implemented']}`}>{statusStats.implemented}</span>
           </div>
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900/50 text-center">
-            <span className="text-xs text-amber-700 dark:text-amber-300 font-medium block">Partial</span>
-            <span className="text-lg font-bold text-amber-700 dark:text-amber-300">{statusStats.partial}</span>
+          <div className={styles['stat-box']}>
+            <span className={styles['stat-label']}>Partial</span>
+            <span className={`${styles['stat-value']} ${styles['stat-value-partial']}`}>{statusStats.partial}</span>
           </div>
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900/50 text-center">
-            <span className="text-xs text-blue-700 dark:text-blue-300 font-medium block">Planned</span>
-            <span className="text-lg font-bold text-blue-700 dark:text-blue-300">{statusStats.planned}</span>
+          <div className={styles['stat-box']}>
+            <span className={styles['stat-label']}>Planned</span>
+            <span className={`${styles['stat-value']} ${styles['stat-value-planned']}`}>{statusStats.planned}</span>
           </div>
-          <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-900/50 text-center">
-            <span className="text-xs text-purple-700 dark:text-purple-300 font-medium block">Alternative</span>
-            <span className="text-lg font-bold text-purple-700 dark:text-purple-300">{statusStats.alternative}</span>
+          <div className={styles['stat-box']}>
+            <span className={styles['stat-label']}>Alternative</span>
+            <span className={`${styles['stat-value']} ${styles['stat-value-alternative']}`}>{statusStats.alternative}</span>
           </div>
-          <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 text-center">
-            <span className="text-xs text-gray-600 dark:text-gray-400 font-medium block">Undocumented</span>
-            <span className="text-lg font-bold text-gray-700 dark:text-gray-300">{statusStats.undocumented}</span>
+          <div className={styles['stat-box']}>
+            <span className={styles['stat-label']}>Undocumented</span>
+            <span className={`${styles['stat-value']} ${styles['stat-value-undocumented']}`}>{statusStats.undocumented}</span>
           </div>
         </div>
 
         {/* Global Strategy Narrative */}
         {isEditing ? (
-          <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
-              Top-Level Implementation Methodology & Strategy Description
+          <div style={{ paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+              Top-Level Implementation Methodology &amp; Strategy Description
             </label>
             <textarea
               rows={2}
-              className="form-textarea w-full text-sm rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+              className="form-textarea"
+              style={{ width: '100%', fontSize: '13px' }}
               placeholder="Describe the system's overarching defense-in-depth architecture and compliance methodology..."
               value={ctrlImp.description || ''}
               onChange={e => {
@@ -353,7 +355,7 @@ export function ControlImplementationTab({
           </div>
         ) : (
           ctrlImp.description && (
-            <div className="pt-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 italic">
+            <div style={{ paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)', fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
               {ctrlImp.description}
             </div>
           )
@@ -361,11 +363,11 @@ export function ControlImplementationTab({
       </div>
 
       {/* Main Table & Controls Toolbar */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col flex-1 overflow-hidden">
+      <div className={styles['ctrl-table-container']}>
         {/* Toolbar */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3 bg-gray-50/50 dark:bg-gray-900/30">
+        <div className={styles['ctrl-toolbar']}>
           {/* Search and Filters */}
-          <div className="flex flex-wrap items-center gap-2 flex-1">
+          <div className={styles['ctrl-toolbar-filters']}>
             <input
               type="text"
               data-testid="search-controls-input"
@@ -447,12 +449,12 @@ export function ControlImplementationTab({
         </div>
 
         {/* Controls Table */}
-        <div className="flex-1 overflow-x-auto">
-          <table data-testid="controls-table" className="w-full text-left border-collapse text-xs">
+        <div style={{ flex: 1, overflowX: 'auto' }}>
+          <table data-testid="controls-table" className={styles['ctrl-table']}>
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 uppercase font-semibold text-[11px]">
+              <tr>
                 {isEditing && (
-                  <th className="p-3 w-8 text-center">
+                  <th style={{ width: '40px', textAlign: 'center' }}>
                     <input
                       type="checkbox"
                       checked={filteredControls.length > 0 && selectedReqIds.size === filteredControls.length}
@@ -460,18 +462,18 @@ export function ControlImplementationTab({
                     />
                   </th>
                 )}
-                <th className="p-3">Control ID</th>
-                <th className="p-3">Title / Summary</th>
-                <th className="p-3">Implemented Components</th>
-                <th className="p-3">Origination</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Actions</th>
+                <th>Control ID</th>
+                <th>Title / Summary</th>
+                <th>Implemented Components</th>
+                <th>Origination</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody>
               {filteredControls.length === 0 ? (
                 <tr>
-                  <td colSpan={isEditing ? 7 : 6} className="p-8 text-center text-gray-500">
+                  <td colSpan={isEditing ? 7 : 6} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                     No matching controls found.
                   </td>
                 </tr>
@@ -488,9 +490,7 @@ export function ControlImplementationTab({
                     <tr
                       key={item.id}
                       data-testid={`control-row-${item.id}`}
-                      className={`hover:bg-blue-50/40 dark:hover:bg-blue-950/20 cursor-pointer transition ${
-                        isSelected ? 'bg-blue-50/60 dark:bg-blue-950/40' : ''
-                      }`}
+                      className={`${styles['ctrl-row']} ${isSelected ? styles['ctrl-row-selected'] : ''}`}
                       onClick={() => handleRowClick(item)}
                     >
                       {isEditing && (

@@ -221,10 +221,14 @@ export function ProfilePage({
           imports: updatedImports,
           merge: p.merge || { 'as-is': true }
         };
-        setDoc({ ...doc, profile: migrated as any });
+        const updatedDoc = { ...doc, profile: migrated as any };
+        setDoc(updatedDoc);
+        if (resetUndoRedo) {
+          resetUndoRedo(updatedDoc);
+        }
       }
     }
-  }, [doc, setDoc]);
+  }, [doc, setDoc, resetUndoRedo]);
 
   // Update active document state helper
   const handleDocChange = (updated: any) => {

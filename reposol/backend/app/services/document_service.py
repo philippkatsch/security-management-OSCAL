@@ -90,21 +90,25 @@ def preprocess_control_mapping_for_saving(document: Dict[str, Any]) -> Dict[str,
         if isinstance(mappings, list):
             for m in mappings:
                 if isinstance(m, dict):
-                    # 1. source-resource and target-resource title props
+                    # 1. source-resource and target-resource title props & required href
                     for res_key in ("source-resource", "target-resource"):
                         res = m.get(res_key)
-                        if isinstance(res, dict) and "title" in res:
-                            title_val = res.pop("title")
-                            if title_val and isinstance(title_val, str):
-                                props = res.setdefault("props", [])
-                                existing = next((p for p in props if isinstance(p, dict) and p.get("name") == "title"), None)
-                                if existing:
-                                    existing["value"] = title_val
-                                else:
-                                    props.append({"name": "title", "value": title_val})
+                        if isinstance(res, dict):
+                            if not res.get("href"):
+                                res["href"] = "#"
+                            if "title" in res:
+                                title_val = res.pop("title")
+                                if title_val and isinstance(title_val, str):
+                                    props = res.setdefault("props", [])
+                                    existing = next((p for p in props if isinstance(p, dict) and p.get("name") == "title"), None)
+                                    if existing:
+                                        existing["value"] = title_val
+                                    else:
+                                        props.append({"name": "title", "value": title_val})
                     
                     # 2. Sanitize individual map entries
                     maps = m.get("maps")
+                    valid_maps = []
                     if isinstance(maps, list):
                         valid_maps = []
                         valid_subjects = {"source", "target", "both"}
@@ -186,7 +190,18 @@ def preprocess_control_mapping_for_saving(document: Dict[str, Any]) -> Dict[str,
                                             q["description"] = "Qualifier details"
 
                             valid_maps.append(entry)
-                        m["maps"] = valid_maps
+                    if not valid_maps:
+                        import uuid as _uuid
+                        valid_maps = [
+                            {
+                                "uuid": str(_uuid.uuid4()),
+                                "relationship": "subset-of",
+                                "sources": [{"type": "control", "id-ref": "ac-1"}],
+                                "targets": [{"type": "control", "id-ref": "ac-1"}],
+                                "remarks": "Initial control mapping entry"
+                            }
+                        ]
+                    m["maps"] = valid_maps
     return doc
 
 

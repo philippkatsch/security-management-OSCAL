@@ -50,10 +50,13 @@ export const SSPBrowserModal: React.FC<SSPBrowserModalProps> = ({
   if (!isOpen) return null;
 
   const filteredSsps = ssps.filter((s) => {
+    const ssp = (s as any)['system-security-plan'] || s;
+    const sspId = ssp.uuid || ssp.id || s.id || '';
+    const sspTitle = ssp.metadata?.title || s.title || 'Untitled SSP';
     const term = searchTerm.toLowerCase();
     return (
-      (s.title || '').toLowerCase().includes(term) ||
-      (s.id || '').toLowerCase().includes(term)
+      sspTitle.toLowerCase().includes(term) ||
+      sspId.toLowerCase().includes(term)
     );
   });
 
@@ -151,11 +154,16 @@ export const SSPBrowserModal: React.FC<SSPBrowserModalProps> = ({
 
               <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                 {filteredSsps.map((s) => {
-                  const sspHref = `../system-security-plans/${s.id}.json`;
-                  const isSelected = selectedHref === sspHref || selectedHref === s.id;
+                  const ssp = (s as any)['system-security-plan'] || s;
+                  const sspId = ssp.uuid || ssp.id || s.id;
+                  const sspTitle = ssp.metadata?.title || s.title || 'Untitled SSP';
+                  const sspVersion = ssp.metadata?.version || s.version || '1.0.0';
+                  const sspHref = `../system-security-plans/${sspId}.json`;
+                  const isSelected = selectedHref === sspHref || selectedHref === sspId || selectedHref === s.id;
+                  const lastMod = ssp.metadata?.['last-modified'] || (s as any).lastModified || (s as any).last_modified;
                   return (
                     <div
-                      key={s.id}
+                      key={sspId}
                       onClick={() => setSelectedHref(sspHref)}
                       className={`cursor-pointer rounded-lg border p-3.5 transition-all ${
                         isSelected
@@ -164,15 +172,15 @@ export const SSPBrowserModal: React.FC<SSPBrowserModalProps> = ({
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="font-medium text-slate-100">{s.title || 'Untitled SSP'}</div>
+                        <div className="font-medium text-slate-100">{sspTitle}</div>
                         <span className="text-xs rounded bg-slate-800 px-2 py-0.5 text-slate-400">
-                          v{s.version || '1.0.0'}
+                          v{sspVersion}
                         </span>
                       </div>
                       <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
-                        <span>ID: <code className="text-slate-300">{s.id}</code></span>
-                        {((s as any).lastModified || (s as any).last_modified) && (
-                          <span>Modified: {new Date((s as any).lastModified || (s as any).last_modified).toLocaleDateString()}</span>
+                        <span>ID: <code className="text-slate-300">{sspId}</code></span>
+                        {lastMod && (
+                          <span>Modified: {new Date(lastMod).toLocaleDateString()}</span>
                         )}
                       </div>
                     </div>

@@ -50,10 +50,13 @@ export const APBrowserModal: React.FC<APBrowserModalProps> = ({
   if (!isOpen) return null;
 
   const filteredAps = aps.filter((a) => {
+    const plan = (a as any)['assessment-plan'] || a;
+    const planId = plan.uuid || plan.id || a.id || '';
+    const planTitle = plan.metadata?.title || a.title || 'Untitled AP';
     const term = searchTerm.toLowerCase();
     return (
-      (a.title || '').toLowerCase().includes(term) ||
-      (a.id || '').toLowerCase().includes(term)
+      planTitle.toLowerCase().includes(term) ||
+      planId.toLowerCase().includes(term)
     );
   });
 
@@ -132,21 +135,25 @@ export const APBrowserModal: React.FC<APBrowserModalProps> = ({
               ) : (
                 <div className={styles['modal-card-list']}>
                   {filteredAps.map((ap) => {
-                    const apHref = `#${ap.id}`;
-                    const isSelected = selectedHref === apHref || selectedHref === ap.id;
+                    const plan = (ap as any)['assessment-plan'] || ap;
+                    const planId = plan.uuid || plan.id || ap.id;
+                    const planTitle = plan.metadata?.title || ap.title || 'Untitled AP';
+                    const planVersion = plan.metadata?.version || ap.version || '1.0';
+                    const apHref = `#${planId}`;
+                    const isSelected = selectedHref === apHref || selectedHref === planId || selectedHref === ap.id;
                     return (
                       <button
-                        key={ap.id}
+                        key={planId}
                         type="button"
                         onClick={() => setSelectedHref(apHref)}
                         className={`${styles['modal-card-btn']} ${isSelected ? styles['active'] : ''}`}
                       >
                         <div className="flex items-start justify-between">
-                          <span className="font-semibold text-slate-100">{ap.title || 'Untitled AP'}</span>
-                          <span className="text-xs text-slate-400">v{ap.version || '1.0'}</span>
+                          <span className="font-semibold text-slate-100">{planTitle}</span>
+                          <span className="text-xs text-slate-400">v{planVersion}</span>
                         </div>
                         <div className="mt-1 text-xs text-slate-400 font-mono">
-                          UUID: {ap.id}
+                          UUID: {planId}
                         </div>
                         <div className="mt-0.5 text-xs text-indigo-400">
                           Target URI: {apHref}

@@ -66,7 +66,8 @@ export default function CdefImportModal({
       if (res.ok) {
         const doc = await res.json();
         setSelectedCdefDoc(doc);
-        const components = doc?.['component-definition']?.components || [];
+        const cdef = (doc as any)?.['component-definition'] || doc;
+        const components = cdef?.components || [];
         // Pre-select all by default
         setSelectedCompUuids(new Set(components.map((c: any) => c.uuid)));
       } else {
@@ -93,10 +94,10 @@ export default function CdefImportModal({
 
   const handleExecuteImport = () => {
     if (!selectedCdefDoc) return;
-    const cdef = selectedCdefDoc['component-definition'];
+    const cdef = (selectedCdefDoc as any)['component-definition'] || selectedCdefDoc;
     const components = cdef?.components || [];
     const chosen = components.filter((c: any) => selectedCompUuids.has(c.uuid));
-    const cdefUuid = selectedCdefDoc['component-definition']?.uuid || selectedCdefId;
+    const cdefUuid = cdef?.uuid || cdef?.id || selectedCdefDoc.uuid || selectedCdefDoc.id || selectedCdefId;
 
     const importedComps: SystemComponent[] = chosen.map((c: any) => {
       const existingProps = c.props ? JSON.parse(JSON.stringify(c.props)) : [];
@@ -130,7 +131,8 @@ export default function CdefImportModal({
 
   if (!isOpen) return null;
 
-  const components = selectedCdefDoc?.['component-definition']?.components || [];
+  const activeCdef = selectedCdefDoc ? ((selectedCdefDoc as any)['component-definition'] || selectedCdefDoc) : null;
+  const components = activeCdef?.components || [];
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -166,11 +168,16 @@ export default function CdefImportModal({
               disabled={loading}
             >
               <option value="">Choose a Component Definition document...</option>
-              {cdefs.map((doc) => (
-                <option key={doc.id || doc.uuid} value={doc.id || doc.uuid}>
-                  {doc.title || doc.metadata?.title || doc.id || 'Untitled Component Definition'}
-                </option>
-              ))}
+              {cdefs.map((rawDoc: any, idx: number) => {
+                const cdef = (rawDoc as any)['component-definition'] || rawDoc;
+                const docId = cdef.uuid || cdef.id || rawDoc.uuid || rawDoc.id;
+                const docTitle = cdef.metadata?.title || cdef.title || rawDoc.title || 'Untitled Component Definition';
+                return (
+                  <option key={docId || idx} value={docId || ''}>
+                    {docTitle}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

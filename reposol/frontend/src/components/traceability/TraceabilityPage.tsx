@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTraceabilityQuery } from '@hooks/useDocumentQuery';
 import styles from './TraceabilityPage.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
 
 export function TraceabilityPage() {
+  const [searchParams] = useSearchParams();
+  const w = searchParams.get('w');
+  const workspaceParam = w ? `?w=${encodeURIComponent(w)}` : '';
   const [controlIdInput, setControlIdInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -65,7 +69,7 @@ export function TraceabilityPage() {
                     {getStatusBadge(r.stageName)}
                     <span className={styles['timeline-title']}>{r.title}</span>
                     <a 
-                      href={`/${r.stageKey}/${r.uuid}`}
+                      href={`/${r.stageKey}/${r.uuid}${workspaceParam}`}
                       target="_blank" 
                       rel="noreferrer"
                       className={styles['timeline-link']}
