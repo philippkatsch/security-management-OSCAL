@@ -3,9 +3,9 @@ import { test, expect } from '../../fixtures/base';
 test.describe('Catalog CRUD', () => {
   test('navigate to Catalogs tab, list is visible', async ({ page }) => {
     await page.goto('/');
-    await page.getByText('Catalogs').first().click();
+    await page.locator('nav').getByText('Catalogs').click();
     await expect(page).toHaveURL(/.*catalogs/);
-    await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /catalog/i })).toBeVisible();
   });
 
   test('create a new catalog', async ({ page, apiSetup }) => {

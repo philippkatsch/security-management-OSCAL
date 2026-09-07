@@ -20,7 +20,7 @@ test.describe('Step 1 Catalog Builder — Deterministic E2E Verification', () =>
     await titleInput.fill(catalogTitle);
 
     // 3. Submit and verify direct redirection to editor view
-    const createBtn = page.getByRole('button', { name: 'Create Document' }).or(page.getByRole('button', { name: /create/i })).first();
+    const createBtn = page.locator('.modal-panel').getByRole('button', { name: 'Create Document' });
     await expect(createBtn).toBeEnabled({ timeout: 15000 });
     await createBtn.click();
 

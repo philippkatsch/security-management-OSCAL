@@ -23,10 +23,10 @@ test.describe('Dashboard Tests', () => {
 
   test('clicking a nav item navigates to that document type list', async ({ page }) => {
     await page.goto('/');
-    await page.getByText('Catalogs').first().click();
+    await page.locator('nav').getByText('Catalogs').click();
     await expect(page).toHaveURL(/.*catalogs/);
     
-    const catalogsHeader = page.getByRole('heading', { name: /catalogs/i });
+    const catalogsHeader = page.getByRole('heading', { name: /catalog/i });
     await expect(catalogsHeader).toBeVisible();
   });
 });

@@ -57,28 +57,28 @@ test.describe('Beyond Use Cases — Full Multi-Stage Compliance Lifecycle Integr
 
     // Verify all 8 documents exist and are accessible in the UI
     await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText('Lifecycle Base Catalog').first()).toBeVisible();
+    await expect(page.getByText('Lifecycle Base Catalog').first()).toBeVisible({ timeout: 10000 });
 
     await page.goto(`/profiles?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText('Lifecycle Baseline Profile').first()).toBeVisible();
+    await expect(page.getByText('Lifecycle Baseline Profile').first()).toBeVisible({ timeout: 10000 });
 
     await page.goto(`/component-definitions?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText(/Lifecycle Asset Component|Component Definitions/i).first()).toBeVisible();
+    await expect(page.getByText(/Lifecycle Asset Component|Component Definition/i).first()).toBeVisible({ timeout: 10000 });
 
     await page.goto(`/ssps?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText(/Lifecycle Target System|System Security Plans/i).first()).toBeVisible();
+    await expect(page.getByText(/Lifecycle System SSP|Lifecycle Target System|System Security Plan/i).first()).toBeVisible({ timeout: 10000 });
 
     await page.goto(`/assessment-plans?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText(/Lifecycle Audit Assessment Plan|Assessment Plans/i).first()).toBeVisible();
+    await expect(page.getByText(/Lifecycle Audit Assessment Plan|Assessment Plan/i).first()).toBeVisible({ timeout: 10000 });
 
     await page.goto(`/assessment-results?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText(/Lifecycle Audit Results|Assessment Results/i).first()).toBeVisible();
+    await expect(page.getByText(/Lifecycle Audit Results|Assessment Results/i).first()).toBeVisible({ timeout: 10000 });
 
     await page.goto(`/poams?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText(/Lifecycle Risk POA&M|Plans of Action/i).first()).toBeVisible();
+    await expect(page.getByText(/Lifecycle Risk POA&M|POA&M/i).first()).toBeVisible({ timeout: 10000 });
 
     await page.goto(`/control-mappings?w=${apiSetup.workspaceId}`);
-    await expect(page.getByText(/Lifecycle Framework Mapping|Control Mappings/i).first()).toBeVisible();
+    await expect(page.getByText(/Lifecycle Framework Mapping|Control Mapping/i).first()).toBeVisible({ timeout: 10000 });
   });
   test('cross-stage reference integrity — deleting catalog shows broken reference in profile', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();

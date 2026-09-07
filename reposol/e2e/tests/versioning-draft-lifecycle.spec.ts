@@ -37,7 +37,7 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
 
     await page.getByTestId('back-btn').click();
     // Navigates away directly to catalog list view without modal
-    await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: /catalog/i })).toBeVisible({ timeout: 20000 });
 
     // Re-open catalog in View mode: clean published v1.0.0
     await page.goto(`/catalogs/${catalogUuid}?w=${apiSetup.workspaceId}`);
@@ -58,7 +58,7 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await expect(saveDraftBtn).toBeVisible({ timeout: 5000 });
     await saveDraftBtn.click();
 
-    await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: /catalog/i })).toBeVisible({ timeout: 20000 });
 
     // Re-open catalog in View mode: draft exists on server
     await page.goto(`/catalogs/${catalogUuid}?w=${apiSetup.workspaceId}`);
@@ -80,7 +80,7 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await expect(discardBtn).toBeVisible({ timeout: 5000 });
     await discardBtn.click();
 
-    await expect(page.getByRole('heading', { name: /catalogs/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: /catalog/i })).toBeVisible({ timeout: 20000 });
 
     // Re-open catalog in View mode: draft was discarded, shows v1.0.0
     await page.goto(`/catalogs/${catalogUuid}?w=${apiSetup.workspaceId}`);

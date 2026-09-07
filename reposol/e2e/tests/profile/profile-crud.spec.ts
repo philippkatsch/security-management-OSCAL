@@ -4,9 +4,9 @@ test.describe('Profile CRUD', () => {
   test('navigate to Profiles tab, list is visible', async ({ page, apiSetup }) => {
     await apiSetup.syncWorkspace();
     await page.goto('/');
-    await page.getByText('Profiles').first().click();
+    await page.locator('nav').getByText('Profiles').click();
     await expect(page).toHaveURL(/.*profiles/);
-    await expect(page.getByRole('heading', { name: /profiles/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /profile/i })).toBeVisible();
   });
 
   test('create new profile', async ({ page, apiSetup }) => {
@@ -18,13 +18,15 @@ test.describe('Profile CRUD', () => {
     await expect(newBtn).toBeVisible({ timeout: 15000 });
     await newBtn.click();
     
-    // 2. Fill title and submit
-    const titleInput = page.getByPlaceholder(/Reposol Core Baseline/i).or(page.locator('.modal-panel input')).first();
+    // 2. Fill title and submit (scope to modal-panel to avoid overlay intercept)
+    const modal = page.locator('.modal-panel');
+    await expect(modal).toBeVisible({ timeout: 15000 });
+    const titleInput = modal.locator('input').first();
     await expect(titleInput).toBeVisible({ timeout: 15000 });
     const profileTitle = `E2E Created Profile ${Date.now()}`;
     await titleInput.fill(profileTitle);
     
-    const createBtn = page.getByRole('button', { name: 'Create Document' }).or(page.getByRole('button', { name: /create/i })).first();
+    const createBtn = modal.getByRole('button', { name: 'Create Document' });
     await expect(createBtn).toBeEnabled({ timeout: 15000 });
     await createBtn.click();
     

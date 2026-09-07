@@ -20,7 +20,7 @@ test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
     await titleInput.fill(profileTitle);
 
     // 3. Submit modal and verify direct redirection to editor
-    const createBtn = page.getByRole('button', { name: 'Create Document' }).or(page.getByRole('button', { name: /create/i })).first();
+    const createBtn = page.locator('.modal-panel').getByRole('button', { name: 'Create Document' });
     await expect(createBtn).toBeEnabled({ timeout: 15000 });
     await createBtn.click();
 
@@ -387,7 +387,7 @@ test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
 
     // 5. Imports tab
     await page.getByTestId('profile-sidebar-imports').click();
-    await expect(page.getByText(/Imported Sources/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Imported Sources/i).first()).toBeVisible({ timeout: 10000 });
 
     // 6. Overview tab
     await page.getByTestId('profile-sidebar-overview').click();

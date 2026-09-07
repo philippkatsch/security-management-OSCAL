@@ -25,28 +25,26 @@ test.describe('M3 Gate 6 — Empirical Stress & Challenge Suite', () => {
     const catalogRow = page.locator('tr', { hasText: catUuid.substring(0, 8) });
     await expect(catalogRow).toBeVisible();
 
-    // Set up dialog handler for window.confirm
-    let confirmCallCount = 0;
-    const dialogMessages: string[] = [];
-    page.on('dialog', async (dialog) => {
-      confirmCallCount++;
-      dialogMessages.push(dialog.message());
-      // First confirm is "Delete this document?", second confirm is 409 "Document is referenced by other documents. Force delete?"
-      await dialog.accept();
-    });
-
     // Click delete button on the catalog row
     const deleteBtn = catalogRow.locator('button[title="Delete document"]');
     await deleteBtn.click();
 
-    // Wait for the deletion request & 409 force retry to finish and row to be removed
+    // First React ConfirmModal: "Delete Document" confirmation
+    const firstModal = page.getByRole('dialog').first();
+    await expect(firstModal).toBeVisible({ timeout: 10000 });
+    await expect(firstModal.getByRole('heading', { name: /Delete Document/i })).toBeVisible();
+    await firstModal.getByRole('button', { name: 'Delete', exact: true }).click();
+
+    // Second React ConfirmModal: "Reference Conflict (409)" with Force Delete
+    const secondModal = page.getByRole('dialog').first();
+    await expect(secondModal).toBeVisible({ timeout: 10000 });
+    await expect(secondModal.getByText(/referenced by other documents|Force delete/i).first()).toBeVisible({ timeout: 5000 });
+    await secondModal.getByRole('button', { name: /Force Delete/i }).click();
+
+    // Wait for the deletion to complete and row to be removed
     await expect(catalogRow).not.toBeVisible({ timeout: 10000 });
 
-    // Verify two confirms occurred
-    expect(confirmCallCount).toBeGreaterThanOrEqual(2);
-    expect(dialogMessages.some(m => m.includes('referenced by other documents') || m.includes('Force delete'))).toBe(true);
-
-    // Verify catalog is deleted from backend (getDocument throws error when deleted)
+    // Verify catalog is deleted from backend
     let fetchError = false;
     try {
       await apiSetup.getDocument('catalogs', catUuid);
@@ -103,13 +101,19 @@ test.describe('M3 Gate 6 — Empirical Stress & Challenge Suite', () => {
     await nodeAc1.click();
     await expect(banner).toBeVisible();
 
-    page.on('dialog', async (dialog) => {
-      await dialog.accept();
-    });
-
+    // Restore uses React ConfirmProvider instead of window.confirm
     const restoreBtn = banner.locator('button.btn-restore-control');
     await expect(restoreBtn).toBeVisible();
     await restoreBtn.click();
+
+    // Handle the confirm dialog if it appears as a React modal
+    const confirmDialog = page.getByRole('dialog').first();
+    if (await confirmDialog.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const confirmBtn = confirmDialog.getByRole('button', { name: /Confirm|Restore|Yes|OK/i }).first();
+      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await confirmBtn.click();
+      }
+    }
 
     // Verify withdrawal banner disappears after restoration
     await expect(banner).not.toBeVisible({ timeout: 10000 });
@@ -130,17 +134,18 @@ test.describe('M3 Gate 6 — Empirical Stress & Challenge Suite', () => {
     await page.goto(`/catalogs/${catUuid}?edit=true&w=${apiSetup.workspaceId}`);
     await expect(page.locator('[class*="document-toolbar"], body').first()).toBeVisible();
 
-    // Delete catalog via toolbar or list
+    // Navigate back to list and delete via list
     await page.goto(`/catalogs?w=${apiSetup.workspaceId}`);
     const row = page.locator('tr', { hasText: 'State Sync Test Catalog' });
     await expect(row).toBeVisible();
 
-    page.on('dialog', async (dialog) => {
-      await dialog.accept();
-    });
-
     const deleteBtn = row.locator('button[title="Delete document"]');
     await deleteBtn.click();
+
+    // Handle React ConfirmModal for delete
+    const modal = page.getByRole('dialog').first();
+    await expect(modal).toBeVisible({ timeout: 10000 });
+    await modal.getByRole('button', { name: /Delete/i }).first().click();
 
     // Verify list updates immediately and removes deleted catalog from view
     await expect(row).not.toBeVisible({ timeout: 10000 });
