@@ -198,8 +198,7 @@ graph LR
 | **M5_PLAN** | Step 5 — Assessment Plan | 6-tab builder architecture (DD-037), 3D scoping matrix, procedural activities, methods (`EXAMINE`, `INTERVIEW`, `TEST`), task scheduling DAG | **DONE** |
 | **M6_RESULTS** | Step 6 — Assessment Results | Findings ledger, triad correlation (DD-038), observations, evidence, CVSS risk characterization, attestations, result sets sidebar | **DONE** |
 | **M7_POAM** | Step 7 — POA&M Tracker | AR finding auto-import, POA&M item lifecycle, milestone planning, risk acceptance, remediation progress dashboards | **DONE** |
-| **M8_MAPPING** | Step 8 — Control Mapping | Framework crosswalks, 6 relationship tokens, confidence scoring, gap analysis, Sankey & matrix visualizers (DD-019) | **DONE** |
-| **M9_E2E_VERIFY** | End-to-End Verification Gate | Playwright E2E test suites for all 8 stages (Steps 1, 2, 6 complete; extending coverage across Steps 3–5, 7–8) | **IN PROGRESS** |
+| **M9_E2E_VERIFY** | End-to-End Verification Gate | Comprehensive Playwright E2E test suites across all 8 stages, cross-stage lifecycle, and stress harnesses (198/198 tests passing, 100% green) | **DONE** |
 
 ---
 
