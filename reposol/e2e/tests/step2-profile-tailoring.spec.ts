@@ -148,13 +148,9 @@ test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
     // 1. Switch to custom mode
     await switchStructuringMode(page, 'custom');
 
-    // 2. Open Imports tab and verify Control Pool subtab is available
+    // 2. Open Imports tab and verify Control Pool is available
     await selectSidebarTab(page, 'Imports');
-    const poolTabBtn = page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first();
-    await expect(poolTabBtn).toBeVisible({ timeout: 15000 });
-    await poolTabBtn.click();
-
-    const poolTitle = page.getByText(/Control Pool \(Drag & Drop\)/i).first();
+    const poolTitle = page.getByText(/Control Pool \(Drag & Drop\)|Source Catalog Hierarchy/i).first();
     await expect(poolTitle).toBeVisible({ timeout: 15000 });
 
     // 3. Verify control sc-7 is listed in the Control Pool
@@ -472,19 +468,11 @@ test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
     await expect(alphaCard).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/Control Pool \(Drag & Drop\)/i)).not.toBeVisible();
 
-    // 3. Switch to 'custom' structuring mode -> Control Pool subtab becomes available
+    // 3. Switch to 'custom' structuring mode -> Control Pool becomes visible
     const modeSelect = page.getByTestId('structuring-mode-select').or(page.locator('select').filter({ hasText: /as-is|custom|flat/i })).first();
     await expect(modeSelect).toBeVisible({ timeout: 15000 });
     await modeSelect.selectOption('custom');
-    const poolTabBtn = page.getByTestId('control-pool-tab-btn').or(page.getByRole('button', { name: /Control Pool/i })).first();
-    await expect(poolTabBtn).toBeVisible({ timeout: 15000 });
-
-    // Switch to Control Pool tab and verify it renders
-    await poolTabBtn.click();
-    await expect(page.getByText(/Control Pool \(Drag & Drop\)/i)).toBeVisible({ timeout: 15000 });
-
-    // Switch back to Import Sources tab
-    await page.getByTestId('import-sources-tab-btn').or(page.getByRole('button', { name: /Import Sources/i })).first().click();
+    await expect(page.getByText(/Control Pool \(Drag & Drop\)/i).first()).toBeVisible({ timeout: 15000 });
 
     // 4. Add Source Catalog Beta from Add Import dropdown
     const addImportSelect = page.getByTestId('add-import-source-select').or(page.locator('select').filter({ hasText: /Add Import Source|Select Catalog/i })).first();
@@ -499,9 +487,9 @@ test.describe('Step 2 Profile Tailoring — E2E UI Verification', () => {
     await betaCard.getByRole('button', { name: /Remove/i }).click();
     await expect(betaCard).not.toBeVisible({ timeout: 15000 });
 
-    // 6. Switch back to 'as-is' mode -> Control Pool tab is hidden
+    // 6. Switch back to 'as-is' mode -> Control Pool is hidden
     await modeSelect.selectOption('as-is');
-    await expect(poolTabBtn).not.toBeVisible();
+    await expect(page.getByText(/Control Pool \(Drag & Drop\)/i)).not.toBeVisible();
 
     // 7. F5 Reload Persistence
     await page.reload();

@@ -149,7 +149,7 @@ export function DocumentToolbar({
         gap: '12px',
         flexWrap: 'wrap',
         position: 'relative',
-        zIndex: 10,
+        zIndex: 100,
         flexShrink: 0
       }}
     >

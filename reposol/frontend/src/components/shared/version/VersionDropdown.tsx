@@ -163,11 +163,12 @@ export default function VersionDropdown({
                   {onDeleteDraft && (
                     <button
                       type="button"
+                      data-testid="delete-draft-btn"
                       className={styles['version-delete-draft-btn']}
                       onClick={handleDeleteDraftClick}
                       title="Discard draft and revert to published version"
                     >
-                      Discard Draft
+                      Delete Draft
                     </button>
                   )}
                 </div>

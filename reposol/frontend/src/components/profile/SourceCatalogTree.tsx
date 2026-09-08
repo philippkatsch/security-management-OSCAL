@@ -1205,6 +1205,8 @@ export function SourceCatalogTree({
     return (
       <div
         key={`${cat.id}_${cat.importIdx}`}
+        className="import-card"
+        data-testid={`import-card-${cat.importIdx}`}
         style={{
           marginBottom: '14px',
           border: '1px solid var(--color-border)',
@@ -1465,7 +1467,7 @@ export function SourceCatalogTree({
         {/* Row 1: Title & Controls Stats */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <h3 style={{ margin: 0, fontSize: '13.5px', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            🌳 Source Catalog Hierarchy & Control Pool (Drag & Drop)
+            {activeMergeMode === 'custom' ? '🌳 Source Catalog Hierarchy & Control Pool (Drag & Drop)' : '🌳 Source Catalog Hierarchy'}
           </h3>
 
           <div

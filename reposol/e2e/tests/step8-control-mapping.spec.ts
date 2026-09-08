@@ -192,14 +192,18 @@ test.describe('Step 8 Control Mapping — Extended Coverage', () => {
     // Select row
     await page.getByRole('checkbox', { name: /Select row/i }).check();
     
-    // Set Relationship via prompt
-    page.once('dialog', dialog => dialog.accept('equivalent-to'));
+    // Set Relationship via confirm modal
     await page.getByRole('button', { name: /Set Relationship/i }).click();
-    await expect(page.getByRole('cell', { name: 'equivalent-to' })).toBeVisible();
+    const applyBtn = page.getByRole('button', { name: /Apply "equivalent-to"/i });
+    await expect(applyBtn).toBeVisible({ timeout: 5000 });
+    await applyBtn.click();
+    await expect(page.getByRole('cell', { name: 'equivalent-to' })).toBeVisible({ timeout: 5000 });
 
-    // Delete Selected via confirm
-    page.once('dialog', dialog => dialog.accept());
+    // Delete Selected via confirm modal
     await page.getByRole('button', { name: /Delete Selected/i }).click();
-    await expect(page.getByRole('cell', { name: 'cm-1' })).not.toBeVisible();
+    const confirmDeleteBtn = page.getByRole('button', { name: /^Delete$/i });
+    await expect(confirmDeleteBtn).toBeVisible({ timeout: 5000 });
+    await confirmDeleteBtn.click();
+    await expect(page.getByRole('cell', { name: 'cm-1' })).not.toBeVisible({ timeout: 5000 });
   });
 });

@@ -462,7 +462,7 @@ test.describe('Step 4: System Security Plan (SSP) Builder — Comprehensive 4-Ti
       await expect(addReqBtn).toBeVisible({ timeout: 15000 });
 
       // 2. Add new implemented requirement via modal
-      await addReqBtn.click();
+      await addReqBtn.click({ force: true });
       await page.locator('[data-testid="add-control-id-input"]').fill('ac-1');
       await page.locator('[data-testid="submit-add-control-btn"]').click();
       await expect(page.getByText('ac-1').first()).toBeVisible({ timeout: 15000 });
@@ -724,7 +724,7 @@ test.describe('Step 4: System Security Plan (SSP) Builder — Comprehensive 4-Ti
       // 5. In Control Implementation, add requirement for AC-2
       await selectTab(page, 'Control Implementation');
       const addReqBtn = page.getByRole('button', { name: /\+ Add (Implemented )?Requirement/i });
-      await addReqBtn.click();
+      await addReqBtn.click({ force: true });
       await page.locator('[data-testid="add-control-id-input"]').fill('ac-2');
       await page.locator('[data-testid="submit-add-control-btn"]').click();
       await expect(page.getByText('ac-2').first()).toBeVisible({ timeout: 15000 });

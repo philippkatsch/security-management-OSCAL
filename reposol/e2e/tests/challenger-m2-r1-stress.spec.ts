@@ -146,11 +146,20 @@ test.describe('Challenger M2 R1 — Empirical Stress Harness (Feature 15 & Featu
     const editParamBtn = page.getByRole('button', { name: /✏️ edit|edit/i }).first();
     if (await editParamBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await editParamBtn.click();
+    }
 
-      const choiceSelect = page.locator('[class*="parameter-card"] select, select.form-input, select').first();
+    const paramInput = page.locator('input[placeholder*="Override value"], [class*="parameter-card"] input').first();
+    if (await paramInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await paramInput.fill('12');
+      const overrideBadge = page.getByText(/overridden/i).first();
+      if (await overrideBadge.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await expect(overrideBadge).toBeVisible();
+      }
+    } else {
+      const choiceSelect = page.locator('[class*="parameter-card"] select').first();
       if (await choiceSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
         await choiceSelect.selectOption('12');
-        const overrideBadge = page.locator('[class*="parameter-card"], div').getByText(/overridden|\[overridden\]/i).first();
+        const overrideBadge = page.getByText(/overridden/i).first();
         if (await overrideBadge.isVisible({ timeout: 3000 }).catch(() => false)) {
           await expect(overrideBadge).toBeVisible();
         }

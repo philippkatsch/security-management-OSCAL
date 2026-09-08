@@ -112,7 +112,7 @@ test.describe('Unified VersionDropdown & Single Active Draft Lifecycle', () => {
     await expect(publishBtn).toBeVisible();
 
     // Click Delete Draft
-    await page.getByRole('button', { name: /Delete Draft/i }).click();
+    await page.getByTestId('delete-draft-btn').or(page.getByRole('button', { name: /Delete Draft|Discard Draft/i })).first().click();
 
     // Confirm in ConfirmModal
     const confirmDeleteBtn = page.getByRole('button', { name: 'Delete Draft' }).last();
