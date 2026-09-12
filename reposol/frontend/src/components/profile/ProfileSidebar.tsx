@@ -88,6 +88,8 @@ export function ProfileSidebar({
 
   const isCustomMerge = Boolean((profile as any)?.merge?.custom);
   const isFlatMerge = Boolean((profile as any)?.merge?.flat);
+  const profileMergeCustom = (profile as any)?.merge?.custom;
+  const profileMergeCustomGroups = profileMergeCustom?.groups;
 
   // Collect excluded control and group IDs from resolution result
   const excludedControlIds = useMemo(() => {
@@ -153,7 +155,7 @@ export function ProfileSidebar({
     }
 
     return ids;
-  }, [resolvedCatalog.excluded_control_ids, resolvedCatalog.all_groups, resolvedCatalog.groups, resolvedCatalog.controls, isCustomMerge, (profile as any)?.merge?.custom]);
+  }, [resolvedCatalog.excluded_control_ids, resolvedCatalog.all_groups, resolvedCatalog.groups, resolvedCatalog.controls, isCustomMerge, profileMergeCustom]);
 
   const allImportedControls = useMemo(() => {
     const list: any[] = [];
@@ -223,7 +225,7 @@ export function ProfileSidebar({
     }
 
     return allImportedControls.filter((ctrl: any) => !assignedIds.has(ctrl.id.toLowerCase()));
-  }, [isCustomMerge, (profile as any)?.merge?.custom, allImportedControls, resolvedCatalog?.groups]);
+  }, [isCustomMerge, profileMergeCustom, allImportedControls, resolvedCatalog?.groups]);
 
   const handleAddCustomGroup = (parentGroupId: string | null = null) => {
     if (!isEditing) return;
@@ -516,15 +518,16 @@ export function ProfileSidebar({
       return baseGroups;
     }
     return (isEditing && resolvedCatalog.all_groups?.length) ? resolvedCatalog.all_groups : (resolvedCatalog.groups || []);
-  }, [isCustomMerge, isFlatMerge, isEditing, resolvedCatalog?.all_groups, resolvedCatalog?.groups, (profile as any)?.merge?.custom?.groups, unassignedControls, visibilityFilter.showUnassigned, allImportedControls]);
+  }, [isCustomMerge, isFlatMerge, isEditing, resolvedCatalog?.all_groups, resolvedCatalog?.groups, profileMergeCustomGroups, unassignedControls, visibilityFilter.showUnassigned, allImportedControls]);
 
 
+  const customInsertControls = (profile as any)?.merge?.custom?.['insert-controls'];
   const treeControls = useMemo(() => {
     if (isFlatMerge) {
       return isEditing ? allImportedControls : (resolvedCatalog?.controls || []);
     }
     if (isCustomMerge) {
-      const customInsert = (profile as any)?.merge?.custom?.['insert-controls'] || [];
+      const customInsert = customInsertControls || [];
       const rootControlIds: string[] = [];
       for (const ic of customInsert) {
         for (const inc of ic['include-controls'] || []) {
@@ -555,6 +558,7 @@ export function ProfileSidebar({
             }
           }
         }
+      }
       if (treeGroups.length > 0) {
         return (resolvedCatalog?.controls && resolvedCatalog.controls.length > 0) ? resolvedCatalog.controls : [];
       }
@@ -564,7 +568,7 @@ export function ProfileSidebar({
       return (resolvedCatalog?.controls && resolvedCatalog.controls.length > 0) ? resolvedCatalog.controls : [];
     }
     return (resolvedCatalog?.controls && resolvedCatalog.controls.length > 0) ? resolvedCatalog.controls : (resolvedCatalog?.all_controls || []);
-  }, [isFlatMerge, isCustomMerge, isEditing, allImportedControls, resolvedCatalog?.controls, treeGroups, (profile as any)?.merge?.custom?.['insert-controls']]);
+  }, [isFlatMerge, isCustomMerge, isEditing, allImportedControls, resolvedCatalog?.controls, treeGroups, customInsertControls]);
 
   const tree = useControlTree({
     groups: treeGroups,
