@@ -356,5 +356,118 @@ describe('Milestone 1 Component Definition Actions & Sanitization Stress Suite',
       const sanitized = sanitizeComponentDefinitionDocument(fullDoc);
       expect(sanitized['component-definition'].components[0]).not.toHaveProperty('status');
     });
+
+    it('prunes control-implementation sets lacking implemented-requirements to prevent schema crashes', () => {
+      const docWithEmptyImpls = {
+        uuid: '11111111-1111-4111-8111-111111111111',
+        metadata: {
+          title: 'Doc with empty impls',
+          'last-modified': '2026-08-31T18:00:00Z',
+          version: '1.0.0',
+          'oscal-version': '1.1.2'
+        },
+        components: [
+          {
+            uuid: 'comp-1',
+            type: 'software',
+            title: 'Comp 1',
+            description: 'Desc 1',
+            'control-implementations': [
+              {
+                uuid: 'ci-empty',
+                source: 'https://example.com/cat',
+                description: 'Empty set',
+                'implemented-requirements': [] // empty requirements -> must prune this CI
+              },
+              {
+                uuid: 'ci-valid',
+                source: '',
+                description: '',
+                'implemented-requirements': [
+                  {
+                    uuid: 'req-1',
+                    'control-id': 'ac-1',
+                    description: 'Valid req'
+                  }
+                ]
+              }
+            ]
+          } as any
+        ],
+        capabilities: [
+          {
+            uuid: 'cap-1',
+            name: 'Cap 1',
+            description: 'Cap desc',
+            'control-implementations': [
+              {
+                uuid: 'ci-cap-empty',
+                source: 'https://example.com',
+                description: 'No reqs',
+                'implemented-requirements': []
+              }
+            ]
+          } as any
+        ]
+      };
+
+      const cleaned = sanitizeComponentDefinition(docWithEmptyImpls as any);
+
+      // In comp-1, ci-empty was pruned; ci-valid was kept and ensured with source & description fallbacks
+      expect(cleaned.components![0]['control-implementations']).toHaveLength(1);
+      expect(cleaned.components![0]['control-implementations']![0].uuid).toBe('ci-valid');
+      expect(cleaned.components![0]['control-implementations']![0].source).toBeTruthy();
+      expect(cleaned.components![0]['control-implementations']![0].description).toBeTruthy();
+
+      // In cap-1, ci-cap-empty was pruned, so control-implementations was completely removed (optional array)
+      expect(cleaned.capabilities![0]).not.toHaveProperty('control-implementations');
+    });
+
+    it('ensures incorporates-components descriptions and prunes invalid/empty entries', () => {
+      const docWithIncorp = {
+        uuid: '11111111-1111-4111-8111-111111111111',
+        metadata: {
+          title: 'Doc with incorp',
+          'last-modified': '2026-08-31T18:00:00Z',
+          version: '1.0.0',
+          'oscal-version': '1.1.2'
+        },
+        capabilities: [
+          {
+            uuid: 'cap-incorp',
+            name: 'Incorp Cap',
+            description: 'Capability',
+            'incorporates-components': [
+              {
+                'component-uuid': 'comp-1',
+                description: '   ' // whitespace -> must receive default description
+              },
+              {
+                'component-uuid': 'comp-2' // missing description -> must receive default description
+              },
+              {
+                description: 'no uuid' // missing component-uuid -> must be pruned
+              }
+            ],
+            links: [
+              { href: 'https://example.com' },
+              { href: '   ' } // empty href -> must be pruned
+            ]
+          } as any
+        ]
+      };
+
+      const cleaned = sanitizeComponentDefinition(docWithIncorp as any);
+
+      const cap = cleaned.capabilities![0];
+      expect(cap['incorporates-components']).toHaveLength(2);
+      expect(cap['incorporates-components']![0]['component-uuid']).toBe('comp-1');
+      expect(cap['incorporates-components']![0].description).toBe('Component role in capability.');
+      expect(cap['incorporates-components']![1]['component-uuid']).toBe('comp-2');
+      expect(cap['incorporates-components']![1].description).toBe('Component role in capability.');
+
+      expect(cap.links).toHaveLength(1);
+      expect(cap.links![0].href).toBe('https://example.com');
+    });
   });
 });

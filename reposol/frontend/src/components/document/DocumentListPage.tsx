@@ -14,7 +14,14 @@ import { toast } from 'react-hot-toast';
 
 import { STAGE_CANONICAL_ROUTES, ROOT_KEYS, STAGE_LABELS, STAGE_ICONS } from '@lib/oscal-utils';
 
-const UNDER_DEV_STAGES: string[] = [];
+const UNDER_DEV_STAGES = [
+  'component-definitions',
+  'control-mappings',
+  'ssps',
+  'assessment-plans',
+  'assessment-results',
+  'poams',
+];
 
 export const DocumentListPage = () => {
   const { stage } = useParams<{ stage: string }>();

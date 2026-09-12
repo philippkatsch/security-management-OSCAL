@@ -131,16 +131,18 @@ export function SystemImplementationTab({
     setEditingComponent(newComp);
   };
 
-  const handleImportCdefComponents = (importedComps: SystemComponent[], rawComponents?: any[]) => {
+  const handleImportCdefComponents = (importedComps: SystemComponent[], rawEntities?: any[]) => {
+    let currentComps = [...components];
     for (let i = 0; i < importedComps.length; i++) {
       const comp = importedComps[i];
+      currentComps = [...currentComps, comp];
       execAction(
         addSystemComponent(comp),
         ['system-implementation', 'components'],
-        [...components, comp]
+        currentComps
       );
 
-      const raw = rawComponents?.[i];
+      const raw = rawEntities?.[i];
       if (raw && raw['control-implementations']) {
         for (const ci of raw['control-implementations']) {
           for (const req of ci['implemented-requirements'] || []) {
@@ -149,20 +151,31 @@ export function SystemImplementationTab({
                 dispatch(upsertImplementedRequirement({
                   'control-id': req['control-id']
                 }));
+                const rawParams = req['set-parameters'] || ci['set-parameters'] || [];
+                const resolvedParams = rawParams.filter(
+                  (p: any) => p && p['param-id'] && Array.isArray(p.values) && p.values.length > 0
+                );
+                const validProps = Array.isArray(req.props)
+                  ? req.props.filter((p: any) => p && p.name && p.value)
+                  : [];
+                const compLabel = comp.title || 'Component';
                 dispatch(addByComponent(req['control-id'], {
                   'component-uuid': comp.uuid,
-                  description: req.description || `Implemented by ${comp.title}`,
-                  ...(req['set-parameters'] ? { 'set-parameters': req['set-parameters'] } : {}),
-                  ...(req.props ? { props: req.props } : {})
+                  description: (req.description && String(req.description).trim()) || `Implemented by ${compLabel}`,
+                  ...(resolvedParams.length > 0 ? { 'set-parameters': resolvedParams } : {}),
+                  ...(validProps.length > 0 ? { props: validProps } : {})
                 }));
 
                 if (req.statements && Array.isArray(req.statements)) {
                   for (const smt of req.statements) {
                     if (smt['statement-id']) {
+                      const validSmtProps = Array.isArray(smt.props)
+                        ? smt.props.filter((p: any) => p && p.name && p.value)
+                        : [];
                       dispatch(addStatementByComponent(req['control-id'], smt['statement-id'], {
                         'component-uuid': comp.uuid,
-                        description: smt.description || req.description || `Implemented by ${comp.title}`,
-                        ...(smt.props ? { props: smt.props } : {})
+                        description: (smt.description && String(smt.description).trim()) || (req.description && String(req.description).trim()) || `Implemented by ${compLabel}`,
+                        ...(validSmtProps.length > 0 ? { props: validSmtProps } : {})
                       }));
                     }
                   }

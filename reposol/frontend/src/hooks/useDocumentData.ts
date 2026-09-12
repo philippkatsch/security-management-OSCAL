@@ -5,6 +5,7 @@ import { useDraft } from './useDraft';
 import { cleanEmptyArrays } from '@lib/oscal-utils';
 import { OscalDocument, OscalStage } from '@lib/types/oscal';
 import { ValidationResult } from '@lib/types/api';
+import { sanitizeComponentDefinitionDocument } from '@lib/document-actions/component-definition-actions';
 
 export function useDocumentData(stage: OscalStage, modelName: string, documentId: string, isEditing: boolean, isDirty: boolean = false) {
   const query = useDocumentQuery(stage, documentId);
@@ -40,20 +41,27 @@ export function useDocumentData(stage: OscalStage, modelName: string, documentId
   }, [query, updateDoc]);
 
   const save = useCallback(async (documentToSave?: OscalDocument): Promise<OscalDocument> => {
-    const targetDoc = documentToSave || docRef.current;
+    let targetDoc = documentToSave || docRef.current;
     if (!targetDoc) throw new Error('No document to save');
+    if (stage === 'component-definitions' || (targetDoc as any)['component-definition']) {
+      targetDoc = sanitizeComponentDefinitionDocument(targetDoc as any);
+    }
     const cleaned = cleanEmptyArrays(targetDoc);
     const result = (await mutation.mutateAsync({ docId: documentId, data: cleaned as any })) as any as OscalDocument;
     updateDoc(result);
     return result;
-  }, [documentId, mutation, updateDoc]);
+  }, [documentId, mutation, stage, updateDoc]);
 
   const validate = useCallback(async (documentToValidate?: OscalDocument): Promise<ValidationResult> => {
     setValidationResult(null);
     try {
-      const targetDoc = documentToValidate || docRef.current;
+      let targetDoc = documentToValidate || docRef.current;
       if (!targetDoc) throw new Error('No document to validate');
-      const result = await validationMutation.mutateAsync(targetDoc);
+      if (stage === 'component-definitions' || (targetDoc as any)['component-definition']) {
+        targetDoc = sanitizeComponentDefinitionDocument(targetDoc as any);
+      }
+      const cleaned = cleanEmptyArrays(targetDoc);
+      const result = await validationMutation.mutateAsync(cleaned as OscalDocument);
       const anyResult = result as any;
       const mappedResult: ValidationResult = { ...result, valid: anyResult?.status === 'valid' || result.valid };
       setValidationResult(mappedResult);
@@ -63,7 +71,7 @@ export function useDocumentData(stage: OscalStage, modelName: string, documentId
       setValidationResult(failedResult);
       return failedResult;
     }
-  }, [validationMutation]);
+  }, [stage, validationMutation]);
 
   const {
     versions,

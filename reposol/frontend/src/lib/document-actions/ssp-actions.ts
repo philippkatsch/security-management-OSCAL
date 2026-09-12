@@ -879,11 +879,15 @@ export function addByComponent(
       sysImp?.components?.[0]?.uuid ||
       generateUUID();
 
+    const desc = (byComp?.description && byComp.description.trim())
+      ? byComp.description.trim()
+      : 'Implemented by component.';
+
     const newByComp: ByComponent = {
       uuid: byComp?.uuid || generateUUID(),
       'component-uuid': defaultComponentUuid,
-      description: byComp?.description || '',
-      ...byComp
+      ...byComp,
+      description: desc
     };
     req['by-components'].push(newByComp);
   });
@@ -949,11 +953,15 @@ export function addStatementByComponent(
       sysImp?.components?.[0]?.uuid ||
       generateUUID();
 
+    const desc = (byComp?.description && byComp.description.trim())
+      ? byComp.description.trim()
+      : 'Implemented by component.';
+
     const newByComp: ByComponent = {
       uuid: byComp?.uuid || generateUUID(),
       'component-uuid': defaultComponentUuid,
-      description: byComp?.description || '',
-      ...byComp
+      ...byComp,
+      description: desc
     };
     stmt['by-components'].push(newByComp);
   });

@@ -4,6 +4,7 @@ import { getVersion } from '@lib/api';
 import { useVersionsQuery, useSaveVersionMutation, useDeleteVersionMutation } from './useDocumentQuery';
 import { OscalDocument, OscalStage } from '@lib/types/oscal';
 import { VersionInfo } from '@lib/types/api';
+import { sanitizeComponentDefinitionDocument } from '@lib/document-actions/component-definition-actions';
 
 /** Maps stage names to their OSCAL document root keys (mirrors backend STAGE_ROOT_KEYS). */
 const STAGE_ROOT_KEYS: Record<string, keyof OscalDocument> = {
@@ -36,8 +37,11 @@ export function useVersions(stage: OscalStage, documentId: string) {
   }, [versionsQuery]);
 
   const save = useCallback(async (versionNumber: string, document: OscalDocument, remarks?: string) => {
+    const docToProcess: OscalDocument = (stage === 'component-definitions' || (document as any)['component-definition'])
+      ? sanitizeComponentDefinitionDocument(document as any)
+      : document;
     const rootKey = STAGE_ROOT_KEYS[stage] || stage.replace(/s$/, '') as keyof OscalDocument;
-    const docWithVersion = produce(document, (draft: Draft<OscalDocument>) => {
+    const docWithVersion = produce<OscalDocument>(docToProcess, (draft: any) => {
       const root = draft[rootKey] as Record<string, any>;
       if (root?.metadata) {
         root.metadata.version = versionNumber;
@@ -52,13 +56,16 @@ export function useVersions(stage: OscalStage, documentId: string) {
   }, [stage, saveMutation]);
 
   const saveDraft = useCallback(async (document: OscalDocument) => {
+    const docToProcess: OscalDocument = (stage === 'component-definitions' || (document as any)['component-definition'])
+      ? sanitizeComponentDefinitionDocument(document as any)
+      : document;
     const rootKey = STAGE_ROOT_KEYS[stage] || stage.replace(/s$/, '') as keyof OscalDocument;
-    const rootDoc = document[rootKey] as Record<string, any>;
+    const rootDoc = (docToProcess as any)[rootKey] as Record<string, any>;
     let version = rootDoc?.metadata?.version || '1.0.0';
     const cleanVersion = String(version).replace(/-draft$/, '');
     const draftVersion = `${cleanVersion}-draft`;
 
-    const docWithVersion = produce(document, (draft: Draft<OscalDocument>) => {
+    const docWithVersion = produce<OscalDocument>(docToProcess, (draft: any) => {
       const root = draft[rootKey] as Record<string, any>;
       if (root?.metadata) {
         root.metadata.version = draftVersion;

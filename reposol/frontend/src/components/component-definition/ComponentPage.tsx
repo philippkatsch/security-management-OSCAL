@@ -434,12 +434,94 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Architectural Guidance: Components vs. Capabilities */}
+            <div style={{
+              background: 'var(--color-surface, #161b22)',
+              padding: '18px',
+              border: '1px solid var(--color-border, #30363d)',
+              borderRadius: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--color-text, #e6edf3)' }}>
+                  🏛️ OSCAL Architecture: Components vs. Capabilities
+                </h4>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-muted, #7d8590)' }}>
+                  NIST OSCAL v1.2.2 Lifecycle Modeling
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', fontSize: '13px', lineHeight: 1.5 }}>
+                <div style={{
+                  padding: '14px',
+                  background: 'var(--color-surface-2, #1c2333)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border, #30363d)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '18px' }}>🧱</span>
+                    <strong style={{ color: 'var(--color-text, #e6edf3)' }}>Components (Discrete Building Blocks)</strong>
+                  </div>
+                  <p style={{ margin: 0, color: 'var(--color-text-muted, #8b949e)' }}>
+                    Individual reusable architectural units: commercial software, managed cloud services, physical hardware, organizational policies, or operating procedures. Each component encapsulates its own protocols, port ranges, responsible operational roles, and framework control implementations.
+                  </p>
+                </div>
+                <div style={{
+                  padding: '14px',
+                  background: 'var(--color-surface-2, #1c2333)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border, #30363d)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '18px' }}>⚡</span>
+                    <strong style={{ color: 'var(--color-text, #e6edf3)' }}>Capabilities (Composite Solutions)</strong>
+                  </div>
+                  <p style={{ margin: 0, color: 'var(--color-text-muted, #8b949e)' }}>
+                    High-level composite security functions that integrate multiple discrete components (e.g., &quot;Enterprise IAM Architecture&quot; packaging Keycloak IAM and PostgreSQL Database). Capabilities incorporate components with tailored roles and define overarching control implementations across the composite solution.
+                  </p>
+                </div>
+              </div>
+              <div style={{
+                padding: '10px 14px',
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                color: 'var(--color-text-secondary, #8b949e)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span>💡</span>
+                <span>
+                  <strong style={{ color: 'var(--color-text, #e6edf3)' }}>Stage 4 SSP Ready:</strong> Both Components and Capabilities can be imported directly into System Security Plans (SSPs), transferring their control narratives, parameters, and statement breakdowns into the system authorization boundary.
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
         {/* TAB 2: COMPONENTS TABLE (US 3.15) */}
         {activeTab === 'components' && (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
+            <div style={{
+              padding: '12px 16px',
+              background: 'var(--color-surface, #161b22)',
+              border: '1px solid var(--color-border, #30363d)',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: '13px',
+              color: 'var(--color-text-muted, #8b949e)'
+            }}>
+              <span style={{ fontSize: '20px' }}>🧱</span>
+              <div>
+                <strong style={{ color: 'var(--color-text, #e6edf3)' }}>Components (Discrete Building Blocks):</strong> Declare individual software packages, cloud services, hardware, policies, or procedures. Each component specifies its own protocols, responsible roles, and baseline control implementations.
+              </div>
+            </div>
             <EntityTable
               data={components.map((c: any) => ({ ...c, id: c.uuid }))}
               columns={componentColumns}
@@ -461,6 +543,22 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
         {/* TAB 3: CAPABILITIES TABLE */}
         {activeTab === 'capabilities' && (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
+            <div style={{
+              padding: '12px 16px',
+              background: 'var(--color-surface, #161b22)',
+              border: '1px solid var(--color-border, #30363d)',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: '13px',
+              color: 'var(--color-text-muted, #8b949e)'
+            }}>
+              <span style={{ fontSize: '20px' }}>⚡</span>
+              <div>
+                <strong style={{ color: 'var(--color-text, #e6edf3)' }}>Capabilities (Composite Solutions):</strong> Group multiple related components into high-level composite security functions (e.g. Identity &amp; Access Management bundling Keycloak + PostgreSQL). Capabilities define multi-component control implementations and can be imported into Stage 4 SSPs.
+              </div>
+            </div>
             <EntityTable
               data={capabilities.map((c: any) => ({ ...c, id: c.uuid }))}
               columns={capabilityColumns}
@@ -569,6 +667,7 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
           <CapabilityEditor
             capability={capabilities.find((c: any) => c.uuid === selectedCapability.uuid) || selectedCapability}
             components={components}
+            resources={backMatter.resources || []}
             onUpdate={(updatedCapability: any) => handleUpdateCapability(selectedCapability.uuid, updatedCapability)}
             editMode={isEditing}
           />

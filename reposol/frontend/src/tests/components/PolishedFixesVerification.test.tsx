@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import StatusBadge from '../../components/shared/status/StatusBadge';
 import { POAMItemsEditor } from '../../components/poam/POAMItemsEditor';
 import { TraceabilityPage } from '../../components/traceability/TraceabilityPage';
@@ -156,9 +156,9 @@ describe('Polished Fixes Verification Suite (Items 1 - 6)', () => {
     });
   });
 
-  // --- Fix 6: Retired Under Development Banners ---
-  describe('Fix 6: Retired Dev Banners in Navigation and DocumentListPage', () => {
-    it('renders Navigation sidebar with zero 🚧 Dev badges', () => {
+  // --- Fix 6: Active Under Development Banners ---
+  describe('Fix 6: Active Dev Banners in Navigation and DocumentListPage', () => {
+    it('renders Navigation sidebar with 6 🚧 Dev badges for stages 3 to 8', () => {
       render(
         <MemoryRouter>
           <ConfirmProvider>
@@ -167,28 +167,47 @@ describe('Polished Fixes Verification Suite (Items 1 - 6)', () => {
         </MemoryRouter>
       );
 
-      const devBadges = screen.queryAllByText('🚧 Dev');
-      expect(devBadges).toHaveLength(0);
+      const devBadges = screen.getAllByText('🚧 Dev');
+      expect(devBadges).toHaveLength(6);
     });
 
-    it('does not show Under Active Development alert in DocumentListPage for any stage', () => {
+    it('shows Under Active Development alert in DocumentListPage for stages 3-8 and not for stages 1-2', () => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-      render(
+      const { unmount } = render(
         <QueryClientProvider client={queryClient}>
           <ConfirmProvider>
             <MemoryRouter initialEntries={['/ssps']}>
-              <DocumentListPage />
+              <Routes>
+                <Route path="/:stage" element={<DocumentListPage />} />
+              </Routes>
             </MemoryRouter>
           </ConfirmProvider>
         </QueryClientProvider>
       );
 
-      const underDevNotice = screen.queryByText(/under active development/i);
-      expect(underDevNotice).toBeNull();
+      const underDevNotice = screen.getByText(/under active development/i);
+      expect(underDevNotice).toBeInTheDocument();
+
+      unmount();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ConfirmProvider>
+            <MemoryRouter initialEntries={['/catalogs']}>
+              <Routes>
+                <Route path="/:stage" element={<DocumentListPage />} />
+              </Routes>
+            </MemoryRouter>
+          </ConfirmProvider>
+        </QueryClientProvider>
+      );
+
+      const catalogDevNotice = screen.queryByText(/under active development/i);
+      expect(catalogDevNotice).toBeNull();
     });
 
-    it('renders DashboardPage workflow steps with zero 🚧 In Dev badges', () => {
+    it('renders DashboardPage workflow steps with 5 🚧 In Dev badges for stages 3 to 7', () => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
       render(
@@ -199,8 +218,8 @@ describe('Polished Fixes Verification Suite (Items 1 - 6)', () => {
         </QueryClientProvider>
       );
 
-      const inDevBadges = screen.queryAllByText('🚧 In Dev');
-      expect(inDevBadges).toHaveLength(0);
+      const inDevBadges = screen.getAllByText('🚧 In Dev');
+      expect(inDevBadges).toHaveLength(5);
     });
   });
 });

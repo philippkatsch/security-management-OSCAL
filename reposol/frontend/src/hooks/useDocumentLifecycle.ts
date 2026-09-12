@@ -10,6 +10,7 @@ import { VersionInfo } from '@lib/types/api';
 import { useConfirm } from './useConfirm';
 import { toast } from 'react-hot-toast';
 import { ROOT_KEYS as STAGE_ROOT_KEYS } from '@lib/oscal-constants';
+import { sanitizeComponentDefinitionDocument } from '@lib/document-actions/component-definition-actions';
 
 /**
  * Unified Document Lifecycle Hook for all OSCAL document types.
@@ -81,8 +82,11 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
         window.history.replaceState(null, '', `${window.location.pathname}${newSearch}`);
       }
       try {
-        const docToSave = (history.activeDoc || data.doc) as OscalDocument;
+        let docToSave = (history.activeDoc || data.doc) as OscalDocument;
         if (docToSave) {
+          if (stage === 'component-definitions' || (docToSave as any)['component-definition']) {
+            docToSave = sanitizeComponentDefinitionDocument(docToSave as any);
+          }
           await data.saveDraftTag(docToSave);
           await data.loadVersions();
         }
@@ -166,21 +170,26 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
       actualDocToSave = docToSave || (history.activeDoc || data.doc) as OscalDocument;
     }
 
-    if (actualDocToSave) {
-      const rootKey = STAGE_ROOT_KEYS[stage] || stage.replace(/s$/, '');
-      const docWithNewVer = produce(actualDocToSave, (draft: any) => {
-        const root = draft[rootKey] || draft[stage];
-        if (root?.metadata) {
-          root.metadata.version = ver;
-        }
-      });
-      if (data.save) {
-        await data.save(docWithNewVer);
-      }
-      actualDocToSave = docWithNewVer;
+    if (!actualDocToSave) {
+      throw new Error('No document to publish');
     }
 
-    await data.saveVersionTag(ver, actualDocToSave, actualRemarks);
+    if (stage === 'component-definitions' || (actualDocToSave as any)['component-definition']) {
+      actualDocToSave = sanitizeComponentDefinitionDocument(actualDocToSave as any);
+    }
+    const rootKey = STAGE_ROOT_KEYS[stage] || stage.replace(/s$/, '');
+    const docWithNewVer = produce(actualDocToSave, (draft: any) => {
+      const root = draft[rootKey] || draft[stage];
+      if (root?.metadata) {
+        root.metadata.version = ver;
+      }
+    });
+    const finalDocToSave: OscalDocument = docWithNewVer as OscalDocument;
+    if (data.save) {
+      await data.save(finalDocToSave);
+    }
+
+    await data.saveVersionTag(ver, finalDocToSave, actualRemarks);
     setIsEditing(false);
     if (window.location.search.includes('edit=true')) {
       window.history.replaceState(null, '', window.location.pathname);
@@ -206,10 +215,14 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
         });
         if (choice) {
           try {
-            await data.saveDraftTag(history.activeDoc as OscalDocument);
+            let docToSave = history.activeDoc as OscalDocument;
+            if (stage === 'component-definitions' || (docToSave as any)['component-definition']) {
+              docToSave = sanitizeComponentDefinitionDocument(docToSave as any);
+            }
+            await data.saveDraftTag(docToSave);
             data.markDraftDiscarded();
             setIsDirty(false);
-            history.resetUndoRedo(history.activeDoc as OscalDocument);
+            history.resetUndoRedo(docToSave);
           } catch (err: any) {
             toast.error(`Draft save failed: ${err.message || err}`);
             return;

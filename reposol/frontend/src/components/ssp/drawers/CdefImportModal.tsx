@@ -6,18 +6,22 @@ import { generateUUID } from '../../../lib/oscal-utils';
 export interface CdefImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (components: SystemComponent[], rawComponents?: any[]) => void;
+  onImport?: (components: SystemComponent[], rawEntities?: any[]) => void;
+  onImportComponents?: (components: SystemComponent[], rawEntities?: any[]) => void;
 }
 
 export default function CdefImportModal({
   isOpen,
   onClose,
-  onImport
+  onImport,
+  onImportComponents
 }: CdefImportModalProps) {
   const [cdefs, setCdefs] = useState<any[]>([]);
   const [selectedCdefId, setSelectedCdefId] = useState<string>('');
   const [selectedCdefDoc, setSelectedCdefDoc] = useState<any>(null);
   const [selectedCompUuids, setSelectedCompUuids] = useState<Set<string>>(new Set());
+  const [selectedCapUuids, setSelectedCapUuids] = useState<Set<string>>(new Set());
+  const [filterSection, setFilterSection] = useState<'all' | 'components' | 'capabilities'>('all');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +32,8 @@ export default function CdefImportModal({
       setSelectedCdefId('');
       setSelectedCdefDoc(null);
       setSelectedCompUuids(new Set());
+      setSelectedCapUuids(new Set());
+      setFilterSection('all');
       setError(null);
     }
   }, [isOpen]);
@@ -55,6 +61,7 @@ export default function CdefImportModal({
   const handleSelectCdef = async (cdefId: string) => {
     setSelectedCdefId(cdefId);
     setSelectedCompUuids(new Set());
+    setSelectedCapUuids(new Set());
     if (!cdefId) {
       setSelectedCdefDoc(null);
       return;
@@ -68,8 +75,10 @@ export default function CdefImportModal({
         setSelectedCdefDoc(doc);
         const cdef = (doc as any)?.['component-definition'] || doc;
         const components = cdef?.components || [];
+        const capabilities = cdef?.capabilities || [];
         // Pre-select all by default
         setSelectedCompUuids(new Set(components.map((c: any) => c.uuid)));
+        setSelectedCapUuids(new Set(capabilities.map((cap: any) => cap.uuid)));
       } else {
         setError('Failed to load component definition details');
       }
@@ -92,28 +101,44 @@ export default function CdefImportModal({
     });
   };
 
+  const toggleCapability = (uuid: string) => {
+    setSelectedCapUuids(prev => {
+      const next = new Set(prev);
+      if (next.has(uuid)) {
+        next.delete(uuid);
+      } else {
+        next.add(uuid);
+      }
+      return next;
+    });
+  };
+
   const handleExecuteImport = () => {
     if (!selectedCdefDoc) return;
     const cdef = (selectedCdefDoc as any)['component-definition'] || selectedCdefDoc;
     const components = cdef?.components || [];
-    const chosen = components.filter((c: any) => selectedCompUuids.has(c.uuid));
+    const capabilities = cdef?.capabilities || [];
+    const chosenComps = components.filter((c: any) => selectedCompUuids.has(c.uuid));
+    const chosenCaps = capabilities.filter((cap: any) => selectedCapUuids.has(cap.uuid));
     const cdefUuid = cdef?.uuid || cdef?.id || selectedCdefDoc.uuid || selectedCdefDoc.id || selectedCdefId;
 
-    const importedComps: SystemComponent[] = chosen.map((c: any) => {
+    const rawComps: SystemComponent[] = chosenComps.map((c: any) => {
       const existingProps = c.props ? JSON.parse(JSON.stringify(c.props)) : [];
       const existingLinks = c.links ? JSON.parse(JSON.stringify(c.links)) : [];
       return {
         uuid: generateUUID(),
         type: c.type || 'software',
         title: c.title || 'Imported Component',
-        description: c.description || c.purpose || 'Imported from Component Definition',
+        description: (c.description && String(c.description).trim()) || c.purpose || 'Imported from Component Definition',
         purpose: c.purpose || '',
-        status: { state: 'operational' },
+        status: { state: 'operational' as const },
         props: [
           ...existingProps,
           { name: 'source-component-uuid', value: c.uuid }
         ],
-        protocols: c.protocols ? JSON.parse(JSON.stringify(c.protocols)) : [],
+        ...(Array.isArray(c.protocols) && c.protocols.length > 0
+          ? { protocols: JSON.parse(JSON.stringify(c.protocols)) }
+          : {}),
         links: [
           ...existingLinks,
           {
@@ -124,15 +149,58 @@ export default function CdefImportModal({
       };
     });
 
-    onImport(importedComps, chosen);
+    const importedCaps: SystemComponent[] = chosenCaps.map((cap: any) => {
+      const existingProps = cap.props ? JSON.parse(JSON.stringify(cap.props)) : [];
+      const existingLinks = cap.links ? JSON.parse(JSON.stringify(cap.links)) : [];
+      return {
+        uuid: generateUUID(),
+        type: 'service' as const,
+        title: cap.name || 'Imported Capability',
+        description: cap.description || 'Imported Capability from Component Definition',
+        purpose: cap.description ? (cap.description.length > 80 ? cap.description.slice(0, 80) + '...' : cap.description) : '',
+        status: { state: 'operational' as const },
+        props: [
+          ...existingProps,
+          { name: 'source-capability-uuid', value: cap.uuid },
+          { name: 'is-capability', value: 'true' }
+        ],
+        links: [
+          ...existingLinks,
+          {
+            rel: 'imported-from',
+            href: `../component-definitions/${cdefUuid}.json#${cap.uuid}`
+          }
+        ]
+      };
+    });
+
+    const importedComps = [...rawComps, ...importedCaps];
+    const chosen = [...chosenComps, ...chosenCaps];
+
+    if (onImport) {
+      onImport(importedComps, chosen);
+    } else if (onImportComponents) {
+      onImportComponents(importedComps, chosen);
+    }
     onClose();
   };
-
 
   if (!isOpen) return null;
 
   const activeCdef = selectedCdefDoc ? ((selectedCdefDoc as any)['component-definition'] || selectedCdefDoc) : null;
   const components = activeCdef?.components || [];
+  const capabilities = activeCdef?.capabilities || [];
+  const totalSelected = selectedCompUuids.size + selectedCapUuids.size;
+
+  const getImportButtonLabel = () => {
+    if (selectedCapUuids.size === 0) {
+      return `Import (${selectedCompUuids.size}) Component${selectedCompUuids.size !== 1 ? 's' : ''}`;
+    }
+    if (selectedCompUuids.size === 0) {
+      return `Import (${selectedCapUuids.size}) Capabilit${selectedCapUuids.size !== 1 ? 'ies' : 'y'}`;
+    }
+    return `Import (${totalSelected}) Item${totalSelected !== 1 ? 's' : ''} (${selectedCompUuids.size} comp, ${selectedCapUuids.size} cap)`;
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -143,9 +211,14 @@ export default function CdefImportModal({
         aria-labelledby="cdef-modal-title"
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/60">
-          <h2 id="cdef-modal-title" className="text-base font-bold text-gray-900 dark:text-white">
-            📦 Import from Component Definition (Stage 3)
-          </h2>
+          <div>
+            <h2 id="cdef-modal-title" className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <span>📦</span> Import from Component Definition (Stage 3)
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Import reusable Components and composite Capabilities along with their control implementations.
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl font-bold p-1"
@@ -183,24 +256,64 @@ export default function CdefImportModal({
 
           {loading && <div className="text-xs text-gray-500 text-center py-4">Loading component definition...</div>}
 
-          {selectedCdefDoc && components.length === 0 && (
+          {selectedCdefDoc && components.length === 0 && capabilities.length === 0 && (
             <div className="text-xs text-gray-500 italic p-4 text-center">
-              No components found in this Component Definition.
+              No components or capabilities found in this Component Definition.
             </div>
           )}
 
-          {selectedCdefDoc && components.length > 0 && (
+          {selectedCdefDoc && (components.length > 0 || capabilities.length > 0) && (
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                  Components in Definition ({components.length})
-                </span>
-                <span className="text-xs text-gray-500">{selectedCompUuids.size} selected</span>
+              {/* Category Filter Pills */}
+              <div className="flex items-center justify-between border-b pb-2 dark:border-gray-800">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
+                      filterSection === 'all'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+                    }`}
+                    onClick={() => setFilterSection('all')}
+                  >
+                    All ({components.length + capabilities.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
+                      filterSection === 'components'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+                    }`}
+                    onClick={() => setFilterSection('components')}
+                  >
+                    🧱 Components ({components.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
+                      filterSection === 'capabilities'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+                    }`}
+                    onClick={() => setFilterSection('capabilities')}
+                  >
+                    ⚡ Capabilities ({capabilities.length})
+                  </button>
+                </div>
+                <span className="text-xs text-gray-500">{totalSelected} selected</span>
               </div>
 
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {components.map((comp: any) => {
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {/* 1. Components List */}
+                {(filterSection === 'all' || filterSection === 'components') && components.map((comp: any) => {
                   const isChecked = selectedCompUuids.has(comp.uuid);
+                  const implSets = comp['control-implementations'] || [];
+                  const totalControls = implSets.reduce(
+                    (acc: number, ci: any) => acc + (ci['implemented-requirements']?.length || 0),
+                    0
+                  );
+
                   return (
                     <div
                       key={comp.uuid}
@@ -209,20 +322,29 @@ export default function CdefImportModal({
                           ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20'
                           : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
-                      onClick={() => toggleComponent(comp.uuid)}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).tagName !== 'INPUT') {
+                          toggleComponent(comp.uuid);
+                        }
+                      }}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => {}} // handled by parent onClick
+                        onChange={() => toggleComponent(comp.uuid)}
                         className="mt-1"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm text-gray-900 dark:text-white">{comp.title}</span>
-                          <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300">
-                            {comp.type}
+                          <span className="text-[11px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-mono">
+                            🧱 {comp.type}
                           </span>
+                          {totalControls > 0 && (
+                            <span className="text-[11px] bg-green-100 dark:bg-green-950/60 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
+                              🔒 {totalControls} control{totalControls !== 1 ? 's' : ''}
+                            </span>
+                          )}
                         </div>
                         {comp.description && (
                           <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
@@ -238,27 +360,97 @@ export default function CdefImportModal({
                     </div>
                   );
                 })}
+
+                {/* 2. Capabilities List */}
+                {(filterSection === 'all' || filterSection === 'capabilities') && capabilities.map((cap: any) => {
+                  const isChecked = selectedCapUuids.has(cap.uuid);
+                  const incorpComps = cap['incorporates-components'] || [];
+                  const implSets = cap['control-implementations'] || [];
+                  const totalControls = implSets.reduce(
+                    (acc: number, ci: any) => acc + (ci['implemented-requirements']?.length || 0),
+                    0
+                  );
+
+                  return (
+                    <div
+                      key={cap.uuid}
+                      className={`p-3 rounded border cursor-pointer flex items-start gap-3 transition-colors ${
+                        isChecked
+                          ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }`}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).tagName !== 'INPUT') {
+                          toggleCapability(cap.uuid);
+                        }
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleCapability(cap.uuid)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-gray-900 dark:text-white">{cap.name}</span>
+                          <span className="text-[11px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded font-mono font-medium">
+                            ⚡ Capability
+                          </span>
+                          {totalControls > 0 && (
+                            <span className="text-[11px] bg-green-100 dark:bg-green-950/60 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
+                              🔒 {totalControls} control{totalControls !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                          {incorpComps.length > 0 && (
+                            <span className="text-[11px] bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded">
+                              🧱 {incorpComps.length} building block{incorpComps.length !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                        {cap.description && (
+                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                            {cap.description}
+                          </div>
+                        )}
+                        {incorpComps.length > 0 && (
+                          <div className="text-[11px] text-purple-600 dark:text-purple-400 mt-1">
+                            Incorporates: {incorpComps.map((inc: any) => {
+                              const found = components.find((c: any) => c.uuid === inc['component-uuid']);
+                              return found?.title || inc['component-uuid'];
+                            }).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
         </div>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-2 bg-gray-50 dark:bg-gray-800/60">
-          <button
-            type="button"
-            className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium px-4 py-2 rounded"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded"
-            disabled={selectedCompUuids.size === 0}
-            onClick={handleExecuteImport}
-          >
-            Import ({selectedCompUuids.size}) Component{selectedCompUuids.size !== 1 ? 's' : ''}
-          </button>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/60">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {totalSelected > 0 ? `${totalSelected} selected for SSP instantiation` : 'Select components or capabilities to import'}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium px-4 py-2 rounded"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded"
+              disabled={totalSelected === 0}
+              onClick={handleExecuteImport}
+            >
+              {getImportButtonLabel()}
+            </button>
+          </div>
         </div>
       </div>
     </div>

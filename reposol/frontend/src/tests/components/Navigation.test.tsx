@@ -29,11 +29,22 @@ describe('Navigation', () => {
     renderWithRouter(<Navigation />);
     expect(screen.getByText('Catalogs')).toBeInTheDocument();
     expect(screen.getByText('Profiles')).toBeInTheDocument();
-    expect(screen.getByText('SSPs')).toBeInTheDocument();
     expect(screen.getByText('Components')).toBeInTheDocument();
+    expect(screen.getByText('SSPs')).toBeInTheDocument();
     expect(screen.getByText('Assessment Plans')).toBeInTheDocument();
     expect(screen.getByText('Assessment Results')).toBeInTheDocument();
     expect(screen.getByText('POA&Ms')).toBeInTheDocument();
+    expect(screen.getByText('Control Mappings')).toBeInTheDocument();
+    expect(screen.getByText('Traceability')).toBeInTheDocument();
+  });
+
+  it('renders navigation section titles including Tools & Crosswalks', () => {
+    renderWithRouter(<Navigation />);
+    expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Design & Tailor' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Implement' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Assess & Audit' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tools & Crosswalks' })).toBeInTheDocument();
   });
 
   it('renders the brand name "Reposol"', () => {
@@ -95,10 +106,56 @@ describe('Navigation', () => {
     expect(toggleButton?.title).toBe('Collapse sidebar');
   });
 
-  it('does not render Under Development badges now that all stages are completed', () => {
+  it('renders Option A navigation grouping with correct items per section', () => {
     renderWithRouter(<Navigation />);
-    const devBadges = screen.queryAllByText('🚧 Dev');
-    expect(devBadges.length).toBe(0);
+
+    // Design & Tailor: Catalogs, Profiles
+    const designHeading = screen.getByRole('heading', { name: 'Design & Tailor' });
+    const designSection = designHeading.closest('div');
+    expect(designSection).toHaveTextContent('Catalogs');
+    expect(designSection).toHaveTextContent('Profiles');
+    expect(designSection).not.toHaveTextContent('Components');
+    expect(designSection).not.toHaveTextContent('Control Mappings');
+
+    // Implement: Components, SSPs
+    const implementHeading = screen.getByRole('heading', { name: 'Implement' });
+    const implementSection = implementHeading.closest('div');
+    expect(implementSection).toHaveTextContent('Components');
+    expect(implementSection).toHaveTextContent('SSPs');
+    expect(implementSection).not.toHaveTextContent('Catalogs');
+
+    // Assess & Audit: Assessment Plans, Assessment Results, POA&Ms
+    const assessHeading = screen.getByRole('heading', { name: 'Assess & Audit' });
+    const assessSection = assessHeading.closest('div');
+    expect(assessSection).toHaveTextContent('Assessment Plans');
+    expect(assessSection).toHaveTextContent('Assessment Results');
+    expect(assessSection).toHaveTextContent('POA&Ms');
+    expect(assessSection).not.toHaveTextContent('Traceability');
+
+    // Tools & Crosswalks: Control Mappings, Traceability
+    const toolsHeading = screen.getByRole('heading', { name: 'Tools & Crosswalks' });
+    const toolsSection = toolsHeading.closest('div');
+    expect(toolsSection).toHaveTextContent('Control Mappings');
+    expect(toolsSection).toHaveTextContent('Traceability');
+    expect(toolsSection).not.toHaveTextContent('SSPs');
+  });
+
+  it('renders Under Development badges for stages 3 to 8 in development', () => {
+    renderWithRouter(<Navigation />);
+    const devBadges = screen.getAllByText('🚧 Dev');
+    expect(devBadges.length).toBe(6);
+
+    const devItems = ['Components', 'SSPs', 'Assessment Plans', 'Assessment Results', 'POA&Ms', 'Control Mappings'];
+    for (const name of devItems) {
+      const button = screen.getByRole('button', { name: new RegExp(name, 'i') });
+      expect(button).toHaveTextContent('🚧 Dev');
+    }
+
+    const stableItems = ['Catalogs', 'Profiles', 'Traceability'];
+    for (const name of stableItems) {
+      const button = screen.getByRole('button', { name: new RegExp(name, 'i') });
+      expect(button).not.toHaveTextContent('🚧 Dev');
+    }
   });
 
   it('renders share workspace button with btn-share-workspace class', () => {
@@ -106,5 +163,23 @@ describe('Navigation', () => {
     const shareBtn = screen.getByRole('button', { name: /Share Workspace Link/i });
     expect(shareBtn).toBeInTheDocument();
     expect(shareBtn).toHaveClass('btn-share-workspace');
+  });
+
+  it('sets appropriate title attributes for dev items in both expanded and collapsed modes', () => {
+    // 1. Expanded mode
+    const { unmount } = renderWithRouter(<Navigation />);
+    const expandedDevBtn = screen.getByRole('button', { name: /Components/i });
+    const expandedStableBtn = screen.getByRole('button', { name: /Catalogs/i });
+    expect(expandedDevBtn.title).toBe('Under Active Development');
+    expect(expandedStableBtn.title).toBe('');
+    unmount();
+
+    // 2. Collapsed mode
+    localStorage.setItem('sidebar-collapsed', 'true');
+    renderWithRouter(<Navigation />);
+    const collapsedDevBtn = screen.getByRole('button', { name: /Components/i });
+    const collapsedStableBtn = screen.getByRole('button', { name: /Catalogs/i });
+    expect(collapsedDevBtn.title).toBe('Components (0) - Under Active Development');
+    expect(collapsedStableBtn.title).toBe('Catalogs (0)');
   });
 });

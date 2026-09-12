@@ -1,15 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './ComponentPage.module.css';
 import sharedStyles from '@components/shared/SharedComponents.module.css';
 import { PropsEditor } from '@components/shared/PropsEditor';
+import { ProseWithParams } from '@components/shared/ProseWithParams';
+import ControlImplementationsEditor from './editors/ControlImplementationsEditor';
+import ComponentLinksEditor from './editors/ComponentLinksEditor';
+import { Capability, DefinedComponent, Resource, Link } from '@lib/types/oscal';
 
-const Accordion = ({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+const Accordion = ({
+  title,
+  children,
+  defaultOpen = false,
+  isOpen: controlledIsOpen,
+  onToggle
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  isOpen?: boolean;
+  onToggle?: () => void;
+}) => {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalOpen;
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalOpen(!internalOpen);
+    }
+  };
+
   return (
     <div className={styles['component-editor__section']}>
-      <div 
-        className={styles['component-editor__section-header']} 
-        onClick={() => setIsOpen(!isOpen)}
+      <div
+        className={styles['component-editor__section-header']}
+        onClick={handleToggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(); } }}
       >
         <h4 className={styles['section-title']}>{title}</h4>
         <span className={`${styles['chevron']} ${isOpen ? styles['open'] : ''}`}>▼</span>
@@ -20,25 +49,45 @@ const Accordion = ({ title, children, defaultOpen = false }: { title: string; ch
 };
 
 export interface CapabilityEditorProps {
-  capability: any;
-  components?: any[];
+  capability: Capability | any;
+  components?: DefinedComponent[] | any[];
+  resources?: Resource[];
   onUpdate?: (capability: any) => void;
   onClose?: () => void;
   editMode?: boolean;
 }
 
-export default function CapabilityEditor({ 
-  capability, 
-  components = [], 
-  onUpdate = () => {}, 
-  onClose, 
-  editMode = false 
+export default function CapabilityEditor({
+  capability,
+  components = [],
+  resources = [],
+  onUpdate = () => {},
+  onClose: _onClose,
+  editMode = false
 }: CapabilityEditorProps) {
   if (!capability) return null;
 
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    basic: true,
+    incorporates: true,
+    impls: true,
+    props: false
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const capabilityRef = useRef(capability);
+  useEffect(() => {
+    capabilityRef.current = capability;
+  }, [capability]);
+
   const handleChange = (field: string, value: any) => {
     if (!editMode) return;
-    onUpdate({ ...capability, [field]: value });
+    const next = { ...capabilityRef.current, [field]: value };
+    capabilityRef.current = next;
+    onUpdate(next);
   };
 
   const addIncorporatedComponent = (componentUuid: string) => {
@@ -46,8 +95,8 @@ export default function CapabilityEditor({
     const targetComp = (components as any[]).find((c: any) => c.uuid === componentUuid);
     const defaultDescription = targetComp?.description || targetComp?.title || 'Incorporated component';
     const newComps = [
-      ...(capability['incorporates-components'] || []), 
-      { 
+      ...(capability['incorporates-components'] || []),
+      {
         'component-uuid': componentUuid,
         description: defaultDescription
       }
@@ -77,66 +126,100 @@ export default function CapabilityEditor({
   const incorporatedUuids = (capability['incorporates-components'] || []).map((c: any) => c['component-uuid']);
   const availableComponents = (components as any[]).filter((c: any) => !incorporatedUuids.includes(c.uuid));
 
-  const addControlImplementation = () => {
-    if (!editMode) return;
-    const newImpls = [...(capability['control-implementations'] || []), { source: '', description: '', 'implemented-requirements': [] }];
-    handleChange('control-implementations', newImpls);
-  };
-
   return (
     <div className={`${styles['component-editor']} ${styles['capability-editor']}`}>
       <div className={styles['panel-body']}>
-        
+
         {/* 1. Basic Info */}
-        <Accordion title="Basic Info" defaultOpen={true}>
+        <Accordion
+          title="Basic Info"
+          isOpen={openSections.basic}
+          onToggle={() => toggleSection('basic')}
+        >
           <div className={styles['form-group']}>
-            <label className="form-label">Name</label>
-            <input 
-              type="text" 
-              className="form-input" 
-              value={capability.name || ''} 
+            <label className="form-label">Name <span className="required">*</span></label>
+            <input
+              type="text"
+              className="form-input"
+              value={capability.name || ''}
               onChange={(e) => handleChange('name', e.target.value)}
               disabled={!editMode}
+              placeholder="e.g. Enterprise Identity & Access Management (IAM)"
             />
           </div>
           <div className={styles['form-group']}>
-            <label className="form-label">Description</label>
-            <textarea 
-              className="form-textarea" 
-              value={capability.description || ''} 
-              onChange={(e) => handleChange('description', e.target.value)}
-              disabled={!editMode}
-            />
+            <label className="form-label">Description <span className="required">*</span></label>
+            {editMode ? (
+              <textarea
+                className="form-textarea"
+                value={capability.description || ''}
+                onChange={(e) => handleChange('description', e.target.value)}
+                placeholder="Describe the architectural capability, how its incorporated components work together, and the composite security solution it provides..."
+              />
+            ) : (
+              <div className={styles['prose-readonly']}>
+                <ProseWithParams value={capability.description} />
+              </div>
+            )}
+          </div>
+          <div className={styles['form-group']}>
+            <label className="form-label">Remarks</label>
+            {editMode ? (
+              <textarea
+                className="form-textarea"
+                value={capability.remarks || ''}
+                onChange={(e) => handleChange('remarks', e.target.value)}
+                placeholder="Optional implementation remarks, caveats, or operational guidance..."
+              />
+            ) : (
+              <div className={styles['prose-readonly']}>
+                <ProseWithParams value={capability.remarks} />
+              </div>
+            )}
           </div>
         </Accordion>
 
         {/* 2. Incorporated Components */}
-        <Accordion title="Incorporated Components">
+        <Accordion
+          title={`Incorporated Components (${(capability['incorporates-components'] || []).length})`}
+          isOpen={openSections.incorporates}
+          onToggle={() => toggleSection('incorporates')}
+        >
           <div className={styles['component-linker']}>
+            <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: 'var(--color-text-muted, #7d8590)' }}>
+              Group multiple discrete building blocks that jointly fulfill this capability.
+            </p>
+
             {(capability['incorporates-components'] || []).length === 0 ? (
-              <p className={styles['empty-state']}>No components linked to this capability</p>
+              <p className={styles['empty-state']}>No components linked to this capability yet.</p>
             ) : (
               <ul className={styles['linked-components-list']}>
                 {(capability['incorporates-components'] || []).map((inc: any, idx: number) => (
                   <li key={idx} className={styles['linked-component-item']}>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', marginRight: '8px' }}>
-                      <strong>{getComponentTitle(inc['component-uuid'])}</strong>
+                      <strong style={{ color: 'var(--color-text, #111827)' }}>{getComponentTitle(inc['component-uuid'])}</strong>
                       {editMode ? (
                         <input
                           type="text"
                           className="form-input"
-                          placeholder="Description of role in capability"
+                          placeholder="Description of role in this composite capability (required by OSCAL)"
                           value={inc.description || ''}
                           onChange={(e) => updateIncorporatedComponent(idx, 'description', e.target.value)}
                         />
                       ) : (
-                        <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #6b7280)' }}>
                           {inc.description || 'No description provided.'}
                         </span>
                       )}
                     </div>
                     {editMode && (
-                      <button className={['btn', 'btn-danger', sharedStyles['btn-sm']].filter(Boolean).join(' ')} onClick={() => removeIncorporatedComponent(idx)}>Remove</button>
+                      <button
+                        type="button"
+                        className={['btn', 'btn-danger', sharedStyles['btn-sm']].filter(Boolean).join(' ')}
+                        onClick={() => removeIncorporatedComponent(idx)}
+                      >
+                        Remove
+                      </button>
                     )}
                   </li>
                 ))}
@@ -144,16 +227,16 @@ export default function CapabilityEditor({
             )}
 
             {editMode && availableComponents.length > 0 && (
-              <div className={styles['add-component-row']}>
-                <select 
-                  className="form-input" 
+              <div className={styles['add-component-row']} style={{ marginTop: '8px' }}>
+                <select
+                  className="form-input"
                   onChange={(e) => {
                     addIncorporatedComponent(e.target.value);
-                    e.target.value = ""; 
+                    e.target.value = "";
                   }}
                   defaultValue=""
                 >
-                  <option value="" disabled>Add Component...</option>
+                  <option value="" disabled>+ Add Component to Capability...</option>
                   {availableComponents.map(c => (
                     <option key={c.uuid} value={c.uuid}>{c.title || c.uuid}</option>
                   ))}
@@ -164,68 +247,52 @@ export default function CapabilityEditor({
         </Accordion>
 
         {/* 3. Control Implementations */}
-        <Accordion title="Control Implementations">
-          <div className={styles['control-impl-list']}>
-            {(capability['control-implementations'] || []).map((impl: any, iIdx: number) => (
-              <div key={iIdx} className={styles['impl-item']}>
-                <div className={styles['form-group']}>
-                  <label>Source (Catalog/Profile URI)</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={impl.source || ''} 
-                    onChange={(e) => {
-                      if (!editMode) return;
-                      const newImpls = [...capability['control-implementations']];
-                      newImpls[iIdx].source = e.target.value;
-                      handleChange('control-implementations', newImpls);
-                    }}
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className={styles['form-group']}>
-                  <label>Description</label>
-                  <textarea 
-                    className="form-textarea" 
-                    value={impl.description || ''} 
-                    onChange={(e) => {
-                      if (!editMode) return;
-                      const newImpls = [...capability['control-implementations']];
-                      newImpls[iIdx].description = e.target.value;
-                      handleChange('control-implementations', newImpls);
-                    }}
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className={styles['reqs-header']}>
-                  <h5>Implemented Requirements</h5>
-                  <span className="badge badge-info">{(impl['implemented-requirements'] || []).length} reqs</span>
-                </div>
-                <div className={styles['impl-requirements-table']}>
-                  {(impl['implemented-requirements'] || []).map((req: any, rIdx: number) => (
-                    <div key={rIdx} className={styles['req-row']}>
-                      <div className={styles['req-summary']}>
-                        <strong>{req['control-id']}</strong>
-                        <span className={styles['req-desc']}>{req.description?.substring(0, 50)}...</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {editMode && (
-              <button className={['btn', sharedStyles['btn-primary'], sharedStyles['btn-sm']].filter(Boolean).join(' ')} onClick={addControlImplementation}>+ Add Control Implementation</button>
-            )}
-          </div>
+        <Accordion
+          title={`Control Implementations (${(capability['control-implementations'] || []).length})`}
+          isOpen={openSections.impls}
+          onToggle={() => toggleSection('impls')}
+        >
+          <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: 'var(--color-text-muted, #7d8590)' }}>
+            Document how this composite capability satisfies security controls across referenced compliance frameworks.
+          </p>
+          <ControlImplementationsEditor
+            controlImplementations={capability['control-implementations'] || []}
+            onChange={(impls) => handleChange('control-implementations', impls)}
+            editMode={editMode}
+          />
         </Accordion>
 
-        {/* 4. Properties */}
-        <Accordion title="Properties">
-          <PropsEditor 
-            props={capability.props || []} 
-            onChange={(props) => handleChange('props', props)}
-            readOnly={!editMode}
-          />
+        {/* 4. Properties & Links */}
+        <Accordion
+          title="Properties & Links"
+          isOpen={openSections.props}
+          onToggle={() => toggleSection('props')}
+        >
+          <div style={{ marginBottom: '16px' }}>
+            <h5 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted, #7d8590)', margin: '0 0 8px 0' }}>
+              Custom Properties
+            </h5>
+            <PropsEditor
+              props={capability.props || []}
+              onChange={(props) => handleChange('props', props)}
+              readOnly={!editMode}
+            />
+          </div>
+
+          <div style={{ marginTop: '1.25rem' }}>
+            <h5 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted, #7d8590)', margin: '0 0 8px 0' }}>
+              Links &amp; Relationships
+            </h5>
+            <ComponentLinksEditor
+              links={capability.links || []}
+              components={components}
+              resources={resources}
+              currentComponentUuid={capability.uuid}
+              componentType="capability"
+              onChange={(links: Link[]) => handleChange('links', links)}
+              editMode={editMode}
+            />
+          </div>
         </Accordion>
 
       </div>

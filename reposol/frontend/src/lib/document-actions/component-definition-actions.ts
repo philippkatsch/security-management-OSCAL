@@ -918,24 +918,87 @@ export function sanitizeComponentDefinition(compDef: ComponentDefinition): Compo
           continue;
         }
 
+        if (key === 'links' && Array.isArray(val)) {
+          const validLinks = val
+            .filter((l: any) => l && typeof l.href === 'string' && l.href.trim() !== '')
+            .map((l: any) => ({
+              ...l,
+              href: l.href.trim()
+            }));
+
+          if (validLinks.length > 0) {
+            cleanedObj[key] = validLinks;
+          }
+          continue;
+        }
+
+        if (key === 'incorporates-components' && Array.isArray(val)) {
+          const validIncorp = val
+            .filter((ic: any) => ic && typeof ic['component-uuid'] === 'string' && ic['component-uuid'].trim() !== '')
+            .map((ic: any) => ({
+              ...ic,
+              'component-uuid': ic['component-uuid'].trim(),
+              description: (ic.description && String(ic.description).trim())
+                ? String(ic.description).trim()
+                : 'Component role in capability.'
+            }));
+
+          if (validIncorp.length > 0) {
+            cleanedObj[key] = validIncorp;
+          }
+          continue;
+        }
+
+        if (key === 'control-implementations' && Array.isArray(val)) {
+          const cleanedImpls = val
+            .map(deepClean)
+            .filter((ci: any) => ci && Array.isArray(ci['implemented-requirements']) && ci['implemented-requirements'].length > 0)
+            .map((ci: any) => ({
+              ...ci,
+              uuid: ci.uuid || generateUUID(),
+              source: (ci.source && String(ci.source).trim()) ? String(ci.source).trim() : 'https://oscal.nist.gov/catalogs/sp800-53',
+              description: (ci.description && String(ci.description).trim()) ? String(ci.description).trim() : 'Control implementation set.'
+            }));
+
+          if (cleanedImpls.length > 0) {
+            cleanedObj[key] = cleanedImpls;
+          }
+          continue;
+        }
+
         const cleanedVal = deepClean(val);
         if (cleanedVal !== undefined) {
           cleanedObj[key] = cleanedVal;
         }
       }
 
-      // Ensure required description on OSCAL defined-components, capabilities, requirements, and statements
-      if (cleanedObj.uuid && cleanedObj.type && cleanedObj.title && (!cleanedObj.description || !String(cleanedObj.description).trim())) {
-        cleanedObj.description = 'Component description.';
+      // Ensure required description and uuid on OSCAL defined-components, capabilities, requirements, and statements
+      if (cleanedObj.type && cleanedObj.title) {
+        if (!cleanedObj.uuid) cleanedObj.uuid = generateUUID();
+        if (!cleanedObj.description || !String(cleanedObj.description).trim()) {
+          cleanedObj.description = 'Component description.';
+        }
       }
-      if (cleanedObj.uuid && cleanedObj.name && (!cleanedObj.description || !String(cleanedObj.description).trim())) {
-        cleanedObj.description = 'Capability description.';
+      if (cleanedObj.name !== undefined && (cleanedObj.uuid || cleanedObj['incorporates-components'] || cleanedObj['control-implementations'])) {
+        if (!cleanedObj.uuid) cleanedObj.uuid = generateUUID();
+        if (!cleanedObj.name || !String(cleanedObj.name).trim()) {
+          cleanedObj.name = 'Security Capability';
+        }
+        if (!cleanedObj.description || !String(cleanedObj.description).trim()) {
+          cleanedObj.description = 'Capability description.';
+        }
       }
-      if (cleanedObj.uuid && cleanedObj['control-id'] && (!cleanedObj.description || !String(cleanedObj.description).trim())) {
-        cleanedObj.description = 'Control implementation narrative.';
+      if (cleanedObj['control-id']) {
+        if (!cleanedObj.uuid) cleanedObj.uuid = generateUUID();
+        if (!cleanedObj.description || !String(cleanedObj.description).trim()) {
+          cleanedObj.description = 'Control implementation narrative.';
+        }
       }
-      if (cleanedObj.uuid && cleanedObj['statement-id'] && (!cleanedObj.description || !String(cleanedObj.description).trim())) {
-        cleanedObj.description = 'Statement implementation narrative.';
+      if (cleanedObj['statement-id']) {
+        if (!cleanedObj.uuid) cleanedObj.uuid = generateUUID();
+        if (!cleanedObj.description || !String(cleanedObj.description).trim()) {
+          cleanedObj.description = 'Statement implementation narrative.';
+        }
       }
 
       // If back-matter exists but has no resources, drop back-matter
