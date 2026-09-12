@@ -35,7 +35,7 @@ test.describe('Step 3 Component Inventory — Comprehensive E2E Test Suite', () 
     await page.goto(`/component-definitions?w=${apiSetup.workspaceId}`);
 
     // Click + New Component Definition button
-    const newDocBtn = page.getByRole('button', { name: /\+ New Component Definition/i }).first();
+    const newDocBtn = page.locator('[data-testid="create-doc-btn"]').or(page.getByRole('button', { name: /\+? New Component Definition/i })).first();
     await expect(newDocBtn).toBeVisible({ timeout: 20000 });
     await newDocBtn.click();
 

@@ -45,7 +45,7 @@ async function globalTeardown() {
   }
 
   if (removedCount > 0) {
-    console.log(`[global-teardown] Removed ${removedCount} orphaned test workspace(s).`);
+
   }
 }
 

@@ -316,11 +316,7 @@ class TestConflictingAndConcurrentAlterPositions:
         p1 = ctrl["parts"][0]
         # Empirical Observation: In resolution_service.py line 257, ending props prepends instead of appending.
         # Links ending (line 259) correctly appends.
-        prop_names = [p["name"] for p in p1["props"]]
         link_hrefs = [l["href"] for l in p1["links"]]
-        
-        print(f"\nEmpirical props order: {prop_names}")
-        print(f"Empirical links order: {link_hrefs}")
 
         # Links verification: starting prepends (#orig-link in middle), ending appends
         assert link_hrefs == ["https://example.com/head", "#orig-link", "https://example.com/tail"]

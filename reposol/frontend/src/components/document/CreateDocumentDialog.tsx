@@ -45,7 +45,7 @@ export function CreateDocumentDialog({
           title: title.trim(),
           'last-modified': now,
           version: '1.0.0',
-          'oscal-version': '1.1.2'
+          'oscal-version': '1.2.2'
         }
       }
     };

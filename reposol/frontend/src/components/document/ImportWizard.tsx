@@ -50,6 +50,24 @@ const CATALOG_EXAMPLE_URLS = [
   },
 ];
 
+const COMPONENT_EXAMPLE_URLS = [
+  {
+    label: 'BSI Keycloak IAM Component Definition',
+    desc: 'Official BSI Stand-der-Technik Keycloak Identity & Access Management definition',
+    url: 'https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/implementation_layer/Keycloak/Keycloak-component_definition.json',
+  },
+  {
+    label: 'BSI AWS Security Hub Component Definition',
+    desc: 'BSI Stand-der-Technik AWS Security Hub cloud security posture component',
+    url: 'https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/implementation_layer/AWS%20Beispiel-Components/AWS%20Security%20Hub-component_definition.json',
+  },
+  {
+    label: 'NIST Example Component Definition (MongoDB)',
+    desc: 'Official NIST OSCAL example component definition demonstrating hardware, software & database service components',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/examples/component-definition/json/example-component-definition.json',
+  },
+];
+
 export interface ImportWizardProps {
   stage?: string;
   onImported?: (stage: string, docData?: any) => void;
@@ -507,20 +525,29 @@ export default function ImportWizard({
           </div>
 
           <div className="form-group" style={{ marginTop: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>Standard Catalog Presets (Click to load)</label>
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>
+              {stage === 'component-definitions' || stage === 'component-definition'
+                ? 'Standard Component Definition Presets (Click to load)'
+                : 'Standard Catalog Presets (Click to load)'}
+            </label>
             <div className={styles['preset-grid']}>
-              {(stage === 'catalogs' || stage === 'catalog' ? CATALOG_EXAMPLE_URLS : [
-                {
-                  label: 'NIST SP 800-53 Rev5 Catalog',
-                  desc: 'NIST SP 800-53 Rev 5 Catalog',
-                  url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json',
-                },
-                {
-                  label: 'NIST CSF 2.0 Catalog',
-                  desc: 'NIST Cybersecurity Framework 2.0',
-                  url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json',
-                },
-              ]).map((ex: any) => (
+              {(stage === 'component-definitions' || stage === 'component-definition'
+                ? COMPONENT_EXAMPLE_URLS
+                : stage === 'catalogs' || stage === 'catalog'
+                ? CATALOG_EXAMPLE_URLS
+                : [
+                    {
+                      label: 'NIST SP 800-53 Rev5 Catalog',
+                      desc: 'NIST SP 800-53 Rev 5 Catalog',
+                      url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json',
+                    },
+                    {
+                      label: 'NIST CSF 2.0 Catalog',
+                      desc: 'NIST Cybersecurity Framework 2.0',
+                      url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json',
+                    },
+                  ]
+              ).map((ex: any) => (
                 <button
                   key={ex.url}
                   className={styles['preset-card']}
@@ -528,7 +555,7 @@ export default function ImportWizard({
                   type="button"
                 >
                   <div className={styles['preset-card-title']}>
-                    <span>📖</span> {ex.label}
+                    <span>{stage === 'component-definitions' || stage === 'component-definition' ? '🧱' : '📖'}</span> {ex.label}
                   </div>
                   {ex.desc && <div className={styles['preset-card-desc']}>{ex.desc}</div>}
                 </button>

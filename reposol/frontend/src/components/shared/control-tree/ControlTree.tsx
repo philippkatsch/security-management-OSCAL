@@ -54,6 +54,32 @@ export const ControlTree: React.FC<ControlTreeProps> = ({
   const [activeDraggedId, setActiveDraggedId] = useState<string | null>(null);
   const [isDragOverTree, setIsDragOverTree] = useState(false);
 
+  React.useEffect(() => {
+    if (!isEditing) {
+      setIsDragOverTree(false);
+      setActiveDraggedId(null);
+      (window as any).__isDraggingFromTree = false;
+      (window as any).__activeTreeDraggedId = null;
+    }
+  }, [isEditing]);
+
+  React.useEffect(() => {
+    const handleGlobalDragEnd = () => {
+      (window as any).__isDraggingFromTree = false;
+      (window as any).__activeTreeDraggedId = null;
+      setIsDragOverTree(false);
+      setActiveDraggedId(null);
+    };
+    window.addEventListener('dragend', handleGlobalDragEnd);
+    window.addEventListener('drop', handleGlobalDragEnd);
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDragEnd);
+      window.removeEventListener('drop', handleGlobalDragEnd);
+      (window as any).__isDraggingFromTree = false;
+      (window as any).__activeTreeDraggedId = null;
+    };
+  }, []);
+
   // We only render root nodes that are in the filtered list
   const rootNodes = useMemo(() => {
      return tree.filteredNodes.filter(n => n.parentId === null);
@@ -61,6 +87,16 @@ export const ControlTree: React.FC<ControlTreeProps> = ({
   
   const handleDragOver = (e: React.DragEvent) => {
     if (!isEditing) return;
+    // When dragging an internal node (reordering), do not trigger container-level blue border or dropzone
+    if (activeDraggedId || (window as any).__isDraggingFromTree || (window as any).__activeTreeDraggedId) {
+      return;
+    }
+
+    const types = e.dataTransfer?.types;
+    const hasTypes = Array.isArray(types) || (types && typeof (types as any).includes === 'function');
+    const isPoolDrag = (window as any).__isDraggingFromPool || (hasTypes && (types.includes('application/x-oscal-control') || types.includes('application/x-oscal-group-pool')));
+    if (!isPoolDrag && !hasTypes) return;
+
     e.preventDefault();
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'move';
@@ -77,6 +113,13 @@ export const ControlTree: React.FC<ControlTreeProps> = ({
   const handleContainerDrop = (e: React.DragEvent) => {
     setIsDragOverTree(false);
     if (!isEditing || !onMoveNode) return;
+
+    // Internal node drag: ignore drops on container background to prevent accidentally moving control out of its group to root
+    if (activeDraggedId || (window as any).__isDraggingFromTree || (window as any).__activeTreeDraggedId) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     
     const rawGroup = e.dataTransfer.getData('application/x-oscal-group-pool');
     if (rawGroup) {
@@ -204,7 +247,7 @@ export const ControlTree: React.FC<ControlTreeProps> = ({
               onIncludeInBaseline={onIncludeInBaseline}
               excludedControlIds={excludedControlIds}
               onDragStartNode={(id) => setActiveDraggedId(id)}
-              onDragEndNode={() => setActiveDraggedId(null)}
+              onDragEndNode={() => { setActiveDraggedId(null); setIsDragOverTree(false); }}
               activeDraggedId={activeDraggedId}
               onUnassignControl={onUnassignControl}
             />

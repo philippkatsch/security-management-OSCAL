@@ -70,6 +70,12 @@ export function BackMatterEditor({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 2 * 1024 * 1024) {
+      alert(`File size exceeds 2 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB). Embedding large files directly into JSON degrades performance. For files > 2 MB, please use Resource Links (Rlinks) with an external URL or secure storage URI instead.`);
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const resultStr = typeof reader.result === 'string' ? reader.result : '';
@@ -383,7 +389,8 @@ export function BackMatterEditor({
 
                     {/* Base64 embedded attachments */}
                     <div style={{ border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-sm)', padding: '10px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-muted)', display: 'block', marginBottom: '6px' }}>Embedded Attachment</span>
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text-muted)', display: 'block', marginBottom: '4px' }}>Embedded Attachment</span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '8px' }}>Max 2 MB recommended for inline Base64 data. For larger artifacts, use Rlinks above.</span>
                       {base64 ? (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-surface-2)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' }}>
                           <div>

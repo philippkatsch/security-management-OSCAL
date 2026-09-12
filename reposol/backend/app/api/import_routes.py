@@ -82,6 +82,34 @@ KNOWN_SOURCES = [
         "url": "https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/control_layer/Grundschutz%2B%2B/Grundschutz%2B%2B-resolved_catalog.json",
         "uuid": "9e2fc241-16e5-4a2d-bda7-f9e0556a1639",
     },
+    # ── Component Definitions (Stage 3) ────────────────────────────────────
+    {
+        "id": "bsi-keycloak-component-definition",
+        "title": "BSI IT-Grundschutz — Keycloak IAM Component Definition",
+        "description": "Deutsches Bundesamt für Sicherheit in der Informationstechnik (BSI) Stand-der-Technik Keycloak IAM component definition implementing IT-Grundschutz controls.",
+        "model": "component-definition",
+        "source": "bsi",
+        "url": "https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/implementation_layer/Keycloak/Keycloak-component_definition.json",
+        "uuid": "a9c5ad63-9bc8-4e3e-8e54-e45f2f1daed7",
+    },
+    {
+        "id": "bsi-aws-security-hub-component-definition",
+        "title": "BSI IT-Grundschutz — AWS Security Hub Component Definition",
+        "description": "Deutsches Bundesamt für Sicherheit in der Informationstechnik (BSI) Stand-der-Technik AWS Security Hub component definition.",
+        "model": "component-definition",
+        "source": "bsi",
+        "url": "https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/refs/heads/main/implementation_layer/AWS%20Beispiel-Components/AWS%20Security%20Hub-component_definition.json",
+        "uuid": "354a88d1-e935-4399-851e-263e7b3d4796",
+    },
+    {
+        "id": "nist-example-component-definition",
+        "title": "NIST OSCAL — MongoDB Example Component Definition",
+        "description": "Official NIST OSCAL example component definition demonstrating hardware, software, and service components.",
+        "model": "component-definition",
+        "source": "nist",
+        "url": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/examples/component-definition/json/example-component-definition.json",
+        "uuid": "bedec39a-6f8c-4d24-8b12-34458f387800",
+    },
 ]
 
 class ImportURLRequest(BaseModel):

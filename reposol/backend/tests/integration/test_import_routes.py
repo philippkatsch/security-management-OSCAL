@@ -313,3 +313,45 @@ class TestImportRoutesIntegration:
         response = client.post("/api/import/parse", json={"document": invalid_doc, "validate_schema": True})
         assert response.status_code == 422
         assert "Schema validation failed" in response.json()["detail"]
+
+    def test_stage3_known_sources_registry_resolution(self, client, isolated_data_dir):
+        """Verify that Stage 3 component definitions in KNOWN_SOURCES resolve is_imported correctly."""
+        res = client.get("/api/import/registry")
+        assert res.status_code == 200
+        sources = res.json()
+        cdef_sources = [s for s in sources if s.get("model") == "component-definition"]
+        assert len(cdef_sources) >= 3
+        
+        # Verify specific expected IDs
+        source_ids = {s["id"] for s in cdef_sources}
+        assert "bsi-keycloak-component-definition" in source_ids
+        assert "bsi-aws-security-hub-component-definition" in source_ids
+        assert "nist-example-component-definition" in source_ids
+        
+        # Initially not imported in isolated test dir
+        aws_source = next(s for s in cdef_sources if s["id"] == "bsi-aws-security-hub-component-definition")
+        assert aws_source["uuid"] == "354a88d1-e935-4399-851e-263e7b3d4796"
+        assert aws_source["is_imported"] is False
+
+        # Create document with that UUID in component-definitions stage
+        sample_cdef = {
+            "component-definition": {
+                "uuid": aws_source["uuid"],
+                "metadata": {
+                    "title": "AWS Security Hub Mock",
+                    "version": "1.0.0",
+                    "oscal-version": "1.2.2",
+                    "last-modified": "2026-09-12T00:00:00Z"
+                },
+                "components": []
+            }
+        }
+        create_res = client.post("/api/documents/component-definitions", json=sample_cdef)
+        assert create_res.status_code in (200, 201)
+
+        # Now verify that is_imported is True
+        res2 = client.get("/api/import/registry")
+        assert res2.status_code == 200
+        aws_source_updated = next(s for s in res2.json() if s["id"] == "bsi-aws-security-hub-component-definition")
+        assert aws_source_updated["is_imported"] is True
+

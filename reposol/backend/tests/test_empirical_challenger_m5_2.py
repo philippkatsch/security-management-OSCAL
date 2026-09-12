@@ -193,7 +193,6 @@ async def test_disc_04_missing_ssp_baseline_control_membership():
         passed = True
     except OSCALValidationError as e:
         passed = False
-        print(f"Validation errors: {e.errors}")
 
     assert passed is True, "DISC-04 falsified: validation.py rejected phantom control-id"
 

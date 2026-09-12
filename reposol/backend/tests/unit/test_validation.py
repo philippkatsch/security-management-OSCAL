@@ -682,6 +682,92 @@ class TestComponentIntegrityValidation:
         with pytest.raises(ValidationError, match="Referenced component .* not found in components array"):
             await validate_document("component-definitions", doc)
 
+    @pytest.mark.asyncio
+    async def test_duplicate_control_id_in_component_fails(self):
+        doc = self._make_valid_cdef()
+        doc["component-definition"]["components"][0]["control-implementations"] = [
+            {
+                "uuid": str(uuid.uuid4()),
+                "source": "https://example.com/catalog.json",
+                "description": "Impl set",
+                "implemented-requirements": [
+                    {
+                        "uuid": str(uuid.uuid4()),
+                        "control-id": "ac-1",
+                        "description": "AC-1 Req"
+                    },
+                    {
+                        "uuid": str(uuid.uuid4()),
+                        "control-id": "ac-1",
+                        "description": "Duplicate AC-1 Req"
+                    }
+                ]
+            }
+        ]
+        with pytest.raises(ValidationError, match="Duplicate control-id 'ac-1'"):
+            await validate_document("component-definitions", doc)
+
+    @pytest.mark.asyncio
+    async def test_duplicate_statement_id_in_component_requirement_fails(self):
+        doc = self._make_valid_cdef()
+        doc["component-definition"]["components"][0]["control-implementations"] = [
+            {
+                "uuid": str(uuid.uuid4()),
+                "source": "https://example.com/catalog.json",
+                "description": "Impl set",
+                "implemented-requirements": [
+                    {
+                        "uuid": str(uuid.uuid4()),
+                        "control-id": "ac-2",
+                        "description": "AC-2 Req",
+                        "statements": [
+                            {
+                                "uuid": str(uuid.uuid4()),
+                                "statement-id": "ac-2_smt_a",
+                                "description": "Part a"
+                            },
+                            {
+                                "uuid": str(uuid.uuid4()),
+                                "statement-id": "ac-2_smt_a",
+                                "description": "Duplicate Part a"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+        with pytest.raises(ValidationError, match="Duplicate statement-id 'ac-2_smt_a'"):
+            await validate_document("component-definitions", doc)
+
+    @pytest.mark.asyncio
+    async def test_port_range_start_greater_than_end_fails(self):
+        doc = self._make_valid_cdef()
+        doc["component-definition"]["components"][0]["protocols"] = [
+            {
+                "uuid": str(uuid.uuid4()),
+                "name": "custom-proto",
+                "port-ranges": [
+                    {
+                        "start": 8080,
+                        "end": 8000,
+                        "transport": "TCP"
+                    }
+                ]
+            }
+        ]
+        with pytest.raises(ValidationError, match="Start port '8080' cannot exceed end port '8000'"):
+            await validate_document("component-definitions", doc)
+
+    @pytest.mark.asyncio
+    async def test_duplicate_role_id_in_component_fails(self):
+        doc = self._make_valid_cdef()
+        doc["component-definition"]["components"][0]["responsible-roles"] = [
+            {"role-id": "asset-owner"},
+            {"role-id": "asset-owner"}
+        ]
+        with pytest.raises(ValidationError, match="Duplicate role-id 'asset-owner'"):
+            await validate_document("component-definitions", doc)
+
 
 class TestPOAMIntegrityValidation:
     def _make_valid_poam(self, finding_uuid=None, obs_uuid=None, risk_uuid=None):

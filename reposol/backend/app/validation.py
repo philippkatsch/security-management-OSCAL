@@ -752,12 +752,21 @@ async def _validate_component_integrity(
 
     components = cdef.get("components", [])
     comp_uuids = set()
+    bm_resources = cdef.get("back-matter", {}).get("resources", [])
+    bm_uuids = {str(r.get("uuid")) for r in bm_resources if isinstance(r, dict) and r.get("uuid")}
+
     if isinstance(components, list):
         for idx, comp in enumerate(components):
             if not isinstance(comp, dict):
                 continue
             comp_u = comp.get("uuid")
             if comp_u:
+                if str(comp_u) in comp_uuids:
+                    errors.append({
+                        "path": f"{root_key}.components[{idx}].uuid",
+                        "message": f"Duplicate component uuid '{comp_u}' in components",
+                        "schema_path": "custom/duplicate-component-uuid"
+                    })
                 comp_uuids.add(str(comp_u))
             if "status" in comp:
                 errors.append({
@@ -766,38 +775,242 @@ async def _validate_component_integrity(
                     "schema_path": "custom/defined-component-no-status"
                 })
 
+            # Check unique role-id per component (OSCAL metaschema oscal-unique-component-definition-responsible-role)
+            seen_roles = set()
+            for r_idx, resp_role in enumerate(comp.get("responsible-roles", [])):
+                if isinstance(resp_role, dict):
+                    role_id = resp_role.get("role-id")
+                    if role_id:
+                        if role_id in seen_roles:
+                            errors.append({
+                                "path": f"{root_key}.components[{idx}].responsible-roles[{r_idx}].role-id",
+                                "message": f"Duplicate role-id '{role_id}' in component responsible-roles",
+                                "schema_path": "custom/duplicate-role-id"
+                            })
+                        seen_roles.add(role_id)
+
+            # Check protocols and port ranges
+            for proto_idx, proto in enumerate(comp.get("protocols", [])):
+                if isinstance(proto, dict):
+                    for pr_idx, pr in enumerate(proto.get("port-ranges", [])):
+                        if isinstance(pr, dict):
+                            start = pr.get("start")
+                            end = pr.get("end")
+                            if start is not None and end is not None and isinstance(start, int) and isinstance(end, int):
+                                if start < 0 or start > 65535 or end < 0 or end > 65535:
+                                    errors.append({
+                                        "path": f"{root_key}.components[{idx}].protocols[{proto_idx}].port-ranges[{pr_idx}]",
+                                        "message": f"Port numbers must be between 0 and 65535 (got start={start}, end={end})",
+                                        "schema_path": "custom/port-range-bounds"
+                                    })
+                                elif start > end:
+                                    errors.append({
+                                        "path": f"{root_key}.components[{idx}].protocols[{proto_idx}].port-ranges[{pr_idx}]",
+                                        "message": f"Start port '{start}' cannot exceed end port '{end}'",
+                                        "schema_path": "custom/port-range-order"
+                                    })
+
+            # Check control-implementations integrity
+            for ci_idx, ci in enumerate(comp.get("control-implementations", [])):
+                if isinstance(ci, dict):
+                    source = ci.get("source", "")
+                    if check_refs and source:
+                        if source.startswith("#"):
+                            frag_uuid = source.lstrip("#")
+                            if frag_uuid and frag_uuid not in bm_uuids:
+                                errors.append({
+                                    "path": f"{root_key}.components[{idx}].control-implementations[{ci_idx}].source",
+                                    "message": f"Referenced back-matter resource '{frag_uuid}' does not exist",
+                                    "schema_path": "custom/control-impl-resource-existence"
+                                })
+                        elif not source.startswith("http://") and not source.startswith("https://"):
+                            uuid_match = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", source)
+                            if uuid_match:
+                                ref_uuid = uuid_match.group(1)
+                                exists = await document_repository.document_exists("catalogs", ref_uuid, workspace_id=workspace_id)
+                                if not exists and workspace_id and workspace_id != "default":
+                                    exists = await document_repository.document_exists("catalogs", ref_uuid, workspace_id="default")
+                                if not exists:
+                                    exists = await document_repository.document_exists("profiles", ref_uuid, workspace_id=workspace_id)
+                                    if not exists and workspace_id and workspace_id != "default":
+                                        exists = await document_repository.document_exists("profiles", ref_uuid, workspace_id="default")
+                                if not exists:
+                                    errors.append({
+                                        "path": f"{root_key}.components[{idx}].control-implementations[{ci_idx}].source",
+                                        "message": f"Referenced catalog or profile '{ref_uuid}' does not exist",
+                                        "schema_path": "custom/control-impl-source-existence"
+                                    })
+
+                    # Unique set-parameters param-id
+                    seen_set_params = set()
+                    for sp_idx, sp in enumerate(ci.get("set-parameters", [])):
+                        if isinstance(sp, dict):
+                            pid = sp.get("param-id")
+                            if pid:
+                                if pid in seen_set_params:
+                                    errors.append({
+                                        "path": f"{root_key}.components[{idx}].control-implementations[{ci_idx}].set-parameters[{sp_idx}].param-id",
+                                        "message": f"Duplicate param-id '{pid}' in control-implementation set-parameters",
+                                        "schema_path": "custom/duplicate-param-id"
+                                    })
+                                seen_set_params.add(pid)
+
+                    seen_control_ids = set()
+                    for req_idx, req in enumerate(ci.get("implemented-requirements", [])):
+                        if isinstance(req, dict):
+                            cid = req.get("control-id")
+                            if cid:
+                                if cid in seen_control_ids:
+                                    errors.append({
+                                        "path": f"{root_key}.components[{idx}].control-implementations[{ci_idx}].implemented-requirements[{req_idx}].control-id",
+                                        "message": f"Duplicate control-id '{cid}' in implemented-requirements",
+                                        "schema_path": "custom/duplicate-control-id"
+                                    })
+                                seen_control_ids.add(cid)
+
+                            seen_req_params = set()
+                            for rp_idx, rp in enumerate(req.get("set-parameters", [])):
+                                if isinstance(rp, dict):
+                                    rpid = rp.get("param-id")
+                                    if rpid:
+                                        if rpid in seen_req_params:
+                                            errors.append({
+                                                "path": f"{root_key}.components[{idx}].control-implementations[{ci_idx}].implemented-requirements[{req_idx}].set-parameters[{rp_idx}].param-id",
+                                                "message": f"Duplicate param-id '{rpid}' in requirement set-parameters",
+                                                "schema_path": "custom/duplicate-param-id"
+                                            })
+                                        seen_req_params.add(rpid)
+
+                            seen_stmt_ids = set()
+                            for s_idx, stmt in enumerate(req.get("statements", [])):
+                                if isinstance(stmt, dict):
+                                    sid = stmt.get("statement-id")
+                                    if sid:
+                                        if sid in seen_stmt_ids:
+                                            errors.append({
+                                                "path": f"{root_key}.components[{idx}].control-implementations[{ci_idx}].implemented-requirements[{req_idx}].statements[{s_idx}].statement-id",
+                                                "message": f"Duplicate statement-id '{sid}' in requirement statements",
+                                                "schema_path": "custom/duplicate-statement-id"
+                                            })
+                                        seen_stmt_ids.add(sid)
+
     capabilities = cdef.get("capabilities", [])
+    cap_uuids = set()
     if isinstance(capabilities, list):
         for cap_idx, cap in enumerate(capabilities):
             if not isinstance(cap, dict):
                 continue
+            cap_u = cap.get("uuid")
+            if cap_u:
+                if str(cap_u) in cap_uuids:
+                    errors.append({
+                        "path": f"{root_key}.capabilities[{cap_idx}].uuid",
+                        "message": f"Duplicate capability uuid '{cap_u}' in capabilities",
+                        "schema_path": "custom/duplicate-capability-uuid"
+                    })
+                cap_uuids.add(str(cap_u))
+
+            seen_inc_comps = set()
             for inc_idx, inc in enumerate(cap.get("incorporates-components", [])):
                 if isinstance(inc, dict):
                     c_ref = inc.get("component-uuid")
-                    if c_ref and str(c_ref) not in comp_uuids:
-                        errors.append({
-                            "path": f"{root_key}.capabilities[{cap_idx}].incorporates-components[{inc_idx}].component-uuid",
-                            "message": f"Referenced component '{c_ref}' not found in components array",
-                            "schema_path": "custom/capability-component-existence"
-                        })
+                    if c_ref:
+                        if str(c_ref) in seen_inc_comps:
+                            errors.append({
+                                "path": f"{root_key}.capabilities[{cap_idx}].incorporates-components[{inc_idx}].component-uuid",
+                                "message": f"Duplicate component-uuid '{c_ref}' in capability incorporates-components",
+                                "schema_path": "custom/duplicate-incorporates-component"
+                            })
+                        seen_inc_comps.add(str(c_ref))
+                        if str(c_ref) not in comp_uuids:
+                            errors.append({
+                                "path": f"{root_key}.capabilities[{cap_idx}].incorporates-components[{inc_idx}].component-uuid",
+                                "message": f"Referenced component '{c_ref}' not found in components array",
+                                "schema_path": "custom/capability-component-existence"
+                            })
+
+            for cap_ci_idx, cap_ci in enumerate(cap.get("control-implementations", [])):
+                if isinstance(cap_ci, dict):
+                    cap_source = cap_ci.get("source", "")
+                    if check_refs and cap_source:
+                        if cap_source.startswith("#"):
+                            frag_uuid = cap_source.lstrip("#")
+                            if frag_uuid and frag_uuid not in bm_uuids:
+                                errors.append({
+                                    "path": f"{root_key}.capabilities[{cap_idx}].control-implementations[{cap_ci_idx}].source",
+                                    "message": f"Referenced back-matter resource '{frag_uuid}' does not exist",
+                                    "schema_path": "custom/control-impl-resource-existence"
+                                })
+                        elif not cap_source.startswith("http://") and not cap_source.startswith("https://"):
+                            uuid_match = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", cap_source)
+                            if uuid_match:
+                                ref_uuid = uuid_match.group(1)
+                                exists = await document_repository.document_exists("catalogs", ref_uuid, workspace_id=workspace_id)
+                                if not exists and workspace_id and workspace_id != "default":
+                                    exists = await document_repository.document_exists("catalogs", ref_uuid, workspace_id="default")
+                                if not exists:
+                                    exists = await document_repository.document_exists("profiles", ref_uuid, workspace_id=workspace_id)
+                                    if not exists and workspace_id and workspace_id != "default":
+                                        exists = await document_repository.document_exists("profiles", ref_uuid, workspace_id="default")
+                                if not exists:
+                                    errors.append({
+                                        "path": f"{root_key}.capabilities[{cap_idx}].control-implementations[{cap_ci_idx}].source",
+                                        "message": f"Referenced catalog or profile '{ref_uuid}' does not exist",
+                                        "schema_path": "custom/control-impl-source-existence"
+                                    })
+
+                    seen_cap_control_ids = set()
+                    for req_idx, req in enumerate(cap_ci.get("implemented-requirements", [])):
+                        if isinstance(req, dict):
+                            cid = req.get("control-id")
+                            if cid:
+                                if cid in seen_cap_control_ids:
+                                    errors.append({
+                                        "path": f"{root_key}.capabilities[{cap_idx}].control-implementations[{cap_ci_idx}].implemented-requirements[{req_idx}].control-id",
+                                        "message": f"Duplicate control-id '{cid}' in implemented-requirements",
+                                        "schema_path": "custom/duplicate-control-id"
+                                    })
+                                seen_cap_control_ids.add(cid)
+
+                            seen_cap_stmt_ids = set()
+                            for s_idx, stmt in enumerate(req.get("statements", [])):
+                                if isinstance(stmt, dict):
+                                    sid = stmt.get("statement-id")
+                                    if sid:
+                                        if sid in seen_cap_stmt_ids:
+                                            errors.append({
+                                                "path": f"{root_key}.capabilities[{cap_idx}].control-implementations[{cap_ci_idx}].implemented-requirements[{req_idx}].statements[{s_idx}].statement-id",
+                                                "message": f"Duplicate statement-id '{sid}' in requirement statements",
+                                                "schema_path": "custom/duplicate-statement-id"
+                                            })
+                                        seen_cap_stmt_ids.add(sid)
 
     if check_refs and "import-component-definitions" in cdef:
         for imp_idx, imp in enumerate(cdef.get("import-component-definitions", [])):
             if isinstance(imp, dict):
                 href = imp.get("href", "")
-                if href and not href.startswith("http://") and not href.startswith("https://") and not href.startswith("#"):
-                    uuid_match = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", href)
-                    if uuid_match:
-                        ref_uuid = uuid_match.group(1)
-                        exists = await document_repository.document_exists("component-definitions", ref_uuid, workspace_id=workspace_id)
-                        if not exists and workspace_id and workspace_id != "default":
-                            exists = await document_repository.document_exists("component-definitions", ref_uuid, workspace_id="default")
-                        if not exists:
+                if href:
+                    if href.startswith("#"):
+                        frag_uuid = href.lstrip("#")
+                        if frag_uuid and frag_uuid not in bm_uuids:
                             errors.append({
                                 "path": f"{root_key}.import-component-definitions[{imp_idx}].href",
-                                "message": f"Referenced component definition '{ref_uuid}' does not exist",
-                                "schema_path": "custom/import-cdef-existence"
+                                "message": f"Referenced back-matter resource '{frag_uuid}' does not exist",
+                                "schema_path": "custom/import-cdef-resource-existence"
                             })
+                    elif not href.startswith("http://") and not href.startswith("https://"):
+                        uuid_match = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", href)
+                        if uuid_match:
+                            ref_uuid = uuid_match.group(1)
+                            exists = await document_repository.document_exists("component-definitions", ref_uuid, workspace_id=workspace_id)
+                            if not exists and workspace_id and workspace_id != "default":
+                                exists = await document_repository.document_exists("component-definitions", ref_uuid, workspace_id="default")
+                            if not exists:
+                                errors.append({
+                                    "path": f"{root_key}.import-component-definitions[{imp_idx}].href",
+                                    "message": f"Referenced component definition '{ref_uuid}' does not exist",
+                                    "schema_path": "custom/import-cdef-existence"
+                                })
 
 
 async def _validate_poam_integrity(

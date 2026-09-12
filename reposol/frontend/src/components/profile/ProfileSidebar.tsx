@@ -14,7 +14,8 @@ import {
   removeControlFromCustomGroup,
   removeMultipleControlsFromCustomGroup,
   importCustomGroupBranch,
-  gatherAllAssignedControlIds
+  gatherAllAssignedControlIds,
+  mapCatalogGroupsToCustomGroups
 } from '@lib/document-actions/profile-actions';
 
 export function ProfileSidebar({
@@ -69,16 +70,21 @@ export function ProfileSidebar({
     return { alteredControlIds: altered, orphanedControlIds: orphaned };
   }, [profile, conflicts]);
   const findNodeType = React.useCallback((id: string) => {
+    if (!id) return 'control';
+    const idLower = id.toLowerCase();
     const isGrp = (items: any[]): boolean => {
       if (!items) return false;
       for (const item of items) {
-        if (item.id === id) return true;
+        if (item.id && item.id.toLowerCase() === idLower) return true;
         if (item.groups && isGrp(item.groups)) return true;
       }
       return false;
     };
-    return isGrp(resolvedCatalog.groups || []) ? 'group' : 'control';
-  }, [resolvedCatalog]);
+    if (isGrp((profile as any)?.merge?.custom?.groups || [])) return 'group';
+    if (isGrp(resolvedCatalog?.groups || [])) return 'group';
+    if (isGrp(resolvedCatalog?.all_groups || [])) return 'group';
+    return 'control';
+  }, [resolvedCatalog, profile]);
 
   const isCustomMerge = Boolean((profile as any)?.merge?.custom);
   const isFlatMerge = Boolean((profile as any)?.merge?.flat);
@@ -211,7 +217,8 @@ export function ProfileSidebar({
       }
     };
 
-    if (resolvedCatalog?.groups) {
+    const customGroups = (profile as any)?.merge?.custom?.groups;
+    if ((!customGroups || customGroups.length === 0) && resolvedCatalog?.groups) {
       collectFromGroups(resolvedCatalog.groups);
     }
 
@@ -230,20 +237,28 @@ export function ProfileSidebar({
 
   const handleRenameGroup = (groupId: string, newTitle: string, newId?: string) => {
     if (!isEditing) return;
+    const resolvedGroups = (resolvedCatalog?.groups && resolvedCatalog.groups.length > 0)
+      ? resolvedCatalog.groups
+      : (resolvedCatalog?.all_groups || []);
+    const initialCustomGroups = mapCatalogGroupsToCustomGroups(resolvedGroups);
     if (onRenameCustomGroup) {
       onRenameCustomGroup(groupId, newTitle, newId);
     } else if (dispatch) {
-      dispatch(renameCustomGroup({ groupId, title: newTitle, newId }));
+      dispatch(renameCustomGroup({ groupId, title: newTitle, newId, initialCustomGroups }));
     }
   };
 
   const handleDeleteNode = (nodeId: string, nodeType: 'group' | 'control') => {
     if (!isEditing || nodeId === '__unassigned__') return;
     if (nodeType === 'group') {
+      const resolvedGroups = (resolvedCatalog?.groups && resolvedCatalog.groups.length > 0)
+        ? resolvedCatalog.groups
+        : (resolvedCatalog?.all_groups || []);
+      const initialCustomGroups = mapCatalogGroupsToCustomGroups(resolvedGroups);
       if (onDeleteCustomGroup) {
         onDeleteCustomGroup(nodeId);
       } else if (dispatch) {
-        dispatch(deleteCustomGroup({ groupId: nodeId }));
+        dispatch(deleteCustomGroup({ groupId: nodeId, initialCustomGroups }));
       }
     }
   };
@@ -285,14 +300,18 @@ export function ProfileSidebar({
         }
       }
       const type = findNodeType(nodeId);
+      const resolvedGroups = (resolvedCatalog?.groups && resolvedCatalog.groups.length > 0)
+        ? resolvedCatalog.groups
+        : (resolvedCatalog?.all_groups || []);
+      const initialCustomGroups = mapCatalogGroupsToCustomGroups(resolvedGroups);
       if (type === 'group') {
         if (targetParentId === '__unassigned__') return;
-        dispatch(moveCustomGroup({ sourceGroupId: nodeId, targetGroupId: targetParentId, targetIndex }));
+        dispatch(moveCustomGroup({ sourceGroupId: nodeId, targetGroupId: targetParentId, targetIndex, initialCustomGroups }));
       } else {
         if (targetParentId === '__unassigned__') {
           dispatch(removeControlFromCustomGroup({ controlId: nodeId }));
         } else {
-          dispatch(assignControlToCustomGroup({ controlId: nodeId, targetGroupId: targetParentId, targetIndex }));
+          dispatch(assignControlToCustomGroup({ controlId: nodeId, targetGroupId: targetParentId, targetIndex, initialCustomGroups }));
         }
       }
     }
@@ -325,36 +344,162 @@ export function ProfileSidebar({
       return [];
     }
     if (isCustomMerge) {
-      let baseGroups = (resolvedCatalog?.groups && resolvedCatalog.groups.length > 0)
-        ? resolvedCatalog.groups
-        : ((profile as any)?.merge?.custom?.groups || []);
+      const customGroups = (profile as any)?.merge?.custom?.groups || [];
+      const customGroupIds = new Set<string>();
+      const collectCustomIds = (gList?: any[]) => {
+        if (!gList) return;
+        for (const cg of gList) {
+          if (cg.id) customGroupIds.add(cg.id.toLowerCase());
+          if (cg.groups) collectCustomIds(cg.groups);
+        }
+      };
+      collectCustomIds(customGroups);
 
-      // If baseGroups have empty controls, populate from insert-controls + allImportedControls
-      if (allImportedControls.length > 0) {
-        const populateControls = (gList: any[]): any[] => {
-          return gList.map(g => {
-            const newG = { ...g };
-            if (newG.groups) {
-              newG.groups = populateControls(newG.groups);
-            }
-            if ((!newG.controls || newG.controls.length === 0) && newG['insert-controls']) {
-              const gIds = new Set<string>();
-              for (const ic of newG['insert-controls']) {
-                for (const inc of ic['include-controls'] || []) {
-                  for (const wid of inc['with-ids'] || []) {
-                    if (wid) gIds.add(wid.toLowerCase());
+      // Check if customGroups shares any IDs with resolvedCatalog.groups
+      const hasMatchingResolved = (resolvedCatalog?.groups || []).some(
+        (rg: any) => rg.id && customGroupIds.has(rg.id.toLowerCase())
+      );
+
+      let baseGroups: any[] = [];
+      const allResolved = (resolvedCatalog?.groups && resolvedCatalog.groups.length > 0)
+        ? resolvedCatalog.groups
+        : (resolvedCatalog?.all_groups || []);
+
+      if (customGroups.length > 0) {
+        // Reorder matching resolved groups according to customGroups order,
+        // while preserving custom-only groups and non-custom resolved groups
+        const resolvedMap = new Map<string, any>();
+        for (const rg of allResolved) {
+          if (rg.id) resolvedMap.set(rg.id.toLowerCase(), rg);
+        }
+        for (const cg of customGroups) {
+          const match = cg.id ? resolvedMap.get(cg.id.toLowerCase()) : null;
+          baseGroups.push(match ? { ...match, ...cg } : cg);
+        }
+        for (const rg of allResolved) {
+          if (rg.id && !customGroupIds.has(rg.id.toLowerCase())) {
+            baseGroups.push(rg);
+          }
+        }
+      } else {
+        baseGroups = [...allResolved];
+      }
+
+      // Build comprehensive control map for fast lookup
+      const ctrlMap = new Map<string, any>();
+      const addCtrlToMap = (c: any) => {
+        if (!c?.id) return;
+        const idLower = c.id.toLowerCase();
+        if (!ctrlMap.has(idLower)) {
+          ctrlMap.set(idLower, c);
+        }
+        if (c.controls) {
+          for (const sub of c.controls) addCtrlToMap(sub);
+        }
+      };
+      const addGroupCtrlsToMap = (groups?: any[]) => {
+        if (!groups) return;
+        for (const grp of groups) {
+          if (grp.controls) {
+            for (const c of grp.controls) addCtrlToMap(c);
+          }
+          if (grp.groups) addGroupCtrlsToMap(grp.groups);
+        }
+      };
+
+      for (const c of allImportedControls) addCtrlToMap(c);
+      if (resolvedCatalog?.all_controls) {
+        for (const c of resolvedCatalog.all_controls) addCtrlToMap(c);
+      }
+      if (resolvedCatalog?.controls) {
+        for (const c of resolvedCatalog.controls) addCtrlToMap(c);
+      }
+      addGroupCtrlsToMap(resolvedCatalog?.all_groups);
+      addGroupCtrlsToMap(resolvedCatalog?.groups);
+      addGroupCtrlsToMap((profile as any)?.merge?.custom?.groups);
+
+      // Helpers to find groups case-insensitively
+      const findCustomGroup = (gList: any[], id: string): any => {
+        if (!id) return null;
+        const idLower = id.toLowerCase();
+        for (const cg of gList) {
+          if (cg.id?.toLowerCase() === idLower) return cg;
+          if (cg.groups) {
+            const found = findCustomGroup(cg.groups, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const findResolvedGroup = (gList: any[], id: string): any => {
+        if (!id) return null;
+        const idLower = id.toLowerCase();
+        for (const rg of gList) {
+          if (rg.id?.toLowerCase() === idLower) return rg;
+          if (rg.groups) {
+            const found = findResolvedGroup(rg.groups, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const populateAndOrderControls = (gList: any[]): any[] => {
+        return gList.map(g => {
+          const newG = { ...g };
+          if (newG.groups) {
+            newG.groups = populateAndOrderControls(newG.groups);
+          }
+
+          const customG = findCustomGroup(customGroups, g.id) || newG;
+          const resolvedG = findResolvedGroup(resolvedCatalog?.groups || [], g.id) ||
+                            findResolvedGroup(resolvedCatalog?.all_groups || [], g.id);
+
+          const insertControls = customG['insert-controls'] || newG['insert-controls'];
+
+          if (insertControls) {
+            const orderedIds: string[] = [];
+            for (const ic of insertControls) {
+              for (const inc of ic['include-controls'] || []) {
+                for (const wid of inc['with-ids'] || []) {
+                  if (wid && !orderedIds.includes(wid.toLowerCase())) {
+                    orderedIds.push(wid.toLowerCase());
                   }
                 }
               }
-              if (gIds.size > 0) {
-                newG.controls = allImportedControls.filter(c => gIds.has(c.id.toLowerCase()));
-              }
             }
-            return newG;
-          });
-        };
-        baseGroups = populateControls(baseGroups);
-      }
+
+            if (orderedIds.length > 0) {
+              const existingCtrlMap = new Map<string, any>();
+              if (newG.controls) {
+                for (const c of newG.controls) {
+                  if (c?.id) existingCtrlMap.set(c.id.toLowerCase(), c);
+                }
+              }
+              if (resolvedG?.controls) {
+                for (const c of resolvedG.controls) {
+                  if (c?.id && !existingCtrlMap.has(c.id.toLowerCase())) {
+                    existingCtrlMap.set(c.id.toLowerCase(), c);
+                  }
+                }
+              }
+              newG.controls = orderedIds
+                .map(id => existingCtrlMap.get(id) || ctrlMap.get(id) || { id, title: id })
+                .filter(Boolean);
+            } else if (resolvedG?.controls && (!newG.controls || newG.controls.length === 0)) {
+              newG.controls = [...resolvedG.controls];
+            } else if (!newG.controls) {
+              newG.controls = [];
+            }
+          } else if (resolvedG?.controls && (!newG.controls || newG.controls.length === 0)) {
+            newG.controls = [...resolvedG.controls];
+          }
+          return newG;
+        });
+      };
+
+      baseGroups = populateAndOrderControls(baseGroups);
 
       if (isEditing && unassignedControls.length > 0 && visibilityFilter.showUnassigned) {
         const unassignedNode = {
@@ -380,22 +525,46 @@ export function ProfileSidebar({
     }
     if (isCustomMerge) {
       const customInsert = (profile as any)?.merge?.custom?.['insert-controls'] || [];
-      const rootControlIds = new Set<string>();
+      const rootControlIds: string[] = [];
       for (const ic of customInsert) {
         for (const inc of ic['include-controls'] || []) {
           for (const wid of inc['with-ids'] || []) {
-            if (wid) rootControlIds.add(wid.toLowerCase());
+            if (wid && !rootControlIds.includes(wid.toLowerCase())) {
+              rootControlIds.push(wid.toLowerCase());
+            }
           }
         }
       }
 
-      if (rootControlIds.size > 0 && allImportedControls.length > 0) {
-        return allImportedControls.filter(c => rootControlIds.has(c.id.toLowerCase()));
+      if (rootControlIds.length > 0) {
+        const ctrlMap = new Map<string, any>();
+        for (const c of allImportedControls) {
+          if (c?.id) ctrlMap.set(c.id.toLowerCase(), c);
+        }
+        if (resolvedCatalog?.all_controls) {
+          for (const c of resolvedCatalog.all_controls) {
+            if (c?.id && !ctrlMap.has(c.id.toLowerCase())) {
+              ctrlMap.set(c.id.toLowerCase(), c);
+            }
+          }
+        }
+        if (resolvedCatalog?.controls) {
+          for (const c of resolvedCatalog.controls) {
+            if (c?.id && !ctrlMap.has(c.id.toLowerCase())) {
+              ctrlMap.set(c.id.toLowerCase(), c);
+            }
+          }
+        }
+      if (treeGroups.length > 0) {
+        return (resolvedCatalog?.controls && resolvedCatalog.controls.length > 0) ? resolvedCatalog.controls : [];
       }
-      return resolvedCatalog?.controls || [];
+      return (resolvedCatalog?.controls && resolvedCatalog.controls.length > 0) ? resolvedCatalog.controls : (resolvedCatalog?.all_controls || []);
     }
-    return resolvedCatalog?.controls || [];
-  }, [isFlatMerge, isCustomMerge, isEditing, allImportedControls, resolvedCatalog?.controls, (profile as any)?.merge?.custom?.['insert-controls']]);
+    if (treeGroups.length > 0) {
+      return (resolvedCatalog?.controls && resolvedCatalog.controls.length > 0) ? resolvedCatalog.controls : [];
+    }
+    return (resolvedCatalog?.controls && resolvedCatalog.controls.length > 0) ? resolvedCatalog.controls : (resolvedCatalog?.all_controls || []);
+  }, [isFlatMerge, isCustomMerge, isEditing, allImportedControls, resolvedCatalog?.controls, treeGroups, (profile as any)?.merge?.custom?.['insert-controls']]);
 
   const tree = useControlTree({
     groups: treeGroups,
@@ -435,10 +604,24 @@ export function ProfileSidebar({
   // Sync selected node
   const activeId = selectedControlId || selectedGroupId;
   React.useEffect(() => {
-     if (activeId !== tree.selectedId) {
-         tree.select(activeId);
-     }
+      if (activeId !== tree.selectedId) {
+          tree.select(activeId);
+      }
   }, [activeId]);
+
+  // Sync expanded groups from props
+  React.useEffect(() => {
+    if (expandedGroups && typeof expandedGroups === 'object') {
+      for (const [id, isExp] of Object.entries(expandedGroups)) {
+        const has = tree.expandedIds.has(id);
+        if (isExp && !has) {
+          tree.toggleExpand(id);
+        } else if (!isExp && has) {
+          tree.toggleExpand(id);
+        }
+      }
+    }
+  }, [expandedGroups]);
   
   const handleSelectNode = (id: string | null) => {
     tree.select(id);

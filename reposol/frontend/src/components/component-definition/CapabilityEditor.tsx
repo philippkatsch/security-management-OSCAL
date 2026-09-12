@@ -69,8 +69,8 @@ export default function CapabilityEditor({
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     basic: true,
-    incorporates: true,
-    impls: true,
+    incorporates: (capability?.['incorporates-components']?.length || 0) > 0,
+    impls: (capability?.['control-implementations']?.length || 0) > 0,
     props: false
   });
 
@@ -194,35 +194,52 @@ export default function CapabilityEditor({
               <p className={styles['empty-state']}>No components linked to this capability yet.</p>
             ) : (
               <ul className={styles['linked-components-list']}>
-                {(capability['incorporates-components'] || []).map((inc: any, idx: number) => (
-                  <li key={idx} className={styles['linked-component-item']}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', marginRight: '8px' }}>
-                      <strong style={{ color: 'var(--color-text, #111827)' }}>{getComponentTitle(inc['component-uuid'])}</strong>
-                      {editMode ? (
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Description of role in this composite capability (required by OSCAL)"
-                          value={inc.description || ''}
-                          onChange={(e) => updateIncorporatedComponent(idx, 'description', e.target.value)}
-                        />
-                      ) : (
-                        <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #6b7280)' }}>
-                          {inc.description || 'No description provided.'}
-                        </span>
+                {(capability['incorporates-components'] || []).map((inc: any, idx: number) => {
+                  const isDangling = !(components as any[]).some((c: any) => c.uuid === inc['component-uuid']);
+                  return (
+                    <li key={idx} className={styles['linked-component-item']} style={isDangling ? { borderLeft: '3px solid var(--color-danger, #ef4444)' } : undefined}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', marginRight: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <strong style={{ color: isDangling ? 'var(--color-danger, #ef4444)' : 'var(--color-text, #111827)' }}>
+                            {getComponentTitle(inc['component-uuid'])}
+                          </strong>
+                          {isDangling && (
+                            <span className="badge badge-danger" style={{ fontSize: '10px', background: '#fee2e2', color: '#b91c1c', padding: '1px 6px', borderRadius: '4px' }}>
+                              ⚠️ Dangling Reference
+                            </span>
+                          )}
+                        </div>
+                        {isDangling && (
+                          <span style={{ fontSize: '11px', color: 'var(--color-danger, #ef4444)' }}>
+                            Component UUID {inc['component-uuid']} not found in document inventory.
+                          </span>
+                        )}
+                        {editMode ? (
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Description of role in this composite capability (required by OSCAL)"
+                            value={inc.description || ''}
+                            onChange={(e) => updateIncorporatedComponent(idx, 'description', e.target.value)}
+                          />
+                        ) : (
+                          <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #6b7280)' }}>
+                            {inc.description || 'No description provided.'}
+                          </span>
+                        )}
+                      </div>
+                      {editMode && (
+                        <button
+                          type="button"
+                          className={['btn', 'btn-danger', sharedStyles['btn-sm']].filter(Boolean).join(' ')}
+                          onClick={() => removeIncorporatedComponent(idx)}
+                        >
+                          Remove
+                        </button>
                       )}
-                    </div>
-                    {editMode && (
-                      <button
-                        type="button"
-                        className={['btn', 'btn-danger', sharedStyles['btn-sm']].filter(Boolean).join(' ')}
-                        onClick={() => removeIncorporatedComponent(idx)}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
 

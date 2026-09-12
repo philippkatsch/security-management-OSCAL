@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ImportComponentDefinition, BackMatter, Resource, ComponentDefinition } from '@lib/types/oscal';
+import { ImportComponentDefinition, BackMatter, Resource, ComponentDefinition, DefinedComponent } from '@lib/types/oscal';
 import { generateUUID } from '@lib/oscal-utils';
 import { validateDocument } from '@lib/api';
 import styles from '../ComponentPage.module.css';
@@ -10,6 +10,7 @@ export interface ImportDefinitionsEditorProps {
   backMatter?: BackMatter;
   onChangeImports: (imports: ImportComponentDefinition[]) => void;
   onChangeBackMatter?: (backMatter: BackMatter) => void;
+  onAdoptComponent?: (component: DefinedComponent) => void;
   editMode?: boolean;
   isReadOnly?: boolean;
 }
@@ -19,6 +20,7 @@ export function ImportDefinitionsEditor({
   backMatter = {},
   onChangeImports,
   onChangeBackMatter,
+  onAdoptComponent,
   editMode = false,
   isReadOnly = false
 }: ImportDefinitionsEditorProps) {
@@ -34,6 +36,7 @@ export function ImportDefinitionsEditor({
   } | null>(null);
 
   const [validationStatuses, setValidationStatuses] = useState<Record<string, { state: 'valid' | 'invalid' | 'checking'; msg?: string }>>({});
+  const [ingestedUuids, setIngestedUuids] = useState<string[]>([]);
 
   const resources = useMemo(() => backMatter.resources || [], [backMatter.resources]);
 
@@ -510,7 +513,29 @@ export function ImportDefinitionsEditor({
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <strong>{c.title}</strong>
-                          <span className="badge badge-info">{c.type}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="badge badge-info">{c.type}</span>
+                            {onAdoptComponent && isEditing && (
+                              <button
+                                type="button"
+                                className={styles['switch-mode-btn']}
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '2px 8px',
+                                  color: ingestedUuids.includes(c.uuid) ? 'var(--color-success, #059669)' : undefined,
+                                  borderColor: ingestedUuids.includes(c.uuid) ? 'var(--color-success, #059669)' : undefined
+                                }}
+                                disabled={ingestedUuids.includes(c.uuid)}
+                                onClick={() => {
+                                  onAdoptComponent(c);
+                                  setIngestedUuids(prev => [...prev, c.uuid]);
+                                }}
+                                title="Ingest / copy this component into local inventory"
+                              >
+                                {ingestedUuids.includes(c.uuid) ? '✓ Ingested' : '📥 Ingest to Inventory'}
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted, #6b7280)' }}>
                           {c.description}

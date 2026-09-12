@@ -995,8 +995,8 @@ describe('Challenger M2-1: Profile Sidebar Tree Lifecycle & Stress Suite', () =>
           custom: {
             groups: [
               {
-                id: 'cg-action-test',
-                title: 'Action Test Group',
+                id: 'cg-locked',
+                title: 'Locked Group',
                 'insert-controls': [{ 'include-controls': [{ 'with-ids': ['ac-1'] }] }]
               }
             ]

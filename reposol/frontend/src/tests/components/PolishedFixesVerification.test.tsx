@@ -168,10 +168,10 @@ describe('Polished Fixes Verification Suite (Items 1 - 6)', () => {
       );
 
       const devBadges = screen.getAllByText('🚧 Dev');
-      expect(devBadges).toHaveLength(6);
+      expect(devBadges).toHaveLength(5);
     });
 
-    it('shows Under Active Development alert in DocumentListPage for stages 3-8 and not for stages 1-2', () => {
+    it('shows Under Active Development alert in DocumentListPage for stages 4-8 and not for stages 1-3', () => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
       const { unmount } = render(
@@ -191,7 +191,7 @@ describe('Polished Fixes Verification Suite (Items 1 - 6)', () => {
 
       unmount();
 
-      render(
+      const { unmount: unmount2 } = render(
         <QueryClientProvider client={queryClient}>
           <ConfirmProvider>
             <MemoryRouter initialEntries={['/catalogs']}>
@@ -205,9 +205,26 @@ describe('Polished Fixes Verification Suite (Items 1 - 6)', () => {
 
       const catalogDevNotice = screen.queryByText(/under active development/i);
       expect(catalogDevNotice).toBeNull();
+
+      unmount2();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ConfirmProvider>
+            <MemoryRouter initialEntries={['/component-definitions']}>
+              <Routes>
+                <Route path="/:stage" element={<DocumentListPage />} />
+              </Routes>
+            </MemoryRouter>
+          </ConfirmProvider>
+        </QueryClientProvider>
+      );
+
+      const cdefDevNotice = screen.queryByText(/under active development/i);
+      expect(cdefDevNotice).toBeNull();
     });
 
-    it('renders DashboardPage workflow steps with 5 🚧 In Dev badges for stages 3 to 7', () => {
+    it('renders DashboardPage workflow steps with 4 🚧 In Dev badges for stages 4 to 7', () => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
       render(
@@ -219,7 +236,7 @@ describe('Polished Fixes Verification Suite (Items 1 - 6)', () => {
       );
 
       const inDevBadges = screen.getAllByText('🚧 In Dev');
-      expect(inDevBadges).toHaveLength(5);
+      expect(inDevBadges).toHaveLength(4);
     });
   });
 });

@@ -191,8 +191,11 @@ export function useDocumentLifecycle(stage: OscalStage, modelName: string, docum
 
     await data.saveVersionTag(ver, finalDocToSave, actualRemarks);
     setIsEditing(false);
-    if (window.location.search.includes('edit=true')) {
-      window.history.replaceState(null, '', window.location.pathname);
+    if (window.location.search.includes('edit=')) {
+      const params = new URLSearchParams(window.location.search);
+      params.delete('edit');
+      const newSearch = params.toString() ? `?${params.toString()}` : '';
+      window.history.replaceState(null, '', `${window.location.pathname}${newSearch}`);
     }
     data.setShowDrawer(false);
     await data.loadVersions();

@@ -118,10 +118,16 @@ export default function ComponentEditor({
             <input 
               type="text" 
               className="form-input" 
+              style={editMode && !component.title?.trim() ? { borderColor: 'var(--color-danger, #ef4444)' } : undefined}
               value={component.title || ''} 
               onChange={(e) => handleChange('title', e.target.value)}
               disabled={!editMode}
             />
+            {editMode && !component.title?.trim() && (
+              <span className="field-error" style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>
+                Title is required by OSCAL Metaschema.
+              </span>
+            )}
           </div>
           <div className={styles['form-group']}>
             <label className="form-label">Type <span className="required">*</span></label>
@@ -165,11 +171,19 @@ export default function ComponentEditor({
           <div className={styles['form-group']}>
             <label className="form-label">Description <span className="required">*</span></label>
             {editMode ? (
-              <textarea 
-                className="form-textarea" 
-                value={component.description || ''} 
-                onChange={(e) => handleChange('description', e.target.value)}
-              />
+              <>
+                <textarea 
+                  className="form-textarea" 
+                  style={!component.description?.trim() ? { borderColor: 'var(--color-danger, #ef4444)' } : undefined}
+                  value={component.description || ''} 
+                  onChange={(e) => handleChange('description', e.target.value)}
+                />
+                {!component.description?.trim() && (
+                  <span className="field-error" style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>
+                    Description is required by OSCAL Metaschema.
+                  </span>
+                )}
+              </>
             ) : (
               <div className={styles['prose-readonly']}>
                 <ProseWithParams value={component.description} />

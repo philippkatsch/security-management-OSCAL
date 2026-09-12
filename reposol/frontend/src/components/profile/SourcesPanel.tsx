@@ -59,8 +59,20 @@ export function SourcesPanel({
   };
 
   useEffect(() => {
+    if (!isEditing) {
+      setIsDragOverPool(false);
+      (window as any).__isDraggingFromPool = false;
+      (window as any).__isDraggingFromTree = false;
+      (window as any).__activeTreeDraggedId = null;
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
     const handleGlobalDragEnd = () => {
       (window as any).__isDraggingFromPool = false;
+      (window as any).__isDraggingFromTree = false;
+      (window as any).__activeTreeDraggedId = null;
+      setIsDragOverPool(false);
     };
     window.addEventListener('dragend', handleGlobalDragEnd);
     window.addEventListener('drop', handleGlobalDragEnd);
@@ -70,8 +82,61 @@ export function SourcesPanel({
       window.removeEventListener('drop', handleGlobalDragEnd);
       window.removeEventListener('mouseup', handleGlobalDragEnd);
       (window as any).__isDraggingFromPool = false;
+      (window as any).__isDraggingFromTree = false;
+      (window as any).__activeTreeDraggedId = null;
     };
   }, []);
+
+  const handlePoolDragOver = (e: React.DragEvent) => {
+    if (!isEditing) return;
+    if ((window as any).__isDraggingFromPool) {
+      return;
+    }
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    setIsDragOverPool(true);
+  };
+
+  const handlePoolDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOverPool(false);
+    }
+  };
+
+  const handlePoolDrop = (e: React.DragEvent) => {
+    if (!isEditing) return;
+    (window as any).__isDraggingFromPool = false;
+    (window as any).__isDraggingFromTree = false;
+    (window as any).__activeTreeDraggedId = null;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverPool(false);
+
+    let ctrlId = '';
+    if (e.dataTransfer?.getData) {
+      const rawOscal = e.dataTransfer.getData('application/x-oscal-control');
+      if (rawOscal) {
+        try {
+          const parsed = JSON.parse(rawOscal);
+          if (parsed.controlIds && Array.isArray(parsed.controlIds) && parsed.controlIds.length > 0) {
+            handleRemoveMultipleControlsFromGroups(parsed.controlIds);
+            return;
+          }
+          ctrlId = parsed.id;
+        } catch {
+          ctrlId = e.dataTransfer.getData('text/plain');
+        }
+      } else {
+        ctrlId = e.dataTransfer.getData('text/plain');
+      }
+    }
+
+    if (ctrlId) {
+      handleRemoveControlFromGroups(ctrlId);
+    }
+  };
 
   const handleRemoveImport = (idx: number) => {
     const currentImports = profile.imports || [];
@@ -181,7 +246,8 @@ export function SourcesPanel({
       return customGroup;
     };
 
-    const importedGroups = (catalog.groups || []).map(mapCatalogGroupToCustomGroup);
+    const catalogGroups = (catalog.groups && catalog.groups.length > 0) ? catalog.groups : (catalog.all_groups || []);
+    const importedGroups = catalogGroups.map(mapCatalogGroupToCustomGroup);
     const existingGroups = profile.merge?.custom?.groups || [];
     const mergedGroups = [...existingGroups, ...importedGroups];
 
@@ -190,8 +256,9 @@ export function SourcesPanel({
       groups: mergedGroups
     };
 
-    if (catalog.controls && catalog.controls.length > 0 && isAll) {
-      const topControlIds = catalog.controls.map((c: any) => c.id);
+    const catalogControls = (catalog.controls && catalog.controls.length > 0) ? catalog.controls : (catalog.all_controls || []);
+    if (catalogControls.length > 0 && isAll) {
+      const topControlIds = catalogControls.map((c: any) => c.id);
       const existingInsert = profile.merge?.custom?.['insert-controls'] || [];
       nextCustom['insert-controls'] = [
         ...existingInsert,
@@ -485,6 +552,9 @@ export function SourcesPanel({
   return (
     <div
       className="sources-panel"
+      onDragOver={handlePoolDragOver}
+      onDragLeave={handlePoolDragLeave}
+      onDrop={handlePoolDrop}
       style={{
         height: '100%',
         display: 'flex',
@@ -776,46 +846,9 @@ export function SourcesPanel({
       {/* ─── Dedicated Lower Block: Hierarchy & Control Assignment Workbench ─── */}
       <div 
         className="control-pool-workbench"
-        onDragOver={(e) => {
-          if (!isEditing) return;
-          if ((window as any).__isDraggingFromPool) {
-            return;
-          }
-          e.preventDefault();
-          if (e.dataTransfer) {
-            e.dataTransfer.dropEffect = 'move';
-          }
-          setIsDragOverPool(true);
-        }}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            setIsDragOverPool(false);
-          }
-        }}
-        onDrop={(e) => {
-          if (!isEditing) return;
-          (window as any).__isDraggingFromPool = false;
-          e.preventDefault();
-          setIsDragOverPool(false);
-
-          let ctrlId = '';
-          if (e.dataTransfer?.getData) {
-            const rawOscal = e.dataTransfer.getData('application/x-oscal-control');
-            if (rawOscal) {
-              try {
-                ctrlId = JSON.parse(rawOscal).id;
-              } catch {
-                ctrlId = e.dataTransfer.getData('text/plain');
-              }
-            } else {
-              ctrlId = e.dataTransfer.getData('text/plain');
-            }
-          }
-
-          if (ctrlId) {
-            handleRemoveControlFromGroups(ctrlId);
-          }
-        }}
+        onDragOver={handlePoolDragOver}
+        onDragLeave={handlePoolDragLeave}
+        onDrop={handlePoolDrop}
         style={{ 
           flex: 1, 
           display: 'flex', 

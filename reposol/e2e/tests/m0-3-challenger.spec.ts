@@ -31,7 +31,6 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     
     // Inspect Profile fallback catalog import href
     const profileImportHref = profileDoc.profile.imports?.[0]?.href || '';
-    console.log('Profile Fallback Import Href:', profileImportHref);
     expect(profileImportHref).toMatch(/..\/catalogs\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json/i);
 
     // 3. Component Definition
@@ -46,7 +45,6 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     const sspDoc = await apiSetup.getDocument('ssps', sspId);
     expect(sspDoc['system-security-plan'].uuid).toMatch(UUID_V4_REGEX);
     const sspProfileHref = sspDoc['system-security-plan']['import-profile']?.href || '';
-    console.log('SSP Fallback Profile Href:', sspProfileHref);
     expect(sspProfileHref).toMatch(/..\/profiles\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json/i);
 
     // 5. Assessment Plan
@@ -55,7 +53,6 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     const apDoc = await apiSetup.getDocument('assessment-plan', apId);
     expect(apDoc['assessment-plan'].uuid).toMatch(UUID_V4_REGEX);
     const apSspHref = apDoc['assessment-plan']['import-ssp']?.href || '';
-    console.log('AP Fallback SSP Href:', apSspHref);
     expect(apSspHref).toMatch(/..\/ssps\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json/i);
 
     // 6. Assessment Results
@@ -64,7 +61,6 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     const arDoc = await apiSetup.getDocument('assessment-results', arId);
     expect(arDoc['assessment-results'].uuid).toMatch(UUID_V4_REGEX);
     const arApHref = arDoc['assessment-results']['import-ap']?.href || '';
-    console.log('AR Fallback AP Href:', arApHref);
     expect(arApHref).toMatch(/..\/assessment-plans\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json/i);
 
     // 7. POA&M
@@ -96,32 +92,24 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     const sspId = await apiSetup.createSsp(externalProfileId, externalCompDefId);
     const sspDoc = await apiSetup.getDocument('ssps', sspId);
     const sspProfileHref = sspDoc['system-security-plan']['import-profile']?.href;
-    console.log('Explicit Profile ID passed:', externalProfileId);
-    console.log('Actual SSP import-profile href:', sspProfileHref);
     expect(sspProfileHref).toBe(`../profiles/${externalProfileId}.json`);
 
     // Test passing explicit sspId to createAssessmentPlan
     const apId = await apiSetup.createAssessmentPlan(externalSspId);
     const apDoc = await apiSetup.getDocument('assessment-plan', apId);
     const apSspHref = apDoc['assessment-plan']['import-ssp']?.href;
-    console.log('Explicit SSP ID passed:', externalSspId);
-    console.log('Actual AP import-ssp href:', apSspHref);
     expect(apSspHref).toBe(`../ssps/${externalSspId}.json`);
 
     // Test passing explicit apId to createAssessmentResults
     const arId = await apiSetup.createAssessmentResults(externalApId);
     const arDoc = await apiSetup.getDocument('assessment-results', arId);
     const arApHref = arDoc['assessment-results']['import-ap']?.href;
-    console.log('Explicit AP ID passed:', externalApId);
-    console.log('Actual AR import-ap href:', arApHref);
     expect(arApHref).toBe(`../assessment-plans/${externalApId}.json`);
 
     // Test passing explicit sspId & arId to createPoam
     const poamId = await apiSetup.createPoam(externalSspId, externalArId);
     const poamDoc = await apiSetup.getDocument('poams', poamId);
     const poamSspHref = poamDoc['plan-of-action-and-milestones']['import-ssp']?.href;
-    console.log('Explicit SSP ID passed to POA&M:', externalSspId);
-    console.log('Actual POA&M import-ssp href:', poamSspHref);
     expect(poamSspHref).toBe(`../ssps/${externalSspId}.json`);
 
     await apiSetup.cleanup();
@@ -215,8 +203,6 @@ test.describe('Challenger M0-3 Empirical Stress Test Suite', () => {
     }
     await checkReq.dispose();
 
-    console.log('Baseline counts before ApiSetup creation:', baselineCounts);
-    console.log('Remaining counts after ApiSetup cleanup():', remainingCounts);
 
     // Verify created documents are no longer retrievable
     const checkSetup = new ApiSetup(page, setup.workspaceId);

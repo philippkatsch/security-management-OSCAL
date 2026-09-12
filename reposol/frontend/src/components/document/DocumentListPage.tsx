@@ -15,7 +15,6 @@ import { toast } from 'react-hot-toast';
 import { STAGE_CANONICAL_ROUTES, ROOT_KEYS, STAGE_LABELS, STAGE_ICONS } from '@lib/oscal-utils';
 
 const UNDER_DEV_STAGES = [
-  'component-definitions',
   'control-mappings',
   'ssps',
   'assessment-plans',
@@ -165,7 +164,7 @@ export const DocumentListPage = () => {
           <button
             className={sharedStyles['btn-primary']}
             onClick={() => setShowEditor(true)}
-            aria-label={`Create New ${label.replace(/s$/, '')}`}
+            aria-label={`+ New ${label.replace(/s$/, '')}`}
             data-testid="create-doc-btn"
           >
             + New {label.replace(/s$/, '')}

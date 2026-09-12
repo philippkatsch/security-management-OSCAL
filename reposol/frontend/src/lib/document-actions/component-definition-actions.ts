@@ -949,6 +949,32 @@ export function sanitizeComponentDefinition(compDef: ComponentDefinition): Compo
           continue;
         }
 
+        if (key === 'protocols' && Array.isArray(val)) {
+          const validProtocols = val
+            .filter((pr: any) => pr && typeof pr.name === 'string' && pr.name.trim() !== '')
+            .map((pr: any) => {
+              const cleanedPr: any = {
+                uuid: pr.uuid || generateUUID(),
+                name: pr.name.trim(),
+              };
+              if (pr.title && String(pr.title).trim()) {
+                cleanedPr.title = String(pr.title).trim();
+              }
+              if (Array.isArray(pr['port-ranges']) && pr['port-ranges'].length > 0) {
+                const validRanges = pr['port-ranges'].filter((r: any) => typeof r?.start === 'number');
+                if (validRanges.length > 0) {
+                  cleanedPr['port-ranges'] = validRanges;
+                }
+              }
+              return cleanedPr;
+            });
+
+          if (validProtocols.length > 0) {
+            cleanedObj[key] = validProtocols;
+          }
+          continue;
+        }
+
         if (key === 'control-implementations' && Array.isArray(val)) {
           const cleanedImpls = val
             .map(deepClean)
@@ -979,7 +1005,10 @@ export function sanitizeComponentDefinition(compDef: ComponentDefinition): Compo
           cleanedObj.description = 'Component description.';
         }
       }
-      if (cleanedObj.name !== undefined && (cleanedObj.uuid || cleanedObj['incorporates-components'] || cleanedObj['control-implementations'])) {
+      // Protocols in OSCAL (components[].protocols[]) must NOT contain 'description'
+      if (cleanedObj['port-ranges'] !== undefined || (cleanedObj.name !== undefined && 'port-ranges' in cleanedObj)) {
+        delete cleanedObj.description;
+      } else if (cleanedObj.name !== undefined && (cleanedObj['incorporates-components'] || cleanedObj['control-implementations'] || (!cleanedObj.type && !cleanedObj['control-id'] && !cleanedObj['statement-id'] && !cleanedObj.title))) {
         if (!cleanedObj.uuid) cleanedObj.uuid = generateUUID();
         if (!cleanedObj.name || !String(cleanedObj.name).trim()) {
           cleanedObj.name = 'Security Capability';

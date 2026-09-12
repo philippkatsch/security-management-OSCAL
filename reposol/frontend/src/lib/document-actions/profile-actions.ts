@@ -58,18 +58,21 @@ export interface RenameCustomGroupPayload {
   title?: string;
   newId?: string;
   class?: string;
+  initialCustomGroups?: CustomGroup[];
 }
 
 export interface DeleteCustomGroupPayload {
   groupId: string;
   deleteChildren?: boolean;
   reassignToGroupId?: string | null;
+  initialCustomGroups?: CustomGroup[];
 }
 
 export interface MoveCustomGroupPayload {
   sourceGroupId: string;
   targetGroupId?: string | null;
   targetIndex?: number;
+  initialCustomGroups?: CustomGroup[];
 }
 
 export interface AssignControlToCustomGroupPayload {
@@ -77,6 +80,7 @@ export interface AssignControlToCustomGroupPayload {
   targetGroupId?: string | null;
   order?: 'keep' | 'ascending' | 'descending';
   targetIndex?: number;
+  initialCustomGroups?: CustomGroup[];
 }
 
 export interface AssignMultipleControlsToCustomGroupPayload {
@@ -234,6 +238,48 @@ export function isGroupDescendant(
 }
 
 /**
+ * Maps catalog groups (including nested groups and controls) into OSCAL-compliant CustomGroups.
+ */
+export function mapCatalogGroupsToCustomGroups(groups?: any[]): CustomGroup[] {
+  if (!Array.isArray(groups) || groups.length === 0) return [];
+  return groups.map(g => {
+    const customGroup: CustomGroup = {
+      id: g.id || `custom_grp_${Math.random().toString(36).slice(2, 6)}`,
+      title: g.title || g.id || 'Untitled Group',
+      class: g.class || 'family',
+      props: g.props ? [...g.props] : [],
+      groups: g.groups ? mapCatalogGroupsToCustomGroups(g.groups) : []
+    };
+
+    if (g['insert-controls'] && Array.isArray(g['insert-controls']) && g['insert-controls'].length > 0) {
+      customGroup['insert-controls'] = JSON.parse(JSON.stringify(g['insert-controls']));
+    } else {
+      const controlIds = Array.isArray(g.controls) ? g.controls.map((c: any) => c.id).filter(Boolean) : [];
+      if (controlIds.length > 0) {
+        customGroup['insert-controls'] = [
+          {
+            order: 'keep',
+            'include-controls': [
+              {
+                'with-ids': controlIds
+              }
+            ]
+          }
+        ];
+      } else {
+        customGroup['insert-controls'] = [];
+      }
+    }
+
+    if (Array.isArray(g.controls) && g.controls.length > 0) {
+      (customGroup as any).controls = [...g.controls];
+    }
+
+    return customGroup;
+  });
+}
+
+/**
  * Normalizes insert-controls in a group and ensures at least one valid include-controls entry exists.
  */
 export function ensureInsertControls(group: CustomGroup): InsertControls {
@@ -250,6 +296,7 @@ export function ensureInsertControls(group: CustomGroup): InsertControls {
     ];
   }
   const primaryIc = group['insert-controls'][0];
+  delete (primaryIc as any)['include-all'];
   if (!primaryIc['include-controls'] || !Array.isArray(primaryIc['include-controls']) || primaryIc['include-controls'].length === 0) {
     primaryIc['include-controls'] = [{ 'with-ids': [] }];
   }
@@ -438,7 +485,11 @@ export function applyRenameCustomGroup(draft: any, payload: RenameCustomGroupPay
   const profile = getProfileFromDraft(draft);
   if (!profile?.merge?.custom) return false;
 
+  ensureCustomMergeStructure(profile);
   const custom = profile.merge.custom as { groups?: CustomGroup[] };
+  if ((!custom.groups || custom.groups.length === 0) && payload.initialCustomGroups && payload.initialCustomGroups.length > 0) {
+    custom.groups = JSON.parse(JSON.stringify(payload.initialCustomGroups));
+  }
   const group = findCustomGroupById(custom, payload.groupId);
   if (!group) return false;
 
@@ -474,7 +525,11 @@ export function applyDeleteCustomGroup(draft: any, payload: DeleteCustomGroupPay
   const profile = getProfileFromDraft(draft);
   if (!profile?.merge?.custom) return false;
 
+  ensureCustomMergeStructure(profile);
   const custom = profile.merge.custom as { groups?: CustomGroup[] };
+  if ((!custom.groups || custom.groups.length === 0) && payload.initialCustomGroups && payload.initialCustomGroups.length > 0) {
+    custom.groups = JSON.parse(JSON.stringify(payload.initialCustomGroups));
+  }
   const loc = findCustomGroupLocation(custom, payload.groupId);
   if (!loc) return false;
 
@@ -521,11 +576,32 @@ export function deleteCustomGroup(payload: DeleteCustomGroupPayload): DocumentAc
 
 export function applyMoveCustomGroup(draft: any, payload: MoveCustomGroupPayload): boolean {
   const profile = getProfileFromDraft(draft);
-  if (!profile?.merge?.custom) return false;
+  if (!profile) return false;
 
-  const custom = profile.merge.custom as { groups?: CustomGroup[] };
+  ensureCustomMergeStructure(profile);
+  const custom = profile.merge!.custom as { groups?: CustomGroup[] };
   const { sourceGroupId, targetGroupId, targetIndex } = payload;
   if (!sourceGroupId) return false;
+
+  // Materialize from initialCustomGroups if custom.groups is empty or missing groups
+  if ((!custom.groups || custom.groups.length === 0) && payload.initialCustomGroups && payload.initialCustomGroups.length > 0) {
+    custom.groups = JSON.parse(JSON.stringify(payload.initialCustomGroups));
+  } else if (payload.initialCustomGroups && payload.initialCustomGroups.length > 0) {
+    if (!findCustomGroupById(custom, sourceGroupId)) {
+      const missingGroup = findCustomGroupById(payload.initialCustomGroups, sourceGroupId);
+      if (missingGroup) {
+        if (!custom.groups) custom.groups = [];
+        custom.groups.push(JSON.parse(JSON.stringify(missingGroup)));
+      }
+    }
+    if (targetGroupId && !findCustomGroupById(custom, targetGroupId)) {
+      const missingTarget = findCustomGroupById(payload.initialCustomGroups, targetGroupId);
+      if (missingTarget) {
+        if (!custom.groups) custom.groups = [];
+        custom.groups.push(JSON.parse(JSON.stringify(missingTarget)));
+      }
+    }
+  }
 
   if (targetGroupId) {
     if (sourceGroupId.toLowerCase() === targetGroupId.toLowerCase()) return false;
@@ -584,6 +660,19 @@ export function applyAssignControlToCustomGroup(
   const { controlId, targetGroupId, order, targetIndex } = payload;
   if (!controlId) return false;
 
+  // Materialize from initialCustomGroups if needed
+  if ((!custom.groups || custom.groups.length === 0) && payload.initialCustomGroups && payload.initialCustomGroups.length > 0) {
+    custom.groups = JSON.parse(JSON.stringify(payload.initialCustomGroups));
+  } else if (targetGroupId && payload.initialCustomGroups && payload.initialCustomGroups.length > 0) {
+    if (!findCustomGroupById(custom, targetGroupId)) {
+      const missingTarget = findCustomGroupById(payload.initialCustomGroups, targetGroupId);
+      if (missingTarget) {
+        if (!custom.groups) custom.groups = [];
+        custom.groups.push(JSON.parse(JSON.stringify(missingTarget)));
+      }
+    }
+  }
+
   let targetGroup: CustomGroup | null = null;
   const isRoot = !targetGroupId || targetGroupId === '__root__';
 
@@ -591,6 +680,37 @@ export function applyAssignControlToCustomGroup(
     targetGroup = findCustomGroupById(custom, targetGroupId!);
     if (!targetGroup) return false;
   }
+
+  // If targetGroup has controls array, seed with-ids if with-ids is empty
+  if (targetGroup) {
+    const existingControls = (targetGroup as any).controls;
+    if (Array.isArray(existingControls) && existingControls.length > 0) {
+      const ic = ensureInsertControls(targetGroup);
+      const inc = ic['include-controls']![0];
+      if (!inc['with-ids'] || inc['with-ids'].length === 0) {
+        inc['with-ids'] = existingControls.map((c: any) => c.id).filter(Boolean);
+      }
+      delete (ic as any)['include-all'];
+    }
+  }
+
+  // Find existing control object to preserve its properties (title, props, etc.)
+  let existingCtrlObj: any = null;
+  const findExistingCtrl = (gList?: any[]): any => {
+    if (!gList) return null;
+    for (const g of gList) {
+      if (Array.isArray((g as any).controls)) {
+        const found = (g as any).controls.find((c: any) => c?.id && c.id.toLowerCase() === controlId.toLowerCase());
+        if (found) return found;
+      }
+      if (g.groups) {
+        const found = findExistingCtrl(g.groups);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  existingCtrlObj = findExistingCtrl(custom.groups) || findExistingCtrl(payload.initialCustomGroups);
 
   // Enforce exclusive assignment only after target is validated
   removeControlFromAllCustomGroups(custom, controlId);
@@ -623,6 +743,7 @@ export function applyAssignControlToCustomGroup(
   if (order) {
     ic.order = order;
   }
+  delete (ic as any)['include-all'];
 
   const inc = ic['include-controls']![0];
   if (!inc['with-ids']) {
@@ -635,6 +756,15 @@ export function applyAssignControlToCustomGroup(
       withIds.splice(targetIndex, 0, controlId);
     } else {
       withIds.push(controlId);
+    }
+  }
+
+  if (Array.isArray((targetGroup as any).controls)) {
+    const ctrlObj = existingCtrlObj ? JSON.parse(JSON.stringify(existingCtrlObj)) : { id: controlId, title: controlId };
+    if (targetIndex !== undefined && targetIndex >= 0 && targetIndex <= (targetGroup as any).controls.length) {
+      (targetGroup as any).controls.splice(targetIndex, 0, ctrlObj);
+    } else {
+      (targetGroup as any).controls.push(ctrlObj);
     }
   }
 

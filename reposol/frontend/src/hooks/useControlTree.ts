@@ -86,7 +86,8 @@ const buildTree = (
       return id !== undefined ? id : item.id;
   };
   
-  const sortedItems = [...items].sort((a, b) => sortId(a).localeCompare(sortId(b)));
+  // Preserve the caller-provided document array order so that manual drag-and-drop reordering works as intended
+  const sortedItems = [...items];
   
   for (const item of sortedItems) {
     if (!item.id) continue;

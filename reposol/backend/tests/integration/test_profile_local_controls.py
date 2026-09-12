@@ -82,17 +82,6 @@ class TestProfileLocalControls:
         res_delete = client.delete(f"/api/documents/profiles/{prof_uuid}")
         assert res_delete.status_code == 200
         
-        # Print debug info to stdout
-        profiles_dir = os.path.join(isolated_data_dir, "profiles")
-        catalogs_dir = os.path.join(isolated_data_dir, "catalogs")
-        print("\n--- DEBUG LOCAL CONTROLS CLEANUP ---")
-        print("profiles_dir contents:", os.listdir(profiles_dir))
-        print("catalogs_dir contents:", os.listdir(catalogs_dir))
-        if os.path.exists(catalog_path):
-            with open(catalog_path, "r", encoding="utf-8") as f:
-                cat_content = json.load(f)
-            print("Catalog content:", json.dumps(cat_content, indent=2))
-        
         # The profile file should be deleted
         assert not os.path.exists(profile_path)
         # The local catalog file should also be cleaned up (unreferenced catalog)

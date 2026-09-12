@@ -31,7 +31,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'conda run -n darkspell python -m uvicorn app.main:app --host 127.0.0.1 --port 1000',
+      command: 'C:\\Users\\phili\\miniconda3\\envs\\darkspell\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 1000',
       cwd: path.resolve(__dirname, '../backend'),
       url: 'http://127.0.0.1:1000/health',
       reuseExistingServer: true,

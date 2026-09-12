@@ -52,6 +52,12 @@
   flex-direction: column;
 }
 
+.nodeRowWrapper {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
 .nodeRow {
   display: flex;
   align-items: center;

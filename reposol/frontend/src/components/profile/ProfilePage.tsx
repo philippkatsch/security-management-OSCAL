@@ -34,7 +34,8 @@ import {
   renameProfileGlobalProperty,
   deleteProfileGlobalProperty,
   removeProfileOrphans,
-  updateProfileDocument
+  updateProfileDocument,
+  mapCatalogGroupsToCustomGroups
 } from '@lib/document-actions/profile-actions';
 
 
@@ -385,9 +386,11 @@ export function ProfilePage({
     return null;
   };
 
-  const findGroupById = (groupId, groupsList) => {
+  const findGroupById = (groupId?: string | null, groupsList?: any[]): any => {
+    if (!groupId || !groupsList) return null;
+    const target = groupId.toLowerCase();
     for (const g of groupsList) {
-      if (g.id === groupId) return g;
+      if (g.id && g.id.toLowerCase() === target) return g;
       if (g.groups) {
         const found = findGroupById(groupId, g.groups);
         if (found) return found;
@@ -418,18 +421,24 @@ export function ProfilePage({
   }, [dispatchAction]);
 
   const handleRenameCustomGroup = useCallback((groupId: string, newTitle: string, newId?: string) => {
+    const resolvedGroups = (resolvedCatalog?.groups && resolvedCatalog.groups.length > 0)
+      ? resolvedCatalog.groups
+      : (resolvedCatalog?.all_groups || []);
+    const initialCustomGroups = mapCatalogGroupsToCustomGroups(resolvedGroups);
     dispatchAction(renameCustomGroup({
       groupId,
       title: newTitle,
-      newId
+      newId,
+      initialCustomGroups
     }));
-  }, [dispatchAction]);
+  }, [dispatchAction, resolvedCatalog]);
 
   const handleRequestDeleteGroup = useCallback((groupId?: string) => {
     const gid = groupId || selectedGroupId;
     if (!gid) return;
-    const grp = findGroupById(gid, resolvedCatalog?.groups || []) ||
-      findGroupById(gid, (activeDoc?.profile as any)?.merge?.custom?.groups || []);
+    const grp = findGroupById(gid, (activeDoc?.profile as any)?.merge?.custom?.groups || []) ||
+      findGroupById(gid, resolvedCatalog?.groups || []) ||
+      findGroupById(gid, resolvedCatalog?.all_groups || []);
     if (grp) {
       setGroupToDelete(grp);
     } else {
@@ -439,17 +448,22 @@ export function ProfilePage({
 
   const handleConfirmDeleteGroup = useCallback((options: { deleteChildren: boolean; reassignToGroupId: string | null }) => {
     if (!groupToDelete) return;
+    const resolvedGroups = (resolvedCatalog?.groups && resolvedCatalog.groups.length > 0)
+      ? resolvedCatalog.groups
+      : (resolvedCatalog?.all_groups || []);
+    const initialCustomGroups = mapCatalogGroupsToCustomGroups(resolvedGroups);
     dispatchAction(deleteCustomGroup({
       groupId: groupToDelete.id,
       deleteChildren: options.deleteChildren,
-      reassignToGroupId: options.reassignToGroupId
+      reassignToGroupId: options.reassignToGroupId,
+      initialCustomGroups
     }));
     if (selectedGroupId === groupToDelete.id) {
       setSelectedGroupId(null);
       setActiveSidebarView('overview');
     }
     setGroupToDelete(null);
-  }, [groupToDelete, dispatchAction, selectedGroupId]);
+  }, [groupToDelete, dispatchAction, selectedGroupId, resolvedCatalog]);
 
   const handleMoveNode = useCallback((nodeId: string, targetParentId: string | null, targetIndex?: number) => {
     if (nodeId === '__unassigned__') return;
@@ -484,14 +498,22 @@ export function ProfilePage({
         // fallback
       }
     }
-    const isGroup = Boolean(findGroupById(nodeId, resolvedCatalog?.groups || []) ||
-      findGroupById(nodeId, (activeDoc?.profile as any)?.merge?.custom?.groups || []));
+    const isGroup = Boolean(
+      findGroupById(nodeId, (activeDoc?.profile as any)?.merge?.custom?.groups || []) ||
+      findGroupById(nodeId, resolvedCatalog?.groups || []) ||
+      findGroupById(nodeId, resolvedCatalog?.all_groups || [])
+    );
+    const resolvedGroups = (resolvedCatalog?.groups && resolvedCatalog.groups.length > 0)
+      ? resolvedCatalog.groups
+      : (resolvedCatalog?.all_groups || []);
+    const initialCustomGroups = mapCatalogGroupsToCustomGroups(resolvedGroups);
     if (isGroup) {
       if (targetParentId === '__unassigned__') return;
       dispatchAction(moveCustomGroup({
         sourceGroupId: nodeId,
         targetGroupId: targetParentId,
-        targetIndex
+        targetIndex,
+        initialCustomGroups
       }));
     } else {
       if (targetParentId === '__unassigned__') {
@@ -502,7 +524,8 @@ export function ProfilePage({
         dispatchAction(assignControlToCustomGroup({
           controlId: nodeId,
           targetGroupId: targetParentId,
-          targetIndex
+          targetIndex,
+          initialCustomGroups
         }));
       }
     }

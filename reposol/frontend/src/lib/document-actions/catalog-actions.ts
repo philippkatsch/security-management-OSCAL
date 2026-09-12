@@ -233,9 +233,19 @@ export function moveNode(nodeId: string, targetParentId: string | null, targetIn
               parent.controls.push(removedControl);
             }
           } else {
-            // Fallback: restore back to root
-            if (!draft.catalog.controls) draft.catalog.controls = [];
-            draft.catalog.controls.push(removedControl);
+            const parentCtrl = findControlById(draft.catalog, targetParentId);
+            if (parentCtrl) {
+              if (!parentCtrl.controls) parentCtrl.controls = [];
+              if (targetIndex !== undefined && targetIndex >= 0 && targetIndex <= parentCtrl.controls.length) {
+                parentCtrl.controls.splice(targetIndex, 0, removedControl);
+              } else {
+                parentCtrl.controls.push(removedControl);
+              }
+            } else {
+              // Fallback: restore back to root
+              if (!draft.catalog.controls) draft.catalog.controls = [];
+              draft.catalog.controls.push(removedControl);
+            }
           }
         }
       }

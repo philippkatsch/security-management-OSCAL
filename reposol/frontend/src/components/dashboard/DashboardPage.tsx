@@ -20,7 +20,7 @@ interface WorkflowStep {
 const WORKFLOW_STEPS: WorkflowStep[] = [
   { stage: 'catalogs', label: 'Catalog', icon: '📖', desc: 'Control definitions' },
   { stage: 'profiles', label: 'Profile', icon: '⚙️', desc: 'Tailored baselines' },
-  { stage: 'component-definitions', label: 'Components', icon: '🧱', desc: 'System parts', isDev: true },
+  { stage: 'component-definitions', label: 'Components', icon: '🧱', desc: 'System parts' },
   { stage: 'ssps', label: 'SSP', icon: '📝', desc: 'Security plans', isDev: true },
   { stage: 'assessment-plans', label: 'AP', icon: '📅', desc: 'Assessment plans', isDev: true },
   { stage: 'assessment-results', label: 'AR', icon: '✅', desc: 'Audit results', isDev: true },

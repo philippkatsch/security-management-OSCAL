@@ -585,6 +585,10 @@ export const ComponentPage: React.FC<ComponentPageProps> = ({
               backMatter={backMatter}
               onChangeImports={(newImports) => dispatch(setImportComponentDefinitions(newImports))}
               onChangeBackMatter={(newBm) => dispatch(updateComponentDefinitionBackMatter(newBm))}
+              onAdoptComponent={(comp) => {
+                const isExisting = components.some(c => c.uuid === comp.uuid);
+                dispatch(addComponent(isExisting ? { ...comp, uuid: generateUUID() } : comp));
+              }}
               editMode={isEditing}
             />
           </div>
