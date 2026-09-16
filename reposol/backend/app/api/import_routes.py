@@ -1,15 +1,14 @@
 import os
 import json
-from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Depends, Query
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query
 from pydantic import BaseModel
 from typing import Optional
 
 from app.dependencies import get_workspace_id, require_write_permission
-from app.constants import STAGE_MAPPING
+from app.constants import STAGE_MAPPING, STAGE_ROOT_KEYS
 from app.format_converter import parse_xml_to_oscal_dict, parse_yaml_to_dict
 from app.services.import_service import fetch_remote_document, import_document, ImportServiceError, ImportValidationError
 from app.repositories.workspace_repository import get_stage_dir
-from app.repositories.document_repository import is_valid_uuid
 
 import_router = APIRouter()
 
@@ -126,21 +125,35 @@ class ParseDocumentRequest(BaseModel):
 
 @import_router.get("/api/import/registry")
 async def list_registry(ws_id: str = Depends(get_workspace_id)):
-    """Return the list of known importable OSCAL sources, annotated with import status."""
+    """Return the list of known importable OSCAL sources, annotated with import status and version."""
     annotated_sources = []
     for source in KNOWN_SOURCES:
         entry = dict(source)
         stage_alias = STAGE_MAPPING.get(entry["model"])
         is_imported = False
+        workspace_version = None
         if stage_alias and "uuid" in entry:
             try:
                 stage_dir = await get_stage_dir(stage_alias, workspace_id=ws_id)
                 file_path = os.path.join(stage_dir, f"{entry['uuid']}.json")
+                if not os.path.isfile(file_path) and ws_id:
+                    root_stage_dir = await get_stage_dir(stage_alias, workspace_id=None)
+                    file_path = os.path.join(root_stage_dir, f"{entry['uuid']}.json")
                 if os.path.isfile(file_path):
                     is_imported = True
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            doc_data = json.load(f)
+                            root_key = STAGE_ROOT_KEYS.get(stage_alias)
+                            if root_key and root_key in doc_data:
+                                workspace_version = doc_data[root_key].get("metadata", {}).get("version")
+                    except Exception:
+                        pass
             except ValueError:
                 pass # stage dir not valid
         entry["is_imported"] = is_imported
+        if workspace_version:
+            entry["workspace_version"] = workspace_version
         annotated_sources.append(entry)
         
     return annotated_sources

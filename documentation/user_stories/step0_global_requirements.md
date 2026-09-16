@@ -103,6 +103,11 @@ The Step 0 user story sequence contains historical numbering gaps resulting from
 - [x] **Pre-bundled OSCAL Content Registry Sources:** The import registry modal includes official, pre-configured raw JSON endpoints matching the official OSCAL Content Registry repository. Non-working/broken remote endpoints are excluded so that only valid, importing endpoints are offered in the UI.
 - [x] **Uniform Publisher Badge Styling:** All source publisher badges in the Import Wizard registry list use a uniform standard style, eliminating publisher-specific mapping.
 - [x] **Official Schema Validation:** The imported document is strictly validated against the official NIST OSCAL JSON schemas stored locally.
+- [x] **Intelligent Version & Duplicate Identity Verification:**
+  - **Exact Version & Content Match (`already_exists`):** Re-importing a document with matching UUID and identical content/version returns status `already_exists` with informative UI notice (`ℹ️ Already imported`), avoiding misleading overwrite messages.
+  - **Divergent Content & Version Upgrade (`updated`):** When an existing document has the same UUID but different content or a bumped version, the import applies the update and details whether the version upgraded or modified content was updated.
+  - **Duplicate Title Detection:** When importing a document whose title matches an existing document in the workspace stage under a different UUID, the system detects whether the underlying content is identical or different (e.g., customized local profile sharing the name) and presents a distinct warning badge.
+  - **Stage-Specific Presets:** The URL import tab offers standard official presets tailored to the current stage (NIST SP 800-53 Rev 5 Low/Moderate/High baselines for profiles, NIST & BSI catalogs for catalogs, and IAM/Cloud presets for component definitions).
 - [x] **Error Mapping:** In case of a failed import, a detailed error message with the exact JSON path and error description is returned.
 
 ### US 0.4: OSCAL Export to Different Formats

@@ -2,13 +2,12 @@ import os
 import json
 import re
 import glob
-import time
 import logging
 import asyncio
 import aiofiles
 import aiofiles.os
 from typing import List, Dict, Any, Optional
-from app.constants import STAGE_ROOT_KEYS, DRAFT_SUFFIX, VERSION_SEPARATOR, TEMP_EXTENSION, LOCK_TIMEOUT
+from app.constants import STAGE_ROOT_KEYS, DRAFT_SUFFIX, VERSION_SEPARATOR, TEMP_EXTENSION
 from app.repositories.workspace_repository import get_stage_dir, is_safe_subdir
 
 logger = logging.getLogger(__name__)
@@ -166,10 +165,16 @@ async def list_documents_by_stage(stage: str, workspace_id: Optional[str] = None
     return await list_raw_documents(stage, workspace_id)
 
 async def document_exists(stage: str, doc_id: str, workspace_id: Optional[str] = None) -> bool:
-    """Checks if a document exists by ID."""
+    """Checks if a document exists by ID, checking workspace and falling back to default."""
     stage_dir = await get_stage_dir(stage, workspace_id)
     file_path = os.path.abspath(os.path.join(stage_dir, f"{doc_id}.json"))
-    return await aiofiles.os.path.exists(file_path)
+    if await aiofiles.os.path.exists(file_path):
+        return True
+    if workspace_id:
+        root_stage_dir = await get_stage_dir(stage, workspace_id=None)
+        root_file_path = os.path.abspath(os.path.join(root_stage_dir, f"{doc_id}.json"))
+        return await aiofiles.os.path.exists(root_file_path)
+    return False
 
 async def get_raw_document_path(stage: str, doc_id: str, workspace_id: Optional[str] = None) -> str:
     """Gets the file path for a document."""

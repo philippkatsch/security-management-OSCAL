@@ -349,9 +349,143 @@ class TestImportRoutesIntegration:
         create_res = client.post("/api/documents/component-definitions", json=sample_cdef)
         assert create_res.status_code in (200, 201)
 
-        # Now verify that is_imported is True
+        # Now verify that is_imported is True and workspace_version is returned
         res2 = client.get("/api/import/registry")
         assert res2.status_code == 200
         aws_source_updated = next(s for s in res2.json() if s["id"] == "bsi-aws-security-hub-component-definition")
         assert aws_source_updated["is_imported"] is True
+        assert aws_source_updated.get("workspace_version") == "1.0.0"
+
+    def test_import_already_exists_identical(self, client, isolated_data_dir):
+        """Verify that importing an identical document with same UUID returns status 'already_exists' and action 'identical'."""
+        cat_doc = CatalogFactory.build(title="Identical Check Catalog", version="1.0.0")
+        files = {"file": ("cat.json", json.dumps(cat_doc), "application/json")}
+
+        # 1. First import -> status: created
+        res1 = client.post("/api/import/file", files=files)
+        assert res1.status_code == 200
+        assert res1.json()["status"] == "created"
+        assert res1.json()["action"] == "created"
+
+        # 2. Second import of exact same document -> status: already_exists, action: identical
+        files2 = {"file": ("cat.json", json.dumps(cat_doc), "application/json")}
+        res2 = client.post("/api/import/file", files=files2)
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["status"] == "already_exists"
+        assert data2["action"] == "identical"
+        assert "already imported" in data2["message"].lower()
+
+    def test_import_updated_version_bump(self, client, isolated_data_dir):
+        """Verify that re-importing with bumped version returns status 'updated' and action 'version_bump'."""
+        cat_doc = CatalogFactory.build(title="Version Bump Catalog", version="1.0.0")
+        uuid = cat_doc["catalog"]["uuid"]
+        files = {"file": ("cat.json", json.dumps(cat_doc), "application/json")}
+
+        # 1. First import
+        res1 = client.post("/api/import/file", files=files)
+        assert res1.status_code == 200
+        assert res1.json()["status"] == "created"
+
+        # 2. Bump version to 2.0.0 with same UUID
+        cat_doc["catalog"]["metadata"]["version"] = "2.0.0"
+        files2 = {"file": ("cat.json", json.dumps(cat_doc), "application/json")}
+        res2 = client.post("/api/import/file", files=files2)
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["status"] == "updated"
+        assert data2["action"] == "version_bump"
+        assert data2["version"] == "2.0.0"
+        assert data2["existing_version"] == "1.0.0"
+
+    def test_import_updated_modified_content_same_version(self, client, isolated_data_dir):
+        """Verify that re-importing with modified content (e.g. controls changed) returns status 'updated' and action 'content_updated'."""
+        cat_doc = CatalogFactory.build(title="Content Mod Catalog", version="1.0.0")
+        files = {"file": ("cat.json", json.dumps(cat_doc), "application/json")}
+
+        # 1. First import
+        res1 = client.post("/api/import/file", files=files)
+        assert res1.status_code == 200
+        assert res1.json()["status"] == "created"
+
+        # 2. Modify description or controls
+        cat_doc["catalog"]["metadata"]["remarks"] = "User modified remarks locally"
+        files2 = {"file": ("cat.json", json.dumps(cat_doc), "application/json")}
+        res2 = client.post("/api/import/file", files=files2)
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["status"] == "updated"
+        assert data2["action"] == "content_updated"
+
+    def test_import_already_exists_with_empty_arrays(self, client, isolated_data_dir):
+        """Verify that importing a document containing empty/whitespace strings returns 'already_exists' on re-import."""
+        cat_doc = CatalogFactory.build(title="Empty Arrays Catalog", version="1.0.0")
+        # Add whitespace remarks that validates against OSCAL schema but gets stripped by remove_empty_arrays on save
+        cat_doc["catalog"]["metadata"]["remarks"] = "   "
+        files = {"file": ("cat.json", json.dumps(cat_doc), "application/json")}
+
+        # First import
+        res1 = client.post("/api/import/file", files=files)
+        assert res1.status_code == 200
+        assert res1.json()["status"] == "created"
+
+        # Second import of exact same file (containing empty arrays)
+        files2 = {"file": ("cat.json", json.dumps(cat_doc), "application/json")}
+        res2 = client.post("/api/import/file", files=files2)
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["status"] == "already_exists"
+        assert data2["action"] == "identical"
+        assert "already imported" in data2["message"].lower()
+
+    def test_import_duplicate_title_same_version_different_content(self, client, isolated_data_dir):
+        """Verify that importing a document with matching title AND version but modified content warns about same version."""
+        cat_doc1 = CatalogFactory.build(title="Company Baseline Profile", version="2.0.0")
+        uuid1 = cat_doc1["catalog"]["uuid"]
+        files1 = {"file": ("cat1.json", json.dumps(cat_doc1), "application/json")}
+        res1 = client.post("/api/import/file", files=files1)
+        assert res1.status_code == 200
+
+        # Second document: same title, same version 2.0.0, different UUID, different content
+        cat_doc2 = CatalogFactory.build(title="Company Baseline Profile", version="2.0.0")
+        cat_doc2["catalog"]["metadata"]["remarks"] = "Locally modified controls baseline"
+        uuid2 = cat_doc2["catalog"]["uuid"]
+
+        files2 = {"file": ("cat2.json", json.dumps(cat_doc2), "application/json")}
+        res2 = client.post("/api/import/file", files=files2)
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["status"] == "created"
+        assert data2["action"] == "created_duplicate_title_modified"
+        assert "version 2.0.0" in data2["message"]
+        assert "different content/modifications" in data2["message"]
+
+    def test_import_duplicate_title_new_uuid(self, client, isolated_data_dir):
+        """Verify that importing a document with matching title but different UUID detects same_title_existing."""
+        # 1. First document
+        cat_doc1 = CatalogFactory.build(title="Shared Name Framework", version="1.0.0")
+        uuid1 = cat_doc1["catalog"]["uuid"]
+        files1 = {"file": ("cat1.json", json.dumps(cat_doc1), "application/json")}
+        res1 = client.post("/api/import/file", files=files1)
+        assert res1.status_code == 200
+        assert res1.json()["status"] == "created"
+
+        # 2. Second document with SAME title but DIFFERENT UUID and modified content
+        cat_doc2 = CatalogFactory.build(title="Shared Name Framework", version="1.0.0")
+        cat_doc2["catalog"]["metadata"]["remarks"] = "Different profile behind the scenes"
+        uuid2 = cat_doc2["catalog"]["uuid"]
+        assert uuid1 != uuid2
+
+        files2 = {"file": ("cat2.json", json.dumps(cat_doc2), "application/json")}
+        res2 = client.post("/api/import/file", files=files2)
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["status"] == "created"
+        assert data2["action"] == "created_duplicate_title_modified"
+        assert data2["same_title_existing"] is not None
+        assert data2["same_title_existing"]["uuid"] == uuid1
+        assert data2["same_title_existing"]["identical_content"] is False
+        assert "different content" in data2["message"]
+
+
 

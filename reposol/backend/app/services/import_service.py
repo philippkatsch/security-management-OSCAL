@@ -1,10 +1,16 @@
+import copy
 import uuid
 import httpx
 from typing import Optional, Dict, Any
 from app.constants import STAGE_ROOT_KEYS, STAGE_MAPPING
 from app.validation import validate_document
 from app.services.document_service import save_document
-from app.repositories.document_repository import is_valid_uuid
+from app.repositories.document_repository import (
+    is_valid_uuid,
+    document_exists,
+    get_document as repo_get_document,
+    list_raw_documents,
+)
 
 class ImportServiceError(Exception):
     pass
@@ -57,8 +63,36 @@ async def fetch_remote_document(url: str) -> dict:
         raise ImportServiceError(f"Failed to fetch URL: {str(e)}")
 
 
+def _normalize_doc_for_comparison(doc: dict, root_key: str) -> dict:
+    """
+    Returns a copy of doc[root_key] stripped of volatile timestamps (last-modified),
+    internal properties (_etag, etc.), and empty collections for semantic comparison.
+    """
+    import copy
+    from app.utils.oscal_transform_utils import remove_empty_arrays
+
+    if not isinstance(doc, dict):
+        return {}
+    raw_root = doc.get(root_key, {})
+    if not isinstance(raw_root, dict):
+        return {}
+    root = copy.deepcopy(raw_root)
+
+    root.pop("_etag", None)
+
+    metadata = root.get("metadata")
+    if isinstance(metadata, dict):
+        metadata.pop("last-modified", None)
+
+    return remove_empty_arrays(root)
+
+
+
 async def import_document(document: dict, validate: bool = True, workspace_id: Optional[str] = None, persist: bool = True) -> dict:
-    """Import a document into local storage (or parse only if persist=False), with optional validation."""
+    """
+    Import a document into local storage (or parse only if persist=False), with optional validation.
+    Performs deep double-check for existing versions, identical content, and duplicate titles.
+    """
     stage = detect_stage(document)
     normalized_stage = STAGE_MAPPING.get(stage, stage)
     root_key = STAGE_ROOT_KEYS.get(normalized_stage)
@@ -91,25 +125,137 @@ async def import_document(document: dict, validate: bool = True, workspace_id: O
         except Exception as e:
             raise ImportValidationError(f"Schema validation failed: {str(e)}")
 
+    incoming_meta = doc_data.get("metadata", {})
+    incoming_title = incoming_meta.get("title", "Untitled")
+    incoming_version = incoming_meta.get("version")
+    incoming_oscal_version = incoming_meta.get("oscal-version", "unknown")
+
     if not persist:
         return {
             "status": "parsed",
             "stage": normalized_stage,
             "uuid": doc_id,
-            "title": doc_data.get("metadata", {}).get("title", "Untitled"),
-            "oscal_version": doc_data.get("metadata", {}).get("oscal-version", "unknown"),
+            "title": incoming_title,
+            "version": incoming_version,
+            "oscal_version": incoming_oscal_version,
             "document": document,
         }
 
-    _, _, existed = await save_document(normalized_stage, doc_id, document, workspace_id=workspace_id, skip_validation=True)
+    # 1. Check if document with exact UUID already exists in this stage
+    if await document_exists(normalized_stage, doc_id, workspace_id=workspace_id):
+        try:
+            existing_doc, _ = await repo_get_document(normalized_stage, doc_id, workspace_id=workspace_id)
+        except Exception:
+            existing_doc = None
+
+        if existing_doc:
+            existing_root = existing_doc.get(root_key, {})
+            existing_meta = existing_root.get("metadata", {})
+            existing_version = existing_meta.get("version")
+
+            existing_norm = _normalize_doc_for_comparison(existing_doc, root_key)
+            incoming_norm = _normalize_doc_for_comparison(document, root_key)
+
+            if existing_norm == incoming_norm:
+                # Document is already present in this exact version and content
+                ver_display = f"Version {incoming_version}" if incoming_version else "the current version"
+                return {
+                    "status": "already_exists",
+                    "action": "identical",
+                    "stage": normalized_stage,
+                    "uuid": doc_id,
+                    "title": incoming_title,
+                    "version": incoming_version,
+                    "existing_version": existing_version,
+                    "oscal_version": incoming_oscal_version,
+                    "message": f'Document "{incoming_title}" is already imported in your workspace in {ver_display} with identical content.',
+                    "document": existing_doc,
+                }
+
+            # Content or version differs — save update
+            saved_doc, _, _ = await save_document(normalized_stage, doc_id, document, workspace_id=workspace_id, skip_validation=True)
+
+            if existing_version and incoming_version and existing_version != incoming_version:
+                action = "version_bump"
+                msg = f'Updated "{incoming_title}" (UUID: {doc_id[:8]}...) — upgraded version from {existing_version} to {incoming_version}.'
+            else:
+                action = "content_updated"
+                ver_txt = f" (v{incoming_version})" if incoming_version else ""
+                msg = f'Re-imported "{incoming_title}"{ver_txt} (UUID: {doc_id[:8]}...) — existing document had local modifications; updated with imported content.'
+
+            return {
+                "status": "updated",
+                "action": action,
+                "stage": normalized_stage,
+                "uuid": doc_id,
+                "title": incoming_title,
+                "version": incoming_version,
+                "existing_version": existing_version,
+                "oscal_version": incoming_oscal_version,
+                "message": msg,
+                "document": saved_doc,
+            }
+
+    # 2. Document UUID does not exist yet. Check if another document has the same title in this stage
+    same_title_match = None
+    incoming_title_clean = incoming_title.strip().lower()
+    if incoming_title_clean and incoming_title_clean != "untitled":
+        try:
+            existing_docs = await list_raw_documents(normalized_stage, workspace_id=workspace_id)
+            incoming_norm = _normalize_doc_for_comparison(document, root_key)
+            incoming_norm_no_uuid = copy.deepcopy(incoming_norm)
+            incoming_norm_no_uuid.pop("uuid", None)
+
+            for edoc in existing_docs:
+                eroot = edoc.get(root_key, {})
+                emeta = eroot.get("metadata", {})
+                etitle = (emeta.get("title") or "").strip()
+                euuid = eroot.get("uuid")
+                if etitle.lower() == incoming_title_clean and euuid and euuid != doc_id:
+                    edoc_norm = _normalize_doc_for_comparison(edoc, root_key)
+                    edoc_norm.pop("uuid", None)
+                    is_same_content = (edoc_norm == incoming_norm_no_uuid)
+                    same_title_match = {
+                        "uuid": euuid,
+                        "title": etitle,
+                        "version": emeta.get("version"),
+                        "identical_content": is_same_content,
+                    }
+                    break
+        except Exception:
+            pass
+
+    saved_doc, _, _ = await save_document(normalized_stage, doc_id, document, workspace_id=workspace_id, skip_validation=True)
+
+    if same_title_match:
+        existing_ver = same_title_match.get("version")
+        ver_info = f" (v{existing_ver})" if existing_ver else ""
+        if same_title_match["identical_content"]:
+            action = "created_duplicate_title_identical"
+            msg = f'Imported "{incoming_title}" (UUID: {doc_id[:8]}...), but an identical document with this title already exists in {normalized_stage}{ver_info} (UUID: {same_title_match["uuid"][:8]}...).'
+        else:
+            action = "created_duplicate_title_modified"
+            if existing_ver and incoming_version and existing_ver == incoming_version:
+                msg = f'Imported "{incoming_title}" (UUID: {doc_id[:8]}...) — Note: Another document with this title already exists in version {existing_ver} with different content/modifications in {normalized_stage} (UUID: {same_title_match["uuid"][:8]}...).'
+            elif existing_ver:
+                msg = f'Imported "{incoming_title}" (UUID: {doc_id[:8]}...) — Note: Another document with this title exists in version {existing_ver} in {normalized_stage} with different content (UUID: {same_title_match["uuid"][:8]}...).'
+            else:
+                msg = f'Imported "{incoming_title}" (UUID: {doc_id[:8]}...) — Note: Another document with this title already exists with different content in {normalized_stage} (UUID: {same_title_match["uuid"][:8]}...).'
+    else:
+        action = "created"
+        msg = f'Successfully imported "{incoming_title}" ({normalized_stage}).'
 
     return {
-        "status": "updated" if existed else "created",
+        "status": "created",
+        "action": action,
         "stage": normalized_stage,
         "uuid": doc_id,
-        "title": doc_data.get("metadata", {}).get("title", "Untitled"),
-        "oscal_version": doc_data.get("metadata", {}).get("oscal-version", "unknown"),
-        "document": document,
+        "title": incoming_title,
+        "version": incoming_version,
+        "oscal_version": incoming_oscal_version,
+        "message": msg,
+        "same_title_existing": same_title_match,
+        "document": saved_doc,
     }
 
 

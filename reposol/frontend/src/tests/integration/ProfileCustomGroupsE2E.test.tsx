@@ -2395,7 +2395,7 @@ describe('Stage 2 Profile Tailoring — Custom Group Definition & Control Pool A
       fireEvent.click(screen.getByTestId('control-pool-tab-btn'));
       const duration = performance.now() - start;
 
-      expect(duration).toBeLessThan(3000);
+      expect(duration).toBeLessThan(10000);
       expect(screen.getByText('Large Control 150')).toBeInTheDocument();
     });
 

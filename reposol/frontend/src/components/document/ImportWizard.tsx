@@ -68,6 +68,96 @@ const COMPONENT_EXAMPLE_URLS = [
   },
 ];
 
+const PROFILE_EXAMPLE_URLS = [
+  {
+    label: 'NIST SP 800-53 Rev 5 — LOW Baseline Profile',
+    desc: 'Official NIST SP 800-53 Rev 5 LOW impact baseline profile',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_LOW-baseline_profile.json',
+  },
+  {
+    label: 'NIST SP 800-53 Rev 5 — MODERATE Baseline Profile',
+    desc: 'Official NIST SP 800-53 Rev 5 MODERATE impact baseline profile',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_MODERATE-baseline_profile.json',
+  },
+  {
+    label: 'NIST SP 800-53 Rev 5 — HIGH Baseline Profile',
+    desc: 'Official NIST SP 800-53 Rev 5 HIGH impact baseline profile',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_HIGH-baseline_profile.json',
+  },
+];
+
+const SSP_EXAMPLE_URLS = [
+  {
+    label: 'NIST OSCAL Example System Security Plan',
+    desc: 'Official NIST OSCAL example System Security Plan (SSP) demonstrating control implementation & components',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/examples/ssp/json/ssp-example.json',
+  },
+];
+
+const ASSESSMENT_PLAN_EXAMPLE_URLS = [
+  {
+    label: 'NIST OSCAL Example Assessment Plan',
+    desc: 'Official NIST OSCAL example Assessment Plan (AP) for security assessments',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/examples/assessment-plan/json/assessment-plan-example.json',
+  },
+];
+
+const ASSESSMENT_RESULTS_EXAMPLE_URLS = [
+  {
+    label: 'NIST OSCAL Example Assessment Results',
+    desc: 'Official NIST OSCAL example Assessment Results (AR) containing observations & findings',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/examples/assessment-results/json/assessment-results-example.json',
+  },
+];
+
+const POAM_EXAMPLE_URLS = [
+  {
+    label: 'NIST OSCAL Example Plan of Action and Milestones',
+    desc: 'Official NIST OSCAL example Plan of Action and Milestones (POA&M) document',
+    url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/examples/poam/json/poam-example.json',
+  },
+];
+
+export const getStagePresets = (stage?: string) => {
+  if (stage === 'component-definitions' || stage === 'component-definition') {
+    return { title: 'Standard Component Definition Presets (Click to load)', icon: '🧱', items: COMPONENT_EXAMPLE_URLS };
+  }
+  if (stage === 'profiles' || stage === 'profile') {
+    return { title: 'Standard Profile Presets (Click to load)', icon: '⚙️', items: PROFILE_EXAMPLE_URLS };
+  }
+  if (stage === 'ssps' || stage === 'ssp') {
+    return { title: 'Standard System Security Plan Presets (Click to load)', icon: '📝', items: SSP_EXAMPLE_URLS };
+  }
+  if (stage === 'assessment-plans' || stage === 'assessment-plan') {
+    return { title: 'Standard Assessment Plan Presets (Click to load)', icon: '📅', items: ASSESSMENT_PLAN_EXAMPLE_URLS };
+  }
+  if (stage === 'assessment-results' || stage === 'assessment-result') {
+    return { title: 'Standard Assessment Results Presets (Click to load)', icon: '✅', items: ASSESSMENT_RESULTS_EXAMPLE_URLS };
+  }
+  if (stage === 'poams' || stage === 'poam') {
+    return { title: 'Standard POA&M Presets (Click to load)', icon: '⚠️', items: POAM_EXAMPLE_URLS };
+  }
+  if (stage === 'catalogs' || stage === 'catalog') {
+    return { title: 'Standard Catalog Presets (Click to load)', icon: '📖', items: CATALOG_EXAMPLE_URLS };
+  }
+  return {
+    title: 'Standard Catalog Presets (Click to load)',
+    icon: '📖',
+    items: [
+      {
+        label: 'NIST SP 800-53 Rev5 Catalog',
+        desc: 'NIST SP 800-53 Rev 5 Catalog',
+        url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json',
+      },
+      {
+        label: 'NIST CSF 2.0 Catalog',
+        desc: 'NIST Cybersecurity Framework 2.0',
+        url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json',
+      },
+    ],
+  };
+};
+
 export interface ImportWizardProps {
   stage?: string;
   onImported?: (stage: string, docData?: any) => void;
@@ -78,6 +168,101 @@ export interface ImportWizardProps {
   title?: string;
   subtitle?: string;
 }
+
+export interface ImportResultState {
+  ok: boolean;
+  message: string;
+  status?: string;
+  action?: string;
+  version?: string;
+  existing_version?: string;
+  same_title_existing?: {
+    uuid: string;
+    title: string;
+    version?: string;
+    identical_content: boolean;
+  } | null;
+}
+
+const getRegistryResultMessage = (data: any, appliedTitle: string, isEmbedded: boolean): string => {
+  if (isEmbedded) {
+    return `✅ Content Applied: "${appliedTitle}"`;
+  }
+  if (data.status === 'already_exists') {
+    return `ℹ️ Already imported: "${appliedTitle}" (Version ${data.version || 'current'})`;
+  }
+  if (data.status === 'updated') {
+    if (data.action === 'version_bump' || (data.existing_version && data.version && data.existing_version !== data.version)) {
+      return `🔄 Updated: "${appliedTitle}" (v${data.existing_version} → v${data.version})`;
+    }
+    if (data.action === 'content_updated') {
+      return `⚠️ Re-imported: "${appliedTitle}" (Updated locally modified document)`;
+    }
+    return `🔄 Updated: "${appliedTitle}"`;
+  }
+  if (data.same_title_existing) {
+    const ver = data.same_title_existing.version ? ` (v${data.same_title_existing.version})` : '';
+    if (data.same_title_existing.identical_content) {
+      return `ℹ️ Imported: "${appliedTitle}" (Identical document${ver} already in workspace)`;
+    }
+    return `⚠️ Imported: "${appliedTitle}" (Duplicate title with modified content${ver})`;
+  }
+  return `✅ Imported: "${appliedTitle}"`;
+};
+
+const getDocumentResultMessage = (data: any, isEmbedded: boolean): string => {
+  if (isEmbedded) {
+    return `✅ Content Applied: "${data.title}"`;
+  }
+  if (data.status === 'already_exists') {
+    return `ℹ️ Already imported: "${data.title}" (${data.stage}) — Version ${data.version || 'current'} is already present in your workspace with identical content.`;
+  }
+  if (data.status === 'updated') {
+    if (data.action === 'version_bump' || (data.existing_version && data.version && data.existing_version !== data.version)) {
+      return `🔄 Updated: "${data.title}" (${data.stage}) — Version updated from ${data.existing_version || 'previous'} to ${data.version}.`;
+    }
+    if (data.action === 'content_updated') {
+      return `⚠️ Re-imported: "${data.title}" (${data.stage}) — Existing document was locally modified; updated with imported content.`;
+    }
+    return `🔄 Updated: "${data.title}" (${data.stage})`;
+  }
+  if (data.same_title_existing) {
+    const ver = data.same_title_existing.version ? ` (v${data.same_title_existing.version})` : '';
+    if (data.same_title_existing.identical_content) {
+      return `ℹ️ Imported: "${data.title}" (${data.stage}) — Note: An identical document with this title already exists in your workspace${ver} (UUID: ${data.same_title_existing.uuid.slice(0, 8)}...).`;
+    }
+    return `⚠️ Imported: "${data.title}" (${data.stage}) — Note: Another document with this title already exists${ver} with different content/modifications (UUID: ${data.same_title_existing.uuid.slice(0, 8)}...).`;
+  }
+  return `✅ Imported: "${data.title}" (${data.stage})`;
+};
+
+const notifyImportSuccess = (data: any, docTitle: string) => {
+  if (data.status === 'already_exists') {
+    toast(`"${docTitle}" is already imported and up to date`, { icon: 'ℹ️' });
+  } else if (data.status === 'updated') {
+    if (data.action === 'content_updated') {
+      toast(`Re-imported "${docTitle}" (updated locally modified document)`, { icon: '⚠️' });
+    } else {
+      toast.success(`Updated "${docTitle}" to v${data.version || 'latest'}`);
+    }
+  } else if (data.same_title_existing) {
+    if (data.same_title_existing.identical_content) {
+      toast(`Imported "${docTitle}" (identical document already exists in ${data.stage})`, { icon: 'ℹ️' });
+    } else {
+      toast(`Imported "${docTitle}" (duplicate title with different content in ${data.stage})`, { icon: '⚠️' });
+    }
+  } else {
+    toast.success(`Successfully imported "${docTitle}"`);
+  }
+};
+
+const getResultClass = (res: ImportResultState, isRegistry = false) => {
+  if (!res.ok) return isRegistry ? styles['err'] : styles['invalid'];
+  if (res.status === 'already_exists') return styles['info'];
+  if (res.action === 'content_updated') return styles['warning'];
+  if (res.same_title_existing && !res.same_title_existing.identical_content) return styles['warning'];
+  return isRegistry ? styles['ok'] : styles['valid'];
+};
 
 export default function ImportWizard({
   stage,
@@ -98,15 +283,15 @@ export default function ImportWizard({
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, { ok: boolean; message: string } | null>>({});
+  const [results, setResults] = useState<Record<string, ImportResultState | null>>({});
   
   const [urlInput, setUrlInput] = useState('');
   const [urlImporting, setUrlImporting] = useState(false);
-  const [urlResult, setUrlResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [urlResult, setUrlResult] = useState<ImportResultState | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [uploadResult, setUploadResult] = useState<ImportResultState | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -169,17 +354,21 @@ export default function ImportWizard({
           toast.success(`Content from "${appliedTitle}" applied to current document`);
         }
 
+        const msg = getRegistryResultMessage(data, appliedTitle, embedded);
         setResults((prev) => ({
           ...prev,
           [entry.id]: {
             ok: true,
-            message: embedded
-              ? `✅ Content Applied: "${appliedTitle}"`
-              : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${appliedTitle}"`,
+            message: msg,
+            status: data.status,
+            action: data.action,
+            version: data.version,
+            existing_version: data.existing_version,
+            same_title_existing: data.same_title_existing,
           },
         }));
         if (!embedded) {
-          toast.success(`Successfully ${data.status === 'created' ? 'imported' : 'updated'} "${appliedTitle}"`);
+          notifyImportSuccess(data, appliedTitle);
         }
         if (!embedded && onImported) onImported(data.stage);
       } else {
@@ -231,14 +420,18 @@ export default function ImportWizard({
           toast.success(`Content from URL applied to current document`);
         }
 
+        const msg = getDocumentResultMessage(data, embedded);
         setUrlResult({
           ok: true,
-          message: embedded
-            ? `✅ Content Applied: "${data.title}"`
-            : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
+          message: msg,
+          status: data.status,
+          action: data.action,
+          version: data.version,
+          existing_version: data.existing_version,
+          same_title_existing: data.same_title_existing,
         });
         if (!embedded) {
-          toast.success(`Successfully ${data.status === 'created' ? 'imported' : 'updated'} "${data.title}"`);
+          notifyImportSuccess(data, data.title);
         }
         if (!embedded && onImported) onImported(data.stage);
       } else {
@@ -307,12 +500,19 @@ export default function ImportWizard({
           toast.success(`Content from file applied to current document`);
         }
 
+        const msg = getDocumentResultMessage(data, embedded);
         setUploadResult({
           ok: true,
-          message: embedded
-            ? `✅ Content Applied: "${data.title}"`
-            : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
+          message: msg,
+          status: data.status,
+          action: data.action,
+          version: data.version,
+          existing_version: data.existing_version,
+          same_title_existing: data.same_title_existing,
         });
+        if (!embedded) {
+          notifyImportSuccess(data, data.title);
+        }
         if (!embedded && onImported) onImported(data.stage);
       } else {
         setUploadResult({ ok: false, message: `❌ ${data.detail || 'Import failed'}` });
@@ -494,7 +694,7 @@ export default function ImportWizard({
                             className={styles['source-badge']}
                             style={{ backgroundColor: 'rgba(46, 160, 67, 0.15)', color: '#3fb950', borderColor: 'rgba(46, 160, 67, 0.3)', marginLeft: '6px' }}
                           >
-                            ✓ In Workspace
+                            ✓ In Workspace{entry.workspace_version ? ` (v${entry.workspace_version})` : ''}
                           </span>
                         )}
                         {isCurrentSource && (
@@ -508,7 +708,9 @@ export default function ImportWizard({
                       </div>
                       <div className={styles['registry-entry-desc']}>{entry.description}</div>
                       {result && (
-                        <div className={`${styles['registry-result']} ${result.ok ? styles['ok'] : styles['err']}`}>
+                        <div
+                          className={`${styles['registry-result']} ${getResultClass(result, true)}`}
+                        >
                           {result.message}
                         </div>
                       )}
@@ -523,11 +725,15 @@ export default function ImportWizard({
                       {isImporting ? (
                         <span className={styles['spinner-sm']} />
                       ) : result?.ok ? (
-                        '✓'
+                        result.status === 'already_exists'
+                          ? '✓ Up to date'
+                          : result.status === 'updated'
+                          ? '✓ Updated'
+                          : '✓ Imported'
                       ) : embedded ? (
                         isCurrentSource ? '🔄 Re-Apply' : '📥 Apply Content'
                       ) : entry.is_imported ? (
-                        '🔄 Update'
+                        '🔄 Re-import'
                       ) : (
                         'Import'
                       )}
@@ -557,47 +763,37 @@ export default function ImportWizard({
             </p>
           </div>
 
-          <div className="form-group" style={{ marginTop: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>
-              {stage === 'component-definitions' || stage === 'component-definition'
-                ? 'Standard Component Definition Presets (Click to load)'
-                : 'Standard Catalog Presets (Click to load)'}
-            </label>
-            <div className={styles['preset-grid']}>
-              {(stage === 'component-definitions' || stage === 'component-definition'
-                ? COMPONENT_EXAMPLE_URLS
-                : stage === 'catalogs' || stage === 'catalog'
-                ? CATALOG_EXAMPLE_URLS
-                : [
-                    {
-                      label: 'NIST SP 800-53 Rev5 Catalog',
-                      desc: 'NIST SP 800-53 Rev 5 Catalog',
-                      url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json',
-                    },
-                    {
-                      label: 'NIST CSF 2.0 Catalog',
-                      desc: 'NIST Cybersecurity Framework 2.0',
-                      url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json',
-                    },
-                  ]
-              ).map((ex: any) => (
-                <button
-                  key={ex.url}
-                  className={styles['preset-card']}
-                  onClick={() => setUrlInput(ex.url)}
-                  type="button"
-                >
-                  <div className={styles['preset-card-title']}>
-                    <span>{stage === 'component-definitions' || stage === 'component-definition' ? '🧱' : '📖'}</span> {ex.label}
-                  </div>
-                  {ex.desc && <div className={styles['preset-card-desc']}>{ex.desc}</div>}
-                </button>
-              ))}
-            </div>
-          </div>
+          {(() => {
+            const presets = getStagePresets(stage);
+            return (
+              <div className="form-group" style={{ marginTop: '4px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>
+                  {presets.title}
+                </label>
+                <div className={styles['preset-grid']}>
+                  {presets.items.map((ex: any) => (
+                    <button
+                      key={ex.url}
+                      className={styles['preset-card']}
+                      onClick={() => setUrlInput(ex.url)}
+                      type="button"
+                    >
+                      <div className={styles['preset-card-title']}>
+                        <span>{presets.icon}</span> {ex.label}
+                      </div>
+                      {ex.desc && <div className={styles['preset-card-desc']}>{ex.desc}</div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {urlResult && (
-            <div className={`${styles['validation-result']} ${urlResult.ok ? styles['valid'] : styles['invalid']}`} style={{ marginTop: '4px' }}>
+            <div
+              className={`${styles['validation-result']} ${getResultClass(urlResult, false)}`}
+              style={{ marginTop: '4px' }}
+            >
               {urlResult.message}
             </div>
           )}
@@ -668,7 +864,10 @@ export default function ImportWizard({
           )}
 
           {uploadResult && (
-            <div className={`${styles['validation-result']} ${uploadResult.ok ? styles['valid'] : styles['invalid']}`} style={{ marginTop: '4px' }}>
+            <div
+              className={`${styles['validation-result']} ${getResultClass(uploadResult, false)}`}
+              style={{ marginTop: '4px' }}
+            >
               {uploadResult.message}
             </div>
           )}

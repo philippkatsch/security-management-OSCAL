@@ -603,4 +603,164 @@ describe('ImportWizard', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('imports a registry entry that already exists (already_exists status)', async () => {
+    const onImported = vi.fn();
+    setupFetchMocks(mockRegistry, {
+      status: 'already_exists',
+      title: 'NIST SP 800-53 Rev 5',
+      version: '5.2.0',
+      stage: 'catalogs',
+    });
+    await act(async () => {
+      render(<ImportWizard stage="dashboard" onImported={onImported} onClose={vi.fn()} />);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('NIST SP 800-53 Rev 5')).toBeInTheDocument();
+    });
+
+    const importButtons = screen.getAllByRole('button', { name: 'Import' });
+    await act(async () => {
+      fireEvent.click(importButtons[0]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('ℹ️ Already imported: "NIST SP 800-53 Rev 5" (Version 5.2.0)')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: '✓ Up to date' })).toBeInTheDocument();
+  });
+
+  it('handles URL import with already_exists status', async () => {
+    const onImported = vi.fn();
+    setupFetchMocks(mockRegistry, {
+      status: 'already_exists',
+      title: 'NIST SP 800-53 Rev 5',
+      version: '5.2.0',
+      stage: 'catalogs',
+    });
+    await act(async () => {
+      render(<ImportWizard stage="catalogs" onImported={onImported} onClose={vi.fn()} />);
+    });
+
+    const urlTab = screen.getByText(/Import from URL/i);
+    await act(async () => {
+      fireEvent.click(urlTab);
+    });
+
+    const input = screen.getByPlaceholderText(/https:\/\/raw.githubusercontent.com/);
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'https://test.com/catalog.json' } });
+    });
+
+    const importBtn = screen.getByRole('button', { name: '📥 Import' });
+    await act(async () => {
+      fireEvent.click(importBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/ℹ️ Already imported: "NIST SP 800-53 Rev 5" \(catalogs\) — Version 5.2.0 is already present/i)).toBeInTheDocument();
+    });
+  });
+
+  it('handles URL import with duplicate title warning for modified content', async () => {
+    const onImported = vi.fn();
+    setupFetchMocks(mockRegistry, {
+      status: 'created',
+      title: 'Existing Profile Name',
+      stage: 'profiles',
+      uuid: 'new-uuid-12345678',
+      same_title_existing: {
+        uuid: 'old-uuid-87654321',
+        title: 'Existing Profile Name',
+        version: '1.0.0',
+        identical_content: false,
+      },
+    });
+    await act(async () => {
+      render(<ImportWizard stage="profiles" onImported={onImported} onClose={vi.fn()} />);
+    });
+
+    const urlTab = screen.getByText(/Import from URL/i);
+    await act(async () => {
+      fireEvent.click(urlTab);
+    });
+
+    const input = screen.getByPlaceholderText(/https:\/\/raw.githubusercontent.com/);
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'https://test.com/profile.json' } });
+    });
+
+    const importBtn = screen.getByRole('button', { name: '📥 Import' });
+    await act(async () => {
+      fireEvent.click(importBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/⚠️ Imported: "Existing Profile Name" \(profiles\) — Note: Another document with this title already exists/i)).toBeInTheDocument();
+    });
+  });
+
+  it('renders profile presets in URL tab when stage is profiles', async () => {
+    setupFetchMocks(mockRegistry);
+    await act(async () => {
+      render(<ImportWizard stage="profiles" onClose={vi.fn()} />);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText(/Import from URL/i));
+    });
+
+    expect(screen.getByText('Standard Profile Presets (Click to load)')).toBeInTheDocument();
+    expect(screen.getByText('NIST SP 800-53 Rev 5 — LOW Baseline Profile')).toBeInTheDocument();
+    expect(screen.getByText('NIST SP 800-53 Rev 5 — MODERATE Baseline Profile')).toBeInTheDocument();
+    expect(screen.getByText('NIST SP 800-53 Rev 5 — HIGH Baseline Profile')).toBeInTheDocument();
+  });
+
+  it('renders SSP and POA&M presets in URL tab when stage is ssps or poams', async () => {
+    setupFetchMocks(mockRegistry);
+    let unmountFn: () => void = () => {};
+    await act(async () => {
+      const res = render(<ImportWizard stage="ssps" onClose={vi.fn()} />);
+      unmountFn = res.unmount;
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText(/Import from URL/i));
+    });
+    expect(screen.getByText('Standard System Security Plan Presets (Click to load)')).toBeInTheDocument();
+    expect(screen.getByText('NIST OSCAL Example System Security Plan')).toBeInTheDocument();
+    unmountFn();
+
+    await act(async () => {
+      render(<ImportWizard stage="poams" onClose={vi.fn()} />);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText(/Import from URL/i));
+    });
+    expect(screen.getByText('Standard POA&M Presets (Click to load)')).toBeInTheDocument();
+    expect(screen.getByText('NIST OSCAL Example Plan of Action and Milestones')).toBeInTheDocument();
+  });
+
+  it('handles URL import with content_updated action showing warning banner', async () => {
+    const onImported = vi.fn();
+    setupFetchMocks(mockRegistry, {
+      status: 'updated',
+      action: 'content_updated',
+      title: 'Modified Local Profile',
+      version: '1.0.0',
+      existing_version: '1.0.0',
+      stage: 'profiles',
+    });
+    await act(async () => {
+      render(<ImportWizard stage="profiles" onImported={onImported} onClose={vi.fn()} />);
+    });
+
+    fireEvent.click(screen.getByText(/Import from URL/i));
+    const input = screen.getByPlaceholderText(/https:\/\/raw.githubusercontent.com/);
+    fireEvent.change(input, { target: { value: 'https://test.com/profile.json' } });
+    fireEvent.click(screen.getByRole('button', { name: '📥 Import' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/⚠️ Re-imported: "Modified Local Profile" \(profiles\) — Existing document was locally modified; updated with imported content./i)).toBeInTheDocument();
+    });
+  });
 });
