@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, Suspense } from 'react';
 import styles from './SharedComponents.module.css';
 import { ErrorBoundary } from '@components/shared/ui/ErrorBoundary';
+import { useTheme } from '@stores/themeAtoms';
 const Editor = React.lazy(() => import('@monaco-editor/react'));
 
 /**
@@ -26,6 +27,7 @@ export const JsonEditor = forwardRef<any, JsonEditorProps>(({
   readOnly = false,
   highlightId = null
 }, ref) => {
+  const { isDark } = useTheme();
   const rawInput = value || data;
   const formattedValue = typeof rawInput === 'object' ? JSON.stringify(rawInput, null, 2) : String(rawInput || '');
   const [error, setError] = useState('');
@@ -248,7 +250,7 @@ export const JsonEditor = forwardRef<any, JsonEditorProps>(({
               value={formattedValue}
               onChange={handleEditorChange}
               onMount={handleEditorDidMount}
-              theme="vs-dark"
+              theme={isDark ? 'vs-dark' : 'vs'}
               loading={<div style={{ padding: '20px', color: 'var(--color-text-muted)' }}>Loading editor...</div>}
               options={{
                 readOnly: readOnly,

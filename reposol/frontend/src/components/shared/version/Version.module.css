@@ -32,14 +32,25 @@
 }
 
 .version-dropdown-toggle.is-draft {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(217, 119, 6, 0.35);
+  color: #b45309;
 }
 
 .version-dropdown-toggle.is-draft:hover {
-  background: rgba(245, 158, 11, 0.16);
-  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(217, 119, 6, 0.5);
+}
+
+:global([data-theme="dark"]) .version-dropdown-toggle.is-draft {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+:global([data-theme="dark"]) .version-dropdown-toggle.is-draft:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.55);
 }
 
 .version-badge {
@@ -58,6 +69,11 @@
 }
 
 .indicator-dot--draft {
+  background: #d97706;
+  box-shadow: 0 0 3px rgba(217, 119, 6, 0.4);
+}
+
+:global([data-theme="dark"]) .indicator-dot--draft {
   background: #f59e0b;
   box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
 }
@@ -67,7 +83,13 @@
 }
 
 .version-badge--draft {
+  color: #b45309;
+  font-weight: 600;
+}
+
+:global([data-theme="dark"]) .version-badge--draft {
   color: #fbbf24;
+  font-weight: 500;
 }
 
 .version-badge--published {
@@ -91,7 +113,7 @@
   background-color: var(--color-surface, #161b22);
   border: 1px solid var(--color-border, #30363d);
   border-radius: var(--radius-md, 8px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--color-border-subtle);
   min-width: 300px;
   max-width: 360px;
   z-index: 1000;
@@ -160,12 +182,21 @@
 }
 
 .version-dropdown-item--draft {
-  background-color: rgba(245, 158, 11, 0.04);
-  border-left: 2px solid #f59e0b;
+  background-color: rgba(245, 158, 11, 0.06);
+  border-left: 2px solid #d97706;
   border-bottom: 1px solid var(--color-border-subtle, #272f3d);
 }
 
 .version-dropdown-item--draft:hover {
+  background-color: rgba(245, 158, 11, 0.12);
+}
+
+:global([data-theme="dark"]) .version-dropdown-item--draft {
+  background-color: rgba(245, 158, 11, 0.04);
+  border-left: 2px solid #f59e0b;
+}
+
+:global([data-theme="dark"]) .version-dropdown-item--draft:hover {
   background-color: rgba(245, 158, 11, 0.08);
 }
 

@@ -117,7 +117,7 @@ export default function VersionDropdown({
         className={`${styles['version-dropdown-toggle']} ${currentSelectionIsDraft ? styles['is-draft'] : ''} ${isEditing ? styles['is-locked'] : ''}`}
         onClick={() => { if (!isEditing) setIsOpen(!isOpen); }}
         title={isEditing ? 'Version switching is disabled during editing' : 'Click to view version history and draft state'}
-        style={isEditing ? { cursor: 'default', opacity: 0.85 } : undefined}
+        style={isEditing ? { cursor: 'default' } : undefined}
       >
         {isEditing ? (
           <span className={`${styles['version-badge']} ${styles['version-badge--draft']}`}>

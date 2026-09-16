@@ -339,15 +339,15 @@
 }
 
 .overdue-alert-banner {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
+  background: var(--color-danger-bg, #fef2f2);
+  border: 1px solid var(--color-danger-subtle, #fca5a5);
   border-left: 4px solid var(--color-danger, #ef4444);
   border-radius: var(--radius-md, 8px);
   padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #991b1b;
+  color: var(--color-danger, #991b1b);
   margin-bottom: 16px;
 }
 
@@ -381,8 +381,8 @@
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 4px;
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--color-accent-bg, #dbeafe);
+  color: var(--color-accent, #1e40af);
   font-weight: 500;
 }
 

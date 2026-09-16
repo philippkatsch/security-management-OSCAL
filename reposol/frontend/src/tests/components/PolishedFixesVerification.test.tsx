@@ -168,7 +168,7 @@ describe('Polished Fixes Verification Suite (Items 1 - 6)', () => {
       );
 
       const devBadges = screen.getAllByText('🚧 Dev');
-      expect(devBadges).toHaveLength(5);
+      expect(devBadges).toHaveLength(6);
     });
 
     it('shows Under Active Development alert in DocumentListPage for stages 4-8 and not for stages 1-3', () => {

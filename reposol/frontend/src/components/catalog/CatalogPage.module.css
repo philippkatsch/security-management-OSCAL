@@ -197,8 +197,8 @@
   }
   
   .sidebar-control-button.active .control-btn-title {
-    color: #fff;
-    font-weight: 500;
+    color: var(--color-accent);
+    font-weight: 600;
   }
   
   .sidebar-empty {

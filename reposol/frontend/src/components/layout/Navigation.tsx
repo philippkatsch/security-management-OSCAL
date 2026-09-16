@@ -8,6 +8,7 @@ import { masterEditEnabledAtom, isMasterModeAtom } from '@stores/workspaceAtoms'
 import { getWorkspaceId } from '@lib/api';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '@components/shared/ui/ConfirmProvider';
+import { ThemeToggle } from './ThemeToggle';
 
 interface NavItem {
   id: string;
@@ -76,6 +77,7 @@ const navSections: NavSection[] = [
         id: 'component-definitions', 
         path: '/component-definitions',
         label: 'Components', 
+        isDev: true,
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['nav-svg']}>
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -378,26 +380,37 @@ export const Navigation = () => {
             </button>
           )
         )}
-        <button
-          type="button"
-          className={`${sharedStyles['btn-secondary']} ${sharedStyles['btn-sm']} ${styles['btn-share-workspace']} btn-share-workspace`}
-          style={{ width: '100%', marginBottom: '8px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-          onClick={() => {
-            const wsId = getWorkspaceId();
-            const shareUrl = `${window.location.origin}${window.location.pathname}?w=${wsId}${window.location.hash}`;
-            navigator.clipboard.writeText(shareUrl);
-            toast.success('Workspace link copied to clipboard!');
-          }}
-          title="Copy shareable workspace URL to clipboard"
-        >
-          🔗 Share Workspace Link
-        </button>
         <div className={styles['env-panel']} title="Environment: conda (darkspell) | OSCAL Schema: 1.1.2">
-          <div className={styles['env-info']}>
-            <span className={styles['env-dot']}></span>
-            <span className={styles['env-text']}>
-              conda: <strong className={styles['env-name']}>darkspell</strong>
-            </span>
+          <div className={styles['env-row']}>
+            <div className={styles['env-info']}>
+              <span className={styles['env-dot']} title="Environment active"></span>
+              <span className={styles['env-text']}>
+                conda: <strong className={styles['env-name']}>darkspell</strong>
+              </span>
+            </div>
+            <div className={styles['env-actions']}>
+              <button
+                type="button"
+                className={`${styles['btn-share-workspace']} btn-share-workspace`}
+                onClick={() => {
+                  const wsId = getWorkspaceId();
+                  const shareUrl = `${window.location.origin}${window.location.pathname}?w=${wsId}${window.location.hash}`;
+                  navigator.clipboard.writeText(shareUrl);
+                  toast.success('Workspace link copied to clipboard!');
+                }}
+                title="Share Workspace Link"
+                aria-label="Share Workspace Link"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              </button>
+              <ThemeToggle
+                compact={true}
+                className={styles['env-theme-toggle']}
+              />
+            </div>
           </div>
           <span className={styles['env-version']}>OSCAL v1.1.2</span>
         </div>

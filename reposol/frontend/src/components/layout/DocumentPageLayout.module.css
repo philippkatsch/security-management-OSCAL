@@ -103,9 +103,9 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+    border: 1px solid rgba(245, 158, 11, 0.3);
     padding: 2px 6px;
     border-radius: var(--radius-sm);
     font-size: 10px;
@@ -114,14 +114,20 @@
     text-transform: uppercase;
     margin-top: 4px;
   }
+
+  :global([data-theme="dark"]) .workflow-dev-badge {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.35);
+  }
   
   .stage-dev-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+    border: 1px solid rgba(245, 158, 11, 0.3);
     padding: 4px 10px;
     border-radius: 20px;
     font-size: 12px;
@@ -129,13 +135,19 @@
     margin-left: 12px;
     letter-spacing: 0.3px;
   }
+
+  :global([data-theme="dark"]) .stage-dev-badge {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.35);
+  }
   
   .under-dev-banner {
     display: flex;
     align-items: center;
     gap: 14px;
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.04) 100%);
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
     border-left: 4px solid #f59e0b;
     border-radius: var(--radius-md);
     padding: 14px 20px;
@@ -145,6 +157,11 @@
     line-height: 1.5;
     box-shadow: var(--shadow-sm);
   }
+
+  :global([data-theme="dark"]) .under-dev-banner {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.04) 100%);
+    border-color: rgba(245, 158, 11, 0.3);
+  }
   
   .under-dev-banner .under-dev-icon {
     font-size: 22px;
@@ -152,6 +169,11 @@
   }
   
   .under-dev-banner strong {
+    color: var(--color-warning);
+    font-weight: 600;
+  }
+
+  :global([data-theme="dark"]) .under-dev-banner strong {
     color: #fbbf24;
   }
 

@@ -124,7 +124,7 @@
   }
   
   .entity-table tbody tr:hover td {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover, rgba(255, 255, 255, 0.04));
   }
   
   .entity-table tbody tr.selected td {
@@ -210,14 +210,15 @@
     bottom: 32px;
     left: 50%;
     transform: translateX(-50%);
-    background: hsl(220, 20%, 16%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--color-surface-inverted, #161b22);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-inverted, #f0f6fc);
     border-radius: var(--radius-lg);
     padding: 12px 24px;
     display: flex;
     align-items: center;
     gap: 32px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.6));
     z-index: 100;
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
@@ -231,7 +232,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    color: #fff;
+    color: inherit;
     font-size: 14px;
     font-weight: 500;
   }
@@ -239,7 +240,7 @@
   .btn-deselect {
     background: none;
     border: none;
-    color: #8b949e;
+    color: var(--color-accent);
     font-size: 13px;
     cursor: pointer;
     text-decoration: underline;

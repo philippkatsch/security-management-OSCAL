@@ -725,15 +725,9 @@
   .status-mini-track {
     width: 100%;
     height: 6px;
-    background-color: hsl(220, 15%, 90%);
+    background-color: var(--color-surface-3);
     border-radius: 3px;
     overflow: hidden;
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    .status-mini-track {
-      background-color: hsl(220, 15%, 20%);
-    }
   }
   
   .status-mini-fill {
@@ -858,7 +852,8 @@
   .completeness-row-badge {
     font-size: 11px;
     font-weight: 700;
-    background-color: rgba(255,255,255,0.15);
+    background-color: var(--color-surface-active, rgba(255,255,255,0.15));
+    border: 1px solid var(--color-border-subtle);
     color: var(--color-text);
     padding: 2px 6px;
     border-radius: 10px;
@@ -914,42 +909,34 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 16px 10px;
+    justify-content: space-between;
+    padding: 14px 10px 12px;
     border-radius: var(--radius-md);
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     cursor: pointer;
     transition: all var(--transition-base);
     flex: 1;
-    min-width: 100px;
+    min-width: 105px;
+    height: 162px;
     text-align: center;
     position: relative;
-    gap: 4px;
     box-shadow: var(--shadow-sm);
   }
 
   .workflow-step:hover {
     background: var(--color-surface-2);
     border-color: var(--color-accent);
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-glow);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
   }
 
-  .workflow-step.has-docs {
-    border-color: var(--color-accent);
-    background: var(--color-accent-bg);
-  }
-
-  .workflow-step.has-docs::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--color-accent);
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  .workflow-step-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
   }
 
   .workflow-icon {
@@ -966,11 +953,15 @@
   }
 
   .workflow-count {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
     font-weight: 700;
-    color: var(--color-accent-hover);
+    color: var(--color-text-muted);
     line-height: 1.1;
     margin: 2px 0;
+  }
+
+  .workflow-count.has-count {
+    color: var(--color-accent);
   }
 
   .workflow-desc {
@@ -980,22 +971,35 @@
     white-space: nowrap;
   }
 
+  .workflow-badge-slot {
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
   .workflow-dev-badge {
     font-size: 0.65rem;
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #b45309;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
     border-radius: 4px;
     padding: 1px 6px;
-    margin-top: 4px;
     font-weight: 600;
     white-space: nowrap;
   }
 
+  :global([data-theme="dark"]) .workflow-dev-badge {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
   .workflow-arrow {
     font-size: 1.2rem;
-    color: var(--color-text-subtle);
-    padding: 0 6px;
+    color: var(--color-border);
+    padding: 0 4px;
     flex-shrink: 0;
     user-select: none;
     display: flex;

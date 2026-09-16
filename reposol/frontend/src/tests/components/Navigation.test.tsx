@@ -182,4 +182,20 @@ describe('Navigation', () => {
     expect(collapsedDevBtn.title).toBe('Components (0) - Under Active Development');
     expect(collapsedStableBtn.title).toBe('Catalogs (0)');
   });
+
+  it('renders ThemeToggle in sidebar footer in expanded and collapsed modes', () => {
+    // 1. Expanded mode (full button with text label)
+    const { unmount } = renderWithRouter(<Navigation />);
+    const themeToggleExpanded = screen.getByTestId('theme-toggle');
+    expect(themeToggleExpanded).toBeInTheDocument();
+    expect(themeToggleExpanded).toHaveAttribute('aria-label', expect.stringMatching(/Switch to (light|dark) mode/));
+    unmount();
+
+    // 2. Collapsed mode (compact button)
+    localStorage.setItem('sidebar-collapsed', 'true');
+    renderWithRouter(<Navigation />);
+    const themeToggleCollapsed = screen.getByTestId('theme-toggle');
+    expect(themeToggleCollapsed).toBeInTheDocument();
+    expect(themeToggleCollapsed).toHaveAttribute('aria-label', expect.stringMatching(/Switch to (light|dark) mode/));
+  });
 });

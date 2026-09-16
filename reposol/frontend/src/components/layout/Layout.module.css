@@ -34,6 +34,24 @@
   
   /* ─── Global Top Development Notice Banner ─────────────────────── */
   .development-notice-banner {
+    background: var(--color-surface-2);
+    border-bottom: 1px solid var(--color-border);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    box-shadow: none;
+    flex-shrink: 0;
+    z-index: 10;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+  
+  :global([data-theme="dark"]) .development-notice-banner {
     background: linear-gradient(
       135deg,
       rgba(217, 119, 6, 0.18) 0%,
@@ -41,19 +59,8 @@
       rgba(146, 64, 14, 0.2) 100%
     );
     border-bottom: 1px solid rgba(245, 158, 11, 0.35);
-    padding: 11px 28px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
     color: #fef3c7;
-    font-size: 13.5px;
-    line-height: 1.45;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    flex-shrink: 0;
-    z-index: 10;
-    position: relative;
-    transition: all 0.3s ease;
   }
   
   .development-notice-banner::before {
@@ -63,6 +70,10 @@
     left: 0;
     right: 0;
     height: 2px;
+    background: #f59e0b;
+  }
+
+  :global([data-theme="dark"]) .development-notice-banner::before {
     background: linear-gradient(90deg, #f59e0b, #fbbf24, #d97706);
     opacity: 0.85;
   }
@@ -70,34 +81,43 @@
   .development-notice-content {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     flex: 1;
   }
   
   .development-notice-badge {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #b45309;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  :global([data-theme="dark"]) .development-notice-badge {
     background: rgba(245, 158, 11, 0.22);
     border: 1px solid rgba(245, 158, 11, 0.5);
     color: #fef08a;
-    font-weight: 700;
-    font-size: 11px;
-    letter-spacing: 0.6px;
-    padding: 4px 11px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    white-space: nowrap;
     box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
-    flex-shrink: 0;
   }
   
   .notice-pulse-icon {
     display: inline-block;
     font-size: 13px;
+  }
+
+  :global([data-theme="dark"]) .notice-pulse-icon {
     animation: pulse-glow 2s infinite ease-in-out;
   }
-  
+
   @keyframes pulse-glow {
     0%, 100% {
       transform: scale(1);
@@ -111,13 +131,21 @@
   
   .development-notice-text {
     font-weight: 400;
-    color: #fde68a;
+    color: var(--color-text-muted);
     letter-spacing: 0.1px;
   }
   
+  :global([data-theme="dark"]) .development-notice-text {
+    color: #fde68a;
+  }
+  
   .development-notice-text strong {
-    color: #ffffff;
+    color: var(--color-text);
     font-weight: 600;
+  }
+  
+  :global([data-theme="dark"]) .development-notice-text strong {
+    color: #ffffff;
   }
   
   .development-notice-actions {
@@ -128,15 +156,15 @@
   }
   
   .development-notice-dismiss {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    color: #fcd34d;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--color-text-muted);
     font-size: 14px;
     cursor: pointer;
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -144,6 +172,18 @@
   }
   
   .development-notice-dismiss:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border);
+    color: var(--color-text);
+  }
+  
+  :global([data-theme="dark"]) .development-notice-dismiss {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #fcd34d;
+  }
+  
+  :global([data-theme="dark"]) .development-notice-dismiss:hover {
     background: rgba(245, 158, 11, 0.35);
     border-color: rgba(251, 191, 36, 0.6);
     color: #ffffff;

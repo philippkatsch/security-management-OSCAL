@@ -1,0 +1,70 @@
+.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.themeToggle:hover {
+  background: var(--color-surface-3);
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+}
+
+.themeToggle:active {
+  transform: scale(0.96);
+}
+
+.themeToggle.compact {
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.themeToggle.compact:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+}
+
+.themeToggle.compact .iconWrapper {
+  width: 14px;
+  height: 14px;
+}
+
+.themeToggle.compact svg {
+  width: 14px;
+  height: 14px;
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  transition: transform var(--transition-base);
+}
+
+.themeToggle:hover .iconWrapper {
+  transform: rotate(20deg);
+}
+
+.label {
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}

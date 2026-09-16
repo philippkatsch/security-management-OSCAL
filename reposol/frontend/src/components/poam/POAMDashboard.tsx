@@ -132,7 +132,7 @@ export function POAMDashboard({
                     type="text"
                     value={sspHrefVal}
                     onChange={(e) => setSspHrefVal(e.target.value)}
-                    style={{ padding: '4px 8px', fontSize: '13px', borderRadius: '4px', border: '1px solid #45475a', background: '#181825', color: '#cdd6f4' }}
+                    style={{ padding: '4px 8px', fontSize: '13px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
                   />
                   <button type="button" className={styles['edit-btn-small']} onClick={() => {
                     if (sspHrefVal.trim()) updateRootField('import-ssp', { href: sspHrefVal.trim() });
@@ -159,7 +159,7 @@ export function POAMDashboard({
                     type="text"
                     value={systemIdVal}
                     onChange={(e) => setSystemIdVal(e.target.value)}
-                    style={{ padding: '4px 8px', fontSize: '13px', borderRadius: '4px', border: '1px solid #45475a', background: '#181825', color: '#cdd6f4' }}
+                    style={{ padding: '4px 8px', fontSize: '13px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
                   />
                   <button type="button" className={styles['edit-btn-small']} onClick={() => {
                     if (systemIdVal.trim()) updateRootField('system-id', { identifier: systemIdVal.trim() });

@@ -70,7 +70,7 @@
   }
   
   .ap-sidebar-nav li.active {
-    background-color: var(--color-primary-transparent);
+    background-color: var(--color-primary-subtle, rgba(56, 139, 253, 0.15));
     color: var(--color-primary);
     border-right: 3px solid var(--color-primary);
   }

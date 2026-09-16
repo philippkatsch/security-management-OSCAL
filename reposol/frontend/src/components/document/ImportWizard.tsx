@@ -120,6 +120,17 @@ export default function ImportWizard({
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (embedded || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [embedded, onClose]);
+
   const modelTypes = ['all', ...Array.from(new Set(registry.map((e) => e.model)))];
   const sourceTypes = ['all', ...Array.from(new Set(registry.map((e) => e.source)))];
 
@@ -167,6 +178,9 @@ export default function ImportWizard({
               : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${appliedTitle}"`,
           },
         }));
+        if (!embedded) {
+          toast.success(`Successfully ${data.status === 'created' ? 'imported' : 'updated'} "${appliedTitle}"`);
+        }
         if (!embedded && onImported) onImported(data.stage);
       } else {
         setResults((prev) => ({
@@ -223,6 +237,9 @@ export default function ImportWizard({
             ? `✅ Content Applied: "${data.title}"`
             : `${data.status === 'created' ? '✅ Imported' : '🔄 Updated'}: "${data.title}" (${data.stage})`,
         });
+        if (!embedded) {
+          toast.success(`Successfully ${data.status === 'created' ? 'imported' : 'updated'} "${data.title}"`);
+        }
         if (!embedded && onImported) onImported(data.stage);
       } else {
         setUrlResult({ ok: false, message: `❌ ${data.detail || 'Import failed'}` });
@@ -322,16 +339,32 @@ export default function ImportWizard({
   const embeddedSubtitle = subtitle || 'An OSCAL Catalog represents a single control source. Applying a template, URL, or file will replace the current catalog content with that single control baseline while preserving its UUID and title.';
 
   const content = (
-    <div className={embedded ? styles['import-panel-embedded'] : ['editor-panel', styles['import-panel']].filter(Boolean).join(' ')}>
+    <div
+      className={
+        embedded
+          ? styles['import-panel-embedded']
+          : [styles['editor-panel'], styles['import-panel'], 'editor-panel'].filter(Boolean).join(' ')
+      }
+    >
       {embedded ? (
         <div className={styles['import-header-embedded']}>
           <h3>{embeddedTitle}</h3>
           <p>{embeddedSubtitle}</p>
         </div>
       ) : (
-        <div className="editor-header">
+        <div className={`${styles['editor-header']} editor-header`}>
           <h3>{modalTitle}</h3>
-          {onClose && <button type="button" className={sharedStyles['btn-icon']} onClick={onClose} title="Close">✕</button>}
+          {onClose && (
+            <button
+              type="button"
+              className={sharedStyles['btn-icon']}
+              onClick={onClose}
+              title="Close"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          )}
         </div>
       )}
 
@@ -656,7 +689,7 @@ export default function ImportWizard({
       )}
 
       {!embedded && (
-        <div className="editor-footer">
+        <div className={`${styles['editor-footer']} editor-footer`}>
           {onClose && (
             <button type="button" className={sharedStyles['btn-secondary']} onClick={onClose}>
               Close
@@ -692,7 +725,17 @@ export default function ImportWizard({
   }
 
   return (
-    <div className="editor-overlay">
+    <div
+      className={`${styles['editor-overlay']} editor-overlay`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={modalTitle}
+    >
       {content}
     </div>
   );

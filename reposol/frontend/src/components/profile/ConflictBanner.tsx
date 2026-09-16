@@ -30,8 +30,8 @@ export function ConflictBanner({ conflicts, onDismiss, onRemoveOrphans, isEditin
     <div
       data-testid="conflict-banner"
       style={{
-      background: '#fff3cd',
-      border: '1px solid #ffc107',
+      background: 'var(--color-warning-bg, #fff3cd)',
+      border: '1px solid var(--color-warning, #ffc107)',
       borderRadius: '6px',
       padding: '8px 14px',
       margin: '8px 0',
@@ -40,7 +40,7 @@ export function ConflictBanner({ conflicts, onDismiss, onRemoveOrphans, isEditin
       justifyContent: 'space-between',
       gap: '8px',
       fontSize: '13px',
-      color: '#856404'
+      color: 'var(--color-warning, #856404)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '15px' }}>⚠️</span>
@@ -69,7 +69,7 @@ export function ConflictBanner({ conflicts, onDismiss, onRemoveOrphans, isEditin
             data-testid="remove-orphans-btn"
             onClick={onRemoveOrphans}
             style={{
-              background: '#856404',
+              background: 'var(--color-warning, #856404)',
               color: '#fff',
               border: 'none',
               cursor: 'pointer',

@@ -565,4 +565,42 @@ describe('ImportWizard', () => {
     expect(screen.queryByText(/✅ Content Applied/i)).not.toBeInTheDocument();
     expect(onImported).not.toHaveBeenCalled();
   });
+
+  it('renders as modal dialog with role="dialog" and aria-modal="true" and closes on Escape', async () => {
+    const onClose = vi.fn();
+    setupFetchMocks(mockRegistry);
+
+    await act(async () => {
+      render(<ImportWizard stage="catalogs" onClose={onClose} />);
+    });
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog.className).toContain('editor-overlay');
+
+    // Press Escape key
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes modal when clicking directly on overlay backdrop', async () => {
+    const onClose = vi.fn();
+    setupFetchMocks(mockRegistry);
+
+    await act(async () => {
+      render(<ImportWizard stage="catalogs" onClose={onClose} />);
+    });
+
+    const dialog = screen.getByRole('dialog');
+    // Click on the backdrop (dialog itself)
+    await act(async () => {
+      fireEvent.click(dialog);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

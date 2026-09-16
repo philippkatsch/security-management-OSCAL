@@ -67,24 +67,24 @@
   padding: 12px 16px;
   border: 1px solid var(--color-border, #45475a);
   border-radius: 6px;
-  background: var(--color-surface-card, #181825);
+  background: var(--color-surface-2, #181825);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .formatOption:hover {
-  border-color: var(--color-primary, #89b4fa);
+  border-color: var(--color-accent, #89b4fa);
   background: var(--color-surface-hover, #313244);
 }
 
 .formatOptionSelected {
-  border-color: var(--color-primary, #89b4fa);
-  background: rgba(137, 180, 250, 0.1);
+  border-color: var(--color-accent, #89b4fa);
+  background: var(--color-accent-bg, rgba(56, 139, 253, 0.1));
 }
 
 .radioInput {
   margin-top: 3px;
-  accent-color: var(--color-primary, #89b4fa);
+  accent-color: var(--color-accent, #89b4fa);
   cursor: pointer;
 }
 
@@ -127,13 +127,13 @@
 }
 
 .btnPrimary {
-  background: var(--color-primary, #89b4fa);
-  color: #11111b;
-  border-color: var(--color-primary, #89b4fa);
+  background: var(--color-accent, #388bfd);
+  color: #ffffff;
+  border-color: var(--color-accent, #388bfd);
   font-weight: 600;
 }
 
 .btnPrimary:hover {
-  background: #b4befe;
-  border-color: #b4befe;
+  background: var(--color-accent-hover, #58a6ff);
+  border-color: var(--color-accent-hover, #58a6ff);
 }

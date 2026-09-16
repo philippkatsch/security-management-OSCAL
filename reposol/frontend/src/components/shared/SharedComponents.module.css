@@ -89,8 +89,8 @@
   /* US 1.16: Soft & Compact Editing Styles */
   .btn-soft {
     padding: 4px 10px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--color-surface-subtle, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--color-border-subtle-translucent, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-sm);
     color: var(--color-text-muted);
     font-size: 11px;
@@ -103,8 +103,8 @@
   }
   
   .btn-soft:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
+    border-color: var(--color-border);
     color: var(--color-text);
   }
   
@@ -155,13 +155,13 @@
     height: 28px !important;
     font-size: 12px !important;
     padding: 2px 8px !important;
-    border-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: var(--color-border-subtle) !important;
   }
   
   .form-textarea-compact {
     font-size: 12px !important;
     padding: 6px 8px !important;
-    border-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: var(--color-border-subtle) !important;
     min-height: 54px !important;
     line-height: 1.4 !important;
   }
@@ -179,7 +179,7 @@
   
   .form-input-plain:hover {
     border-color: var(--color-border) !important;
-    background: rgba(255, 255, 255, 0.02) !important;
+    background: var(--color-surface-subtle) !important;
   }
   
   .form-input-plain:focus {
@@ -301,7 +301,7 @@
   
   .form-textarea-plain:hover {
     border-color: var(--color-border) !important;
-    background: rgba(255, 255, 255, 0.02) !important;
+    background: var(--color-surface-subtle) !important;
   }
   
   .form-textarea-plain:focus {

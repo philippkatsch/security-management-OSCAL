@@ -107,36 +107,33 @@ export const DashboardPage = () => {
       <div className={styles['workflow-pipeline']}>
         {WORKFLOW_STEPS.map((step, i) => {
           const count = counts[step.stage as keyof typeof counts] || 0;
-          const prevCount = i > 0 ? (counts[WORKFLOW_STEPS[i - 1].stage as keyof typeof counts] || 0) : 0;
-          const isReady = i === 0 || prevCount > 0;
           const hasDocs = count > 0;
-          const isGlowing = hasDocs || isReady;
           
           return (
             <div className={styles['workflow-step-wrapper']} key={step.stage}>
               <div
                 className={`${styles['workflow-step']} ${hasDocs ? styles['has-docs'] : ''}`}
-                style={{
-                  boxShadow: isGlowing ? '0 0 15px rgba(99, 102, 241, 0.4)' : 'none',
-                  borderColor: isGlowing ? 'rgba(99, 102, 241, 0.6)' : undefined
-                }}
                 onClick={() => navigate('/' + step.stage)}
                 title={`${step.label}: ${count} documents${step.isDev ? ' (Under Active Development)' : ''}`}
               >
-                <span className={styles['workflow-icon']}>{step.icon}</span>
-                <span className={styles['workflow-label']}>{step.label}</span>
-                <span className={styles['workflow-count']}>
-                  {countsLoading ? '…' : count}
-                </span>
-                <span className={styles['workflow-desc']}>{step.desc}</span>
-                {step.isDev && (
-                  <span className={styles['workflow-dev-badge']} title="Under Active Development">
-                    🚧 In Dev
+                <div className={styles['workflow-step-content']}>
+                  <span className={styles['workflow-icon']}>{step.icon}</span>
+                  <span className={styles['workflow-label']}>{step.label}</span>
+                  <span className={`${styles['workflow-count']} ${hasDocs ? styles['has-count'] : ''}`}>
+                    {countsLoading ? '…' : count}
                   </span>
-                )}
+                  <span className={styles['workflow-desc']}>{step.desc}</span>
+                </div>
+                <div className={styles['workflow-badge-slot']}>
+                  {step.isDev && (
+                    <span className={styles['workflow-dev-badge']} title="Under Active Development">
+                      🚧 In Dev
+                    </span>
+                  )}
+                </div>
               </div>
               {i < WORKFLOW_STEPS.length - 1 && (
-                <span className={styles['workflow-arrow']} style={{ color: count > 0 ? 'var(--color-primary)' : 'var(--color-border)' }}>→</span>
+                <span className={styles['workflow-arrow']}>→</span>
               )}
             </div>
           );
