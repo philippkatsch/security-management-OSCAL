@@ -1,0 +1,22 @@
+# Reposol — NIST OSCAL Viewer & Editor
+
+> Free, open-source web application for creating, tailoring, managing, and validating NIST OSCAL (Open Security Controls Assessment Language) documents across the complete compliance lifecycle.
+
+## Overview
+Reposol provides a complete visual workspace and API for NIST OSCAL models (v1.0.4 to v1.1.2+). It supports security practitioners, auditors, and system owners in authoring and maintaining compliance as code without requiring manual editing of raw XML or JSON metaschemas.
+
+## Core Capabilities & OSCAL Lifecycle
+- [OSCAL Catalogs](https://security-management-oscal.fly.dev/catalogs): Author and manage security control baselines (NIST SP 800-53 Rev 5, BSI IT-Grundschutz, ISO/IEC 27001).
+- [OSCAL Profiles](https://security-management-oscal.fly.dev/profiles): Tailor baselines using control inclusion/exclusion, parameter value overrides, and merge directives.
+- [Component Definitions](https://security-management-oscal.fly.dev/component-definitions): Define software, hardware, and procedural components with 11 component types and control implementation narratives.
+- [System Security Plans (SSPs)](https://security-management-oscal.fly.dev/ssps): Generate comprehensive SSPs with system boundary descriptions, information types, and by-component control responses.
+- [Assessment Plans](https://security-management-oscal.fly.dev/assessment-plans): Define audit objectives, assessment activities, test schedules, and required evidence.
+- [Assessment Results](https://security-management-oscal.fly.dev/assessment-results): Log findings, observations, and CVSS risk scoring from compliance audits.
+- [POA&M Tracker](https://security-management-oscal.fly.dev/poams): Track remediation milestones, risk owners, and resolution lifecycles.
+- [Control Mappings](https://security-management-oscal.fly.dev/control-mappings): Map cross-framework relationships with confidence scores and gap analysis.
+- [Traceability Matrix](https://security-management-oscal.fly.dev/traceability): End-to-end traceability from Catalog controls through Profiles, Components, SSPs, to POA&M items.
+
+## Formats & Standards
+- Formats: JSON, YAML, XML (bidirectional conversion & validation).
+- Specifications: NIST OSCAL Metaschema v1.0.4, v1.1.0, v1.1.2.
+- Source Code: https://github.com/philippkatsch/security-management-OSCAL (Apache-2.0 License).

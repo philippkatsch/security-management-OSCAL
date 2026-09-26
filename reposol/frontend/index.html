@@ -5,8 +5,8 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <title>Reposol - Free Online NIST OSCAL Viewer &amp; Editor</title>
-    <meta name="description" content="Open-source web-based NIST OSCAL Viewer and Editor for editing, validating, and managing OSCAL Catalogs, Profiles, SSPs, Component Definitions, Assessment Plans, and POA&amp;Ms." />
+    <title>Reposol — Free Online NIST OSCAL Viewer &amp; Editor</title>
+    <meta name="description" content="Free open-source NIST OSCAL viewer and editor. View, edit, and validate Catalogs, Profiles, Component Definitions, SSPs, Assessment Plans, and POA&amp;Ms." />
     <meta name="keywords" content="OSCAL, NIST OSCAL, OSCAL Viewer, OSCAL Editor, OSCAL Model, OSCAL Catalog, OSCAL Profile, System Security Plan, SSP, POAM, Security Assessment, Cybersecurity Compliance" />
     <meta name="robots" content="index, follow" />
     <meta name="google-site-verification" content="gJfAiTRI9Zyti7sXGN6D56DTbBl14h9oExAKvb6IuTI" />
@@ -14,15 +14,67 @@
 
     <!-- Open Graph / Facebook / LinkedIn -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Reposol" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:url" content="https://security-management-oscal.fly.dev/" />
-    <meta property="og:title" content="Reposol - NIST OSCAL Viewer &amp; Editor" />
-    <meta property="og:description" content="Visual web application to view, edit, validate, and manage NIST OSCAL documents across all lifecycle stages." />
+    <meta property="og:title" content="Reposol — Free Online NIST OSCAL Viewer &amp; Editor" />
+    <meta property="og:description" content="Free open-source NIST OSCAL viewer and editor. View, edit, and validate Catalogs, Profiles, Component Definitions, SSPs, Assessment Plans, and POA&amp;Ms." />
+    <meta property="og:image" content="https://raw.githubusercontent.com/philippkatsch/security-management-OSCAL/main/documentation/images/dashboard.png" />
+    <meta property="og:image:alt" content="Reposol Dashboard and OSCAL Lifecycle Management" />
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://security-management-oscal.fly.dev/" />
-    <meta property="twitter:title" content="Reposol - NIST OSCAL Viewer &amp; Editor" />
-    <meta property="twitter:description" content="Visual web application to view, edit, validate, and manage NIST OSCAL documents across all lifecycle stages." />
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://security-management-oscal.fly.dev/" />
+    <meta name="twitter:title" content="Reposol — Free Online NIST OSCAL Viewer &amp; Editor" />
+    <meta name="twitter:description" content="Free open-source NIST OSCAL viewer and editor. View, edit, and validate Catalogs, Profiles, Component Definitions, SSPs, Assessment Plans, and POA&amp;Ms." />
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/philippkatsch/security-management-OSCAL/main/documentation/images/dashboard.png" />
+
+    <!-- JSON-LD Structured Data for Search Engines -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": ["WebApplication", "SoftwareSourceCode"],
+      "name": "Reposol",
+      "alternateName": "Security Management OSCAL",
+      "url": "https://security-management-oscal.fly.dev/",
+      "description": "Free open-source NIST OSCAL Viewer and Editor for creating, editing, validating, and managing OSCAL Catalogs, Profiles, Component Definitions, System Security Plans (SSPs), Assessment Plans, Assessment Results, and POA&Ms.",
+      "applicationCategory": "SecurityApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Philipp Katsch",
+        "url": "https://github.com/philippkatsch"
+      },
+      "codeRepository": "https://github.com/philippkatsch/security-management-OSCAL",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "isAccessibleForFree": true,
+      "browserRequirements": "Requires JavaScript. Works in all modern browsers.",
+      "featureList": [
+        "OSCAL Catalog Editor",
+        "OSCAL Profile Tailoring",
+        "Component Definition Manager",
+        "System Security Plan (SSP) Builder",
+        "Assessment Plan Editor",
+        "Assessment Results Viewer",
+        "POA&M Tracker",
+        "Control Mapping",
+        "Traceability Matrix",
+        "JSON/YAML/XML Import & Export",
+        "OSCAL Validation Engine"
+      ],
+      "image": "https://raw.githubusercontent.com/philippkatsch/security-management-OSCAL/main/documentation/images/dashboard.png",
+      "screenshot": "https://raw.githubusercontent.com/philippkatsch/security-management-OSCAL/main/documentation/images/dashboard.png",
+      "softwareVersion": "1.0.0",
+      "programmingLanguage": ["TypeScript", "Python"],
+      "keywords": "OSCAL, NIST, security controls, compliance, catalog, profile, SSP, POA&M, assessment, cybersecurity"
+    }
+    </script>
+
     <script>
       (function() {
         try {

@@ -6,7 +6,8 @@ from typing import Optional
 
 from .models import CREATE_TABLES_SQL
 
-DB_PATH = os.path.join("data", "reposol_auth.db")
+DATA_DIR = os.getenv("REPOSOL_DATA_DIR", "data")
+DB_PATH = os.path.join(DATA_DIR, "reposol_auth.db")
 
 async def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)

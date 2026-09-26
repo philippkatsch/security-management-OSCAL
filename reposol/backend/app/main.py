@@ -68,8 +68,9 @@ for router in routers:
     app.include_router(router)
 
 # Mount static assets and handle SPA routing fallback when built frontend is present
+from pathlib import Path
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi import HTTPException
 
 dist_dir_relative = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend/dist"))
@@ -80,19 +81,56 @@ frontend_dist = dist_dir_relative if os.path.exists(dist_dir_relative) else (dis
 if frontend_dist:
     assets_dir = os.path.join(frontend_dist, "assets")
     if os.path.exists(assets_dir):
-        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+        class ImmutableStaticFiles(StaticFiles):
+            async def get_response(self, path: str, scope):
+                response = await super().get_response(path, scope)
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                return response
+
+        app.mount("/assets", ImmutableStaticFiles(directory=assets_dir), name="assets")
+
+    HTML_CACHE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate"}
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         if full_path.startswith("api") or full_path.startswith("health"):
             raise HTTPException(status_code=404, detail="Not Found")
-        file_path = os.path.abspath(os.path.join(frontend_dist, full_path))
-        # Prevent path traversal: ensure resolved path stays within frontend_dist
-        if not file_path.startswith(os.path.abspath(frontend_dist)):
+
+        # Canonical URL enforcement: redirect trailing slashes to avoid duplicate indexing
+        if full_path.endswith("/") and full_path.strip("/"):
+            return RedirectResponse(url=f"/{full_path.rstrip('/')}", status_code=308)
+
+        # Defense-in-depth: immediately reject any explicit path traversal tokens
+        normalized_segments = full_path.replace("\\", "/").split("/")
+        if ".." in normalized_segments or any(seg.startswith("..") for seg in normalized_segments):
             raise HTTPException(status_code=403, detail="Forbidden")
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(frontend_dist, "index.html"))
+
+        base_dir = Path(frontend_dist).resolve()
+        try:
+            req_path = (base_dir / full_path).resolve()
+        except (ValueError, RuntimeError):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        # Prevent path traversal: ensure resolved path is strictly inside base_dir
+        if not req_path.is_relative_to(base_dir):
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        # 1. Direct file match (e.g., /favicon.ico, /robots.txt, /sitemap.xml)
+        if req_path.is_file():
+            headers = HTML_CACHE_HEADERS if req_path.suffix == ".html" else None
+            return FileResponse(str(req_path), headers=headers)
+
+        # 2. Pre-rendered route index match (e.g. /catalogs -> dist/catalogs/index.html)
+        prerendered_file = req_path / "index.html"
+        if prerendered_file.is_file():
+            return FileResponse(str(prerendered_file), headers=HTML_CACHE_HEADERS)
+
+        # 3. SPA Root fallback
+        root_index = base_dir / "index.html"
+        if root_index.is_file():
+            return FileResponse(str(root_index), headers=HTML_CACHE_HEADERS)
+
+        raise HTTPException(status_code=404, detail="Frontend root not found")
 
 if __name__ == "__main__":
     import uvicorn

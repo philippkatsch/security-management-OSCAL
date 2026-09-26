@@ -5,6 +5,8 @@ node_modules
 dist
 reposol/frontend/node_modules
 reposol/frontend/dist
+reposol/frontend/src/tests
+reposol/frontend/coverage
 reposol/data/workspaces/session-*
 reposol/data/uploads
 *.md

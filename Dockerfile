@@ -1,11 +1,13 @@
 # Multi-stage Docker build for Reposol (React Frontend + FastAPI Backend)
 
-# Stage 1: Build React Frontend
+# Stage 1: Build React Frontend + Generate SEO Static Routes
 FROM node:18-alpine AS frontend-builder
 WORKDIR /app/frontend
+
 COPY reposol/frontend/package*.json ./
 RUN npm install
 COPY reposol/frontend ./
+# Builds the Vite bundle and generates static SEO route HTML files in < 30ms
 RUN npm run build
 
 # Stage 2: Production Python Backend Container
