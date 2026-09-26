@@ -13,6 +13,8 @@ export interface EnhancementsAccordionProps {
   onSelectEnhancement?: (id: string) => void;
   onAddEnhancement?: () => void;
   onRemoveEnhancement?: (index: number, ev: React.MouseEvent) => void;
+  onWithdrawEnhancement?: (id: string) => void;
+  onRestoreEnhancement?: (id: string) => void;
   showNavArrow?: boolean;
   renderEnhancementContent?: any;
 }
@@ -23,6 +25,8 @@ export function EnhancementsAccordion({
   onSelectEnhancement,
   onAddEnhancement,
   onRemoveEnhancement,
+  onWithdrawEnhancement,
+  onRestoreEnhancement,
   showNavArrow = true,
   renderEnhancementContent
 }: EnhancementsAccordionProps) {
@@ -120,6 +124,7 @@ export function EnhancementsAccordion({
               {enhancements.map((e: any, idx: number) => {
                 const itemId = e.id || idx;
                 const isExpanded = !!expandedItemIds[itemId];
+                const isWithdrawn = e.status === 'withdrawn' || e.props?.some((p: any) => (p.name === 'status' || p.name === 'state') && p.value === 'withdrawn');
                 return (
                   <div key={itemId} style={{ borderBottom: idx < enhancements.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
                     <div
@@ -151,16 +156,76 @@ export function EnhancementsAccordion({
                             {isExpanded ? '▼' : '▶'}
                           </span>
                         )}
-                        <span style={{ color: 'var(--color-accent)', fontSize: '14px' }}>⬡</span>
-                        <strong style={{ fontSize: '13px', color: 'var(--color-text)' }}>
+                        <span style={{ color: isWithdrawn ? 'var(--color-text-muted)' : 'var(--color-accent)', fontSize: '14px' }}>⬡</span>
+                        <strong style={{ fontSize: '13px', color: 'var(--color-text)', textDecoration: isWithdrawn ? 'line-through' : 'none', opacity: isWithdrawn ? 0.7 : 1 }}>
                           <span style={{ color: 'var(--color-text-muted)', marginRight: '8px', fontWeight: '500' }}>{e.id}</span>
                           {e.title || 'Untitled Enhancement'}
                         </strong>
+                        {isWithdrawn && (
+                          <span style={{
+                            fontSize: '10px',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            color: '#ef4444',
+                            fontWeight: '600',
+                            marginLeft: '4px'
+                          }}>
+                            Withdrawn
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {isEditing && isWithdrawn && onRestoreEnhancement && (
+                          <button
+                            type="button"
+                            data-testid={`restore-enhancement-btn-${e.id}`}
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              onRestoreEnhancement(e.id);
+                            }}
+                            style={{
+                              background: 'rgba(34, 197, 94, 0.1)',
+                              border: '1px solid rgba(34, 197, 94, 0.3)',
+                              borderRadius: '4px',
+                              color: 'var(--color-success, #22c55e)',
+                              fontSize: '11px',
+                              padding: '2px 6px',
+                              cursor: 'pointer',
+                              fontWeight: '600'
+                            }}
+                            title="Restore sub-control"
+                          >
+                            ↩ Restore
+                          </button>
+                        )}
+                        {isEditing && !isWithdrawn && onWithdrawEnhancement && (
+                          <button
+                            type="button"
+                            data-testid={`withdraw-enhancement-btn-${e.id}`}
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              onWithdrawEnhancement(e.id);
+                            }}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              borderRadius: '4px',
+                              color: 'var(--color-danger, #ef4444)',
+                              fontSize: '11px',
+                              padding: '2px 6px',
+                              cursor: 'pointer',
+                              fontWeight: '600'
+                            }}
+                            title="Withdraw sub-control"
+                          >
+                            ⛔ Withdraw
+                          </button>
+                        )}
                         {isEditing && onRemoveEnhancement && (
                           <button
                             type="button"
+                            data-testid={`delete-enhancement-btn-${e.id}`}
                             className={styles['btn-soft-delete']}
                             onClick={(ev) => {
                               ev.stopPropagation();

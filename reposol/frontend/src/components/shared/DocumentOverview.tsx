@@ -70,7 +70,9 @@ export function DocumentOverview({
   SourcesPanel = null,
   onNavigateToProperties,
   onLoadTemplate,
-  onApplyContent
+  onApplyContent,
+  onAddGroup,
+  onAddControl
 }: any) {
   const document = rawDocument?.catalog || rawDocument?.profile || rawDocument?.['component-definition'] || rawDocument?.['system-security-plan'] || rawDocument?.['assessment-plan'] || rawDocument?.['assessment-results'] || rawDocument?.['plan-of-action-and-milestones'] || rawDocument || {};
   const globalEditMode = useAtomValue(editModeAtom);
@@ -219,8 +221,11 @@ export function DocumentOverview({
             document={document}
             stats={stats}
             onSelectGroup={onSelectGroup}
+            onSelectControl={onSelectControl}
             onLoadTemplate={onLoadTemplate}
             isEditing={isEditingState}
+            onAddGroup={onAddGroup}
+            onAddControl={onAddControl}
           />
         )}
         {currentTab === 'overview' && mode === 'profile' && <ProfileOverviewPanel document={document} resolvedCatalog={resolvedCatalog} stats={stats} onSelectGroup={onSelectGroup} />}

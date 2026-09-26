@@ -63,6 +63,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   );
 }
 
+export function useConfirmOptional(): ConfirmContextType | null {
+  const context = useContext(ConfirmContext);
+  return context || null;
+}
+
 export function useConfirm() {
   const context = useContext(ConfirmContext);
   if (!context) {
@@ -70,3 +75,4 @@ export function useConfirm() {
   }
   return context;
 }
+

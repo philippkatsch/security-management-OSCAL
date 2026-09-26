@@ -233,8 +233,19 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   };
 
   const handleAddGroup = (parentGroupId: string | null) => {
-    const newId = `group-${Date.now().toString(36)}`;
-    dispatch(addGroup(parentGroupId, { id: newId, title: 'New Group' }));
+    let newId = `group-${Date.now().toString(36)}`;
+    let newTitle = 'New Group';
+    let groupClass = 'family';
+    if (parentGroupId) {
+      const parentGroup = findGroup(parentGroupId, catalogData);
+      if (parentGroup) {
+        const count = (parentGroup.groups?.length || 0) + 1;
+        newId = `${parentGroup.id}-sub-${count}`;
+        newTitle = `Sub-Category ${count}`;
+        groupClass = 'sub-category';
+      }
+    }
+    dispatch(addGroup(parentGroupId, { id: newId, title: newTitle, class: groupClass }));
     if (parentGroupId) {
       tree.expandToNode(parentGroupId);
     }
@@ -246,8 +257,24 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   };
 
   const handleAddControl = (parentGroupId: string | null) => {
-    const newId = `ctrl-${Date.now().toString(36)}`;
-    dispatch(addControl(parentGroupId, { id: newId, title: 'New Control' }));
+    let newId = `ctrl-${Date.now().toString(36)}`;
+    let newTitle = 'New Control';
+    if (parentGroupId) {
+      const parentCtrl = findControl(parentGroupId, catalogData);
+      if (parentCtrl) {
+        const count = (parentCtrl.controls?.length || 0) + 1;
+        newId = `${parentCtrl.id}.${count}`;
+        newTitle = `Enhancement ${count}`;
+      } else {
+        const parentGrp = findGroup(parentGroupId, catalogData);
+        if (parentGrp) {
+          const count = (parentGrp.controls?.length || 0) + 1;
+          newId = `${parentGrp.id}-${count}`;
+          newTitle = `Control ${count}`;
+        }
+      }
+    }
+    dispatch(addControl(parentGroupId, { id: newId, title: newTitle }));
     if (parentGroupId) {
       tree.expandToNode(parentGroupId);
     }
@@ -413,7 +440,19 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                    allUsedPropKeys={allUsedPropKeys}
                    backMatterResources={catalogData['back-matter']?.resources || []}
                    onSelectControl={(id: string) => tree.select(id)}
+                   onSelectGroup={(id: string | null) => {
+                     if (!id) {
+                       tree.select(null);
+                       setActiveSidebarView('overview');
+                     } else {
+                       tree.select(id);
+                     }
+                   }}
                    onChange={handleControlChange}
+                   onWithdrawControl={handleWithdrawNode}
+                   onRestoreControl={handleRestoreNode}
+                   onDeleteControl={(id: string) => handleDeleteNode(id, 'control')}
+                   onAddSubControl={(id: string) => handleAddControl(id)}
                 />
               ) : tree.selectedNode?.type === 'group' ? (
                  <GroupEditor 
@@ -424,6 +463,15 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                     onChange={handleGroupChange}
                     onSelectGroup={(id: string) => tree.select(id)}
                     onSelectControl={(id: string) => tree.select(id)}
+                    onAddGroup={handleAddGroup}
+                    onAddSubgroup={(groupId: string) => handleAddGroup(groupId)}
+                    onAddControl={(groupId: string) => handleAddControl(groupId)}
+                    onDeleteGroup={(groupId: string) => handleDeleteNode(groupId, 'group')}
+                    onWithdrawAllInGroup={handleWithdrawAllInGroup}
+                    onRestoreAllInGroup={handleRestoreAllInGroup}
+                    onWithdrawControl={handleWithdrawNode}
+                    onRestoreControl={handleRestoreNode}
+                    onDeleteControl={(ctrlId: string) => handleDeleteNode(ctrlId, 'control')}
                  />
               ) : activeSidebarView === 'metadata' ? (
                 <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
@@ -464,6 +512,8 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                     dispatch(updateCatalogDocument(updatedDoc));
                   }}
                   onApplyContent={handleApplyContent}
+                  onAddGroup={() => handleAddGroup(null)}
+                  onAddControl={() => handleAddControl(null)}
                 />
               )}
           </div>

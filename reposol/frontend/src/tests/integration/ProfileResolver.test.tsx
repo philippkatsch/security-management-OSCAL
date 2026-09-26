@@ -1060,5 +1060,75 @@ describe('ProfileResolver Engine & applyModify Unit Tests', () => {
         vi.advanceTimersByTime(1000);
       });
     });
+
+    it('fetchImportedCatalogs successfully resolves non-UUID anchor (#res-1) via back-matter rlinks', async () => {
+      const catalogUuid = '720a010b-253c-4a94-bb65-cb58400966f5';
+      const profileDoc = {
+        profile: {
+          uuid: 'profile-with-res-anchor',
+          imports: [{ href: '#res-csf-catalog', 'include-all': {} }],
+          'back-matter': {
+            resources: [
+              {
+                id: 'res-csf-catalog',
+                title: 'NIST CSF 2.0 Catalog Reference',
+                rlinks: [
+                  {
+                    href: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json'
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      };
+
+      const mockFetchFn = vi.fn().mockImplementation((url: string) => {
+        if (url === '/api/documents/catalogs') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [{ catalog: { uuid: catalogUuid, metadata: { title: 'NIST CSF 2.0' } } }]
+          });
+        }
+        if (url === '/api/documents/profiles') {
+          return Promise.resolve({ ok: true, json: async () => [] });
+        }
+        if (url === '/api/import/registry') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              {
+                id: 'nist-csf-2-catalog',
+                model: 'catalog',
+                url: 'https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/nist.gov/CSF/v2.0/json/NIST_CSF_v2.0_catalog.json',
+                uuid: catalogUuid,
+              }
+            ]
+          });
+        }
+        if (url === `/api/documents/catalogs/${catalogUuid}`) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              catalog: {
+                uuid: catalogUuid,
+                controls: [{ id: 'csf-1', title: 'Govern Policy' }],
+                groups: []
+              }
+            })
+          });
+        }
+        return Promise.resolve({ ok: false, status: 404 });
+      });
+
+      const cache = new Map<string, any>();
+      await fetchImportedCatalogs(profileDoc, cache, mockFetchFn);
+
+      expect(mockFetchFn).toHaveBeenCalledWith(`/api/documents/catalogs/${catalogUuid}`);
+      expect(cache.has(catalogUuid)).toBe(true);
+      expect(cache.has('#res-csf-catalog')).toBe(true);
+      const cached = cache.get(catalogUuid);
+      expect(cached?.data?.catalog?.uuid).toBe(catalogUuid);
+    });
   });
 });

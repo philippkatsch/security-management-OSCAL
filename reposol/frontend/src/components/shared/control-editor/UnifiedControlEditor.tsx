@@ -32,6 +32,45 @@ interface UnifiedControlEditorProps {
   [key: string]: any;
 }
 
+const getControlAncestorsPath = (targetControlId: string, catalogData: any) => {
+  if (!targetControlId || !catalogData) return [];
+  const searchControls = (controls: any[] = [], currentPath: any[]): any[] | null => {
+    for (const c of controls) {
+      if (c.id === targetControlId) return currentPath;
+      if (c.controls) {
+        const found = searchControls(c.controls, [...currentPath, { id: c.id, title: c.title || c.id, type: 'control' }]);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const searchGroups = (groups: any[] = [], currentPath: any[]): any[] | null => {
+    for (const g of groups) {
+      const groupItem = { id: g.id, title: g.title || g.id, type: 'group' };
+      if (g.controls) {
+        const found = searchControls(g.controls, [...currentPath, groupItem]);
+        if (found) return found;
+      }
+      if (g.groups) {
+        const found = searchGroups(g.groups, [...currentPath, groupItem]);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  if (catalogData.controls) {
+    const found = searchControls(catalogData.controls, []);
+    if (found) return found;
+  }
+  if (catalogData.groups) {
+    const found = searchGroups(catalogData.groups, []);
+    if (found) return found;
+  }
+  return [];
+};
+
 export function UnifiedControlEditor({
   control,
   stage,
@@ -43,7 +82,15 @@ export function UnifiedControlEditor({
   ...stageProps
 }: UnifiedControlEditorProps) {
   const StageAdapter = ADAPTERS[stage];
-  const { onSelectControl, onRestoreControl, allUsedPropKeys } = stageProps as any;
+  const {
+    onSelectControl,
+    onSelectGroup,
+    onRestoreControl,
+    onWithdrawControl,
+    onDeleteControl,
+    onAddSubControl,
+    allUsedPropKeys
+  } = stageProps as any;
 
   const profile = propProfile || (stageProps as any)?.profile;
 
@@ -216,10 +263,34 @@ export function UnifiedControlEditor({
   const profileGetModifiedPartIds = stage === 'profile' ? profileAlters.profileGetModifiedPartIds : undefined;
   const handleResetProse = stage === 'profile' ? profileAlters.handleResetProse : undefined;
 
+  const ancestors = React.useMemo(() => getControlAncestorsPath(control?.id, catalog), [control?.id, catalog]);
+
   return (
     <ErrorBoundary>
       <ControlEditorContext.Provider value={contextValue}>
         <div className={styles.controlEditor}>
+          {ancestors.length > 0 && (
+            <div className="breadcrumbs" style={{ flexShrink: 0, fontSize: '12px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+              <span onClick={() => onSelectGroup?.(null)} style={{ cursor: onSelectGroup ? 'pointer' : 'default' }} className="breadcrumb-link">Overview</span>
+              {ancestors.map(b => (
+                <React.Fragment key={b.id}>
+                  <span>/</span>
+                  <span 
+                    onClick={() => {
+                      if (b.type === 'group' && onSelectGroup) onSelectGroup(b.id);
+                      else if (b.type === 'control' && onSelectControl) onSelectControl(b.id);
+                    }} 
+                    style={{ cursor: 'pointer' }}
+                    className="breadcrumb-link"
+                  >
+                    {b.title || b.id}
+                  </span>
+                </React.Fragment>
+              ))}
+              <span>/</span>
+              <span style={{ color: 'var(--color-text)', fontWeight: '600' }}>{control?.title || control?.id}</span>
+            </div>
+          )}
           <ControlHeader 
             id={control?.id}
             title={control?.title}
@@ -229,6 +300,9 @@ export function UnifiedControlEditor({
             control={control}
             onSelectControl={onSelectControl}
             onRestoreControl={onRestoreControl}
+            onWithdrawControl={onWithdrawControl}
+            onDeleteControl={onDeleteControl}
+            onAddSubControl={onAddSubControl || (stage === 'catalog' && isEditing ? handleAddEnhancement : undefined)}
             onChange={onChange}
             onTitleChange={(val) => onChange?.({ ...control, title: val })}
             onIdChange={(val) => onChange?.({ ...control, id: val })}
@@ -284,6 +358,8 @@ export function UnifiedControlEditor({
                 onSelectControl={onSelectControl}
                 handleAddEnhancement={handleAddEnhancement}
                 handleRemoveEnhancement={handleRemoveEnhancement}
+                onWithdrawEnhancement={onWithdrawControl}
+                onRestoreEnhancement={onRestoreControl}
               />
             )}
           </div>

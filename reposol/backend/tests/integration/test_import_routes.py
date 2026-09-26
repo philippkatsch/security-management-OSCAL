@@ -487,5 +487,159 @@ class TestImportRoutesIntegration:
         assert data2["same_title_existing"]["identical_content"] is False
         assert "different content" in data2["message"]
 
+    def test_registry_resolution_bsi_grundschutz_historical_and_new_uuid(self, client, isolated_data_dir):
+        """Verify that BSI IT-Grundschutz catalog resolves is_imported=True for historical and latest UUIDs."""
+        # 1. Initially not imported in empty isolated dir
+        res = client.get("/api/import/registry")
+        assert res.status_code == 200
+        bsi_entry = next(s for s in res.json() if s["id"] == "bsi-it-grundschutz-catalog")
+        assert bsi_entry["is_imported"] is False
+
+        # 2. Create document with historical BSI Grundschutz UUID
+        historical_uuid = "73f2d8f6-5a98-4e81-b600-b709e372e9cf"
+        hist_doc = {
+            "catalog": {
+                "uuid": historical_uuid,
+                "metadata": {
+                    "title": "Anwenderkatalog Grundschutz++",
+                    "version": "2026-07-16T05:11:52.605669+00:00",
+                    "oscal-version": "1.1.3",
+                    "last-modified": "2026-07-16T05:12:00Z"
+                },
+                "groups": []
+            }
+        }
+        res_create1 = client.post("/api/documents/catalogs", json=hist_doc)
+        assert res_create1.status_code in (200, 201)
+
+        # Should now resolve is_imported=True with historical version
+        res2 = client.get("/api/import/registry")
+        bsi_entry2 = next(s for s in res2.json() if s["id"] == "bsi-it-grundschutz-catalog")
+        assert bsi_entry2["is_imported"] is True
+        assert bsi_entry2.get("workspace_version") == "2026-07-16T05:11:52.605669+00:00"
+        assert bsi_entry2.get("workspace_doc_id") == historical_uuid
+
+        # 3. Add newer BSI build with new UUID (f556845b...)
+        latest_uuid = "f556845b-fbb1-4bc0-a97c-ac1872d385f3"
+        latest_doc = {
+            "catalog": {
+                "uuid": latest_uuid,
+                "metadata": {
+                    "title": "Anwenderkatalog Grundschutz++",
+                    "version": "2026-09-10T07:17:45.558103+00:00",
+                    "oscal-version": "1.1.3",
+                    "last-modified": "2026-09-10T07:17:45Z"
+                },
+                "groups": []
+            }
+        }
+        res_create2 = client.post("/api/documents/catalogs", json=latest_doc)
+        assert res_create2.status_code in (200, 201)
+
+        # Should now prioritize latest build version
+        res3 = client.get("/api/import/registry")
+        bsi_entry3 = next(s for s in res3.json() if s["id"] == "bsi-it-grundschutz-catalog")
+        assert bsi_entry3["is_imported"] is True
+        assert bsi_entry3.get("workspace_version") == "2026-09-10T07:17:45.558103+00:00"
+        assert bsi_entry3.get("workspace_doc_id") == latest_uuid
+
+    def test_registry_resolution_nist_rev4_and_custom_doc_no_false_positive(self, client, isolated_data_dir):
+        """Verify that NIST Rev 4 resolves with official UUID, and custom catalogs don't falsely match."""
+        # 1. Create a custom unrelated catalog
+        custom_uuid = "29b34d3c-1111-4444-8888-abcdef123456"
+        custom_doc = {
+            "catalog": {
+                "uuid": custom_uuid,
+                "metadata": {
+                    "title": "test",
+                    "version": "1.1.0",
+                    "oscal-version": "1.1.2",
+                    "last-modified": "2026-09-16T00:00:00Z"
+                }
+            }
+        }
+        client.post("/api/documents/catalogs", json=custom_doc)
+
+        res = client.get("/api/import/registry")
+        rev4_entry = next(s for s in res.json() if s["id"] == "nist-800-53-rev4-catalog")
+        assert rev4_entry["is_imported"] is False
+
+        # 2. Add NIST Rev 4 catalog with official UUID
+        rev4_uuid = "cd20580b-7b77-4031-8c06-28bd016f3104"
+        rev4_doc = {
+            "catalog": {
+                "uuid": rev4_uuid,
+                "metadata": {
+                    "title": "NIST Special Publication 800-53 Revision 4: Security and Privacy Controls for Federal Information Systems and Organizations",
+                    "version": "2015-01-22",
+                    "oscal-version": "1.0.0",
+                    "last-modified": "2021-06-08T00:00:00Z"
+                }
+            }
+        }
+        client.post("/api/documents/catalogs", json=rev4_doc)
+
+        res2 = client.get("/api/import/registry")
+        rev4_updated = next(s for s in res2.json() if s["id"] == "nist-800-53-rev4-catalog")
+        assert rev4_updated["is_imported"] is True
+        assert rev4_updated.get("workspace_version") == "2015-01-22"
+        assert rev4_updated.get("workspace_doc_id") == rev4_uuid
+
+    def test_registry_resolution_no_false_positive_on_title_substrings(self, client, isolated_data_dir):
+        """Verify that custom documents containing substrings like 'NIST SP 800-53 Rev 5' do NOT falsely match."""
+        tailored_uuid = "33333333-4444-5555-6666-777777777777"
+        tailored_doc = {
+            "catalog": {
+                "uuid": tailored_uuid,
+                "metadata": {
+                    "title": "NIST SP 800-53 Rev 5 Tailored",
+                    "version": "1.0.0",
+                    "oscal-version": "1.1.2",
+                    "last-modified": "2026-09-20T00:00:00Z"
+                }
+            }
+        }
+        client.post("/api/documents/catalogs", json=tailored_doc)
+
+        res = client.get("/api/import/registry")
+        rev5_entry = next(s for s in res.json() if s["id"] == "nist-800-53-rev5-catalog")
+        assert rev5_entry["is_imported"] is False
+
+    def test_registry_stages_5_6_7_present_and_url_normalization(self, client, isolated_data_dir):
+        """Verify that stages 5, 6, 7 (AP, AR, POA&M) exist in registry and link matching normalizes URLs."""
+        res = client.get("/api/import/registry")
+        entries = {s["id"]: s for s in res.json()}
+
+        assert "nist-example-assessment-plan" in entries
+        assert "nist-example-assessment-results" in entries
+        assert "nist-example-poam" in entries
+
+        # Create an assessment plan with a normalized github raw link (/refs/heads/main/ instead of /main/)
+        ap_uuid = "c0a8012e-0000-4000-8000-000000000099"
+        ap_doc = {
+            "assessment-plan": {
+                "uuid": ap_uuid,
+                "metadata": {
+                    "title": "My Custom AP Title",
+                    "version": "1.0.0",
+                    "links": [
+                        {
+                            "href": "https://raw.githubusercontent.com/usnistgov/oscal-content/refs/heads/main/examples/assessment-plan/json/assessment-plan-example.json",
+                            "rel": "canonical"
+                        }
+                    ]
+                }
+            }
+        }
+        res_create = client.post("/api/documents/assessment-plans?skip_validation=true", json=ap_doc)
+        assert res_create.status_code in (200, 201)
+
+        res2 = client.get("/api/import/registry")
+        ap_entry = next(s for s in res2.json() if s["id"] == "nist-example-assessment-plan")
+        assert ap_entry["is_imported"] is True
+        assert ap_entry["workspace_doc_id"] == ap_uuid
+
+
+
 
 

@@ -1,1 +1,2 @@
-export { useConfirm } from '@components/shared/ui/ConfirmProvider';
+export { useConfirm, useConfirmOptional } from '@components/shared/ui/ConfirmProvider';
+

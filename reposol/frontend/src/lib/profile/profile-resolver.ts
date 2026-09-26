@@ -510,34 +510,23 @@ export async function fetchImportedCatalogs(profileDoc: any, cache = new Map<str
 
   await Promise.all(
     imports.map(async (imp: any) => {
-      const match = imp.href ? imp.href.match(/([a-f0-9-]{36})/i) : null;
-      const uuid = match ? match[1] : null;
-      if (!uuid) return;
-      const uuidLower = uuid.toLowerCase();
-      
-      const existing = cache.get(uuidLower);
-      const existingCatalog = existing?.data?.catalog || existing?.catalog;
-      const hasControlsOrGroups = existingCatalog && (
-        (Array.isArray(existingCatalog.controls) && existingCatalog.controls.length > 0) ||
-        (Array.isArray(existingCatalog.groups) && existingCatalog.groups.length > 0)
-      );
+      if (!imp?.href) return;
+      const refKey = imp.href.toLowerCase();
 
-      if (cache.has(uuidLower) && hasControlsOrGroups) return;
-
-      let targetUuid = uuidLower;
+      let targetUuid: string | null = null;
       let targetType: 'catalog' | 'profile' | null = null;
 
-      // Check if this import refers to a back-matter resource
-      if (imp.href && imp.href.startsWith('#')) {
+      // 1. Check if this import refers to a back-matter resource (#...)
+      if (imp.href.startsWith('#')) {
         const resourceId = imp.href.substring(1).toLowerCase();
         const resources = profile.metadata?.resources || profile['back-matter']?.resources || [];
-        const resource = resources.find(r => (r.uuid || '').toLowerCase() === resourceId || (r.id || '').toLowerCase() === resourceId);
-        
+        const resource = resources.find((r: any) => (r.uuid || '').toLowerCase() === resourceId || (r.id || '').toLowerCase() === resourceId);
+
         if (resource && resource.rlinks) {
           for (const rlink of resource.rlinks) {
             const rlinkHref = rlink.href || '';
-            
-            // 1. Try to extract UUID from rlink href
+
+            // 1a. Try to extract UUID from rlink href
             const rlinkMatch = rlinkHref.match(/([a-f0-9-]{36})/i);
             if (rlinkMatch) {
               const rlinkUuid = rlinkMatch[1].toLowerCase();
@@ -552,58 +541,92 @@ export async function fetchImportedCatalogs(profileDoc: any, cache = new Map<str
               }
             }
 
-            // 2. Try to match the filename of rlink href to registry templates
+            // 1b. Try to match the filename of rlink href to registry templates
             const rlinkFilename = rlinkHref.split('/').pop()?.toLowerCase();
             if (rlinkFilename) {
-              const matchedTemplate = registryTemplates.find(t => {
+              const matchedTemplate = registryTemplates.find((t: any) => {
                 const templateFilename = t.url?.split('/').pop()?.toLowerCase();
                 return templateFilename === rlinkFilename;
               });
-              if (matchedTemplate && matchedTemplate.uuid) {
-                const templateUuid = matchedTemplate.uuid.toLowerCase();
-                if (availableCatalogs.has(templateUuid)) {
-                  targetUuid = templateUuid;
-                  targetType = 'catalog';
-                  break;
-                } else if (availableProfiles.has(templateUuid)) {
-                  targetUuid = templateUuid;
-                  targetType = 'profile';
-                  break;
+              if (matchedTemplate) {
+                const candidateUuids = [
+                  matchedTemplate.workspace_doc_id,
+                  matchedTemplate.uuid,
+                  ...(matchedTemplate.known_uuids || [])
+                ].filter(Boolean).map((u: string) => u.toLowerCase());
+
+                for (const cand of candidateUuids) {
+                  if (availableCatalogs.has(cand)) {
+                    targetUuid = cand;
+                    targetType = 'catalog';
+                    break;
+                  } else if (availableProfiles.has(cand)) {
+                    targetUuid = cand;
+                    targetType = 'profile';
+                    break;
+                  }
                 }
+                if (targetType) break;
               }
             }
           }
         }
       }
 
+      // 2. If not resolved via back-matter, try to extract UUID from imp.href
+      if (!targetUuid) {
+        const match = imp.href.match(/([a-f0-9-]{36})/i);
+        if (match) {
+          targetUuid = match[1].toLowerCase();
+        }
+      }
+
+      if (!targetUuid) return;
+      const targetUuidLower = targetUuid.toLowerCase();
+
+      const existing = cache.get(targetUuidLower) || cache.get(refKey);
+      const existingCatalog = existing?.data?.catalog || existing?.catalog;
+      const hasControlsOrGroups = existingCatalog && (
+        (Array.isArray(existingCatalog.controls) && existingCatalog.controls.length > 0) ||
+        (Array.isArray(existingCatalog.groups) && existingCatalog.groups.length > 0)
+      );
+
+      if (existing && hasControlsOrGroups) return;
+
       if (!targetType) {
         if (imp.href && (imp.href.includes('/catalogs/') || imp.href.includes('catalogs/'))) {
           targetType = 'catalog';
         } else if (imp.href && (imp.href.includes('/profiles/') || imp.href.includes('profiles/'))) {
           targetType = 'profile';
-        } else if (availableCatalogs.has(targetUuid)) {
+        } else if (availableCatalogs.has(targetUuidLower)) {
           targetType = 'catalog';
-        } else if (availableProfiles.has(targetUuid)) {
+        } else if (availableProfiles.has(targetUuidLower)) {
           targetType = 'profile';
         }
       }
 
       if (targetType === 'catalog') {
-        const res = await fetchFn(`/api/documents/catalogs/${targetUuid}`);
+        const res = await fetchFn(`/api/documents/catalogs/${targetUuidLower}`);
         if (res.ok) {
           const data = await res.json();
-          cache.set(uuidLower, { type: 'catalog', data });
+          cache.set(targetUuidLower, { type: 'catalog', data });
+          if (refKey !== targetUuidLower) {
+            cache.set(refKey, { type: 'catalog', data });
+          }
         } else {
-          throw new Error(`Failed to fetch imported catalog '${targetUuid}' (Status ${res.status})`);
+          throw new Error(`Failed to fetch imported catalog '${targetUuidLower}' (Status ${res.status})`);
         }
       } else if (targetType === 'profile') {
-        const res = await fetchFn(`/api/documents/profiles/${targetUuid}`);
+        const res = await fetchFn(`/api/documents/profiles/${targetUuidLower}`);
         if (res.ok) {
           const data = await res.json();
-          cache.set(uuidLower, { type: 'profile', data });
+          cache.set(targetUuidLower, { type: 'profile', data });
+          if (refKey !== targetUuidLower) {
+            cache.set(refKey, { type: 'profile', data });
+          }
           await fetchImportedCatalogs(data, cache, fetchFn);
         } else {
-          throw new Error(`Failed to fetch imported profile '${targetUuid}' (Status ${res.status})`);
+          throw new Error(`Failed to fetch imported profile '${targetUuidLower}' (Status ${res.status})`);
         }
       }
     })

@@ -763,4 +763,68 @@ describe('ImportWizard', () => {
       expect(screen.getByText(/⚠️ Re-imported: "Modified Local Profile" \(profiles\) — Existing document was locally modified; updated with imported content./i)).toBeInTheDocument();
     });
   });
+
+  it('renders In Workspace badge and Re-import button when entry is_imported is true', async () => {
+    const importedRegistry = [
+      {
+        id: 'bsi-it-grundschutz-catalog',
+        title: 'BSI IT-Grundschutz — Kompendium Catalog',
+        description: 'BSI catalog details',
+        model: 'catalog',
+        source: 'bsi',
+        url: 'https://example.com/bsi-catalog.json',
+        is_imported: true,
+        workspace_version: '2026-09-10T07:17:45.558103+00:00',
+      },
+    ];
+    setupFetchMocks(importedRegistry);
+    await act(async () => {
+      render(<ImportWizard stage="catalogs" onClose={vi.fn()} />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('BSI IT-Grundschutz — Kompendium Catalog')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/✓ In Workspace \(v2026-09-10T07:17:45.558103\+00:00\)/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '🔄 Re-import' })).toBeInTheDocument();
+  });
+
+  it('updates In Workspace badge immediately after successful registry import', async () => {
+    const freshRegistry = [
+      {
+        id: 'bsi-it-grundschutz-catalog',
+        title: 'BSI IT-Grundschutz — Kompendium Catalog',
+        description: 'BSI catalog details',
+        model: 'catalog',
+        source: 'bsi',
+        url: 'https://example.com/bsi-catalog.json',
+        is_imported: false,
+      },
+    ];
+    setupFetchMocks(freshRegistry, {
+      status: 'created',
+      title: 'Anwenderkatalog Grundschutz++',
+      version: '2026-09-10T07:17:45.558103+00:00',
+      stage: 'catalogs',
+    });
+
+    await act(async () => {
+      render(<ImportWizard stage="catalogs" onClose={vi.fn()} />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('BSI IT-Grundschutz — Kompendium Catalog')).toBeInTheDocument();
+    });
+
+    const importBtn = screen.getByRole('button', { name: 'Import' });
+    await act(async () => {
+      fireEvent.click(importBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/✓ In Workspace \(v2026-09-10T07:17:45.558103\+00:00\)/)).toBeInTheDocument();
+    });
+  });
 });
+

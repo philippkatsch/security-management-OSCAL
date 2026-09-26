@@ -9,6 +9,8 @@ export interface ControlEnhancementsPanelProps {
   onSelectControl?: any;
   handleAddEnhancement?: any;
   handleRemoveEnhancement?: any;
+  onWithdrawEnhancement?: any;
+  onRestoreEnhancement?: any;
   renderEnhancementContent?: any;
   controlId?: string;
   [key: string]: any;
@@ -21,6 +23,8 @@ export function ControlEnhancementsPanel({
   onSelectControl,
   handleAddEnhancement,
   handleRemoveEnhancement,
+  onWithdrawEnhancement,
+  onRestoreEnhancement,
   renderEnhancementContent,
   controlId: _controlId
 }: ControlEnhancementsPanelProps) {
@@ -32,6 +36,8 @@ export function ControlEnhancementsPanel({
         onSelectEnhancement={onSelectControl}
         onAddEnhancement={mode === 'catalog' && isEditing ? handleAddEnhancement : undefined}
         onRemoveEnhancement={mode === 'catalog' && isEditing ? handleRemoveEnhancement : undefined}
+        onWithdrawEnhancement={mode === 'catalog' && isEditing ? onWithdrawEnhancement : undefined}
+        onRestoreEnhancement={mode === 'catalog' && isEditing ? onRestoreEnhancement : undefined}
         showNavArrow={mode === 'catalog'}
         renderEnhancementContent={mode === 'profile' ? renderEnhancementContent : undefined}
       />

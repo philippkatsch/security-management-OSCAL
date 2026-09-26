@@ -259,6 +259,7 @@ export function withdrawControl(controlId: string, replacementId?: string) {
       const control = findControlById(draft.catalog, controlId);
       if (!control) return;
 
+      (control as any).status = 'withdrawn';
       if (!control.props) control.props = [];
       const statusProp = control.props.find(p => p.name?.toLowerCase() === 'status');
       if (statusProp) {
@@ -286,8 +287,11 @@ export function restoreControl(controlId: string) {
       const control = findControlById(draft.catalog, controlId);
       if (!control) return;
 
+      if ((control as any).status) {
+        delete (control as any).status;
+      }
       if (control.props) {
-        control.props = control.props.filter(p => !(p.name?.toLowerCase() === 'status' && p.value?.toLowerCase() === 'withdrawn'));
+        control.props = control.props.filter(p => !((p.name?.toLowerCase() === 'status' || p.name?.toLowerCase() === 'state') && p.value?.toLowerCase() === 'withdrawn'));
       }
       if (control.links) {
         control.links = control.links.filter(l => l.rel !== 'incorporated-into');
@@ -328,6 +332,7 @@ export function withdrawAllControlsInGroup(groupId: string) {
       if (!group) return;
 
       applyToAllControlsInGroup(group, (control) => {
+        (control as any).status = 'withdrawn';
         if (!control.props) control.props = [];
         const statusProp = control.props.find(p => p.name?.toLowerCase() === 'status');
         if (statusProp) {
@@ -347,8 +352,11 @@ export function restoreAllControlsInGroup(groupId: string) {
       if (!group) return;
 
       applyToAllControlsInGroup(group, (control) => {
+        if ((control as any).status) {
+          delete (control as any).status;
+        }
         if (control.props) {
-          control.props = control.props.filter(p => !(p.name?.toLowerCase() === 'status' && p.value?.toLowerCase() === 'withdrawn'));
+          control.props = control.props.filter(p => !((p.name?.toLowerCase() === 'status' || p.name?.toLowerCase() === 'state') && p.value?.toLowerCase() === 'withdrawn'));
         }
         if (control.links) {
           control.links = control.links.filter(l => l.rel !== 'incorporated-into');

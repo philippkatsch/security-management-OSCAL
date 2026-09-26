@@ -8,6 +8,7 @@ import { LinksEditor } from '@components/shared/LinksEditor';
 import { PartsEditor } from '@components/shared/PartsEditor';
 import { ParameterEditor } from './ParameterEditor';
 import { ErrorBoundary } from '@components/shared/ui/ErrorBoundary';
+import { useConfirmOptional } from '@hooks/useConfirm';
 
 const countControlsInGroup = (g) => {
   let count = 0;
@@ -65,14 +66,97 @@ export function GroupEditor({
   onProfileChange = () => {},
   onDeleteGroup = undefined,
   onAddSubgroup = undefined,
+  onAddControl = undefined,
+  onWithdrawAllInGroup = undefined,
+  onRestoreAllInGroup = undefined,
+  onWithdrawControl = undefined,
+  onRestoreControl = undefined,
+  onDeleteControl = undefined,
   onUnassignControl = undefined,
   onOrderChange = undefined
 }: any) {
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditing = isEditingProp !== undefined ? isEditingProp : globalEditMode;
 
+  const confirmContext = useConfirmOptional();
+  const confirm = confirmContext?.confirm;
+
   const [showGroupParams, setShowGroupParams] = useState(false);
   const [expandedControlIds, setExpandedControlIds] = useState({});
+
+  const handleDeleteGroupAction = async () => {
+    let confirmed = true;
+    if (confirm) {
+      confirmed = await confirm({
+        title: 'Delete Group',
+        message: `Are you sure you want to delete group "${group.title || group.id || ''}" and all its contents? This cannot be undone.`,
+        confirmLabel: 'Delete',
+        variant: 'danger'
+      });
+    }
+    if (confirmed && onDeleteGroup) {
+      onDeleteGroup(group.id);
+    }
+  };
+
+  const handleWithdrawAllAction = async () => {
+    let confirmed = true;
+    if (confirm) {
+      confirmed = await confirm({
+        title: 'Withdraw All Controls',
+        message: `Withdraw all controls in group "${group.title || group.id || ''}"?`,
+        confirmLabel: 'Withdraw All',
+        variant: 'danger'
+      });
+    }
+    if (confirmed && onWithdrawAllInGroup) {
+      onWithdrawAllInGroup(group.id);
+    }
+  };
+
+  const handleRestoreAllAction = async () => {
+    let confirmed = true;
+    if (confirm) {
+      confirmed = await confirm({
+        title: 'Restore All Controls',
+        message: `Restore all controls in group "${group.title || group.id || ''}"?`,
+        confirmLabel: 'Restore All'
+      });
+    }
+    if (confirmed && onRestoreAllInGroup) {
+      onRestoreAllInGroup(group.id);
+    }
+  };
+
+  const handleDeleteSubgroupAction = async (sub: any) => {
+    let confirmed = true;
+    if (confirm) {
+      confirmed = await confirm({
+        title: 'Delete Sub-group',
+        message: `Are you sure you want to delete sub-group "${sub.title || sub.id || ''}"?`,
+        confirmLabel: 'Delete',
+        variant: 'danger'
+      });
+    }
+    if (confirmed && onDeleteGroup) {
+      onDeleteGroup(sub.id);
+    }
+  };
+
+  const handleDeleteControlAction = async (ctrl: any) => {
+    let confirmed = true;
+    if (confirm) {
+      confirmed = await confirm({
+        title: 'Delete Control',
+        message: `Are you sure you want to delete control "${ctrl.title || ctrl.id || ''}"? This cannot be undone.`,
+        confirmLabel: 'Delete',
+        variant: 'danger'
+      });
+    }
+    if (confirmed && onDeleteControl) {
+      onDeleteControl(ctrl.id);
+    }
+  };
 
   const handleFieldChange = (field, val) => {
     onChange({ ...group, [field]: val });
@@ -194,30 +278,129 @@ export function GroupEditor({
                 {group.title || 'Untitled Group'}
               </h2>
             )}
-            {isEditing && (mode === 'profile' || onDeleteGroup) && (
-              <button
-                type="button"
-                data-testid="delete-group-btn"
-                onClick={() => onDeleteGroup ? onDeleteGroup(group.id) : null}
-                style={{
-                  marginLeft: 'auto',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  fontSize: '13px',
-                  color: 'var(--color-danger, #ef4444)',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 'var(--radius-sm, 4px)',
-                  cursor: 'pointer',
-                  fontWeight: '600'
-                }}
-                title="Delete custom group"
-              >
-                <span>🗑️</span>
-                <span>Delete Group</span>
-              </button>
+            {isEditing && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
+                {onAddControl && (
+                  <button
+                    type="button"
+                    data-testid="group-add-control-btn"
+                    onClick={() => onAddControl(group.id)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      background: 'var(--color-surface-2)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm, 4px)',
+                      color: 'var(--color-primary)',
+                      cursor: 'pointer'
+                    }}
+                    title="Add a new control to this group"
+                  >
+                    <span>➕</span>
+                    <span>Add Control</span>
+                  </button>
+                )}
+                {(onAddSubgroup || mode === 'profile') && (
+                  <button
+                    type="button"
+                    data-testid="group-add-subgroup-header-btn"
+                    onClick={() => onAddSubgroup ? onAddSubgroup(group.id) : null}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      background: 'var(--color-surface-2)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm, 4px)',
+                      color: 'var(--color-text)',
+                      cursor: 'pointer'
+                    }}
+                    title="Add a sub-group / sub-category"
+                  >
+                    <span>📁</span>
+                    <span>Add Sub-group</span>
+                  </button>
+                )}
+                {onWithdrawAllInGroup && (
+                  <button
+                    type="button"
+                    data-testid="group-withdraw-all-btn"
+                    onClick={handleWithdrawAllAction}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: 'var(--radius-sm, 4px)',
+                      color: 'var(--color-danger, #ef4444)',
+                      cursor: 'pointer'
+                    }}
+                    title="Withdraw all controls in this group"
+                  >
+                    <span>⛔</span>
+                    <span>Withdraw all</span>
+                  </button>
+                )}
+                {onRestoreAllInGroup && (
+                  <button
+                    type="button"
+                    data-testid="group-restore-all-btn"
+                    onClick={handleRestoreAllAction}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      borderRadius: 'var(--radius-sm, 4px)',
+                      color: 'var(--color-success, #22c55e)',
+                      cursor: 'pointer'
+                    }}
+                    title="Restore all controls in this group"
+                  >
+                    <span>↩</span>
+                    <span>Restore all</span>
+                  </button>
+                )}
+                {(mode === 'profile' || onDeleteGroup) && (
+                  <button
+                    type="button"
+                    data-testid="delete-group-btn"
+                    onClick={handleDeleteGroupAction}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      color: 'var(--color-danger, #ef4444)',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: 'var(--radius-sm, 4px)',
+                      cursor: 'pointer',
+                      fontWeight: '600'
+                    }}
+                    title="Delete group"
+                  >
+                    <span>🗑️</span>
+                    <span>Delete Group</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
           
@@ -373,9 +556,33 @@ export function GroupEditor({
                         {sub.title || sub.id}
                       </strong>
                     </div>
-                    <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                      {count} {count === 1 ? 'control' : 'controls'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+                        {count} {count === 1 ? 'control' : 'controls'}
+                      </span>
+                      {isEditing && onDeleteGroup && (
+                        <button
+                          type="button"
+                          data-testid={`delete-subgroup-btn-${sub.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSubgroupAction(sub);
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: '4px',
+                            color: '#ef4444',
+                            fontSize: '12px',
+                            padding: '2px 8px',
+                            cursor: 'pointer'
+                          }}
+                          title="Delete sub-group"
+                        >
+                          🗑
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -386,9 +593,35 @@ export function GroupEditor({
 
       {/* Controls Card */}
       <div style={{ flexShrink: 0, marginTop: '16px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-          Controls ({directControlsCount})
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-muted)', margin: 0 }}>
+            Controls ({directControlsCount})
+          </h3>
+          {isEditing && onAddControl && (
+            <button
+              type="button"
+              data-testid="add-control-to-group-btn"
+              onClick={() => onAddControl(group.id)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm, 4px)',
+                color: 'var(--color-primary)',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+              title="Add a new control to this group"
+            >
+              <span>➕</span>
+              <span>Add Control</span>
+            </button>
+          )}
+        </div>
         <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-surface)', overflow: 'hidden' }}>
           {controls.length === 0 ? (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic', fontSize: '13px' }}>
@@ -433,41 +666,108 @@ export function GroupEditor({
                     )}
                   </div>
 
-                  {isEditing && (mode === 'profile' || onUnassignControl) && (
-                    <button
-                      type="button"
-                      data-testid={`remove-control-btn-${ctrl.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onUnassignControl) {
-                          onUnassignControl(ctrl.id, group.id);
-                        } else {
-                          const ics = (group['insert-controls'] || []).map((ic: any) => ({
-                            ...ic,
-                            'include-controls': (ic['include-controls'] || []).map((inc: any) => ({
-                              ...inc,
-                              'with-ids': (inc['with-ids'] || []).filter((id: string) => id.toLowerCase() !== ctrl.id.toLowerCase())
-                            }))
-                          }));
-                          const updatedControls = (group.controls || []).filter((c: any) => c.id !== ctrl.id);
-                          onChange({ ...group, controls: updatedControls, 'insert-controls': ics });
-                        }
-                      }}
-                      style={{
-                        marginLeft: 'auto',
-                        background: 'transparent',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '4px',
-                        color: '#ef4444',
-                        fontSize: '12px',
-                        padding: '2px 8px',
-                        cursor: 'pointer'
-                      }}
-                      title="Remove from group"
-                    >
-                      ❌ Remove
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                    {isEditing && itemWithdrawn && onRestoreControl && (
+                      <button
+                        type="button"
+                        data-testid={`restore-control-btn-${ctrl.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRestoreControl(ctrl.id);
+                        }}
+                        style={{
+                          background: 'rgba(34, 197, 94, 0.1)',
+                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                          borderRadius: '4px',
+                          color: 'var(--color-success, #22c55e)',
+                          fontSize: '12px',
+                          padding: '2px 8px',
+                          cursor: 'pointer'
+                        }}
+                        title="Restore control"
+                      >
+                        ↩ Restore
+                      </button>
+                    )}
+                    {isEditing && !itemWithdrawn && onWithdrawControl && (
+                      <button
+                        type="button"
+                        data-testid={`withdraw-control-btn-${ctrl.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onWithdrawControl(ctrl.id);
+                        }}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          borderRadius: '4px',
+                          color: 'var(--color-danger, #ef4444)',
+                          fontSize: '12px',
+                          padding: '2px 8px',
+                          cursor: 'pointer'
+                        }}
+                        title="Withdraw control"
+                      >
+                        ⛔ Withdraw
+                      </button>
+                    )}
+                    {isEditing && onDeleteControl && (
+                      <button
+                        type="button"
+                        data-testid={`delete-control-btn-${ctrl.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteControlAction(ctrl);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          borderRadius: '4px',
+                          color: '#ef4444',
+                          fontSize: '12px',
+                          padding: '2px 8px',
+                          cursor: 'pointer'
+                        }}
+                        title="Delete control"
+                      >
+                        🗑
+                      </button>
+                    )}
+                    {isEditing && (mode === 'profile' || onUnassignControl) && (
+                      <button
+                        type="button"
+                        data-testid={`remove-control-btn-${ctrl.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onUnassignControl) {
+                            onUnassignControl(ctrl.id, group.id);
+                          } else {
+                            const ics = (group['insert-controls'] || []).map((ic: any) => ({
+                              ...ic,
+                              'include-controls': (ic['include-controls'] || []).map((inc: any) => ({
+                                ...inc,
+                                'with-ids': (inc['with-ids'] || []).filter((id: string) => id.toLowerCase() !== ctrl.id.toLowerCase())
+                              }))
+                            }));
+                            const updatedControls = (group.controls || []).filter((c: any) => c.id !== ctrl.id);
+                            onChange({ ...group, controls: updatedControls, 'insert-controls': ics });
+                          }
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          borderRadius: '4px',
+                          color: '#ef4444',
+                          fontSize: '12px',
+                          padding: '2px 8px',
+                          cursor: 'pointer'
+                        }}
+                        title="Remove from group"
+                      >
+                        ❌ Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })

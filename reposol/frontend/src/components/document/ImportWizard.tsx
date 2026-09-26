@@ -24,12 +24,21 @@ const MODEL_ICONS: Record<string, string> = {
 
 const STAGE_TO_MODEL: Record<string, string> = {
   catalogs: 'catalog',
+  catalog: 'catalog',
   profiles: 'profile',
+  profile: 'profile',
   ssps: 'ssp',
+  ssp: 'ssp',
+  'system-security-plans': 'ssp',
+  'system-security-plan': 'ssp',
   'component-definitions': 'component-definition',
+  'component-definition': 'component-definition',
   'assessment-plans': 'assessment-plan',
+  'assessment-plan': 'assessment-plan',
   'assessment-results': 'assessment-results',
-  poams: 'poam'
+  'assessment-result': 'assessment-results',
+  poams: 'poam',
+  poam: 'poam',
 };
 
 const CATALOG_EXAMPLE_URLS = [
@@ -296,14 +305,24 @@ export default function ImportWizard({
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const fetchRegistry = () => {
     setLoading(true);
     authFetch('/api/import/registry')
       .then((r) => r.json())
       .then((data) => setRegistry(Array.isArray(data) ? data : []))
       .catch(() => setRegistry([]))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchRegistry();
   }, []);
+
+  useEffect(() => {
+    if (stage) {
+      setFilter(STAGE_TO_MODEL[stage] || 'all');
+    }
+  }, [stage]);
 
   useEffect(() => {
     if (embedded || !onClose) return;
@@ -368,6 +387,19 @@ export default function ImportWizard({
           },
         }));
         if (!embedded) {
+          const newVersion = data.version || entry.workspace_version;
+          setRegistry((prevRegistry) =>
+            prevRegistry.map((item) =>
+              item.id === entry.id
+                ? {
+                    ...item,
+                    is_imported: true,
+                    workspace_version: newVersion,
+                    workspace_doc_id: data.uuid || item.workspace_doc_id,
+                  }
+                : item
+            )
+          );
           notifyImportSuccess(data, appliedTitle);
         }
         if (!embedded && onImported) onImported(data.stage);
@@ -432,6 +464,7 @@ export default function ImportWizard({
         });
         if (!embedded) {
           notifyImportSuccess(data, data.title);
+          fetchRegistry();
         }
         if (!embedded && onImported) onImported(data.stage);
       } else {
@@ -512,6 +545,7 @@ export default function ImportWizard({
         });
         if (!embedded) {
           notifyImportSuccess(data, data.title);
+          fetchRegistry();
         }
         if (!embedded && onImported) onImported(data.stage);
       } else {
@@ -689,12 +723,12 @@ export default function ImportWizard({
                         >
                           {src.label}
                         </span>
-                        {!embedded && entry.is_imported && (
+                        {!embedded && (entry.is_imported || result?.ok) && (
                           <span
                             className={styles['source-badge']}
                             style={{ backgroundColor: 'rgba(46, 160, 67, 0.15)', color: '#3fb950', borderColor: 'rgba(46, 160, 67, 0.3)', marginLeft: '6px' }}
                           >
-                            ✓ In Workspace{entry.workspace_version ? ` (v${entry.workspace_version})` : ''}
+                            ✓ In Workspace{(result?.version || entry.workspace_version) ? ` (v${result?.version || entry.workspace_version})` : ''}
                           </span>
                         )}
                         {isCurrentSource && (
@@ -732,7 +766,7 @@ export default function ImportWizard({
                           : '✓ Imported'
                       ) : embedded ? (
                         isCurrentSource ? '🔄 Re-Apply' : '📥 Apply Content'
-                      ) : entry.is_imported ? (
+                      ) : (entry.is_imported || result?.ok) ? (
                         '🔄 Re-import'
                       ) : (
                         'Import'

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAtomValue } from 'jotai';
 import { editModeAtom } from '@stores/uiAtoms';
-import { useConfirm } from '@hooks/useConfirm';
+import { useConfirmOptional } from '@hooks/useConfirm';
 import styles from './SharedComponents.module.css';
 import { DebouncedInput } from './DebouncedInput';
 
@@ -24,12 +24,16 @@ export function ControlHeader({
   stage,
   onSelectControl,
   onRestoreControl,
+  onWithdrawControl,
+  onDeleteControl,
+  onAddSubControl,
   onChange,
   ...rest
 }: any) {
   const globalEditMode = useAtomValue(editModeAtom);
   const isEditing = isEditingProp !== undefined ? isEditingProp : globalEditMode;
-  const { confirm } = useConfirm();
+  const confirmContext = useConfirmOptional();
+  const confirm = confirmContext?.confirm;
 
   const isWithdrawn = control?.status === 'withdrawn' || control?.props?.some((p: any) => (p.name === 'status' || p.name === 'state') && p.value === 'withdrawn');
   const replacementLink = control?.links?.find((l: any) => l.rel === 'incorporated-into' || l.rel === 'moved-to' || l.rel === 'replacement' || (l.href && l.href.includes('#')));
@@ -38,14 +42,17 @@ export function ControlHeader({
     : null;
 
   const handleRestore = async () => {
-    const confirmed = await confirm({
-      title: 'Restore Control',
-      message: 'Restore this control?',
-      confirmLabel: 'Restore',
-    });
+    let confirmed = true;
+    if (confirm) {
+      confirmed = await confirm({
+        title: 'Restore Control',
+        message: `Restore control "${title || id || ''}"?`,
+        confirmLabel: 'Restore',
+      });
+    }
     if (confirmed) {
       if (onRestoreControl) {
-        onRestoreControl();
+        onRestoreControl(id || control?.id);
       } else if (onChange && control) {
         const newProps = (control.props || []).filter((p: any) => p.name !== 'status' && p.name !== 'state');
         const newLinks = (control.links || []).filter((l: any) => l.rel !== 'incorporated-into');
@@ -56,6 +63,48 @@ export function ControlHeader({
           links: newLinks
         });
       }
+    }
+  };
+
+  const handleWithdraw = async () => {
+    let confirmed = true;
+    if (confirm) {
+      confirmed = await confirm({
+        title: 'Withdraw Control',
+        message: `Withdraw control "${title || id || ''}"? This marks the control as deprecated.`,
+        confirmLabel: 'Withdraw',
+        variant: 'danger'
+      });
+    }
+    if (confirmed) {
+      if (onWithdrawControl) {
+        onWithdrawControl(id || control?.id);
+      } else if (onChange && control) {
+        const newProps = [
+          ...(control.props || []).filter((p: any) => p.name !== 'status' && p.name !== 'state'),
+          { name: 'status', value: 'withdrawn' }
+        ];
+        onChange({
+          ...control,
+          status: 'withdrawn',
+          props: newProps
+        });
+      }
+    }
+  };
+
+  const handleDelete = async () => {
+    let confirmed = true;
+    if (confirm) {
+      confirmed = await confirm({
+        title: 'Delete Control',
+        message: `Are you sure you want to delete control "${title || id || ''}"? This cannot be undone.`,
+        confirmLabel: 'Delete',
+        variant: 'danger'
+      });
+    }
+    if (confirmed && onDeleteControl) {
+      onDeleteControl(id || control?.id);
     }
   };
 
@@ -197,6 +246,110 @@ export function ControlHeader({
             <span className="badge" style={{ background: 'var(--color-surface-3)', color: 'var(--color-primary)', fontSize: '11px' }}>
               {typeBadge}
             </span>
+          )}
+        </div>
+
+        {/* Action Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+          {(onAddSubControl || (stage === 'catalog' && onChange)) && (
+            <button
+              type="button"
+              data-testid="header-add-subcontrol-btn"
+              onClick={() => onAddSubControl ? onAddSubControl(id || control?.id) : null}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm, 4px)',
+                color: 'var(--color-text)',
+                cursor: 'pointer'
+              }}
+              title="Add a sub-control to this control"
+            >
+              <span>➕</span>
+              <span>Add Sub-control</span>
+            </button>
+          )}
+
+          {!isWithdrawn && (onWithdrawControl || (stage === 'catalog' && onChange)) && (
+            <button
+              type="button"
+              data-testid="header-withdraw-control-btn"
+              onClick={handleWithdraw}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: 'var(--radius-sm, 4px)',
+                color: 'var(--color-danger, #ef4444)',
+                cursor: 'pointer'
+              }}
+              title="Withdraw control (mark as deprecated)"
+            >
+              <span>⛔</span>
+              <span>Withdraw Control</span>
+            </button>
+          )}
+
+          {isWithdrawn && (onRestoreControl || (stage === 'catalog' && onChange)) && (
+            <button
+              type="button"
+              data-testid="header-restore-control-btn"
+              onClick={handleRestore}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                background: 'rgba(34, 197, 94, 0.1)',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+                borderRadius: 'var(--radius-sm, 4px)',
+                color: 'var(--color-success, #22c55e)',
+                cursor: 'pointer'
+              }}
+              title="Restore withdrawn control"
+            >
+              <span>↩</span>
+              <span>Restore Control</span>
+            </button>
+          )}
+
+          {onDeleteControl && (
+            <button
+              type="button"
+              data-testid="header-delete-control-btn"
+              onClick={handleDelete}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: 'var(--radius-sm, 4px)',
+                color: 'var(--color-danger, #ef4444)',
+                cursor: 'pointer',
+                marginLeft: 'auto'
+              }}
+              title="Delete control"
+            >
+              <span>🗑️</span>
+              <span>Delete Control</span>
+            </button>
           )}
         </div>
       </div>

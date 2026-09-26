@@ -143,4 +143,26 @@ describe('Catalog Actions', () => {
     expect(acGroupRestored.controls[1].props?.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(false);
     expect(acGroupRestored.groups[0].controls[0].props?.some((p: any) => p.name === 'status' && p.value === 'withdrawn')).toBe(false);
   });
+
+  it('clears root status property and state props when restoring a control', () => {
+    const doc = {
+      catalog: {
+        controls: [
+          {
+            id: 'ctrl-x',
+            title: 'Custom Withdrawn Control',
+            status: 'withdrawn',
+            props: [{ name: 'state', value: 'withdrawn' }]
+          }
+        ]
+      }
+    };
+
+    const action = restoreControl('ctrl-x');
+    const next = produce(doc, (draft) => { action.apply(draft); });
+
+    const restored = next.catalog.controls[0] as any;
+    expect(restored.status).toBeUndefined();
+    expect(restored.props.some((p: any) => p.value === 'withdrawn')).toBe(false);
+  });
 });

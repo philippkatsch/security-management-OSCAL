@@ -237,14 +237,38 @@
     *   **Part Props:** In the Advanced panel, `props` (name, value, optional ns/class/uuid/group) can be added at the part level, independently of the control-level props.
     *   **Part Links:** In the Advanced panel, `links` (href, rel, text, media-type) can be maintained directly on a single part.
     *   **Schema Conformity:** All part-level metadata are correctly serialized under `part.title`, `part.props[]`, and `part.links[]`.
+
+### US 1.22: Right-Panel Parity for Catalog Lifecycle Actions (Inner View Direct Actions)
+> **As a** Compliance Officer and Framework Developer (Alice)  
+> **I want to** create, nest, withdraw, restore, and delete controls, sub-controls, families, and sub-categories directly from the right-hand viewing and editing pane (Inner View / Detail View),  
+> **so that** I can manage the entire catalog lifecycle in-place where elements are inspected without being forced to navigate exclusively via the left sidebar tree or its context menus.
+*   **Acceptance Criteria:**
+    *   **Control Detail Action Toolbar & Breadcrumbs (UnifiedControlEditor & ControlHeader):** In Edit Mode, the control header renders an action toolbar with:
+        *   `➕ Add Sub-control`: Creates a nested enhancement under the active control.
+        *   `⛔ Withdraw Control`: Prompts for confirmation and marks the control as deprecated (`status: withdrawn`).
+        *   `↩ Restore Control`: Prompts for confirmation and reactivates a withdrawn control (hidden when active).
+        *   `🗑 Delete Control`: Prompts for confirmation and permanently removes the control.
+        *   **Hierarchical Breadcrumbs:** Renders interactive breadcrumb trail (`Overview / [Family] / [Parent Control] / [Sub-control]`) allowing one-click upward navigation.
+    *   **Sub-control / Enhancement Lifecycle Actions (EnhancementsAccordion):**
+        *   In Edit Mode, each enhancement row directly exposes in-place quick actions: `⛔ Withdraw` (for active sub-controls) and `↩ Restore` (for deprecated sub-controls) in addition to `🗑 Delete`.
+    *   **Group Detail Action Toolbar & Cards (GroupEditor):**
+        *   In Edit Mode, the group header provides action buttons: `➕ Add Control` (adds to current group with group-prefixed ID), `📁 Add Sub-group` (creates nested sub-category), `⛔ Withdraw all` (bulk-withdraws all constituent controls with confirmation), `↩ Restore all` (bulk-restores all constituent controls with confirmation), and `🗑 Delete Group` (guarded with confirmation).
+        *   The Sub-groups card displays an inline delete button (`🗑`) per sub-group row in Edit Mode (guarded with confirmation).
+        *   The Controls card provides an `➕ Add Control` button in its card header and per-row quick actions (`⛔ Withdraw`, `↩ Restore`, `🗑 Delete` with confirmation) for direct in-place lifecycle management.
+    *   **Catalog Overview Actions & Top-Level Controls (CatalogOverviewPanel):**
+        *   In Edit Mode, the Control Families section header features `➕ Add Family` and `➕ Add Control` buttons.
+        *   In the empty catalog state, both `➕ Add Family` and `➕ Add Control` call-to-action buttons are rendered.
+        *   Top-level controls directly belonging to the catalog root are rendered in a dedicated section with status badges and one-click navigation.
+    *   **View Mode Cleanliness:** In read-only (`👁️ View`) mode, all lifecycle mutation action buttons are cleanly omitted to protect content while preserving readability.
+    *   **Withdrawn Traceability in Lists:** Sub-controls / enhancements and group control lists clearly display `Withdrawn` status badges and strikethrough styling for transparent lifecycle tracking, and restoring cleanly removes both `status` attributes and `status`/`state` properties.
 ---
 
 ## 2. Alice's Detailed Workflow & User Journey
 
 1.  **Create Catalog (US 1.9):** Alice clicks on "New Catalog", enters the title *"Reposol Enterprise Security Standard (RESS)"* and is redirected immediately to the editing view `/catalog/{uuid}?edit=true`.
 2.  **Configure Metadata & Global Tags (US 1.10):** In the right main pane (Document Overview) under *Metadata*, she enters version `1.0.0`. Under *Properties*, she defines a global property `risk-party`.
-3.  **Build Group Structure (US 1.2):** She creates the main group *"Access Control"* (`ac`) and the subgroup *"Identification and Authentication"* (`ac-ia`) in the left sidebar.
-4.  **Declare Controls & Enhancements (US 1.3, US 1.11):** She creates control `ac-2` (*Account Management*) with a statement. In the combined detail view, she assigns the global tag `risk-party` with the value `Platform-Engineering` (supported by autocompletion suggestions). She adds the sub-control `ac-2.1` (*Automated System Account Management*).
+3.  **Build Group Structure (US 1.2, US 1.22):** She creates the main group *"Access Control"* (`ac`) either via the sidebar or directly via `➕ Add Family` in the right-hand Catalog Overview. She adds the subgroup *"Identification and Authentication"* (`ac-ia`) directly from the group's detail view via `📁 Add Sub-group`.
+4.  **Declare Controls & Enhancements (US 1.3, US 1.11, US 1.22):** She creates control `ac-2` (*Account Management*) with a statement directly from the group view. In the combined detail view, she assigns the global tag `risk-party` with the value `Platform-Engineering` (supported by autocompletion suggestions). She clicks `➕ Add Sub-control` in the control header to add sub-control `ac-2.1` (*Automated System Account Management*).
 5.  **Secure Parameters (US 1.4):** 
     *   She defines parameter `ac-2_prm_1` (review frequency) with the default value `"90 days"` and enforces the value format `^[0-9]+ (days|months)$` via a regex constraint.
     *   She configures `ac-2_prm_2` (inactivity action) as a single choice (Disable, Delete, Warn).
@@ -269,6 +293,7 @@
 - **Document Overview & Tag Control:** Centralized management of metadata and tag promotion in the right main pane (US 1.10).
 - **Combined Card Layout & Draft Recovery:** Cohesive detail editing card for header/properties, autocompletion for keys, and `localStorage`-based draft recovery upon exit (US 1.11).
 - **Full Control Editing:** Links, back-matter resources (including citations, Base64 attachments, hashes) and responsible roles can be maintained via the visual interface — full parity with the Profile Editor (US 1.12).
+- **Right-Panel Lifecycle Action Parity:** Full capability to add families, sub-groups, controls, and sub-controls, as well as withdraw, restore, and delete them directly from the right-hand inspection/detail view (US 1.22).
 
 ---
 
@@ -302,5 +327,7 @@
 - [x] Control withdrawal workflow with `status: withdrawn` property, `incorporated-into` replacement links, visual graying, and parameter freeze (US 1.19).
 - [x] Real-time sidebar search, quick filtering, auto-expansion, and empty state handling (US 1.20).
 - [x] Part-level metadata (title, props, links) editable via Advanced Settings panel on individual prose parts (US 1.21).
+- [x] Full parity for creating, nesting, withdrawing, restoring, and deleting controls, sub-controls, families, and sub-groups directly from the right-hand viewing/editing pane (US 1.22).
+
 
 
