@@ -22,6 +22,8 @@ STAGE_MAPPING = {
     "assessment-results": "assessment-results",
     "poam": "poams",
     "poams": "poams",
+    "plan-of-action-and-milestones": "poams",
+    "plans-of-action-and-milestones": "poams",
     "control-mapping": "control-mappings",
     "control-mappings": "control-mappings",
     "mapping": "control-mappings",

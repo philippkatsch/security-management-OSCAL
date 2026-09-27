@@ -45,7 +45,6 @@ app.add_middleware(
 
 from app.constants import OSCALValidationException
 from fastapi import Request
-
 from fastapi.exceptions import RequestValidationError
 
 @app.exception_handler(RequestValidationError)
@@ -69,9 +68,12 @@ for router in routers:
 
 # Mount static assets and handle SPA routing fallback when built frontend is present
 from pathlib import Path
+from typing import Optional
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
+
+from app.constants import STAGE_MAPPING
 
 dist_dir_relative = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend/dist"))
 dist_dir_docker = os.path.abspath("/app/frontend/dist")
@@ -89,48 +91,99 @@ if frontend_dist:
 
         app.mount("/assets", ImmutableStaticFiles(directory=assets_dir), name="assets")
 
-    HTML_CACHE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+HTML_CACHE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate"}
 
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        if full_path.startswith("api") or full_path.startswith("health"):
-            raise HTTPException(status_code=404, detail="Not Found")
+LEGACY_ROUTE_REDIRECTS: dict[str, str] = {
+    alias.lower(): canonical
+    for alias, canonical in STAGE_MAPPING.items()
+    if alias.lower() != canonical
+}
 
-        # Canonical URL enforcement: redirect trailing slashes to avoid duplicate indexing
-        if full_path.endswith("/") and full_path.strip("/"):
-            return RedirectResponse(url=f"/{full_path.rstrip('/')}", status_code=308)
+def resolve_frontend_dist() -> Optional[str]:
+    """Dynamically determine frontend dist directory if created after module startup."""
+    global frontend_dist
+    if frontend_dist and os.path.exists(frontend_dist):
+        return frontend_dist
+    if os.path.exists(dist_dir_relative):
+        frontend_dist = dist_dir_relative
+        return frontend_dist
+    if os.path.exists(dist_dir_docker):
+        frontend_dist = dist_dir_docker
+        return frontend_dist
+    return None
 
-        # Defense-in-depth: immediately reject any explicit path traversal tokens
-        normalized_segments = full_path.replace("\\", "/").split("/")
-        if ".." in normalized_segments or any(seg.startswith("..") for seg in normalized_segments):
-            raise HTTPException(status_code=403, detail="Forbidden")
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
+async def serve_spa(full_path: str, request: Request = None):
+    if full_path.startswith("api") or full_path.startswith("health"):
+        raise HTTPException(status_code=404, detail="Not Found")
 
-        base_dir = Path(frontend_dist).resolve()
-        try:
-            req_path = (base_dir / full_path).resolve()
-        except (ValueError, RuntimeError):
-            raise HTTPException(status_code=400, detail="Invalid path")
+    # Defense-in-depth: immediately reject any explicit path traversal tokens
+    raw_segments = full_path.replace("\\", "/").split("/")
+    if ".." in raw_segments or any(seg.startswith("..") for seg in raw_segments):
+        raise HTTPException(status_code=403, detail="Forbidden")
 
-        # Prevent path traversal: ensure resolved path is strictly inside base_dir
-        if not req_path.is_relative_to(base_dir):
-            raise HTTPException(status_code=403, detail="Forbidden")
+    # Strip any trailing 'index.html' segment to enforce canonical clean URLs
+    # e.g. /index.html -> /, /catalogs/index.html -> /catalogs, /components/index.html -> /component-definitions
+    normalized_segments = [seg for seg in full_path.replace("\\", "/").strip("/").split("/") if seg]
+    is_index_html = False
+    if normalized_segments and normalized_segments[-1].lower() == "index.html":
+        is_index_html = True
+        normalized_segments = normalized_segments[:-1]
 
-        # 1. Direct file match (e.g., /favicon.ico, /robots.txt, /sitemap.xml)
-        if req_path.is_file():
-            headers = HTML_CACHE_HEADERS if req_path.suffix == ".html" else None
-            return FileResponse(str(req_path), headers=headers)
+    # Legacy/alias stage redirects (HTTP 301 Moved Permanently)
+    # e.g. /components -> /component-definitions, /ssp -> /ssps, /poam -> /poams, /mappings -> /control-mappings
+    if normalized_segments and normalized_segments[0].lower() in LEGACY_ROUTE_REDIRECTS:
+        canonical_stage = LEGACY_ROUTE_REDIRECTS[normalized_segments[0].lower()]
+        new_segments = [canonical_stage] + normalized_segments[1:]
+        clean_path = "/" + "/".join(new_segments)
+        query = request.url.query if request and getattr(request, "url", None) else ""
+        target_url = f"{clean_path}?{query}" if query else clean_path
+        return RedirectResponse(url=target_url, status_code=301)
 
-        # 2. Pre-rendered route index match (e.g. /catalogs -> dist/catalogs/index.html)
-        prerendered_file = req_path / "index.html"
-        if prerendered_file.is_file():
-            return FileResponse(str(prerendered_file), headers=HTML_CACHE_HEADERS)
+    # Redirect /index.html -> / or /catalogs/index.html -> /catalogs (HTTP 301 Moved Permanently)
+    if is_index_html:
+        clean_path = "/" + "/".join(normalized_segments)
+        query = request.url.query if request and getattr(request, "url", None) else ""
+        target_url = f"{clean_path}?{query}" if query else clean_path
+        return RedirectResponse(url=target_url, status_code=301)
 
-        # 3. SPA Root fallback
-        root_index = base_dir / "index.html"
-        if root_index.is_file():
-            return FileResponse(str(root_index), headers=HTML_CACHE_HEADERS)
+    # Canonical URL enforcement: redirect trailing slashes to avoid duplicate indexing
+    if full_path.endswith("/") and full_path.strip("/"):
+        clean_path = f"/{full_path.rstrip('/')}"
+        query = request.url.query if request and getattr(request, "url", None) else ""
+        target_url = f"{clean_path}?{query}" if query else clean_path
+        return RedirectResponse(url=target_url, status_code=308)
 
+    current_dist = resolve_frontend_dist()
+    if not current_dist:
         raise HTTPException(status_code=404, detail="Frontend root not found")
+
+    base_dir = Path(current_dist).resolve()
+    try:
+        req_path = (base_dir / full_path).resolve()
+    except (ValueError, RuntimeError):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    # Prevent path traversal: ensure resolved path is strictly inside base_dir
+    if not req_path.is_relative_to(base_dir):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # 1. Direct file match (e.g., /favicon.ico, /robots.txt, /sitemap.xml)
+    if req_path.is_file():
+        headers = HTML_CACHE_HEADERS if req_path.suffix == ".html" else None
+        return FileResponse(str(req_path), headers=headers)
+
+    # 2. Pre-rendered route index match (e.g. /catalogs -> dist/catalogs/index.html)
+    prerendered_file = req_path / "index.html"
+    if prerendered_file.is_file():
+        return FileResponse(str(prerendered_file), headers=HTML_CACHE_HEADERS)
+
+    # 3. SPA Root fallback
+    root_index = base_dir / "index.html"
+    if root_index.is_file():
+        return FileResponse(str(root_index), headers=HTML_CACHE_HEADERS)
+
+    raise HTTPException(status_code=404, detail="Frontend root not found")
 
 if __name__ == "__main__":
     import uvicorn

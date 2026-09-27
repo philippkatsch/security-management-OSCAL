@@ -254,6 +254,22 @@ ${listItems}
     </div>`;
 }
 
+function cleanTemplateHtml(html) {
+  let cleaned = html;
+  // Clean previously injected subpage JSON-LD schemas
+  cleaned = cleaned.replace(
+    /\s*<script type="application\/ld\+json" id="subpage-schema">[\s\S]*?<\/script>/g,
+    ''
+  );
+  // Reset #root to empty container (anchoring between <div id="root"> and </body>)
+  const rootStart = cleaned.indexOf('<div id="root">');
+  const bodyEnd = cleaned.indexOf('</body>', rootStart);
+  if (rootStart !== -1 && bodyEnd !== -1) {
+    cleaned = `${cleaned.substring(0, rootStart)}<div id="root"></div>\n  ${cleaned.substring(bodyEnd)}`;
+  }
+  return cleaned;
+}
+
 function injectRouteMeta(templateHtml, route) {
   const canonical = `${SITE_URL}${route.path === '/' ? '/' : route.path}`;
 
@@ -312,7 +328,51 @@ function injectRouteMeta(templateHtml, route) {
 
   // Inject semantic crawlable HTML into #root
   const semanticBody = buildSemanticBody(route);
-  html = html.replace(/<div id="root"><\/div>/, semanticBody.trim());
+  if (html.includes('<div id="root"></div>')) {
+    html = html.replace('<div id="root"></div>', semanticBody.trim());
+  } else {
+    const rootStart = html.indexOf('<div id="root">');
+    const bodyEnd = html.indexOf('</body>', rootStart);
+    if (rootStart !== -1 && bodyEnd !== -1) {
+      html = `${html.substring(0, rootStart)}${semanticBody.trim()}\n  ${html.substring(bodyEnd)}`;
+    }
+  }
+
+  // Inject BreadcrumbList & WebPage JSON-LD structured data for subpages
+  if (route.path !== '/') {
+    const subpageSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: route.title,
+      description: route.description,
+      url: canonical,
+      isPartOf: {
+        '@type': 'WebApplication',
+        name: 'Reposol',
+        url: `${SITE_URL}/`,
+      },
+      breadcrumb: {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: `${SITE_URL}/`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: route.heading,
+            item: canonical,
+          },
+        ],
+      },
+    };
+
+    const schemaTag = `\n    <script type="application/ld+json" id="subpage-schema">\n    ${JSON.stringify(subpageSchema, null, 2).replace(/\n/g, '\n    ')}\n    </script>`;
+    html = html.replace('</head>', `${schemaTag}\n  </head>`);
+  }
 
   return html;
 }
@@ -323,8 +383,17 @@ export async function generateSeoRoutes() {
     process.exit(1);
   }
 
-  const templatePath = join(DIST_DIR, 'index.html');
-  const baseHtml = await readFile(templatePath, 'utf-8');
+  const baseTemplatePath = join(DIST_DIR, '_base.html');
+  const indexHtmlPath = join(DIST_DIR, 'index.html');
+
+  let baseHtml;
+  if (existsSync(baseTemplatePath)) {
+    baseHtml = await readFile(baseTemplatePath, 'utf-8');
+  } else {
+    const rawHtml = await readFile(indexHtmlPath, 'utf-8');
+    baseHtml = cleanTemplateHtml(rawHtml);
+    await writeFile(baseTemplatePath, baseHtml, 'utf-8');
+  }
 
   console.log('⚡ Starting high-performance SEO static route generation...');
   const startTime = Date.now();
