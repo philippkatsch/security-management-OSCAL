@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import routers
 from app.storage import sync_master_templates
@@ -43,8 +43,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_robots_noindex_for_api(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/api") or path.startswith("/health"):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
 from app.constants import OSCALValidationException
-from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 
 @app.exception_handler(RequestValidationError)
