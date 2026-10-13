@@ -41,6 +41,8 @@
     transition: opacity var(--transition-fast), width var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
     overflow: visible;
     white-space: nowrap;
+    text-decoration: none;
+    color: inherit;
   }
   
   .navigation-sidebar.collapsed .brand-left {
@@ -170,6 +172,7 @@
   
   .nav-button {
     width: 100%;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -180,6 +183,7 @@
     border-radius: var(--radius-md);
     cursor: pointer;
     text-align: left;
+    text-decoration: none;
     font-size: 14px;
     font-weight: 500;
     font-family: inherit;

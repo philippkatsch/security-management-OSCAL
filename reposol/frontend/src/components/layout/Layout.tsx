@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from './Layout.module.css';
 import { Navigation } from './Navigation';
+import { SeoStageOverview } from './SeoStageOverview';
 import { Outlet, useLocation } from 'react-router-dom';
 
 export interface LayoutProps {
@@ -87,6 +88,7 @@ export const Layout = ({ children }: LayoutProps) => {
         </header>
         <main className={`content-body ${isEditorPage ? 'no-padding' : ''}`}>
           {children || <Outlet />}
+          {!isEditorPage && <SeoStageOverview />}
         </main>
       </div>
     </div>

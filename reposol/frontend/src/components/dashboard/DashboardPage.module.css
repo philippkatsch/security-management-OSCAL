@@ -906,6 +906,7 @@
   }
 
   .workflow-step {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -920,6 +921,8 @@
     min-width: 105px;
     height: 162px;
     text-align: center;
+    text-decoration: none;
+    color: inherit;
     position: relative;
     box-shadow: var(--shadow-sm);
   }

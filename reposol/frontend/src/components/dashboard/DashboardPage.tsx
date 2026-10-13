@@ -111,9 +111,14 @@ export const DashboardPage = () => {
           
           return (
             <div className={styles['workflow-step-wrapper']} key={step.stage}>
-              <div
+              <a
+                href={`/${step.stage}`}
                 className={`${styles['workflow-step']} ${hasDocs ? styles['has-docs'] : ''}`}
-                onClick={() => navigate('/' + step.stage)}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  navigate('/' + step.stage);
+                }}
                 title={`${step.label}: ${count} documents${step.isDev ? ' (Under Active Development)' : ''}`}
               >
                 <div className={styles['workflow-step-content']}>
@@ -131,7 +136,7 @@ export const DashboardPage = () => {
                     </span>
                   )}
                 </div>
-              </div>
+              </a>
               {i < WORKFLOW_STEPS.length - 1 && (
                 <span className={styles['workflow-arrow']}>→</span>
               )}

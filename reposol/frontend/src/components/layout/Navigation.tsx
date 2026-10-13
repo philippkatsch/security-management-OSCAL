@@ -236,14 +236,19 @@ export const Navigation = () => {
   return (
     <nav className={`${styles['navigation-sidebar']} navigation-sidebar ${isCollapsed ? `${styles['collapsed']} collapsed` : ''}`} aria-label="Main Navigation">
       <div className={styles['nav-brand']}>
-        <div 
+        <a 
+          href="/"
           className={`${styles['brand-left']} brand-left clickable-brand`}
-          onClick={() => navigate('/')}
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            e.preventDefault();
+            navigate('/');
+          }}
           title="Go to Dashboard"
         >
           <span className={styles['brand-logo']}>🛡️</span>
           <span className={styles['brand-name']}>Reposol</span>
-        </div>
+        </a>
         <button 
           className={`${styles['btn-sidebar-toggle']} btn-sidebar-toggle`}
           onClick={toggleSidebar}
@@ -272,9 +277,12 @@ export const Navigation = () => {
                 const showBadge = count > 0 && item.id !== 'dashboard';
                 return (
                   <li key={item.id} className={styles['nav-item']}>
-                    <button
+                    <a
+                      href={item.path}
                       className={`${styles['nav-button']} ${activeTab === item.id ? `${styles['active']} active` : ''}`}
-                      onClick={() => {
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                        e.preventDefault();
                         const wsId = getWorkspaceId();
                         const target = wsId ? `${item.path}?w=${wsId}` : item.path;
                         navigate(target);
@@ -294,7 +302,7 @@ export const Navigation = () => {
                           {count}
                         </span>
                       )}
-                    </button>
+                    </a>
                   </li>
                 );
               })}
